@@ -121,6 +121,16 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Onboarding Animated Orb Drift)
+- OnboardingBackground orbs now drift slowly and continuously on both X and Y axes using Reanimated withRepeat/withTiming
+- Orb 1 (violet, top-right): ±30px X (11s), ±28px Y (13s)
+- Orb 2 (accent, bottom-left): ±24px X (12s), ±20px Y (9.5s)
+- Orb 3 (pink, center-bottom): ±18px X (14s), ±22px Y (10.5s)
+- Background mount lifted from per-slide OnboardingLayout to top-level welcome render — orbs persist across slide transitions without resetting
+- SafeAreaScreen in OnboardingLayout changed to transparent background so persistent orbs show through
+- Files changed: src/components/onboarding/OnboardingBackground.tsx, src/app/welcome.tsx
+- Readability preserved on all 5 onboarding screens
+
 ## Fixed This Session (Onboarding Visual Polish V1)
 - OnboardingBackground: Orbs enlarged from 340px to 460px, opacity ranges boosted (~2x), third pink/magenta orb added at center-bottom, colors more saturated. Background now reads as intentional on all 5 screens.
 - Slide 4 (Add Friends): Added onboarding hero heading — purple icon circle, "Find Your People" title, descriptive subtitle. FriendDiscoverySurface wrapped in onboarding-specific framing (shared component untouched). Screen now feels like a true onboarding step.

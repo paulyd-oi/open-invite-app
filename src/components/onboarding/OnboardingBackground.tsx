@@ -24,38 +24,54 @@ interface OnboardingBackgroundProps {
 }
 
 export function OnboardingBackground({ themeColor, isDark }: OnboardingBackgroundProps) {
+  // Breathing (opacity)
   const breathe1 = useSharedValue(0.6);
   const breathe2 = useSharedValue(0.45);
   const breathe3 = useSharedValue(0.35);
 
+  // Drift (translation) — different ranges and durations per orb for organic feel
+  // Orb 1 (top-right, large): ±30px X, ±28px Y
+  const drift1X = useSharedValue(0);
+  const drift1Y = useSharedValue(0);
+  // Orb 2 (bottom-left, medium): ±24px X, ±20px Y
+  const drift2X = useSharedValue(0);
+  const drift2Y = useSharedValue(0);
+  // Orb 3 (center-bottom, small): ±18px X, ±22px Y
+  const drift3X = useSharedValue(0);
+  const drift3Y = useSharedValue(0);
+
   useEffect(() => {
-    breathe1.value = withRepeat(
-      withTiming(0.9, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-    breathe2.value = withRepeat(
-      withTiming(0.7, { duration: 5500, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-    breathe3.value = withRepeat(
-      withTiming(0.6, { duration: 6000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
+    const ease = Easing.inOut(Easing.sin);
+
+    // Breathing animations
+    breathe1.value = withRepeat(withTiming(0.9, { duration: 4000, easing: ease }), -1, true);
+    breathe2.value = withRepeat(withTiming(0.7, { duration: 5500, easing: ease }), -1, true);
+    breathe3.value = withRepeat(withTiming(0.6, { duration: 6000, easing: ease }), -1, true);
+
+    // Drift animations — slow, varied durations, reverse looping
+    drift1X.value = withRepeat(withTiming(30, { duration: 11000, easing: ease }), -1, true);
+    drift1Y.value = withRepeat(withTiming(-28, { duration: 13000, easing: ease }), -1, true);
+
+    drift2X.value = withRepeat(withTiming(-24, { duration: 12000, easing: ease }), -1, true);
+    drift2Y.value = withRepeat(withTiming(20, { duration: 9500, easing: ease }), -1, true);
+
+    drift3X.value = withRepeat(withTiming(18, { duration: 14000, easing: ease }), -1, true);
+    drift3Y.value = withRepeat(withTiming(-22, { duration: 10500, easing: ease }), -1, true);
   }, []);
 
   const orbStyle1 = useAnimatedStyle(() => ({
     opacity: breathe1.value,
+    transform: [{ translateX: drift1X.value }, { translateY: drift1Y.value }],
   }));
 
   const orbStyle2 = useAnimatedStyle(() => ({
     opacity: breathe2.value,
+    transform: [{ translateX: drift2X.value }, { translateY: drift2Y.value }],
   }));
 
   const orbStyle3 = useAnimatedStyle(() => ({
     opacity: breathe3.value,
+    transform: [{ translateX: drift3X.value }, { translateY: drift3Y.value }],
   }));
 
   // Stronger violet/purple presence

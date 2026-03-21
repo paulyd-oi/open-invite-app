@@ -230,11 +230,9 @@ const OnboardingLayout = ({
     <SafeAreaScreen
       testID={testID}
       onLayout={handleRootLayout}
-      style={{ backgroundColor: background }}
+      style={{ backgroundColor: "transparent" }}
     >
-      {layoutThemeColor && layoutIsDark !== undefined && (
-        <OnboardingBackground themeColor={layoutThemeColor} isDark={layoutIsDark} />
-      )}
+      {/* OnboardingBackground lifted to top-level render for persistence across slides */}
       <Animated.View style={popStyle}>
         {children}
       </Animated.View>
@@ -1467,14 +1465,15 @@ export default function WelcomeOnboardingScreen() {
   };
 
   return (
-    <>
-      {/* REMOVED: SlideInRight/SlideOutLeft animations for instant slide transitions */}
-      <View testID="welcome-screen" key={currentSlide} style={styles.flex1}>
+    <View testID="welcome-screen" style={[styles.flex1, { backgroundColor: colors.background }]}>
+      {/* Persistent background — mounted once, survives slide transitions */}
+      <OnboardingBackground themeColor={themeColor} isDark={isDark} />
+
+      {/* key forces remount of slide content only, background persists */}
+      <View key={currentSlide} style={styles.flex1}>
         {renderCurrentSlide()}
       </View>
-
-      {/* REMOVED: NotificationNudgeModal - now triggered at Aha moments */}
-    </>
+    </View>
   );
 }
 
