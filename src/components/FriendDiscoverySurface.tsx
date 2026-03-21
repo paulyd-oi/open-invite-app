@@ -35,7 +35,6 @@ import {
   Sparkles,
   Check,
   X,
-  Users,
   Info,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -44,7 +43,6 @@ import * as Contacts from "expo-contacts";
 
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { Button } from "@/ui/Button";
-import { ShareAppButton } from "@/components/ShareApp";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -538,17 +536,10 @@ export function FriendDiscoverySurface({
               </Text>
             </View>
           ) : suggestions.length === 0 ? (
-            <View className="py-8 items-center px-6">
-              <View className="w-16 h-16 rounded-full items-center justify-center mb-3" style={{ backgroundColor: themeColor + "15" }}>
-                <Users size={32} color={themeColor} />
-              </View>
-              <Text className="text-base font-semibold text-center mb-1" style={{ color: colors.text }}>
-                No suggestions yet
+            <View className="py-6 items-center px-6">
+              <Text className="text-sm text-center leading-5" style={{ color: colors.textSecondary }}>
+                Suggestions will appear as more friends join.
               </Text>
-              <Text className="text-sm text-center leading-5 mb-4" style={{ color: colors.textSecondary }}>
-                Suggestions appear as more friends join Open Invite. Invite a few people to grow your network.
-              </Text>
-              <ShareAppButton variant="full" />
             </View>
           ) : (
             suggestions.map((suggestion, index) => {
