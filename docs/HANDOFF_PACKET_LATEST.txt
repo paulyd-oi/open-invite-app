@@ -1,55 +1,68 @@
-HANDOFF PACKET — Discover Avatar Stack Fix
+HANDOFF PACKET — Discover Avatar Source Fix
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card attendee area showing only a +N count badge instead of real profile photos. Added host-user fallback so at least one real avatar always renders when attendeeCount > 0.
+Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
 
 EXACT FILES CHANGED
 
 1. src/app/discover.tsx
-   - Attendee avatar stack builder (~line 799-813): added host fallback + dedup
+   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
+   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
+   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
+   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
 
 ROOT CAUSE
 
-The feed API endpoints (/api/events/feed, /api/events) return joinRequests as either undefined or an empty array — the backend does not populate this field for list/feed queries. The previous code built its avatar list exclusively from joinRequests filtered to status==="accepted". With zero accepted entries, the avatars array was empty, so only the +N overflow badge rendered (remaining = attendeeCount - 0 = attendeeCount). The host user (event.user), which IS always populated by the feed API with { id, name, image }, was never used as a fallback.
+Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
 
-FIX APPLIED
+Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
 
-Avatar list builder now:
-1. Tries joinRequests (accepted, with user data) first — uses real attendee photos when available
-2. Falls back to event.user (host) when joinRequests is empty — guarantees at least one real profile photo
-3. Dedupes by user id to prevent the host appearing twice if also in joinRequests
+The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
+
+EVENT DETAIL SOURCE
+
+File: src/app/event/[id].tsx
+- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
+- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
+- Renders via: EntityAvatar with photoUrl={a.imageUrl}
+
+DISCOVER FIX
+
+Avatar builder now:
+1. Extracts accepted attendees from joinRequests (when populated — future-proof)
+2. Always includes host (event.user) as a guaranteed avatar source
+3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
 4. Slices to max 3 displayed avatars
-5. +N badge shows remaining = attendeeCount - displayed.length (only when > 0)
+5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
+6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
+7. Avatar size increased to 24px so profile photos are clearly distinct from badges
 
-Result: every card with attendeeCount > 0 now shows the host's real profile photo as the first avatar circle, with +N for overflow. When joinRequests is populated (future backend change or different endpoint), real attendee photos render automatically.
+BACKEND CONTRACT NOTE
 
-WHAT WAS NOT CHANGED
-
-- Card layout, image zone, content panel, footer structure
-- Description row, date/time metadata styling
-- Save/bookmark behavior
-- Category pill, urgency chip, availability pill
-- Card tap navigation
-- EntityAvatar component itself
-- Backend, contracts, other screens
+The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
+Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
+- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
+- Confirm +N badge only appears when attendeeCount > displayed avatars
+- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+
 GIT PROOF
 
 git show --stat HEAD
-commit 5d2eb7b04de9964018187b77026405b4629dc8fe
- src/app/discover.tsx | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
+ src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 38 insertions(+), 17 deletions(-)
 
 git show --name-only HEAD
 src/app/discover.tsx
 
 FINAL STATUS
 
-DISCOVER AVATAR STACK FIX APPLIED — NEEDS DESIGN REVIEW
+DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW

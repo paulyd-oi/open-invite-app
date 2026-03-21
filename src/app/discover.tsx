@@ -796,22 +796,42 @@ export default function DiscoverScreen() {
                             const count = event.attendeeCount ?? 0;
                             if (count === 0) return null;
 
-                            // Build avatar list from joinRequests, falling back to host
+                            // Build avatar list: joinRequests first, then host as guaranteed fallback
                             const fromJR = (event.joinRequests ?? [])
                               .filter((r) => r.status === "accepted" && r.user)
                               .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
 
-                            let avatars = fromJR.length > 0
-                              ? fromJR
-                              : event.user
-                                ? [{ id: event.user.id, name: event.user.name, image: event.user.image }]
-                                : [];
-                            // Dedupe by id
+                            // Always include host — they're an attendee on open events
+                            const host = event.user
+                              ? { id: event.user.id, name: event.user.name, image: event.user.image }
+                              : null;
+
+                            // Merge: joinRequest attendees first, then host (dedupe)
                             const seen = new Set<string>();
-                            avatars = avatars.filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
-                            const displayed = avatars.slice(0, 3);
+                            const merged: { id: string; name: string | null; image: string | null }[] = [];
+                            for (const a of [...fromJR, ...(host ? [host] : [])]) {
+                              if (!seen.has(a.id)) { seen.add(a.id); merged.push(a); }
+                            }
+
+                            const displayed = merged.slice(0, 3);
                             const remaining = Math.max(0, count - displayed.length);
-                            const AVSZ = 20;
+                            const AVSZ = 24;
+
+                            // [DISCOVER_AVATAR_FIX] DEV diagnostic
+                            if (__DEV__ && index < 3) {
+                              devLog("[DISCOVER_AVATAR_FIX]", {
+                                eventId: event.id,
+                                title: event.title,
+                                attendeeCount: count,
+                                joinRequestsRaw: (event.joinRequests ?? []).length,
+                                fromJRCount: fromJR.length,
+                                hostId: host?.id ?? null,
+                                hostImage: host?.image ?? null,
+                                displayedCount: displayed.length,
+                                displayedImages: displayed.map((a) => ({ id: a.id, hasImage: !!a.image })),
+                                remaining,
+                              });
+                            }
 
                             return (
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -819,8 +839,8 @@ export default function DiscoverScreen() {
                                   <View
                                     key={a.id}
                                     style={{
-                                      marginLeft: i > 0 ? -6 : 0,
-                                      borderWidth: 1.5,
+                                      marginLeft: i > 0 ? -7 : 0,
+                                      borderWidth: 2,
                                       borderColor: plaqueBg,
                                       borderRadius: AVSZ / 2,
                                       zIndex: 3 - i,
@@ -829,9 +849,10 @@ export default function DiscoverScreen() {
                                     <EntityAvatar
                                       photoUrl={a.image}
                                       initials={a.name?.[0] ?? "?"}
-                                      size={AVSZ - 3}
-                                      backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}30`}
+                                      size={AVSZ - 4}
+                                      backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
                                       foregroundColor={cardAccent ?? themeColor}
+                                      fallbackIcon="person-outline"
                                     />
                                   </View>
                                 ))}
@@ -840,15 +861,15 @@ export default function DiscoverScreen() {
                                     width: AVSZ,
                                     height: AVSZ,
                                     borderRadius: AVSZ / 2,
-                                    marginLeft: -6,
-                                    borderWidth: 1.5,
+                                    marginLeft: -7,
+                                    borderWidth: 2,
                                     borderColor: plaqueBg,
                                     backgroundColor: cardAccent ?? themeColor,
                                     alignItems: "center",
                                     justifyContent: "center",
                                     zIndex: 0,
                                   }}>
-                                    <Text style={{ fontSize: 8, fontWeight: "700", color: "#fff" }}>
+                                    <Text style={{ fontSize: 9, fontWeight: "700", color: "#fff" }}>
                                       +{remaining}
                                     </Text>
                                   </View>
