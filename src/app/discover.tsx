@@ -796,16 +796,26 @@ export default function DiscoverScreen() {
                             const count = event.attendeeCount ?? 0;
                             if (count === 0) return null;
 
-                            const accepted = (event.joinRequests ?? [])
-                              .filter((r) => r.status === "accepted")
-                              .slice(0, 3)
+                            // Build avatar list from joinRequests, falling back to host
+                            const fromJR = (event.joinRequests ?? [])
+                              .filter((r) => r.status === "accepted" && r.user)
                               .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
-                            const remaining = count - accepted.length;
+
+                            let avatars = fromJR.length > 0
+                              ? fromJR
+                              : event.user
+                                ? [{ id: event.user.id, name: event.user.name, image: event.user.image }]
+                                : [];
+                            // Dedupe by id
+                            const seen = new Set<string>();
+                            avatars = avatars.filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });
+                            const displayed = avatars.slice(0, 3);
+                            const remaining = Math.max(0, count - displayed.length);
                             const AVSZ = 20;
 
                             return (
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                {accepted.map((a, i) => (
+                                {displayed.map((a, i) => (
                                   <View
                                     key={a.id}
                                     style={{

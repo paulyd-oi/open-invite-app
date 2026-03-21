@@ -1,37 +1,39 @@
-HANDOFF PACKET — Discover Card Attendee Polish V3
+HANDOFF PACKET — Discover Avatar Stack Fix
 Date: 2026-03-21
 
 SUMMARY
 
-Removed "N friend(s) going" text label from Discover card attendee area. Replaced SocialProof component with inline EntityAvatar stack rendering visual-only overlapping profile circles and a compact +N badge. No text labels remain.
+Fixed Discover card attendee area showing only a +N count badge instead of real profile photos. Added host-user fallback so at least one real avatar always renders when attendeeCount > 0.
 
 EXACT FILES CHANGED
 
 1. src/app/discover.tsx
-   - Removed SocialProof import (unused after this change)
-   - Replaced SocialProof component call with inline EntityAvatar stack
-   - joinRequests filtered to accepted, sliced to 3, rendered as overlapping circles
-   - +N badge renders only when remaining > 0 (accent-colored circle, white text)
-   - "Be first" text removed (returns null for count=0)
+   - Attendee avatar stack builder (~line 799-813): added host fallback + dedup
+
+ROOT CAUSE
+
+The feed API endpoints (/api/events/feed, /api/events) return joinRequests as either undefined or an empty array — the backend does not populate this field for list/feed queries. The previous code built its avatar list exclusively from joinRequests filtered to status==="accepted". With zero accepted entries, the avatars array was empty, so only the +N overflow badge rendered (remaining = attendeeCount - 0 = attendeeCount). The host user (event.user), which IS always populated by the feed API with { id, name, image }, was never used as a fallback.
 
 FIX APPLIED
 
-- Removed: SocialProof component (which rendered "1 friend going" / "Alice + 2 others going" copy)
-- Added: Inline avatar stack using EntityAvatar with real profile photos from joinRequests
-  - 20px circles, -6px overlap, 1.5px border matching plaqueBg
-  - Accent-tinted fallback backgrounds when no photo
-  - +N badge: 20px accent circle with white bold count text
-  - z-index stacking: leftmost avatar on top
-- Zero attendees: renders nothing (was "Be first" text)
+Avatar list builder now:
+1. Tries joinRequests (accepted, with user data) first — uses real attendee photos when available
+2. Falls back to event.user (host) when joinRequests is empty — guarantees at least one real profile photo
+3. Dedupes by user id to prevent the host appearing twice if also in joinRequests
+4. Slices to max 3 displayed avatars
+5. +N badge shows remaining = attendeeCount - displayed.length (only when > 0)
+
+Result: every card with attendeeCount > 0 now shows the host's real profile photo as the first avatar circle, with +N for overflow. When joinRequests is populated (future backend change or different endpoint), real attendee photos render automatically.
 
 WHAT WAS NOT CHANGED
 
-- Card layout structure, image zone, content panel, footer row
+- Card layout, image zone, content panel, footer structure
 - Description row, date/time metadata styling
 - Save/bookmark behavior
 - Category pill, urgency chip, availability pill
 - Card tap navigation
-- Event contracts, backend, other screens
+- EntityAvatar component itself
+- Backend, contracts, other screens
 
 VERIFICATION
 
@@ -41,13 +43,13 @@ bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:
 GIT PROOF
 
 git show --stat HEAD
-commit 3edc8bc675f360a0ab08b6226cbf3216b4147040
- src/app/discover.tsx | 58 ++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 45 insertions(+), 13 deletions(-)
+commit 5d2eb7b04de9964018187b77026405b4629dc8fe
+ src/app/discover.tsx | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
 
 git show --name-only HEAD
 src/app/discover.tsx
 
 FINAL STATUS
 
-DISCOVER ATTENDEE POLISH APPLIED — NEEDS DESIGN REVIEW
+DISCOVER AVATAR STACK FIX APPLIED — NEEDS DESIGN REVIEW
