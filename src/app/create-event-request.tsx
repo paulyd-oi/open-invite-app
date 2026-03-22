@@ -385,7 +385,7 @@ export default function CreateEventRequestScreen() {
               Event Icon
             </Text>
             <Pressable
-              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+              onPress={() => setShowEmojiPicker(prev => !prev)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >

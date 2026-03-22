@@ -399,7 +399,7 @@ export default function EditEventScreen() {
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 mt-4">Event Icon</Text>
             <Pressable
-              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+              onPress={() => setShowEmojiPicker(prev => !prev)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
@@ -416,7 +416,16 @@ export default function EditEventScreen() {
 
             {showEmojiPicker && (
               <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                {/* Show current custom emoji if not in presets */}
+                {emoji && !EMOJI_OPTIONS.includes(emoji) && (
+                  <View className="mb-3 flex-row items-center">
+                    <View className="w-11 h-11 rounded-xl items-center justify-center mr-2" style={{ backgroundColor: `${themeColor}20`, borderWidth: 1, borderColor: themeColor }}>
+                      <Text className="text-xl">{emoji}</Text>
+                    </View>
+                    <Text style={{ color: colors.textSecondary }} className="text-xs">Current (custom)</Text>
+                  </View>
+                )}
+                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {[
                     { label: "Activities", emojis: EMOJI_OPTIONS.slice(0, 10) },
                     { label: "Food & Drinks", emojis: EMOJI_OPTIONS.slice(10, 20) },

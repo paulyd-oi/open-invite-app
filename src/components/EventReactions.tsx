@@ -57,7 +57,8 @@ export function EventReactionButton({
     .filter(([_, count]) => count > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([type]) => REACTIONS.find((r) => r.type === type)!);
+    .map(([type]) => REACTIONS.find((r) => r.type === type))
+    .filter((r): r is Reaction => r != null);
 
   const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
 
@@ -299,7 +300,8 @@ export function ReactionSummary({
     .filter(([_, count]) => count > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([type]) => REACTIONS.find((r) => r.type === type)!);
+    .map(([type]) => REACTIONS.find((r) => r.type === type))
+    .filter((r): r is Reaction => r != null);
 
   const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
 

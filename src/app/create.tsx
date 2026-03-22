@@ -1421,7 +1421,7 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
             <Pressable
-              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+              onPress={() => setShowEmojiPicker(prev => !prev)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
@@ -1445,25 +1445,40 @@ export default function CreateEventScreen() {
                     <TextInput
                       value={customEmojiInput}
                       onChangeText={(text) => {
-                        // Use segmenter to properly handle multi-codepoint emojis (like ✝️, 🙏, flags, etc.)
-                        const segments = [...new Intl.Segmenter().segment(text)].map(s => s.segment);
-                        // Filter to only emoji (non-ASCII graphemes that aren't just whitespace)
-                        const emojis = segments.filter((segment) => {
-                          // Check if this grapheme is likely an emoji (not basic ASCII)
-                          const firstCode = segment.codePointAt(0) || 0;
-                          return firstCode > 127 && segment.trim().length > 0;
-                        });
-                        if (emojis.length > 0) {
-                          const lastEmoji = emojis[emojis.length - 1];
-                          setCustomEmojiInput(lastEmoji);
-                          setEmoji(lastEmoji);
-                          Haptics.selectionAsync();
-                        } else {
-                          // Reject non-emoji input - only allow empty or emoji
-                          if (text.length > 0 && __DEV__) {
-                            devLog("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
+                        try {
+                          // Use segmenter to properly handle multi-codepoint emojis (like ✝️, 🙏, flags, etc.)
+                          // Intl.Segmenter may not be available on all RN runtimes — fallback below.
+                          const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
+                          const segments: string[] = hasSegmenter
+                            ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
+                            : Array.from(text); // Fallback: split by UTF-16 code units (imperfect for ZWJ sequences)
+                          // Filter to only emoji (non-ASCII graphemes that aren't just whitespace)
+                          const emojis = segments.filter((segment) => {
+                            const firstCode = segment.codePointAt(0) || 0;
+                            return firstCode > 127 && segment.trim().length > 0;
+                          });
+                          if (emojis.length > 0) {
+                            const lastEmoji = emojis[emojis.length - 1];
+                            setCustomEmojiInput(lastEmoji);
+                            setEmoji(lastEmoji);
+                            Haptics.selectionAsync();
+                          } else {
+                            if (text.length > 0 && __DEV__) {
+                              devLog("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
+                            }
+                            setCustomEmojiInput("");
                           }
-                          setCustomEmojiInput(""); // Clear non-emoji input
+                        } catch (e) {
+                          // Segmenter crash fallback: treat the entire input as the emoji if it's non-ASCII
+                          const trimmed = text.trim();
+                          const firstCode = trimmed.codePointAt(0) || 0;
+                          if (firstCode > 127 && trimmed.length > 0) {
+                            setCustomEmojiInput(trimmed);
+                            setEmoji(trimmed);
+                            Haptics.selectionAsync();
+                          } else {
+                            setCustomEmojiInput("");
+                          }
                         }
                       }}
                       placeholder="Tap to open emoji keyboard"
@@ -1498,7 +1513,7 @@ export default function CreateEventScreen() {
                 </View>
 
                 {/* Preset Emojis - organized by category */}
-                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {[
                     { label: "Activities", emojis: EMOJI_OPTIONS.slice(0, 10) },
                     { label: "Food & Drinks", emojis: EMOJI_OPTIONS.slice(10, 20) },
