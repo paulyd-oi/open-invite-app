@@ -1,68 +1,45 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — Event Detail CTA Polish V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Improved visual hierarchy of RSVP (Going) and Save buttons on event detail screen for non-host view. Buttons now use the event's own theme color (pageTheme.backAccent) instead of generic STATUS colors. RSVP is clearly primary (outlined when inactive, solid fill when active), Save is clearly secondary (ghost when inactive, tinted when active). Style-only changes — no logic, handlers, or data flow modified.
 
 EXACT FILES CHANGED
 
-1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+1. src/app/event/[id].tsx
+   - Going button (~lines 2883-2920):
+     * Inactive: transparent bg + 1.5px theme-colored border + theme-colored text/icon
+     * Active (going): solid pageTheme.backAccent fill + white text + "Going ✓" + shadow
+     * Shadow uses pageTheme.backAccent instead of ET.accentPrimary
+   - Save button (~lines 2912-2942):
+     * Inactive: transparent bg, 0.5px subtle border, textTertiary icon, textSecondary text
+     * Active (interested): pageTheme.backAccent + "18" tinted bg, backAccent + "40" border, theme-colored icon/text
+     * Replaced STATUS.interested.* tokens with pageTheme.backAccent derivatives
 
-ROOT CAUSE
+2. docs/FINDINGS_LOG.md
+   - Added entry documenting the CTA polish change
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
+DESIGN RATIONALE
 
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
-
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
-
-EVENT DETAIL SOURCE
-
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
-
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
-
-BACKEND CONTRACT NOTE
-
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+- pageTheme.backAccent is the event-specific theme color resolved from event.themeId via resolveEventTheme()
+- ET.accentPrimary was STATUS.going.fg (a generic green #34C759-like) — not tied to the event theme
+- Outlined inactive state for RSVP gives it visual prominence via the colored border while preserving the filled state as a clear "you're in" confirmation
+- Save button goes from near-invisible to properly ghost-styled, only gaining color when active
+- The hex suffix trick (backAccent + "18") creates 9% opacity tint; + "40" creates 25% opacity border
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
-
-GIT PROOF
-
-git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
-
-git show --name-only HEAD
-src/app/discover.tsx
+Runtime verification requires simulator check:
+- Confirm RSVP inactive shows outlined button with event theme color border
+- Confirm RSVP active (Going) shows solid fill with event theme color, white text "Going ✓", shadow
+- Confirm Save inactive is ghost (transparent bg, muted icon/text)
+- Confirm Save active shows tinted theme accent background
+- Test across different event themes (default, warm, midnight) to verify backAccent adapts
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+EVENT DETAIL CTA POLISH APPLIED — NEEDS DESIGN REVIEW

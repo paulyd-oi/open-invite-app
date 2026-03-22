@@ -1,5 +1,15 @@
 # Findings Log — Frontend
 
+## Event Detail CTA Polish — APPLIED (2026-03-21)
+
+### Change: RSVP and Save button visual hierarchy on non-host event detail view
+
+Previous state: RSVP "Going" button used `ET.accentPrimary` (STATUS.going.fg — a generic green) regardless of event theme. Save button had near-invisible background. Both buttons had identical visual weight making it hard to distinguish primary from secondary action.
+
+Fix: RSVP button now uses `pageTheme.backAccent` (the event's own theme color). Inactive state = outlined with theme border + transparent bg. Active/Going state = solid theme fill + white text + shadow + "Going ✓" label. Save button inactive = ghost (transparent bg, subtle border, muted icon). Save active = tinted theme accent bg + theme-colored text/icon. Clear visual hierarchy: RSVP dominates, Save recedes.
+
+File changed: `src/app/event/[id].tsx` (lines ~2883-2942, style-only — no logic changes).
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar
