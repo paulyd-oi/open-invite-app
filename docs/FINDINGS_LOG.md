@@ -1,5 +1,24 @@
 # Findings Log — Frontend
 
+## Social Tab Swipe-as-Tap — FIXED (2026-03-21)
+
+### Root Cause: No gesture disambiguation between scroll/swipe and card tap
+
+EventCard in social.tsx wraps card content in GestureDetector (Pan) + Pressable (tap). The Pan gesture has activeOffsetX=20px threshold — it only activates after 20px horizontal movement. For shorter swipes or vertical scrolls, the Pan gesture either hasn't activated or fails (failOffsetY=10px), but Pressable's onPress still fires on touch-up. Result: any finger movement that doesn't exceed the Pan threshold fires the card press, navigating to event detail.
+
+### Fix
+Added touch movement tracking on the Pressable via onTouchStart/onTouchMove. Records start position, checks movement delta on each move. If finger moves >10px in any direction, sets wasSwiping=true which causes handlePress to return early. Pan gesture onStart also sets the flag for swipe-to-reveal cases. The flag resets on each new touch start.
+
+### Files Changed
+- src/app/social.tsx: EventCard component — added wasSwiping ref, touchStart tracking, onTouchStart/onTouchMove handlers, handlePress guard
+
+### Verification
+- TypeScript: PASS
+- verify_frontend.sh: same pre-existing failures only
+- Proof tag: [SOCIAL_GESTURE]
+
+---
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

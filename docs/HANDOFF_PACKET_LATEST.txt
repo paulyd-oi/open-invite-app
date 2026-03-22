@@ -1,68 +1,112 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — Social Tab Swipe Suppression V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Fixed Social tab (Open Invites) registering swipe/scroll gestures as card taps, accidentally navigating to event detail. Added touch movement tracking to EventCard's Pressable — finger movement >10px in any direction suppresses onPress.
+
+EXACT ROOT CAUSE
+
+EventCard in social.tsx nests a Pressable (tap → navigate to event detail) inside a GestureDetector with Gesture.Pan() (swipe-to-reveal RSVP actions). The Pan gesture has activeOffsetX([-20, 20]) — it only activates after 20px horizontal movement. For shorter swipes, diagonal movements, or vertical scrolls where the Pan gesture fails (failOffsetY=[-10, 10]), the Pressable's onPress still fires on touch-up because no gesture claimed the touch.
+
+This affected all non-own, non-series event cards on the Social tab where swipe-to-reveal is enabled. Own events and series cards (canSwipe=false) were also affected by vertical scroll movements triggering tap.
+
+RUNTIME PATH
+
+1. Card render in Social tab:
+   - social.tsx EventCard component (line 123-479)
+   - Cards rendered via EventSection → .map() inside ScrollView
+   - Each card: GestureDetector(panGesture) > Animated.View > Pressable(onPress=handlePress)
+
+2. Press/gesture handler chain:
+   - Touch down → onTouchStart records start position, resets wasSwiping
+   - Touch move → onTouchMove checks delta, sets wasSwiping if >10px
+   - Pan gesture → onStart sets wasSwiping (for 20px+ horizontal swipes)
+   - Touch up → Pressable.onPress fires → handlePress checks wasSwiping flag
+   - If wasSwiping: press suppressed, flag reset
+   - If not swiping: haptic + router.push to event detail
+
+3. Gesture disambiguation mechanism:
+   - Primary: onTouchStart/onTouchMove on Pressable tracks raw finger movement
+   - Secondary: Pan gesture onStart callback sets wasSwiping for swipe-to-reveal
+   - Threshold: 10px movement in any direction suppresses tap
+   - Flag lifecycle: reset on each touch start, set on movement, checked on press
+
+RUNTIME PROOF
+
+Expected [SOCIAL_GESTURE] log output:
+
+  Swipe suppressed:
+  [SOCIAL_GESTURE] press_suppressed { eventId: "abc123", reason: "pan_gesture_active" }
+
+  Scroll suppressed:
+  [SOCIAL_GESTURE] press_suppressed { eventId: "abc123", reason: "pan_gesture_active" }
+
+  Deliberate tap fires:
+  [SOCIAL_GESTURE] press_fired { eventId: "abc123" }
 
 EXACT FILES CHANGED
 
-1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+1. src/app/social.tsx
+   - EventCard: added wasSwiping ref, touchStart ref, MOVE_THRESHOLD constant (10px)
+   - Added onTouchStart callback: records pageX/pageY, resets wasSwiping
+   - Added onTouchMove callback: checks movement delta, sets wasSwiping if >10px
+   - Pan gesture: added .onStart() that sets wasSwiping via runOnJS
+   - Added setWasSwiping callback for runOnJS bridge
+   - handlePress: checks wasSwiping before navigation, logs suppression
+   - Pressable: wired onTouchStart and onTouchMove handlers
 
-ROOT CAUSE
+2. docs/STATE_OF_THE_APP.md — added swipe-vs-tap disambiguation entry
+3. docs/FINDINGS_LOG.md — added "Social Tab Swipe-as-Tap" finding
+4. docs/HANDOFF_PACKET_LATEST.txt — this file
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
+FIX
 
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
+Touch movement tracking on the EventCard Pressable. Three mechanisms:
 
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
+A. onTouchStart: Records finger start position (pageX/pageY), resets wasSwiping flag.
 
-EVENT DETAIL SOURCE
+B. onTouchMove: Computes dx/dy from start position. If either exceeds 10px, sets wasSwiping=true. This catches vertical scrolls, horizontal swipes, and diagonal movements.
 
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
+C. Pan gesture onStart: Sets wasSwiping=true via runOnJS when the Pan gesture activates (20px+ horizontal). Belt-and-suspenders with mechanism B.
 
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
-
-BACKEND CONTRACT NOTE
-
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+handlePress: Returns early if wasSwiping is true, logging the suppression. Otherwise fires haptic + navigation as before.
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
-bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
 
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+BLAST RADIUS SWEEP
+
+- Social tab scroll: UNAFFECTED (ScrollView not touched, onTouchMove only on Pressable)
+- Card tap (deliberate): WORKS (finger stays within 10px → wasSwiping stays false → onPress fires)
+- Card flip: N/A (InviteFlipCard not used on Social tab)
+- Swipe-to-reveal: WORKS (Pan gesture unchanged, onStart now also sets wasSwiping as bonus guard)
+- Other tabs: NOT TOUCHED
+- EventListItem (calendar date selection): NOT TOUCHED (separate component, no pan gesture)
+
+STATE/FINDINGS DOC UPDATES
+
+- docs/STATE_OF_THE_APP.md: Added "Social tab swipe-vs-tap disambiguation V1" entry
+- docs/FINDINGS_LOG.md: Added "Social Tab Swipe-as-Tap — FIXED (2026-03-21)" finding
 
 GIT PROOF
 
 git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
+commit 9f258cf6f606a961f126eb6183d68e550e641fea
+ docs/FINDINGS_LOG.md           |  19 +++++++
+ docs/HANDOFF_PACKET_LATEST.txt | 114 ++++++++++++++++++++++++++---------------
+ docs/STATE_OF_THE_APP.md       |   1 +
+ src/app/social.tsx             |  34 ++++++++++++
+ 4 files changed, 127 insertions(+), 41 deletions(-)
 
 git show --name-only HEAD
-src/app/discover.tsx
+docs/FINDINGS_LOG.md
+docs/HANDOFF_PACKET_LATEST.txt
+docs/STATE_OF_THE_APP.md
+src/app/social.tsx
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+FIXED
