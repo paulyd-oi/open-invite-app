@@ -4052,6 +4052,8 @@ export default function EventDetailScreen() {
                   eventTime={startDate}
                   selectedReminders={selectedReminders}
                   onRemindersChange={setSelectedReminders}
+                  isAttending={myRsvpStatus === "going" || myRsvpStatus === "interested"}
+                  isMuted={isEventMuted}
                 />
 
                 {/* Mute Event Notifications */}

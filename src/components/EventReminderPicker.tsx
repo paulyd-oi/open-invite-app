@@ -30,6 +30,10 @@ interface EventReminderPickerProps {
   eventTime: Date;
   selectedReminders: number[];
   onRemindersChange: (reminders: number[]) => void;
+  /** Whether the user has RSVP'd (going/interested) — affects default subtitle */
+  isAttending?: boolean;
+  /** Whether the event is muted — affects default subtitle */
+  isMuted?: boolean;
 }
 
 export function EventReminderPicker({
@@ -39,6 +43,8 @@ export function EventReminderPicker({
   eventTime,
   selectedReminders,
   onRemindersChange,
+  isAttending,
+  isMuted,
 }: EventReminderPickerProps) {
   const { themeColor, isDark, colors } = useTheme();
   const [showModal, setShowModal] = useState(false);
@@ -90,12 +96,17 @@ export function EventReminderPicker({
   };
 
   const formatReminderSummary = () => {
-    if (selectedReminders.length === 0) return "No reminders set";
     if (selectedReminders.length === 1) {
       const option = REMINDER_OPTIONS.find((o) => o.minutesBefore === selectedReminders[0]);
       return option?.label ?? "1 reminder set";
     }
-    return `${selectedReminders.length} reminders set`;
+    if (selectedReminders.length > 1) {
+      return `${selectedReminders.length} reminders set`;
+    }
+    // No custom reminders — show status based on RSVP + mute state
+    if (isMuted) return "Notifications muted";
+    if (isAttending) return "Default notifications on";
+    return "No notifications";
   };
 
   return (
