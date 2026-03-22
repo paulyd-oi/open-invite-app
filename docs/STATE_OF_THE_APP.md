@@ -121,6 +121,15 @@
 - Event Detail Section Card Split V1: Monolithic white content slab replaced with separate floating section cards over themed canvas. Four cards: About (description + details + pitch-in + bring list), Who's Coming (attendees + interested), Discussion (comments + memories), Event Settings. Action rows (guest RSVP, host Share/Reminder/Edit) float directly on canvas without card background. Turnout status row ("X going · Getting started") fully removed from host tools. Canvas visible between all section cards via 12px gaps.
 - Event Detail Glass Section Cards V1: Section cards converted from solid white to translucent glass surfaces. Light mode: rgba(255,255,255,0.76) with rgba(255,255,255,0.34) border. Dark mode: rgba(20,20,24,0.52) with rgba(255,255,255,0.10) border. Themed canvas bleeds through card surfaces. All 5 section cards converted: About, Who's Coming, Discussion, Event Settings, Host Reflection. Action rows and invite card unchanged. Plan A (RGBA translucent) used, no BlurView needed.
 
+## Fixed This Session (Live Activity Lifecycle V1 — 2026-03-21)
+- Live Activity auto-expiration: `Activity.request()` now uses `ActivityContent` with `staleDate` set to event end time (iOS 16.2+), so the system auto-expires activities when the event ends. Falls back to basic request on iOS 16.1.
+- JS-side cleanup: New `cleanupExpiredActivities()` in liveActivity.ts runs on foreground focus, ending any activities whose event has passed.
+- `endTime` parameter: `startLiveActivity()` now accepts `endTime`, computes `endTimeEpoch` (defaults to startTime + 1h). Passed from all 3 call sites in event/[id].tsx (auto-start on focus, RSVP going, manual toggle).
+- Toggle default ON: `liveActivityActive` default changed from `false` to `Platform.OS === "ios"` so the toggle reflects the expected state on iOS.
+- ObjC bridge updated: `LiveActivityBridge.m` receives `endTimeEpoch:(double)endTimeEpoch` parameter.
+- DEV diagnostics: [LIVE_ACTIVITY] logs added to liveActivity.ts.
+- Files changed: ios/OpenInvite/LiveActivityBridge.swift, ios/OpenInvite/LiveActivityBridge.m, src/lib/liveActivity.ts, src/app/event/[id].tsx
+
 ## Unstable / Regressions
 - None currently known
 

@@ -1,5 +1,32 @@
 # Findings Log — Frontend
 
+## Live Activity Lifecycle — No Auto-Expiration + Toggle Default OFF — FIXED (2026-03-21)
+
+### Root Cause A: No auto-expiration
+`Activity.request()` in LiveActivityBridge.swift was called without `staleDate` or `dismissalPolicy`. The Live Activity persisted on the Lock Screen and Dynamic Island indefinitely after the event ended. No JS-side cleanup existed either — expired activities were never ended from the foreground.
+
+### Root Cause B: Toggle default OFF
+`useState(false)` for `liveActivityActive` in event/[id].tsx meant the toggle always rendered as OFF on mount, even though the Live Activity auto-starts on focus for eligible events on iOS.
+
+### Fix
+**Native (iOS 16.2+):** `startActivity()` now builds an `ActivityContent` with `staleDate` set to the event's end time epoch. The system marks the activity as stale when the event ends. Falls back to basic `Activity.request()` on iOS 16.1.
+
+**JS cleanup:** New `cleanupExpiredActivities()` function in liveActivity.ts iterates active activities and ends any whose event time has passed. Called from `useFocusEffect` in event/[id].tsx before checking active state.
+
+**Toggle default:** Changed from `useState(false)` to `useState(Platform.OS === "ios")`.
+
+**Bridge:** `endTimeEpoch:(double)endTimeEpoch` added to ObjC bridge declaration.
+
+### Files Changed
+- ios/OpenInvite/LiveActivityBridge.swift: `ActivityContent` with `staleDate` on iOS 16.2+
+- ios/OpenInvite/LiveActivityBridge.m: `endTimeEpoch` parameter in bridge
+- src/lib/liveActivity.ts: `endTime` param, `endTimeEpoch` computation, `cleanupExpiredActivities()`, [LIVE_ACTIVITY] DEV logs
+- src/app/event/[id].tsx: pass `endTime` to all 3 `startLiveActivity()` call sites, foreground cleanup in useFocusEffect, toggle default `Platform.OS === "ios"`
+
+### Verification
+- TypeScript: needs runtime check
+- Proof tag: [LIVE_ACTIVITY] DEV logs in liveActivity.ts
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

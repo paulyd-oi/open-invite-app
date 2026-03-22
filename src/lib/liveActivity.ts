@@ -29,6 +29,7 @@ interface LiveActivityBridgeModule {
     eventId: string,
     eventTitle: string,
     startTimeEpoch: number,
+    endTimeEpoch: number,
     locationName: string | null,
     rsvpStatus: string,
     emoji: string | null,
@@ -81,6 +82,7 @@ export async function startLiveActivity(params: {
   eventId: string;
   eventTitle: string;
   startTime: string; // ISO 8601
+  endTime?: string | null; // ISO 8601 — used for staleDate/auto-expiration
   locationName?: string | null;
   rsvpStatus: string;
   emoji?: string | null;
@@ -90,14 +92,28 @@ export async function startLiveActivity(params: {
   const bridge = getBridge();
   if (!bridge) return false;
 
-  // Convert ISO string to Unix epoch seconds for the native timer
+  // Convert ISO strings to Unix epoch seconds for the native layer
   const startTimeEpoch = new Date(params.startTime).getTime() / 1000;
+  // Default endTime: startTime + 1 hour (matches isEligibleForAutoStart fallback)
+  const endTimeEpoch = params.endTime
+    ? new Date(params.endTime).getTime() / 1000
+    : startTimeEpoch + 3600;
+
+  if (__DEV__) {
+    devLog(TAG, "[LIVE_ACTIVITY] startLiveActivity", {
+      eventId: params.eventId,
+      startTimeEpoch,
+      endTimeEpoch,
+      endTimeSource: params.endTime ? "explicit" : "default_1h",
+    });
+  }
 
   try {
     const result = await bridge.startActivity(
       params.eventId,
       params.eventTitle,
       startTimeEpoch,
+      endTimeEpoch,
       params.locationName ?? null,
       params.rsvpStatus,
       params.emoji ?? null,
@@ -181,6 +197,43 @@ export function isEligibleForAutoStart(event: {
   const startsWithinHorizon = startMs - now < AUTO_START_HORIZON_HOURS * 3600000;
   const hasEnded = now > endMs;
   return startsWithinHorizon && !hasEnded;
+}
+
+/**
+ * [LIVE_ACTIVITY] Foreground cleanup: end any active Live Activity whose event has passed.
+ * Call this on app foreground resume to catch activities the OS staleDate didn't dismiss.
+ */
+export async function cleanupExpiredActivities(currentEvent?: {
+  id: string;
+  endTime?: string | null;
+  startTime: string;
+}): Promise<void> {
+  if (!currentEvent) return;
+  const bridge = getBridge();
+  if (!bridge) return;
+
+  const now = Date.now();
+  const endMs = currentEvent.endTime
+    ? new Date(currentEvent.endTime).getTime()
+    : new Date(currentEvent.startTime).getTime() + 3600000;
+
+  if (now > endMs) {
+    try {
+      const activeId = await bridge.getActiveEventId();
+      if (activeId === currentEvent.id) {
+        if (__DEV__) {
+          devLog(TAG, "[LIVE_ACTIVITY] cleanupExpired: ending expired activity", {
+            eventId: currentEvent.id,
+            endMs,
+            now,
+          });
+        }
+        await bridge.endActivity(currentEvent.id);
+      }
+    } catch {
+      // Silently fail — activity may already be gone
+    }
+  }
 }
 
 /**

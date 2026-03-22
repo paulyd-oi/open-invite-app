@@ -138,7 +138,7 @@ import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/h
 import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
-import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus } from "@/lib/liveActivity";
+import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
 // Accepts pre-computed query + optional event for lat/lng coords.
@@ -414,7 +414,9 @@ export default function EventDetailScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Live Activity state
-  const [liveActivityActive, setLiveActivityActive] = useState(false);
+  // [LIVE_ACTIVITY] Default ON — useFocusEffect syncs with native state immediately.
+  // This ensures the toggle shows ON for eligible events before the async native check completes.
+  const [liveActivityActive, setLiveActivityActive] = useState(Platform.OS === "ios");
   const [liveActivitySupported, setLiveActivitySupported] = useState(false);
   // Track if user manually turned off Live Activity this session (don't auto-restart)
   const liveActivityManuallyDismissed = useRef(false);
@@ -559,6 +561,16 @@ export default function EventDetailScreen() {
         setLiveActivitySupported(supported);
         if (!supported) return;
 
+        // [LIVE_ACTIVITY] Foreground cleanup: end expired activities
+        const snap = liveActivityAutoStartRef.current;
+        if (snap?.event) {
+          await cleanupExpiredActivities({
+            id: snap.event.id,
+            endTime: snap.event.endTime,
+            startTime: snap.event.startTime,
+          });
+        }
+
         const activeId = await getActiveLiveActivityEventId();
         setLiveActivityActive(activeId === id);
 
@@ -566,7 +578,6 @@ export default function EventDetailScreen() {
         if (activeId) return; // Another activity already running
         if (liveActivityManuallyDismissed.current) return;
 
-        const snap = liveActivityAutoStartRef.current;
         if (!snap) return; // Event data not loaded yet
 
         const { event: ev, isMyEvent: host, myRsvpStatus: rsvp, effectiveGoingCount: going } = snap;
@@ -580,6 +591,7 @@ export default function EventDetailScreen() {
           eventId: ev.id,
           eventTitle: ev.title,
           startTime: ev.startTime,
+          endTime: ev.endTime,
           locationName: loc,
           rsvpStatus: host ? "going" : (rsvp ?? "going"),
           emoji: ev.emoji,
@@ -1420,6 +1432,7 @@ export default function EventDetailScreen() {
             eventId: event.id,
             eventTitle: event.title,
             startTime: event.startTime,
+            endTime: event.endTime,
             locationName: locationDisplay,
             rsvpStatus: "going",
             emoji: event.emoji,
@@ -4459,6 +4472,7 @@ export default function EventDetailScreen() {
                             eventId: event.id,
                             eventTitle: event.title,
                             startTime: event.startTime,
+                            endTime: event.endTime,
                             locationName: locationDisplay,
                             rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
                             emoji: event.emoji,

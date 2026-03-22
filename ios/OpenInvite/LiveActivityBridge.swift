@@ -24,6 +24,7 @@ class LiveActivityBridge: NSObject {
         _ eventId: String,
         eventTitle: String,
         startTimeEpoch: Double,
+        endTimeEpoch: Double,
         locationName: String?,
         rsvpStatus: String,
         emoji: String?,
@@ -64,13 +65,35 @@ class LiveActivityBridge: NSObject {
             goingCount: goingCount
         )
 
+        // [LIVE_ACTIVITY] Compute stale date from endTimeEpoch for auto-expiration
+        let endDate = Date(timeIntervalSince1970: endTimeEpoch)
+        // Use staleDate so iOS marks the activity as outdated after event ends
+        let staleDate = endDate
+
         do {
-            let activity = try Activity.request(
-                attributes: attributes,
-                contentState: state,
-                pushType: nil
-            )
-            resolve(["activityId": activity.id])
+            if #available(iOS 16.2, *) {
+                // iOS 16.2+: use ActivityContent with staleDate + auto-dismiss after end
+                let content = ActivityContent(
+                    state: state,
+                    staleDate: staleDate
+                )
+                let activity = try Activity.request(
+                    attributes: attributes,
+                    content: content,
+                    pushType: nil
+                )
+                NSLog("[LIVE_ACTIVITY] Started activity %@ with staleDate=%@ dismissAfter=%@", activity.id, staleDate.description, endDate.description)
+                resolve(["activityId": activity.id])
+            } else {
+                // iOS 16.1: no ActivityContent API, use basic request
+                let activity = try Activity.request(
+                    attributes: attributes,
+                    contentState: state,
+                    pushType: nil
+                )
+                NSLog("[LIVE_ACTIVITY] Started activity %@ (iOS 16.1, no staleDate)", activity.id)
+                resolve(["activityId": activity.id])
+            }
         } catch {
             reject("START_FAILED", error.localizedDescription, error)
         }
