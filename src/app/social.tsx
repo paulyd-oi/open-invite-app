@@ -172,10 +172,36 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         minute: "2-digit",
       });
 
+  // [SOCIAL_GESTURE] Suppress tap when user was swiping or scrolling
+  const wasSwiping = useRef(false);
+  const touchStart = useRef({ x: 0, y: 0 });
+  const MOVE_THRESHOLD = 10; // px — finger must stay within this to count as tap
+
   const handlePress = () => {
+    if (wasSwiping.current) {
+      if (__DEV__) devLog("[SOCIAL_GESTURE]", "press_suppressed", { eventId: displayEvent.id, reason: "pan_gesture_active" });
+      wasSwiping.current = false;
+      return;
+    }
+    if (__DEV__) devLog("[SOCIAL_GESTURE]", "press_fired", { eventId: displayEvent.id });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/event/${displayEvent.id}` as any);
   };
+
+  const onTouchStart = useCallback((e: any) => {
+    wasSwiping.current = false;
+    const touch = e.nativeEvent;
+    touchStart.current = { x: touch.pageX, y: touch.pageY };
+  }, []);
+
+  const onTouchMove = useCallback((e: any) => {
+    const touch = e.nativeEvent;
+    const dx = Math.abs(touch.pageX - touchStart.current.x);
+    const dy = Math.abs(touch.pageY - touchStart.current.y);
+    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+      wasSwiping.current = true;
+    }
+  }, []);
 
   // For own events, use the passed user image/name; otherwise use event.user data
   const displayImage = isOwn ? userImage : displayEvent.user?.image;
@@ -237,10 +263,16 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   // Pan gesture for swipe-to-reveal actions (only for non-own events when authed)
   const canSwipe = Boolean(isAuthed && !isOwn && !isSeries);
   
+  const setWasSwiping = useCallback((v: boolean) => { wasSwiping.current = v; }, []);
+
   const panGesture = Gesture.Pan()
     .enabled(canSwipe)
     .activeOffsetX([-20, 20])
     .failOffsetY([-10, 10])
+    .onStart(() => {
+      // [SOCIAL_GESTURE] Pan activated — mark as swiping so Pressable.onPress is suppressed
+      runOnJS(setWasSwiping)(true);
+    })
     .onUpdate((e) => {
       // Only allow swipe left (negative values)
       if (e.translationX < 0) {
@@ -280,6 +312,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const cardContent = (
       <Pressable
         onPress={handlePress}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         className="rounded-2xl p-4 mb-4"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{

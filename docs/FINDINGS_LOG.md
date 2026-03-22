@@ -1,22 +1,23 @@
 # Findings Log — Frontend
 
-## Profile Open Invites Invalid Date / Dead-End Navigation — FIXED (2026-03-21)
+## Social Tab Swipe-as-Tap — FIXED (2026-03-21)
 
-### Root Cause: Invalid Date comparison returns false, bypassing past-event filter
+### Root Cause: No gesture disambiguation between scroll/swipe and card tap
 
-The `friendEvents` filter in `src/app/user/[id].tsx` compared `relevantTime < now` to exclude past events. When `event.startTime` is undefined, empty, or malformed, `new Date(undefined)` produces `Invalid Date`, and `Invalid Date < now` evaluates to `false` in JS — so invalid events passed the filter. These rendered with "Invalid Date" text on the card. Tapping them navigated to event detail which showed "Event details hidden" (the event is ended/inaccessible).
+EventCard in social.tsx wraps card content in GestureDetector (Pan) + Pressable (tap). The Pan gesture has activeOffsetX=20px threshold — it only activates after 20px horizontal movement. For shorter swipes or vertical scrolls, the Pan gesture either hasn't activated or fails (failOffsetY=10px), but Pressable's onPress still fires on touch-up. Result: any finger movement that doesn't exceed the Pan threshold fires the card press, navigating to event detail.
 
 ### Fix
-1. Filter now validates `startTime` with `Number.isNaN()` before comparison — events with invalid dates are excluded
-2. `endTime` fallback also uses `Number.isNaN()` check instead of truthy check
-3. Belt-and-suspenders: EventCard onPress guards against invalid event ID or startTime before navigation
-4. [PROFILE_EVENTS] DEV diagnostics log total/excluded/displayed counts and per-event validity
-
-### Backend Note
-Backend `/api/friends/:id/events` returns all events including ended and potentially malformed ones. This is a backend issue to address separately — client-side filter is the correct immediate fix.
+Added touch movement tracking on the Pressable via onTouchStart/onTouchMove. Records start position, checks movement delta on each move. If finger moves >10px in any direction, sets wasSwiping=true which causes handlePress to return early. Pan gesture onStart also sets the flag for swipe-to-reveal cases. The flag resets on each new touch start.
 
 ### Files Changed
-- src/app/user/[id].tsx: friendEvents filter + EventCard onPress guard
+- src/app/social.tsx: EventCard component — added wasSwiping ref, touchStart tracking, onTouchStart/onTouchMove handlers, handlePress guard
+
+### Verification
+- TypeScript: PASS
+- verify_frontend.sh: same pre-existing failures only
+- Proof tag: [SOCIAL_GESTURE]
+
+---
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
