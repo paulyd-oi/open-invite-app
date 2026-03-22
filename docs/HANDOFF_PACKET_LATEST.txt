@@ -1,94 +1,32 @@
-HANDOFF PACKET — Discover Truth Sync V1
+HANDOFF PACKET — Event Detail CTA Polish V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed two Discover tab data sync issues: (1) Events list empty/stale for second account due to refetchOnMount: false preventing stale-data refetch on navigation return, (2) Saved tab not reflecting cross-surface save/unsave because save mutation used narrow invalidation key and attending query wasn't in the focus refetch list.
-
-EXACT ROOT CAUSE
-
-Both symptoms trace to the same configuration cluster:
-
-1. All three Discover queries (feedPopular, myEvents, attending) had `refetchOnMount: false`. TanStack Query's default behavior is `refetchOnMount: true` — when data exists but is stale, refetch on mount. By setting this to false, stale or invalidated data was never refetched when the user navigated back to Discover from another screen.
-
-2. Save mutation from Discover invalidated only `eventKeys.feedPopular()` (specific key). Cross-surface saves from event detail invalidate `eventKeys.feed()` (parent) which prefix-matches feedPopular. But the Discover-local save was narrower than necessary and didn't invalidate `attending`.
-
-3. The `attending` query was not included in the `useLiveRefreshContract` refetch list, so focus/foreground triggers didn't refresh it.
-
-4. `staleTime: 30_000` (feed) / `60_000` (attending) meant data could be served from cache for up to 30-60 seconds even when outdated.
-
-RUNTIME PATH
-
-1. Discover Events data load:
-   - src/app/discover.tsx: useQuery feedPopular → GET /api/events/feed?visibility=open_invite
-   - src/app/discover.tsx: useQuery myEvents → GET /api/events
-   - enrichedEvents useMemo: merge + deduplicate + filter (BLOCKED_VIS + past) + enrich attendee count
-
-2. Discover Saved data load:
-   - savedEventsList useMemo: filter enrichedEvents by savedEvents Set (local) OR viewerRsvpStatus === "interested" | "maybe" (server)
-
-3. Save/unsave mutation to invalidation/refetch:
-   - Discover save: postIdempotent /api/events/{id}/rsvp { status: "interested" }
-   - onSuccess: local Set update + invalidate feed() (parent) + myEvents + attending
-   - Event detail save: getInvalidateAfterRsvpJoin → invalidates feed(), feedPaginated(), myEvents, calendar, attending, single, rsvp, interests, attendees
-   - On Discover focus: useLiveRefreshContract fires refetchFeed + refetchMyEvents + refetchAttending
-
-RUNTIME PROOF
-
-Expected [DISCOVER_TRUTH] log output after fix:
-
-  [DISCOVER_TRUTH] enrichedEvents {
-    userId: "<active-user-id>",
-    feedCount: <N>,
-    myEventsCount: <M>,
-    mergedCount: <total>,
-    excludedCount: <filtered>,
-    excluded: [{ id: "...", title: "...", reason: "visibility=circle_only" }],
-    renderedCount: <visible>,
-    sampleRsvps: [{ id: "abc123", title: "...", viewerRsvpStatus: "interested", visibility: "open_invite" }]
-  }
-
-  [DISCOVER_TRUTH] savedEventsList {
-    enrichedCount: <N>,
-    localSavedCount: <local-set-size>,
-    serverSavedCount: <server-interested-count>,
-    resultCount: <final>,
-    items: [{ id: "abc123", title: "...", source: "server:interested" }]
-  }
-
-  [DISCOVER_TRUTH] save_invalidation {
-    eventId: "<saved-event-id>",
-    invalidated: ["feed(parent)", "myEvents", "attending"]
-  }
+Improved visual hierarchy of RSVP (Going) and Save buttons on event detail screen for non-host view. Buttons now use the event's own theme color (pageTheme.backAccent) instead of generic STATUS colors. RSVP is clearly primary (outlined when inactive, solid fill when active), Save is clearly secondary (ghost when inactive, tinted when active). Style-only changes — no logic, handlers, or data flow modified.
 
 EXACT FILES CHANGED
 
-1. src/app/discover.tsx
-   - Removed refetchOnMount: false from feedPopular, myEvents, attending queries
-   - Reduced staleTime: 30_000→15_000 (feed/myEvents), 60_000→30_000 (attending)
-   - Save mutation: invalidates feed() parent key (not feedPopular only) + attending
-   - attending query: refetch extracted, added to useLiveRefreshContract
-   - [DISCOVER_TRUTH] DEV logs: enrichedEvents pipeline, savedEventsList truth, save invalidation
+1. src/app/event/[id].tsx
+   - Going button (~lines 2883-2920):
+     * Inactive: transparent bg + 1.5px theme-colored border + theme-colored text/icon
+     * Active (going): solid pageTheme.backAccent fill + white text + "Going ✓" + shadow
+     * Shadow uses pageTheme.backAccent instead of ET.accentPrimary
+   - Save button (~lines 2912-2942):
+     * Inactive: transparent bg, 0.5px subtle border, textTertiary icon, textSecondary text
+     * Active (interested): pageTheme.backAccent + "18" tinted bg, backAccent + "40" border, theme-colored icon/text
+     * Replaced STATUS.interested.* tokens with pageTheme.backAccent derivatives
 
-2. docs/STATE_OF_THE_APP.md — added Discover truth sync entry
-3. docs/FINDINGS_LOG.md — added Discover Truth Sync finding
-4. docs/HANDOFF_PACKET_LATEST.txt — this file
+2. docs/FINDINGS_LOG.md
+   - Added entry documenting the CTA polish change
 
-FIX
+DESIGN RATIONALE
 
-Frontend-only. Three changes:
-
-A. Query config: Removed `refetchOnMount: false` from all three Discover queries. TQ default `true` means stale data refetches when user navigates back to Discover. This is the primary fix for both symptoms.
-
-B. Save invalidation: Broadened to use parent `eventKeys.feed()` key (prefix-matches feedPopular + feedPaginated) plus `eventKeys.attending()`. Ensures all feed projections update after save.
-
-C. Focus refetch: Added `refetchAttending` to useLiveRefreshContract so tab focus / foreground resume refreshes attending data alongside feed and myEvents.
-
-BACKEND CONTRACT NOTE
-
-The backend feed endpoint (/api/events/feed?visibility=open_invite) returns events appropriately scoped. For accounts with no social graph, the feed may return fewer or zero events — this is correct backend behavior (discovery is social-graph-scoped). The frontend issue was that even when the backend returned correct data, the stale cache configuration prevented it from being displayed. No backend changes needed for this fix.
-
-One remaining backend observation: the feed endpoint does not populate joinRequests with attendee user data (the joinRequests array is empty/undefined in feed responses). This is why the Discover card avatar stack falls back to the host user photo. A backend enhancement to include top-N attendees in the feed response would improve the avatar stack, but is NOT required for this truth-sync fix.
+- pageTheme.backAccent is the event-specific theme color resolved from event.themeId via resolveEventTheme()
+- ET.accentPrimary was STATUS.going.fg (a generic green #34C759-like) — not tied to the event theme
+- Outlined inactive state for RSVP gives it visual prominence via the colored border while preserving the filled state as a clear "you're in" confirmation
+- Save button goes from near-invisible to properly ghost-styled, only gaining color when active
+- The hex suffix trick (backAccent + "18") creates 9% opacity tint; + "40" creates 25% opacity border
 
 VERIFICATION
 
@@ -96,46 +34,12 @@ npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
 Runtime verification requires simulator check:
-- Log in on second account → Discover Events shows current open events (not empty/stale)
-- Save event from event detail → tab back to Discover → Saved tab shows the saved event
-- [DISCOVER_TRUTH] logs confirm correct userId, counts, RSVP states, and invalidation keys
-
-BLAST RADIUS SWEEP
-
-Checked paths:
-- discover.tsx feedPopular query: FIXED (refetchOnMount default, staleTime 15s)
-- discover.tsx myEvents query: FIXED (refetchOnMount default, staleTime 15s)
-- discover.tsx attending query: FIXED (refetchOnMount default, staleTime 30s, in live refresh)
-- discover.tsx saveMutation: FIXED (broader invalidation)
-- discover.tsx enrichedEvents: UNCHANGED (filter logic preserved, DEV logs added)
-- discover.tsx savedEventsList: UNCHANGED (logic preserved, DEV logs added)
-- useLiveRefreshContract: NOT TOUCHED (used as-is, just wired refetchAttending)
-- eventQueryKeys.ts: NOT TOUCHED (invalidation helpers already correct)
-- event/[id].tsx: NOT TOUCHED (its save invalidation already uses getInvalidateAfterRsvpJoin)
-- social.tsx: NOT TOUCHED
-- calendar.tsx: NOT TOUCHED
-
-STATE/FINDINGS DOC UPDATES
-
-- docs/STATE_OF_THE_APP.md: Added "Discover truth sync V1" entry
-- docs/FINDINGS_LOG.md: Added "Discover Truth Sync — FIXED (2026-03-21)" finding
-
-GIT PROOF
-
-git show --stat HEAD
-commit 1284d137dda056009532a919626f05e052ff9246
- docs/FINDINGS_LOG.md           |  28 +++++++++
- docs/HANDOFF_PACKET_LATEST.txt | 139 +++++++++++++++++++++++++++++------------
- docs/STATE_OF_THE_APP.md       |   3 +-
- src/app/discover.tsx           |  84 ++++++++++++++++++++-----
- 4 files changed, 197 insertions(+), 57 deletions(-)
-
-git show --name-only HEAD
-docs/FINDINGS_LOG.md
-docs/HANDOFF_PACKET_LATEST.txt
-docs/STATE_OF_THE_APP.md
-src/app/discover.tsx
+- Confirm RSVP inactive shows outlined button with event theme color border
+- Confirm RSVP active (Going) shows solid fill with event theme color, white text "Going ✓", shadow
+- Confirm Save inactive is ghost (transparent bg, muted icon/text)
+- Confirm Save active shows tinted theme accent background
+- Test across different event themes (default, warm, midnight) to verify backAccent adapts
 
 FINAL STATUS
 
-FIXED
+EVENT DETAIL CTA POLISH APPLIED — NEEDS DESIGN REVIEW

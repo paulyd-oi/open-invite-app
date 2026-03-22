@@ -2891,24 +2891,34 @@ export default function EventDetailScreen() {
                             justifyContent: "center" as const,
                             paddingVertical: 16,
                             borderRadius: RADIUS.pill,
-                            backgroundColor: ET.accentPrimary,
+                            backgroundColor: myRsvpStatus === "going"
+                              ? pageTheme.backAccent
+                              : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)"),
+                            borderWidth: myRsvpStatus === "going" ? 0 : 1.5,
+                            borderColor: myRsvpStatus === "going" ? "transparent" : pageTheme.backAccent,
                             opacity: pressed ? 0.88 : 1,
-                            ...(Platform.OS === "ios" ? {
-                              shadowColor: ET.accentPrimary,
+                            ...(myRsvpStatus === "going" && Platform.OS === "ios" ? {
+                              shadowColor: pageTheme.backAccent,
                               shadowOffset: { width: 0, height: 4 },
                               shadowOpacity: 0.35,
                               shadowRadius: 12,
-                            } : { elevation: 4 }),
+                            } : myRsvpStatus === "going" ? { elevation: 4 } : {}),
                           })}
                         >
-                          <Check size={18} color="#FFFFFF" />
-                          <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>
-                            {myRsvpStatus === "going" ? "Going" : "I'm In"}
+                          <Check size={18} color={myRsvpStatus === "going" ? "#FFFFFF" : pageTheme.backAccent} />
+                          <Text style={{
+                            marginLeft: 8,
+                            fontSize: 16,
+                            fontWeight: "700",
+                            color: myRsvpStatus === "going" ? "#FFFFFF" : pageTheme.backAccent,
+                            letterSpacing: 0.2,
+                          }}>
+                            {myRsvpStatus === "going" ? "Going ✓" : "I'm In"}
                           </Text>
                         </Pressable>
                       )}
 
-                      {/* Save — Secondary */}
+                      {/* Save — Secondary (ghost when inactive, accent tint when active) */}
                       <Pressable
                         testID="event-detail-action-save"
                         onPress={() => handleRsvp("interested")}
@@ -2921,21 +2931,21 @@ export default function EventDetailScreen() {
                           paddingVertical: 16,
                           borderRadius: RADIUS.pill,
                           backgroundColor: myRsvpStatus === "interested"
-                            ? STATUS.interested.bgSoft
-                            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.035)"),
+                            ? (pageTheme.backAccent + "18")
+                            : "transparent",
                           borderWidth: myRsvpStatus === "interested" ? 1 : 0.5,
                           borderColor: myRsvpStatus === "interested"
-                            ? STATUS.interested.border
+                            ? (pageTheme.backAccent + "40")
                             : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"),
                           opacity: pressed ? 0.88 : 1,
                         })}
                       >
-                        <Heart size={18} color={myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary} />
+                        <Heart size={18} color={myRsvpStatus === "interested" ? pageTheme.backAccent : colors.textTertiary} />
                         <Text style={{
                           marginLeft: 8,
                           fontSize: 15,
                           fontWeight: "600",
-                          color: myRsvpStatus === "interested" ? STATUS.interested.fg : colors.text,
+                          color: myRsvpStatus === "interested" ? pageTheme.backAccent : colors.textSecondary,
                         }}>
                           Save
                         </Text>
