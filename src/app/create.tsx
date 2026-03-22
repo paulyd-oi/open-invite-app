@@ -927,6 +927,19 @@ export default function CreateEventScreen() {
   const myEvents = myEventsData?.events ?? [];
   const activeEventCount = getActiveEventCount(myEvents);
 
+  // [PAYWALL_COUNT] Diagnostic: track imported vs app-created event breakdown
+  if (__DEV__ && myEvents.length > 0) {
+    const importedCount = myEvents.filter((e: any) => e.isImported).length;
+    const appCreatedCount = myEvents.length - importedCount;
+    devLog("[PAYWALL_COUNT]", "soft_limit_breakdown", {
+      total: myEvents.length,
+      imported: importedCount,
+      appCreated: appCreatedCount,
+      activeEventCount,
+      softLimit: MAX_ACTIVE_EVENTS_FREE,
+    });
+  }
+
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
       postIdempotent<CreateEventResponse>("/api/events", data),
@@ -1191,6 +1204,17 @@ export default function CreateEventScreen() {
         (userIsPro || hostingQuota.isUnlimited) ? "premium_suppressed" :
         !hostingQuota.canHost ? "paywall_opened" :
         "submit_allowed";
+
+      // [PAYWALL_COUNT] Hard-limit diagnostic
+      if (__DEV__) {
+        devLog("[PAYWALL_COUNT]", "hard_limit_check", {
+          eventsUsed: hostingQuota.eventsUsed,
+          monthlyLimit: hostingQuota.monthlyLimit,
+          remaining: hostingQuota.remaining,
+          canHost: hostingQuota.canHost,
+          isUnlimited: hostingQuota.isUnlimited,
+        });
+      }
 
       // [P0_PREMIUM_PAYWALL_DECISION] proof log on every submit
       if (__DEV__) {

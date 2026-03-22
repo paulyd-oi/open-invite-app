@@ -16,13 +16,16 @@ export const MAX_ACTIVE_EVENTS_FREE = 5;
  * @returns Count of active events
  */
 export function getActiveEventCount(
-  events: Array<{ startTime: string; endTime?: string | null }>
+  events: Array<{ startTime: string; endTime?: string | null; isImported?: boolean }>
 ): number {
   if (!events || events.length === 0) return 0;
 
   const now = new Date();
 
   return events.filter((event) => {
+    // [PAYWALL_COUNT] Imported calendar events don't count toward hosting limits
+    if (event.isImported) return false;
+
     const startTime = new Date(event.startTime);
     const endTime = event.endTime ? new Date(event.endTime) : null;
 
