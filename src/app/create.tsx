@@ -799,8 +799,18 @@ export default function CreateEventScreen() {
     const abortController = new AbortController();
     let cancelled = false;
 
+    // Adaptive debounce: wait longer when location isn't available yet so GPS has time to resolve
+    const debounceMs = userLocation ? 300 : 800;
+
     const timeoutId = setTimeout(async () => {
       setIsSearchingPlaces(true);
+      if (__DEV__) devLog("[LOCATION_SEARCH_DEBUG]", "searching", {
+        query: locationQuery,
+        hasCoords: !!userLocation,
+        lat: userLocation?.lat ?? null,
+        lon: userLocation?.lon ?? null,
+        debounceMs,
+      });
       try {
         const results = await searchPlaces(
           locationQuery,
@@ -825,7 +835,7 @@ export default function CreateEventScreen() {
           setIsSearchingPlaces(false);
         }
       }
-    }, 300);
+    }, debounceMs);
 
     return () => {
       clearTimeout(timeoutId);
@@ -1727,6 +1737,10 @@ export default function CreateEventScreen() {
                     onFocus={() => {
                       setShowLocationSearch(true);
                       setLocationQuery(location);
+                      // Eagerly request location on focus so coordinates are ready by the time the user types
+                      if (!userLocation && !locationPermissionAsked) {
+                        requestAndFetchLocation();
+                      }
                     }}
                     placeholder="Search for a place..."
                     placeholderTextColor={colors.textTertiary}
