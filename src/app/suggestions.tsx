@@ -565,8 +565,8 @@ export default function SuggestionsScreen() {
     [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests],
   );
 
-  // Show login prompt if not authenticated
-  if (!session && !sessionLoading) {
+  // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
+  if (!session && !sessionLoading && bootStatus === 'loggedOut') {
     return (
       <SafeAreaView
         className="flex-1"

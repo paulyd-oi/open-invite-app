@@ -205,7 +205,9 @@ export default function EventRequestDetailScreen() {
     cancelMutation.mutate();
   };
 
+  // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
   if (!session) {
+    if (bootStatus !== 'loggedOut') return null;
     return (
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen

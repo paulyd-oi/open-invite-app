@@ -178,7 +178,9 @@ export default function BlockedContactsScreen() {
 
   const blockedContacts = blockedData?.blockedContacts ?? [];
 
+  // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
   if (!session) {
+    if (bootStatus !== 'loggedOut') return null;
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-row items-center px-4 py-3">

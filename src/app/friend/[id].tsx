@@ -111,6 +111,8 @@ export default function FriendProfileRedirect() {
   }
 
   // Error state
+  // [QA-8] Suppress login flash: don't show error/sign-in until boot resolves
+  if (!session && bootStatus !== 'loggedOut') return null;
   if (error || !session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>

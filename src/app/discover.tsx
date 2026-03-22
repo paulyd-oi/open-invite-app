@@ -372,7 +372,9 @@ export default function DiscoverScreen() {
     router.push(`/event/${eventId}` as any);
   };
 
+  // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
   if (!session) {
+    if (bootStatus !== 'loggedOut') return null;
     return (
       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
