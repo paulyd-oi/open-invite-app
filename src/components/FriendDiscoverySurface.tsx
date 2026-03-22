@@ -550,45 +550,59 @@ export function FriendDiscoverySurface({
 
               return (
                 <Animated.View key={user.id} entering={FadeInDown.delay(index * 100)}>
-                  <Pressable
+                  <View
                     className="flex-row items-center py-3 px-4 rounded-xl mb-2"
                     style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                    onPress={() => sendByIdMutation.mutate(user.id)}
-                    disabled={isSent || isPending}
                   >
-                    <EntityAvatar
-                      photoUrl={user.avatarUrl}
-                      initials={user.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "??"}
-                      size={48}
-                    />
-                    <View className="flex-1 ml-3">
-                      <Text className="font-medium text-base" style={{ color: colors.text }}>
-                        {user.name || "Open Invite User"}
-                      </Text>
-                      {mutualCount > 0 ? (
-                        <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                          {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+                    {/* Tappable profile content area */}
+                    <Pressable
+                      className="flex-row items-center flex-1"
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push(`/user/${user.id}` as any);
+                      }}
+                    >
+                      <EntityAvatar
+                        photoUrl={user.avatarUrl}
+                        initials={user.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "??"}
+                        size={48}
+                      />
+                      <View className="flex-1 ml-3">
+                        <Text className="font-medium text-base" style={{ color: colors.text }}>
+                          {user.name || "Open Invite User"}
                         </Text>
-                      ) : (
-                        <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                          Suggested for you
-                        </Text>
-                      )}
-                    </View>
+                        {mutualCount > 0 ? (
+                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                            {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+                          </Text>
+                        ) : (
+                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                            Suggested for you
+                          </Text>
+                        )}
+                      </View>
+                    </Pressable>
+
+                    {/* Separate add button */}
                     {isSent ? (
-                      <View className="w-10 h-10 rounded-full bg-green-500 items-center justify-center">
+                      <View className="w-10 h-10 rounded-full bg-green-500 items-center justify-center ml-2">
                         <Check size={20} color="#fff" />
                       </View>
                     ) : (
-                      <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: themeColor }}>
+                      <Pressable
+                        className="w-10 h-10 rounded-full items-center justify-center ml-2"
+                        style={{ backgroundColor: themeColor }}
+                        onPress={() => sendByIdMutation.mutate(user.id)}
+                        disabled={isPending}
+                      >
                         {isPending ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
                           <UserPlus size={20} color="#fff" />
                         )}
-                      </View>
+                      </Pressable>
                     )}
-                  </Pressable>
+                  </View>
                 </Animated.View>
               );
             })
