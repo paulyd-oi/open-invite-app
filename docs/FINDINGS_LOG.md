@@ -1,14 +1,24 @@
 # Findings Log — Frontend
 
-## Event Detail CTA Polish — APPLIED (2026-03-21)
+## Friend Request Row Wiring — FIXED (2026-03-21)
 
-### Change: RSVP and Save button visual hierarchy on non-host event detail view
+### Root Cause: Navigation used sender?.id (optional) instead of senderId (required)
 
-Previous state: RSVP "Going" button used `ET.accentPrimary` (STATUS.going.fg — a generic green) regardless of event theme. Save button had near-invisible background. Both buttons had identical visual weight making it hard to distinguish primary from secondary action.
+FriendsPeoplePane line 245 extracted `senderId = request.sender?.id`. The `sender` object is optional in the schema — backend may not populate it for every request. When `sender` is undefined, `senderId` becomes undefined, and the navigation guard `if (senderId)` silently blocked the tap. The top-level `request.senderId` field is required and always present but was never used.
 
-Fix: RSVP button now uses `pageTheme.backAccent` (the event's own theme color). Inactive state = outlined with theme border + transparent bg. Active/Going state = solid theme fill + white text + shadow + "Going ✓" label. Save button inactive = ghost (transparent bg, subtle border, muted icon). Save active = tinted theme accent bg + theme-colored text/icon. Clear visual hierarchy: RSVP dominates, Save recedes.
+Secondary issue: `refetchOnMount: false` on the friend requests query prevented stale data from refreshing when navigating back to the friends tab.
 
-File changed: `src/app/event/[id].tsx` (lines ~2883-2942, style-only — no logic changes).
+### Fix
+1. Changed navigation ID extraction to `request.senderId ?? request.sender?.id` — uses the required field as primary
+2. Removed `refetchOnMount: false` from friend requests query so stale data refetches on navigation return
+3. Added [FRIEND_REQUEST] DEV diagnostics throughout the pipeline (query, row render, accept/decline, navigation)
+
+### Backend Note
+Backend `/api/friends/requests` returns `sender` as optional. If not populated, rows show "Unknown" name and no avatar. The `senderId` top-level field is always present and sufficient for navigation. Backend should ideally always populate `sender` with at least `{ id, name, image }`.
+
+### Files Changed
+- src/components/friends/FriendsPeoplePane.tsx: senderId extraction fix + [FRIEND_REQUEST] logs
+- src/app/friends.tsx: removed refetchOnMount: false + [FRIEND_REQUEST] query diagnostics
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 

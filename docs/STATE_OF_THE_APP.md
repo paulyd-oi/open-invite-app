@@ -1,5 +1,11 @@
 # State of the App — Frontend
 
+## Fixed This Session (Friend Request Wiring V1 — 2026-03-21)
+- Friend request row tap now navigates to requester's profile — was silently blocked because code used `request.sender?.id` (optional/often undefined) instead of `request.senderId` (required/always present)
+- Friend requests query now refetches on mount — removed `refetchOnMount: false` that caused stale request data
+- Accept/decline mutations were already correctly wired — no changes needed
+- Backend note: `/api/friends/requests` should always populate `sender` object; currently optional
+
 ## Stable
 - Onboarding Avatar Upload V2 FIXED + Hardened + Instrumented: Root cause was `isValidBetterAuthToken()` rejecting valid Better Auth opaque tokens (no dot). Fix removed the dot requirement; hardening pass added SAFE_TOKEN_CHARS regex. HTTP-verified against production. Also fixed `formatReactNativeCookieHeader()` malformed cookie headers. Live app still shows "Upload failed" — [ONBOARD_AVATAR] diagnostic logs re-added to welcome.tsx, imageUpload.ts, and authClient.ts covering every step of the upload pipeline: picker, permissions, session check, file existence, compression, sign request/response, Cloudinary upload, complete request, and auth header state. TEMP DIAGNOSTICS — awaiting runtime capture to identify exact failure step.
 - Onboarding UX Refresh V1: Premium ambient visual treatment across all 5 onboarding screens. New OnboardingBackground component (soft violet/accent glow orbs with animated breathing opacity) integrated into OnboardingLayout. CTA copy clarified: Slide 1 "Continue" -> "Create account", Slide 2 "Continue with Email" -> "Create account with email", Slide 5 "Continue" -> "Get started". Slide 2 log-in path separated into distinct bottom section with "Already have an account?" label. Slide 1 "Log In" changed from ghost button to secondary text link. FriendDiscoverySurface empty-state simplified: removed ShareAppButton and icon, replaced with calm one-liner. No auth/upload/routing logic changed.
