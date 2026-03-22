@@ -414,9 +414,9 @@ export default function EventDetailScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Live Activity state
-  // [LIVE_ACTIVITY] Default ON — useFocusEffect syncs with native state immediately.
-  // This ensures the toggle shows ON for eligible events before the async native check completes.
-  const [liveActivityActive, setLiveActivityActive] = useState(Platform.OS === "ios");
+  // [LIVE_ACTIVITY] null = native check pending → toggle hidden until resolved.
+  // useFocusEffect sets true/false once the native bridge responds.
+  const [liveActivityActive, setLiveActivityActive] = useState<boolean | null>(null);
   const [liveActivitySupported, setLiveActivitySupported] = useState(false);
   // Track if user manually turned off Live Activity this session (don't auto-restart)
   const liveActivityManuallyDismissed = useRef(false);
@@ -4437,8 +4437,8 @@ export default function EventDetailScreen() {
                   </Pressable>
                 )}
 
-                {/* Lock Screen Updates — iOS live activity toggle (always visible on iOS for eligible events) */}
-                {Platform.OS === "ios" && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
+                {/* Lock Screen Updates — iOS live activity toggle (hidden until native check resolves) */}
+                {Platform.OS === "ios" && liveActivityActive !== null && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
                   const startMs = new Date(event.startTime).getTime();
                   const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
                   const now = Date.now();

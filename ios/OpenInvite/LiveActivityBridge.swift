@@ -72,7 +72,7 @@ class LiveActivityBridge: NSObject {
 
         do {
             if #available(iOS 16.2, *) {
-                // iOS 16.2+: use ActivityContent with staleDate + auto-dismiss after end
+                // iOS 16.2+: use ActivityContent with staleDate + scheduled auto-dismiss
                 let content = ActivityContent(
                     state: state,
                     staleDate: staleDate
@@ -82,7 +82,25 @@ class LiveActivityBridge: NSObject {
                     content: content,
                     pushType: nil
                 )
-                NSLog("[LIVE_ACTIVITY] Started activity %@ with staleDate=%@ dismissAfter=%@", activity.id, staleDate.description, endDate.description)
+                NSLog("[LIVE_ACTIVITY] Started activity %@ staleDate=%@ endDate=%@", activity.id, staleDate.description, endDate.description)
+
+                // Schedule auto-dismiss: end the activity shortly after event ends
+                let dismissGrace: TimeInterval = 300 // 5 min grace so user sees final state
+                Task.detached {
+                    let delay = endDate.timeIntervalSinceNow
+                    if delay > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    }
+                    let finalState = OpenInviteEventAttributes.ContentState(
+                        rsvpStatus: rsvpStatus,
+                        ended: true,
+                        goingCount: goingCount
+                    )
+                    let finalContent = ActivityContent(state: finalState, staleDate: endDate)
+                    await activity.end(finalContent, dismissalPolicy: .after(endDate.addingTimeInterval(dismissGrace)))
+                    NSLog("[LIVE_ACTIVITY] Auto-dismissed activity %@ (5m after endDate)", activity.id)
+                }
+
                 resolve(["activityId": activity.id])
             } else {
                 // iOS 16.1: no ActivityContent API, use basic request
