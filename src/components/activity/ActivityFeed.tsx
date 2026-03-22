@@ -541,12 +541,8 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     [handleNotificationPress],
   );
 
-  // Not authenticated — show nothing in embedded mode, callers handle auth
-  if (!session && embedded) {
-    return null;
-  }
-
   // [NOTIFICATIONS] Filter chips — shown above the list
+  // MUST be above all early returns to satisfy React's hooks-order invariant.
   const filterChipsHeader = useMemo(() => (
     <ScrollView
       horizontal
@@ -592,6 +588,11 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
       })}
     </ScrollView>
   ), [activeFilter, themeColor, colors]);
+
+  // Not authenticated — show nothing in embedded mode, callers handle auth
+  if (!session && embedded) {
+    return null;
+  }
 
   // Empty state for filtered view (different from "no notifications at all")
   const filteredEmptyState = activeFilter !== "all" && filteredNotifications.length === 0 && uniqueNotifications.length > 0;
