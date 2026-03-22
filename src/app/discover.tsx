@@ -120,6 +120,11 @@ interface PopularEvent {
     status: string;
     user: { id: string; name: string | null; image: string | null };
   }>;
+  attendeePreview?: Array<{
+    id: string;
+    image: string | null;
+    name: string | null;
+  }>;
 }
 
 type Lens = "ideas" | "events" | "saved";
@@ -820,7 +825,9 @@ export default function DiscoverScreen() {
                             const count = event.attendeeCount ?? 0;
                             if (count === 0) return null;
 
-                            // Build avatar list: joinRequests first, then host as guaranteed fallback
+                            // Build avatar list: attendeePreview (going RSVPs) first, then joinRequests, then host
+                            const fromPreview = (event.attendeePreview ?? [])
+                              .map((a) => ({ id: a.id, name: a.name ?? null, image: a.image ?? null }));
                             const fromJR = (event.joinRequests ?? [])
                               .filter((r) => r.status === "accepted" && r.user)
                               .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
@@ -830,10 +837,10 @@ export default function DiscoverScreen() {
                               ? { id: event.user.id, name: event.user.name, image: event.user.image }
                               : null;
 
-                            // Merge: joinRequest attendees first, then host (dedupe)
+                            // Merge: attendeePreview first, then joinRequests, then host (dedupe)
                             const seen = new Set<string>();
                             const merged: { id: string; name: string | null; image: string | null }[] = [];
-                            for (const a of [...fromJR, ...(host ? [host] : [])]) {
+                            for (const a of [...fromPreview, ...fromJR, ...(host ? [host] : [])]) {
                               if (!seen.has(a.id)) { seen.add(a.id); merged.push(a); }
                             }
 
@@ -847,7 +854,9 @@ export default function DiscoverScreen() {
                                 eventId: event.id,
                                 title: event.title,
                                 attendeeCount: count,
+                                attendeePreviewCount: (event.attendeePreview ?? []).length,
                                 joinRequestsRaw: (event.joinRequests ?? []).length,
+                                fromPreviewCount: fromPreview.length,
                                 fromJRCount: fromJR.length,
                                 hostId: host?.id ?? null,
                                 hostImage: host?.image ?? null,

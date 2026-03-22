@@ -101,6 +101,12 @@ export const eventSchema = z.object({
       image: z.string().nullable(),
     }),
   })).optional(),
+  // Attendee preview: first 5 "going" users for avatar stacks on cards
+  attendeePreview: z.array(z.object({
+    id: z.string(),
+    image: z.string().nullable(),
+    name: z.string().nullable(),
+  })).optional(),
   // Event Photo Lite (single cover photo, privacy-enforced server-side)
   eventPhotoUrl: z.string().nullable().optional(),
   eventPhotoPublicId: z.string().nullable().optional(),
