@@ -2897,15 +2897,15 @@ export default function EventDetailScreen() {
                       </View>
                     )}
                     {/* Two-button action bar */}
-                    <View style={{ flexDirection: "row", gap: 12, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                       {/* Going — Primary */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
-                          flex: 1.2,
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "center",
                           paddingVertical: 16,
+                          paddingHorizontal: 24,
                           borderRadius: RADIUS.pill,
                           backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
                           opacity: 0.5,
@@ -2919,7 +2919,6 @@ export default function EventDetailScreen() {
                           onPress={() => handleRsvp("going")}
                           disabled={rsvpMutation.isPending}
                           style={({ pressed }) => ({
-                            flex: 1.2,
                             flexDirection: "row" as const,
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
@@ -2955,7 +2954,6 @@ export default function EventDetailScreen() {
                         onPress={() => handleRsvp("interested")}
                         disabled={rsvpMutation.isPending}
                         style={({ pressed }) => ({
-                          flex: 1,
                           flexDirection: "row" as const,
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
