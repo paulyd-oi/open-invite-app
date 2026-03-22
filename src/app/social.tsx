@@ -1777,7 +1777,7 @@ export default function SocialScreen() {
                 >
                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-sm font-semibold" style={{ color: activePane === "group" ? "#FFFFFF" : colors.textSecondary }}>
-                    Group
+                    Group Invite
                   </Text>
                 </Pressable>
                 <Pressable
