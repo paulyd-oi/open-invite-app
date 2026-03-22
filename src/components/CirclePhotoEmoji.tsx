@@ -12,22 +12,22 @@ interface CirclePhotoEmojiProps {
 }
 
 /**
- * Circle emoji with photo overlay — thin adapter over EntityAvatar (identity SSOT).
+ * Circle group icon with optional photo overlay — thin adapter over EntityAvatar.
  *
+ * Always renders "👥" as the base icon regardless of any legacy emoji stored
+ * in the database (emoji selection was removed from circle creation).
  * Must be placed inside a container with overflow:hidden and fixed dimensions.
- * Delegates rendering + fallback chain to EntityAvatar; preserves the same
- * emoji-base + photo-fade-in visual via EntityAvatar → EventPhotoEmoji path.
  */
 export function CirclePhotoEmoji({
   photoUrl,
-  emoji,
+  emoji: _emoji,
   emojiClassName,
   emojiStyle,
 }: CirclePhotoEmojiProps) {
   return (
     <EntityAvatar
       photoUrl={photoUrl}
-      emoji={emoji}
+      emoji="👥"
       emojiClassName={emojiClassName}
       emojiStyle={emojiStyle}
       size={48}
