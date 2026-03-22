@@ -935,7 +935,8 @@ export default function SocialScreen() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthed,
-    staleTime: 30 * 1000, // 30s - feed changes often but not instantly
+    staleTime: 5 * 60 * 1000, // 5 min — data considered fresh, won't refetch on tab return
+    gcTime: 30 * 60 * 1000, // 30 min — keep cached data in memory across navigations
     // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev, // [PERF_SWEEP] Keep pages visible during refetch
@@ -982,7 +983,8 @@ export default function SocialScreen() {
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthed,
-    staleTime: 60 * 1000, // 1 min - user's own events change less often
+    staleTime: 5 * 60 * 1000, // 5 min — data considered fresh, won't refetch on tab return
+    gcTime: 30 * 60 * 1000, // 30 min — keep cached data in memory across navigations
     refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
     // refetchOnMount: default (true) — stale data refetches on navigation return
@@ -1000,7 +1002,8 @@ export default function SocialScreen() {
     queryKey: eventKeys.attending(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
     enabled: isAuthed,
-    staleTime: 60 * 1000, // 1 min
+    staleTime: 5 * 60 * 1000, // 5 min — data considered fresh, won't refetch on tab return
+    gcTime: 30 * 60 * 1000, // 30 min — keep cached data in memory across navigations
     refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
     // refetchOnMount: default (true) — stale data refetches on navigation return
