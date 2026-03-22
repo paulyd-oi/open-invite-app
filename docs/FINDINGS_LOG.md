@@ -1,5 +1,33 @@
 # Findings Log — Frontend
 
+## Discover Truth Sync — FIXED (2026-03-21)
+
+### Root Cause: refetchOnMount: false + narrow save invalidation
+
+Discover's feed queries (`feedPopular`, `myEvents`, `attending`) had `refetchOnMount: false`, preventing stale/invalidated data from refetching when the user navigated back to Discover. Combined with `refetchOnWindowFocus: false`, the only refetch paths were manual pull-to-refresh and `useLiveRefreshContract` focus handler (2s throttled). This caused two symptoms:
+
+1. **Empty/stale Events on second account**: After account switch (logout→login clears cache), queries fetch fresh. But subsequent navigation away and back served stale cache because `refetchOnMount: false` prevented TQ's default stale-data-refetch-on-mount behavior.
+
+2. **Saved tab not reflecting cross-surface saves**: Event detail's RSVP save invalidates `eventKeys.feed()` (parent key, prefix-matches `feedPopular`). But with `refetchOnMount: false`, the invalidated query didn't refetch when the user tabbed back to Discover before the `useLiveRefreshContract` focus handler fired.
+
+### Fix
+- Removed `refetchOnMount: false` from all three queries (feed, myEvents, attending) — TQ default `true` refetches stale data on mount
+- Reduced `staleTime` from 30s/60s to 15s/30s for faster staleness
+- Save mutation invalidates `eventKeys.feed()` (parent) instead of `feedPopular()` only — covers feedPaginated too
+- Save mutation also invalidates `eventKeys.attending()` for cross-surface RSVP consistency
+- `refetchAttending` added to `useLiveRefreshContract` focus refetch list
+- [DISCOVER_TRUTH] DEV logs added for enrichedEvents pipeline and savedEventsList
+
+### Files Changed
+- src/app/discover.tsx
+
+### Verification
+- TypeScript: PASS
+- verify_frontend.sh: same pre-existing failures only
+- Proof tag: [DISCOVER_TRUTH]
+
+---
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

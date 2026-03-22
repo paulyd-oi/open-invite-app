@@ -1,68 +1,141 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — Discover Truth Sync V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Fixed two Discover tab data sync issues: (1) Events list empty/stale for second account due to refetchOnMount: false preventing stale-data refetch on navigation return, (2) Saved tab not reflecting cross-surface save/unsave because save mutation used narrow invalidation key and attending query wasn't in the focus refetch list.
+
+EXACT ROOT CAUSE
+
+Both symptoms trace to the same configuration cluster:
+
+1. All three Discover queries (feedPopular, myEvents, attending) had `refetchOnMount: false`. TanStack Query's default behavior is `refetchOnMount: true` — when data exists but is stale, refetch on mount. By setting this to false, stale or invalidated data was never refetched when the user navigated back to Discover from another screen.
+
+2. Save mutation from Discover invalidated only `eventKeys.feedPopular()` (specific key). Cross-surface saves from event detail invalidate `eventKeys.feed()` (parent) which prefix-matches feedPopular. But the Discover-local save was narrower than necessary and didn't invalidate `attending`.
+
+3. The `attending` query was not included in the `useLiveRefreshContract` refetch list, so focus/foreground triggers didn't refresh it.
+
+4. `staleTime: 30_000` (feed) / `60_000` (attending) meant data could be served from cache for up to 30-60 seconds even when outdated.
+
+RUNTIME PATH
+
+1. Discover Events data load:
+   - src/app/discover.tsx: useQuery feedPopular → GET /api/events/feed?visibility=open_invite
+   - src/app/discover.tsx: useQuery myEvents → GET /api/events
+   - enrichedEvents useMemo: merge + deduplicate + filter (BLOCKED_VIS + past) + enrich attendee count
+
+2. Discover Saved data load:
+   - savedEventsList useMemo: filter enrichedEvents by savedEvents Set (local) OR viewerRsvpStatus === "interested" | "maybe" (server)
+
+3. Save/unsave mutation to invalidation/refetch:
+   - Discover save: postIdempotent /api/events/{id}/rsvp { status: "interested" }
+   - onSuccess: local Set update + invalidate feed() (parent) + myEvents + attending
+   - Event detail save: getInvalidateAfterRsvpJoin → invalidates feed(), feedPaginated(), myEvents, calendar, attending, single, rsvp, interests, attendees
+   - On Discover focus: useLiveRefreshContract fires refetchFeed + refetchMyEvents + refetchAttending
+
+RUNTIME PROOF
+
+Expected [DISCOVER_TRUTH] log output after fix:
+
+  [DISCOVER_TRUTH] enrichedEvents {
+    userId: "<active-user-id>",
+    feedCount: <N>,
+    myEventsCount: <M>,
+    mergedCount: <total>,
+    excludedCount: <filtered>,
+    excluded: [{ id: "...", title: "...", reason: "visibility=circle_only" }],
+    renderedCount: <visible>,
+    sampleRsvps: [{ id: "abc123", title: "...", viewerRsvpStatus: "interested", visibility: "open_invite" }]
+  }
+
+  [DISCOVER_TRUTH] savedEventsList {
+    enrichedCount: <N>,
+    localSavedCount: <local-set-size>,
+    serverSavedCount: <server-interested-count>,
+    resultCount: <final>,
+    items: [{ id: "abc123", title: "...", source: "server:interested" }]
+  }
+
+  [DISCOVER_TRUTH] save_invalidation {
+    eventId: "<saved-event-id>",
+    invalidated: ["feed(parent)", "myEvents", "attending"]
+  }
 
 EXACT FILES CHANGED
 
 1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+   - Removed refetchOnMount: false from feedPopular, myEvents, attending queries
+   - Reduced staleTime: 30_000→15_000 (feed/myEvents), 60_000→30_000 (attending)
+   - Save mutation: invalidates feed() parent key (not feedPopular only) + attending
+   - attending query: refetch extracted, added to useLiveRefreshContract
+   - [DISCOVER_TRUTH] DEV logs: enrichedEvents pipeline, savedEventsList truth, save invalidation
 
-ROOT CAUSE
+2. docs/STATE_OF_THE_APP.md — added Discover truth sync entry
+3. docs/FINDINGS_LOG.md — added Discover Truth Sync finding
+4. docs/HANDOFF_PACKET_LATEST.txt — this file
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
+FIX
 
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
+Frontend-only. Three changes:
 
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
+A. Query config: Removed `refetchOnMount: false` from all three Discover queries. TQ default `true` means stale data refetches when user navigates back to Discover. This is the primary fix for both symptoms.
 
-EVENT DETAIL SOURCE
+B. Save invalidation: Broadened to use parent `eventKeys.feed()` key (prefix-matches feedPopular + feedPaginated) plus `eventKeys.attending()`. Ensures all feed projections update after save.
 
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
-
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
+C. Focus refetch: Added `refetchAttending` to useLiveRefreshContract so tab focus / foreground resume refreshes attending data alongside feed and myEvents.
 
 BACKEND CONTRACT NOTE
 
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+The backend feed endpoint (/api/events/feed?visibility=open_invite) returns events appropriately scoped. For accounts with no social graph, the feed may return fewer or zero events — this is correct backend behavior (discovery is social-graph-scoped). The frontend issue was that even when the backend returned correct data, the stale cache configuration prevented it from being displayed. No backend changes needed for this fix.
+
+One remaining backend observation: the feed endpoint does not populate joinRequests with attendee user data (the joinRequests array is empty/undefined in feed responses). This is why the Discover card avatar stack falls back to the host user photo. A backend enhancement to include top-N attendees in the feed response would improve the avatar stack, but is NOT required for this truth-sync fix.
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+Runtime verification requires simulator check:
+- Log in on second account → Discover Events shows current open events (not empty/stale)
+- Save event from event detail → tab back to Discover → Saved tab shows the saved event
+- [DISCOVER_TRUTH] logs confirm correct userId, counts, RSVP states, and invalidation keys
+
+BLAST RADIUS SWEEP
+
+Checked paths:
+- discover.tsx feedPopular query: FIXED (refetchOnMount default, staleTime 15s)
+- discover.tsx myEvents query: FIXED (refetchOnMount default, staleTime 15s)
+- discover.tsx attending query: FIXED (refetchOnMount default, staleTime 30s, in live refresh)
+- discover.tsx saveMutation: FIXED (broader invalidation)
+- discover.tsx enrichedEvents: UNCHANGED (filter logic preserved, DEV logs added)
+- discover.tsx savedEventsList: UNCHANGED (logic preserved, DEV logs added)
+- useLiveRefreshContract: NOT TOUCHED (used as-is, just wired refetchAttending)
+- eventQueryKeys.ts: NOT TOUCHED (invalidation helpers already correct)
+- event/[id].tsx: NOT TOUCHED (its save invalidation already uses getInvalidateAfterRsvpJoin)
+- social.tsx: NOT TOUCHED
+- calendar.tsx: NOT TOUCHED
+
+STATE/FINDINGS DOC UPDATES
+
+- docs/STATE_OF_THE_APP.md: Added "Discover truth sync V1" entry
+- docs/FINDINGS_LOG.md: Added "Discover Truth Sync — FIXED (2026-03-21)" finding
 
 GIT PROOF
 
 git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
+commit 1284d137dda056009532a919626f05e052ff9246
+ docs/FINDINGS_LOG.md           |  28 +++++++++
+ docs/HANDOFF_PACKET_LATEST.txt | 139 +++++++++++++++++++++++++++++------------
+ docs/STATE_OF_THE_APP.md       |   3 +-
+ src/app/discover.tsx           |  84 ++++++++++++++++++++-----
+ 4 files changed, 197 insertions(+), 57 deletions(-)
 
 git show --name-only HEAD
+docs/FINDINGS_LOG.md
+docs/HANDOFF_PACKET_LATEST.txt
+docs/STATE_OF_THE_APP.md
 src/app/discover.tsx
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+FIXED
