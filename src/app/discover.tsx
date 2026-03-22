@@ -45,7 +45,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
-import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { Button } from "@/ui/Button";
@@ -168,8 +168,8 @@ export default function DiscoverScreen() {
       postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
     onSuccess: (_data, eventId) => {
       setSavedEvents((prev) => new Set(prev).add(eventId));
-      queryClient.invalidateQueries({ queryKey: eventKeys.feedPopular() });
-      queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
+      // [INVALIDATION_GAPS_V1] Use SSOT helper instead of ad-hoc 2-key invalidation
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       flashSavedToast();
     },

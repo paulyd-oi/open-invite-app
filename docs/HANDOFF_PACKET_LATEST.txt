@@ -1,68 +1,63 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — Cache Invalidation Gaps V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Fixed 5 cross-surface cache invalidation and lifecycle gaps identified in docs/SURFACE_AUDIT_REPORT.txt. These caused stale data on Discover, Social, and Activity feeds after RSVP, event CRUD, and friend mutations.
 
-EXACT FILES CHANGED
+GAP 1 FIX: src/lib/eventQueryKeys.ts
+- Added eventKeys.feedPopular() to 5 helpers:
+  getInvalidateAfterRsvpJoin, getInvalidateAfterRsvpLeave,
+  getInvalidateAfterEventCreate, getInvalidateAfterEventEdit,
+  getInvalidateAfterEventDelete
+- feedPopular() now sits alongside feed() and feedPaginated() in every helper
+- No existing keys removed
 
-1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+GAP 2 FIX: src/app/discover.tsx
+- Replaced saveMutation ad-hoc invalidation (2 keys: feedPopular + myEvents) with
+  SSOT call: invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save")
+- SSOT helper covers 10 keys: single, attendees, interests, rsvp, feed, feedPaginated,
+  feedPopular, myEvents, calendar, attending
+- Kept setSavedEvents optimistic update, haptics, and toast — only invalidation calls replaced
+- Added imports: invalidateEventKeys, getInvalidateAfterRsvpJoin from eventQueryKeys
 
-ROOT CAUSE
+GAP 3 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept
+- Added 3 event feed keys: eventKeys.feed(), eventKeys.feedPaginated(), eventKeys.feedPopular()
+- New friend's events now propagate to Social tab and Discover after accept
+- All existing keys preserved (friendKeys.all, requests, suggestions, pinned, circleKeys.all)
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
+GAP 4 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept + refreshAfterFriendReject
+- Added ["notifications"] key to both helpers
+- friend_request notification now cleared from Activity feed after accept or reject
+- All existing keys preserved
 
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
-
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
-
-EVENT DETAIL SOURCE
-
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
-
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
-
-BACKEND CONTRACT NOTE
-
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+GAP 5 FIX: src/app/social.tsx → discoveryEvents memo
+- Added past/ended event filter before existing filters (cheap early return)
+- Pattern: endTime ?? startTime < Date.now(), with Number.isNaN guard for invalid dates
+- Added excludedExpiredCount to [P0_SOCIAL_OPEN_INVITES_FILTER] DEV log
+- Same proven pattern as Task 4 profile fix
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
-bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
 
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+BLAST RADIUS
+- eventQueryKeys.ts: 5 helpers modified (feedPopular added to each)
+- refreshAfterMutation.ts: 2 helpers modified (event feeds + notifications added)
+- discover.tsx: 1 mutation modified (ad-hoc → SSOT)
+- social.tsx: 1 memo modified (expiry filter added)
+- No UI, layout, or component changes
+- No existing invalidation keys removed
+- feedPopular() now appears in all 5 event invalidation helpers ✓
+- refreshAfterFriendAccept now includes event feed + notification keys ✓
+- refreshAfterFriendReject now includes notification keys ✓
+- discoveryEvents memo now filters past events ✓
 
 GIT PROOF
 
-git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
-
-git show --name-only HEAD
-src/app/discover.tsx
+(see below after commit)
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+FIXED

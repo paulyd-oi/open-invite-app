@@ -1,5 +1,24 @@
 # Findings Log — Frontend
 
+## Cache Invalidation Gaps V1 — FIXED (2026-03-21)
+
+### Root Cause: Cross-surface invalidation incomplete after RSVP, event CRUD, and friend mutations
+
+Surface audit (docs/SURFACE_AUDIT_REPORT.txt) identified 5 gaps in the TanStack Query invalidation layer:
+
+1. `eventKeys.feedPopular()` missing from all 5 event invalidation helpers — Discover popular feed never refreshed after RSVP/create/edit/delete on other surfaces.
+2. Discover saveMutation used ad-hoc 2-key invalidation instead of SSOT 10-key helper — save action didn't propagate to Social, Calendar, Attending.
+3. `refreshAfterFriendAccept` didn't invalidate event feeds — new friend's events invisible in Social/Discover until manual refresh.
+4. `refreshAfterFriendAccept/Reject` didn't invalidate notifications — friend_request notification persisted in Activity feed after action.
+5. Social tab discoveryEvents memo didn't filter past/ended events — stale time labels rendered on expired events.
+
+### Fix
+- Added `eventKeys.feedPopular()` to getInvalidateAfterRsvpJoin, RsvpLeave, EventCreate, EventEdit, EventDelete (eventQueryKeys.ts)
+- Replaced discover.tsx saveMutation ad-hoc invalidation with `invalidateEventKeys(qc, getInvalidateAfterRsvpJoin(eventId))` SSOT call
+- Added event feed keys (feed, feedPaginated, feedPopular) + `["notifications"]` to refreshAfterFriendAccept (refreshAfterMutation.ts)
+- Added `["notifications"]` to refreshAfterFriendReject (refreshAfterMutation.ts)
+- Added past/ended event filter (endTime ?? startTime < now, Number.isNaN guard) to social.tsx discoveryEvents memo
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

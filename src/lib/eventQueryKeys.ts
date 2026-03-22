@@ -148,6 +148,7 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
     eventKeys.rsvp(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),
@@ -167,6 +168,7 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
     eventKeys.rsvp(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),
@@ -217,6 +219,7 @@ export function getInvalidateAfterEventCreate(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
@@ -231,6 +234,7 @@ export function getInvalidateAfterEventEdit(eventId: string): Array<readonly str
     eventKeys.single(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
@@ -244,6 +248,7 @@ export function getInvalidateAfterEventDelete(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
