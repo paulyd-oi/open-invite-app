@@ -2923,28 +2923,25 @@ export default function EventDetailScreen() {
                             flexDirection: "row" as const,
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
-                            paddingVertical: 16,
+                            paddingVertical: 14,
+                            paddingHorizontal: 24,
                             borderRadius: RADIUS.pill,
-                            backgroundColor: myRsvpStatus === "going"
-                              ? pageTheme.backAccent
-                              : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)"),
-                            borderWidth: myRsvpStatus === "going" ? 0 : 1.5,
-                            borderColor: myRsvpStatus === "going" ? "transparent" : pageTheme.backAccent,
-                            opacity: pressed ? 0.88 : 1,
-                            ...(myRsvpStatus === "going" && Platform.OS === "ios" ? {
+                            backgroundColor: pageTheme.backAccent,
+                            opacity: pressed ? 0.85 : 1,
+                            ...(Platform.OS === "ios" ? {
                               shadowColor: pageTheme.backAccent,
                               shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: 0.35,
+                              shadowOpacity: myRsvpStatus === "going" ? 0.35 : 0.25,
                               shadowRadius: 12,
-                            } : myRsvpStatus === "going" ? { elevation: 4 } : {}),
+                            } : { elevation: 4 }),
                           })}
                         >
-                          <Check size={18} color={myRsvpStatus === "going" ? "#FFFFFF" : pageTheme.backAccent} />
+                          <Check size={18} color="#FFFFFF" />
                           <Text style={{
                             marginLeft: 8,
                             fontSize: 16,
                             fontWeight: "700",
-                            color: myRsvpStatus === "going" ? "#FFFFFF" : pageTheme.backAccent,
+                            color: "#FFFFFF",
                             letterSpacing: 0.2,
                           }}>
                             {myRsvpStatus === "going" ? "Going ✓" : "I'm In"}
@@ -2952,7 +2949,7 @@ export default function EventDetailScreen() {
                         </Pressable>
                       )}
 
-                      {/* Save — Secondary (ghost when inactive, accent tint when active) */}
+                      {/* Save — Secondary outlined pill */}
                       <Pressable
                         testID="event-detail-action-save"
                         onPress={() => handleRsvp("interested")}
@@ -2962,26 +2959,25 @@ export default function EventDetailScreen() {
                           flexDirection: "row" as const,
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
-                          paddingVertical: 16,
+                          paddingVertical: 14,
+                          paddingHorizontal: 24,
                           borderRadius: RADIUS.pill,
                           backgroundColor: myRsvpStatus === "interested"
                             ? (pageTheme.backAccent + "18")
                             : "transparent",
-                          borderWidth: myRsvpStatus === "interested" ? 1 : 0.5,
-                          borderColor: myRsvpStatus === "interested"
-                            ? (pageTheme.backAccent + "40")
-                            : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"),
-                          opacity: pressed ? 0.88 : 1,
+                          borderWidth: 1.5,
+                          borderColor: pageTheme.backAccent,
+                          opacity: pressed ? 0.85 : 1,
                         })}
                       >
-                        <Heart size={18} color={myRsvpStatus === "interested" ? pageTheme.backAccent : colors.textTertiary} />
+                        <Heart size={18} color={pageTheme.backAccent} />
                         <Text style={{
                           marginLeft: 8,
                           fontSize: 15,
                           fontWeight: "600",
-                          color: myRsvpStatus === "interested" ? pageTheme.backAccent : colors.textSecondary,
+                          color: pageTheme.backAccent,
                         }}>
-                          Save
+                          {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
                         </Text>
                       </Pressable>
                     </View>
