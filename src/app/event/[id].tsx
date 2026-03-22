@@ -2897,7 +2897,7 @@ export default function EventDetailScreen() {
                       </View>
                     )}
                     {/* Two independent pill buttons */}
-                    <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 14, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                       {/* Going — Primary pill */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
@@ -2905,9 +2905,11 @@ export default function EventDetailScreen() {
                           alignItems: "center",
                           justifyContent: "center",
                           paddingVertical: 12,
-                          paddingHorizontal: 24,
+                          paddingHorizontal: 28,
                           borderRadius: 999,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                          backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)",
+                          borderWidth: 1,
+                          borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)",
                           opacity: 0.5,
                         }}>
                           <Users size={18} color={colors.textTertiary} />
@@ -2923,9 +2925,11 @@ export default function EventDetailScreen() {
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
                             paddingVertical: 12,
-                            paddingHorizontal: 24,
+                            paddingHorizontal: 28,
                             borderRadius: 999,
-                            backgroundColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)",
+                            backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)",
+                            borderWidth: 1,
+                            borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)",
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
@@ -2952,11 +2956,15 @@ export default function EventDetailScreen() {
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
                           paddingVertical: 12,
-                          paddingHorizontal: 24,
+                          paddingHorizontal: 28,
                           borderRadius: 999,
                           backgroundColor: myRsvpStatus === "interested"
                             ? (pageTheme.backAccent + "18")
-                            : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)"),
+                            : (isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)"),
+                          borderWidth: 1,
+                          borderColor: myRsvpStatus === "interested"
+                            ? (pageTheme.backAccent + "40")
+                            : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)"),
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
