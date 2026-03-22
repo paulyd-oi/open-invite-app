@@ -15,7 +15,7 @@ import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 
 import Animated, {
   FadeInDown,
@@ -181,6 +181,14 @@ export default function ProfileScreen() {
       try {
         const { avatarUri } = getProfileDisplay({ profileData, session });
         const safeUri = typeof avatarUri === "string" ? avatarUri : undefined;
+        if (__DEV__) {
+          devLog("[PROFILE_PHOTO]", "avatar_source_resolve", {
+            avatarUri: safeUri?.slice(0, 80),
+            fromProfile: !!profileData?.profile?.avatarUrl,
+            fromUser: !!profileData?.user?.image,
+            fromSession: !!session?.user?.image,
+          });
+        }
         const source = await getImageSource(safeUri);
         setAvatarSource(source ?? null);
       } catch {
@@ -189,6 +197,15 @@ export default function ProfileScreen() {
     };
     loadAvatar();
   }, [profileData, session]);
+
+  // [PROFILE_PHOTO] Refresh profile data when screen gains focus.
+  // React Native has no window.focus event, so React Query's refetchOnWindowFocus
+  // doesn't fire. This ensures the avatar updates after editing in settings.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: qk.profile() });
+    }, [queryClient])
+  );
 
   // Pull to refresh
   const onRefresh = useCallback(async () => {

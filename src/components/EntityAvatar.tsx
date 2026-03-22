@@ -4,6 +4,7 @@ import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { EventPhotoEmoji } from "./EventPhotoEmoji";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
+import { devLog } from "@/lib/devLog";
 
 if (__DEV__) {
   // eslint-disable-next-line no-console
