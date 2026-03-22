@@ -54,6 +54,7 @@ export const eventSchema = z.object({
   endTime: z.string().nullable(),
   isRecurring: z.boolean(),
   recurrence: z.string().nullable(),
+  nextOccurrence: z.string().nullable().optional(), // Next future occurrence for recurring events
   visibility: z.string(),
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
@@ -178,6 +179,7 @@ export const createEventRequestSchema = z.object({
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().optional(),
+  nextOccurrence: z.string().nullable().optional(),
   visibility: z.enum(["all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
   groupIds: z.array(z.string()).optional(), // Required if visibility is specific_groups
   circleId: z.string().optional(), // Required if visibility is circle_only
@@ -1390,6 +1392,7 @@ export const businessEventSchema = z.object({
   endTime: z.string().nullable(),
   isRecurring: z.boolean(),
   recurrence: z.string().nullable(),
+  nextOccurrence: z.string().nullable().optional(),
   category: z.string().nullable(),
   maxAttendees: z.number().nullable(),
   rsvpDeadline: z.string().nullable(),
@@ -1499,6 +1502,7 @@ export const createBusinessEventInputSchema = z.object({
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().optional(),
+  nextOccurrence: z.string().nullable().optional(),
   category: z.string().optional(),
   maxAttendees: z.number().min(1).optional(),
   rsvpDeadline: z.string().optional(),

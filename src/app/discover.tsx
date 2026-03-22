@@ -116,6 +116,7 @@ interface PopularEvent {
   themeId?: string | null;
   isRecurring?: boolean;
   recurrence?: string | null;
+  nextOccurrence?: string | null;
   joinRequests?: Array<{
     id: string;
     userId: string;
@@ -275,7 +276,8 @@ export default function DiscoverScreen() {
     return allEvents
       .filter((e) => {
         if (e.visibility && BLOCKED_VIS.includes(e.visibility)) return false;
-        if (new Date(e.startTime) < now && !e.isRecurring) return false;
+        const effectiveTime = e.isRecurring && e.nextOccurrence ? new Date(e.nextOccurrence) : new Date(e.startTime);
+        if (effectiveTime < now) return false;
         return true;
       })
       .map((event) => {
@@ -303,15 +305,18 @@ export default function DiscoverScreen() {
   );
 
   // ── Sort-derived lists (all from enrichedEvents SSOT) ──
+  // Helper: effective display time for sorting (nextOccurrence for recurring, startTime otherwise)
+  const getEffectiveTime = (e: PopularEvent) => new Date(e.nextOccurrence ?? e.startTime).getTime();
+
   const popularSorted = useMemo(() => {
     return [...enrichedEvents].sort(
-      (a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+      (a, b) => b.attendeeCount - a.attendeeCount || getEffectiveTime(b) - getEffectiveTime(a),
     );
   }, [enrichedEvents]);
 
   const soonSorted = useMemo(() => {
     return [...enrichedEvents].sort(
-      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+      (a, b) => getEffectiveTime(a) - getEffectiveTime(b),
     );
   }, [enrichedEvents]);
 
@@ -323,10 +328,10 @@ export default function DiscoverScreen() {
     const now = Date.now();
     return enrichedEvents
       .filter((e) => {
-        if (new Date(e.startTime).getTime() < now) return false; // filter past
+        if (getEffectiveTime(e) < now) return false; // filter past
         return savedEvents.has(e.id) || e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe";
       })
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents, savedEvents]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
@@ -607,13 +612,14 @@ export default function DiscoverScreen() {
                 const rsvp = event.viewerRsvpStatus as string | null | undefined;
                 const saved = savedEvents.has(event.id) || rsvp === "interested" || rsvp === "maybe";
                 const hostName = event.user?.name?.split(" ")[0] ?? null;
-                const dateStr = new Date(event.startTime).toLocaleDateString([], {
+                const displayTime = event.nextOccurrence ?? event.startTime;
+                const dateStr = new Date(displayTime).toLocaleDateString([], {
                   weekday: "short", month: "short", day: "numeric",
                 });
-                const timeStr = new Date(event.startTime).toLocaleTimeString([], {
+                const timeStr = new Date(displayTime).toLocaleTimeString([], {
                   hour: "numeric", minute: "2-digit",
                 });
-                const urgency = getUrgencyLabel(event.startTime);
+                const urgency = getUrgencyLabel(displayTime);
                 const spotsLeft = event.capacity && event.attendeeCount > 0
                   ? Math.max(0, event.capacity - event.attendeeCount)
                   : null;
@@ -965,18 +971,19 @@ export default function DiscoverScreen() {
                 let lastGroup = "";
                 let itemIndex = 0;
                 return savedEventsList.map((event) => {
-                  const group = getSavedTimeGroup(event.startTime);
+                  const savedDisplayTime = event.nextOccurrence ?? event.startTime;
+                  const group = getSavedTimeGroup(savedDisplayTime);
                   const showHeader = group !== lastGroup;
                   lastGroup = group;
                   const idx = itemIndex++;
 
-                  const timeStr = new Date(event.startTime).toLocaleTimeString([], {
+                  const timeStr = new Date(savedDisplayTime).toLocaleTimeString([], {
                     hour: "numeric", minute: "2-digit",
                   });
-                  const dateStr = new Date(event.startTime).toLocaleDateString([], {
+                  const dateStr = new Date(savedDisplayTime).toLocaleDateString([], {
                     weekday: "short", month: "short", day: "numeric",
                   });
-                  const savedUrgency = getUrgencyLabel(event.startTime);
+                  const savedUrgency = getUrgencyLabel(savedDisplayTime);
                   const savedAvailChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
                   const isToday = group === "Today";
                   const isTomorrow = group === "Tomorrow";

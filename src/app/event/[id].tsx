@@ -2336,14 +2336,17 @@ export default function EventDetailScreen() {
 
   const ET = EVENT_DETAIL_THEMES.default;
 
-  const startDate = new Date(event.startTime);
+  const originalStartDate = new Date(event.startTime);
+  // For recurring events, use nextOccurrence for display dates and countdown
+  const displayStartTime = (event as any).nextOccurrence ?? event.startTime;
+  const startDate = new Date(displayStartTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
   const dateLabel = startDate.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  // Show time range if endTime exists
+  // Show time range if endTime exists — use original time-of-day with display date
   const timeLabel = endDate
     ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
     : startDate.toLocaleTimeString("en-US", {
@@ -2354,8 +2357,11 @@ export default function EventDetailScreen() {
   // [EVENT_LIVE_UI] Countdown label — recalculates on focus (no ticking timer)
   const countdownLabel = (() => {
     const now = new Date();
-    const eventEnd = endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-    if (now > eventEnd) return "Ended";
+    const duration = endDate ? endDate.getTime() - originalStartDate.getTime() : 2 * 60 * 60 * 1000;
+    const eventEnd = new Date(startDate.getTime() + duration);
+    // Recurring events with a future nextOccurrence are never "Ended"
+    if (now > eventEnd && !(event as any).nextOccurrence) return "Ended";
+    if (now > eventEnd) return ""; // recurring — next occurrence is computed, skip stale label
     if (now >= startDate && now <= eventEnd) return "Happening now";
     const diffMs = startDate.getTime() - now.getTime();
     const totalMinutes = Math.floor(diffMs / 60000);
