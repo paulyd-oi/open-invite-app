@@ -535,13 +535,14 @@ function groupEventsByTime(events: Event[], userId?: string): GroupedEvents {
   // Group recurring events into series first
   const series = groupEventsIntoSeries(events);
 
-  // Sort series by next occurrence time
+  // Sort series by effective upcoming time (nextOccurrence for recurring, startTime otherwise)
+  const getEffTime = (e: Event) => e.isRecurring && e.nextOccurrence ? new Date(e.nextOccurrence) : new Date(e.startTime);
   const sortedSeries = [...series].sort(
-    (a, b) => new Date(a.nextEvent.startTime).getTime() - new Date(b.nextEvent.startTime).getTime()
+    (a, b) => getEffTime(a.nextEvent).getTime() - getEffTime(b.nextEvent).getTime()
   );
 
   sortedSeries.forEach((item) => {
-    const eventDate = new Date(item.nextEvent.startTime);
+    const eventDate = getEffTime(item.nextEvent);
     const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
 
     if (eventDay.getTime() === today.getTime()) {
@@ -1289,11 +1290,17 @@ export default function SocialScreen() {
     const nowMs = Date.now();
     const filtered = feedEvents.filter(event => {
       // [INVALIDATION_GAPS_V1] Filter past/ended events — same pattern as profile fix
+      // For recurring events, use nextOccurrence (server-computed future date) instead of stale original startTime
       const startMs = event.startTime ? new Date(event.startTime).getTime() : NaN;
       if (Number.isNaN(startMs)) { excludedExpiredCount++; return false; }
-      const endMs = event.endTime ? new Date(event.endTime).getTime() : NaN;
-      const relevantMs = Number.isNaN(endMs) ? startMs : endMs;
-      if (relevantMs < nowMs) { excludedExpiredCount++; return false; }
+      if (event.isRecurring && event.nextOccurrence) {
+        const nextOccMs = new Date(event.nextOccurrence).getTime();
+        if (nextOccMs < nowMs) { excludedExpiredCount++; return false; }
+      } else {
+        const endMs = event.endTime ? new Date(event.endTime).getTime() : NaN;
+        const relevantMs = Number.isNaN(endMs) ? startMs : endMs;
+        if (relevantMs < nowMs) { excludedExpiredCount++; return false; }
+      }
 
       if (event.userId === viewerUserId) return false;
       if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;

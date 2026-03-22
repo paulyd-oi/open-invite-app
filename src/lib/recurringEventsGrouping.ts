@@ -1,6 +1,6 @@
 /**
  * Recurring Events Grouping Utility
- * 
+ *
  * Collapses recurring events into series tiles for cleaner list views.
  * Used by social feed and friend profile screens.
  */
@@ -25,33 +25,29 @@ function normalize(str: string | null | undefined): string {
   return str.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
+/** Effective upcoming time for an event: nextOccurrence for recurring, startTime otherwise. */
+function getEffectiveTime(event: Event): Date {
+  if (event.isRecurring && event.nextOccurrence) {
+    return new Date(event.nextOccurrence);
+  }
+  return new Date(event.startTime);
+}
+
 /**
  * Generate a series key for grouping recurring events.
- * Uses recurrence field if available, otherwise derives from event properties.
+ * Uses userId + recurrence + normalized title so unrelated users' events stay separate.
  */
 function getSeriesKey(event: Event): string {
-  // If backend provides recurrence identifier, use it
-  if (event.recurrence) {
-    return `recurrence:${event.recurrence}`;
-  }
-
-  // Otherwise derive key from normalized properties
   const titleNorm = normalize(event.title);
-  const locationNorm = normalize(event.location);
   const hostId = event.userId;
-  
-  // Extract day of week and time from startTime
-  const startDate = new Date(event.startTime);
-  const dayOfWeek = startDate.getDay(); // 0-6
-  const timeStr = startDate.toTimeString().substring(0, 5); // HH:MM
-  
-  return `derived:${hostId}:${titleNorm}:${dayOfWeek}:${timeStr}:${locationNorm}`;
+  const recurrence = event.recurrence ?? "unknown";
+  return `series:${hostId}:${recurrence}:${titleNorm}`;
 }
 
 /**
  * Group events into series, collapsing recurring events into single tiles.
  * Non-recurring events get their own series.
- * 
+ *
  * @param events - Array of events to group
  * @returns Array of event series, sorted by next occurrence
  */
@@ -59,18 +55,21 @@ export function groupEventsIntoSeries(events: Event[]): EventSeries[] {
   const seriesMap = new Map<string, EventSeries>();
   const now = new Date();
 
-  // Filter to upcoming events only (use endTime if available, otherwise startTime)
-  // An event that has started but not yet ended should still be shown
+  // Filter to upcoming events only
+  // For recurring events, use nextOccurrence; for one-time, use endTime or startTime
   const futureEvents = events
     .filter((e) => {
+      if (e.isRecurring && e.nextOccurrence) {
+        return new Date(e.nextOccurrence) >= now;
+      }
       const relevantTime = e.endTime ? new Date(e.endTime) : new Date(e.startTime);
       return relevantTime >= now;
     })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    .sort((a, b) => getEffectiveTime(a).getTime() - getEffectiveTime(b).getTime());
 
   for (const event of futureEvents) {
     const seriesKey = event.isRecurring ? getSeriesKey(event) : `single:${event.id}`;
-    
+
     if (!seriesMap.has(seriesKey)) {
       // Create new series
       seriesMap.set(seriesKey, {
@@ -87,16 +86,16 @@ export function groupEventsIntoSeries(events: Event[]): EventSeries[] {
       const series = seriesMap.get(seriesKey)!;
       series.occurrenceCount++;
       series.allEvents.push(event);
-      // Keep the earliest event as nextEvent
-      if (new Date(event.startTime) < new Date(series.nextEvent.startTime)) {
+      // Keep the event with the nearest upcoming occurrence as nextEvent
+      if (getEffectiveTime(event) < getEffectiveTime(series.nextEvent)) {
         series.nextEvent = event;
       }
     }
   }
 
-  // Convert map to array and sort by next occurrence
+  // Convert map to array and sort by effective upcoming time
   return Array.from(seriesMap.values())
-    .sort((a, b) => new Date(a.nextEvent.startTime).getTime() - new Date(b.nextEvent.startTime).getTime());
+    .sort((a, b) => getEffectiveTime(a.nextEvent).getTime() - getEffectiveTime(b.nextEvent).getTime());
 }
 
 /**
@@ -106,7 +105,7 @@ export function getRecurrenceLabel(series: EventSeries): string | null {
   if (!series.isRecurring || series.occurrenceCount === 1) {
     return null;
   }
-  
+
   // Simple "Weekly" label for now - could be enhanced based on recurrence pattern
   return "Weekly";
 }
@@ -118,7 +117,7 @@ export function getOccurrenceCountLabel(series: EventSeries): string | null {
   if (!series.isRecurring || series.occurrenceCount === 1) {
     return null;
   }
-  
+
   const remaining = series.occurrenceCount - 1;
   if (remaining === 0) return null;
   return `+${remaining} more`;
