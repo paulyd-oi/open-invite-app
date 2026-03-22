@@ -863,8 +863,7 @@ export default function FriendsScreen() {
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60 * 1000, // 1 min - requests can change more often
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    // [FRIEND_REQUEST] removed refetchOnMount: false — stale requests must refetch on navigation return
     placeholderData: (prev: GetFriendRequestsResponse | undefined) => prev, // [PERF_SWEEP] Keep requests visible during refetch
   });
 
@@ -999,6 +998,21 @@ export default function FriendsScreen() {
 
   const friends = friendsData?.friends ?? [];
   const receivedRequests = requestsData?.received ?? [];
+
+  // [FRIEND_REQUEST] DEV diagnostic: log query payload shape
+  if (__DEV__ && requestsData) {
+    devLog('[FRIEND_REQUEST] query', {
+      receivedCount: requestsData.received?.length ?? 0,
+      sentCount: requestsData.sent?.length ?? 0,
+      firstReceived: requestsData.received?.[0] ? {
+        id: requestsData.received[0].id?.slice(0, 8),
+        senderId: requestsData.received[0].senderId?.slice(0, 8) ?? 'MISSING',
+        hasSender: !!requestsData.received[0].sender,
+        senderName: requestsData.received[0].sender?.name ?? 'NOT_POPULATED',
+        status: requestsData.received[0].status,
+      } : 'none',
+    });
+  }
 
   // [LEGACY_GROUPS_PURGED] groups query and variable removed
 

@@ -242,7 +242,18 @@ export function FriendsPeoplePane({
             <Animated.View entering={FadeInDown.duration(200)}>
               {/* INVARIANT_ALLOW_SMALL_MAP */}
               {receivedRequests.map((request: FriendRequest) => {
-                const senderId = request.sender?.id;
+                // [FRIEND_REQUEST] Use senderId (required field) as primary, sender?.id as fallback
+                const senderId = request.senderId ?? request.sender?.id;
+                if (__DEV__) {
+                  devLog('[FRIEND_REQUEST] row', {
+                    requestId: request.id?.slice(0, 8),
+                    senderId: senderId?.slice(0, 8) ?? 'MISSING',
+                    senderName: request.sender?.name ?? 'NOT_POPULATED',
+                    senderImage: request.sender?.image ? 'yes' : 'no',
+                    hasSenderObj: !!request.sender,
+                    status: request.status,
+                  });
+                }
                 return (
                   <FriendRequestCard
                     key={request.id}
@@ -254,21 +265,26 @@ export function FriendsPeoplePane({
                     actionPending={isAcceptPending || isRejectPending}
                     onAccept={() => {
                       if (isAcceptPending || isRejectPending) {
-                        if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'accept tap ignored, requestId=' + request.id);
+                        if (__DEV__) devLog('[FRIEND_REQUEST] accept race-guarded', request.id);
                         return;
                       }
+                      if (__DEV__) devLog('[FRIEND_REQUEST] accept', { requestId: request.id });
                       onAcceptRequest(request.id);
                     }}
                     onReject={() => {
                       if (isAcceptPending || isRejectPending) {
-                        if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'reject tap ignored, requestId=' + request.id);
+                        if (__DEV__) devLog('[FRIEND_REQUEST] reject race-guarded', request.id);
                         return;
                       }
+                      if (__DEV__) devLog('[FRIEND_REQUEST] reject', { requestId: request.id });
                       onRejectRequest(request.id);
                     }}
                     onViewProfile={() => {
                       if (senderId) {
+                        if (__DEV__) devLog('[FRIEND_REQUEST] navigate', { senderId, target: `/user/${senderId}` });
                         router.push(`/user/${senderId}` as any);
+                      } else {
+                        if (__DEV__) devLog('[FRIEND_REQUEST] nav_blocked: no senderId', { requestId: request.id });
                       }
                     }}
                   />

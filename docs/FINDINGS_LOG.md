@@ -1,5 +1,25 @@
 # Findings Log — Frontend
 
+## Friend Request Row Wiring — FIXED (2026-03-21)
+
+### Root Cause: Navigation used sender?.id (optional) instead of senderId (required)
+
+FriendsPeoplePane line 245 extracted `senderId = request.sender?.id`. The `sender` object is optional in the schema — backend may not populate it for every request. When `sender` is undefined, `senderId` becomes undefined, and the navigation guard `if (senderId)` silently blocked the tap. The top-level `request.senderId` field is required and always present but was never used.
+
+Secondary issue: `refetchOnMount: false` on the friend requests query prevented stale data from refreshing when navigating back to the friends tab.
+
+### Fix
+1. Changed navigation ID extraction to `request.senderId ?? request.sender?.id` — uses the required field as primary
+2. Removed `refetchOnMount: false` from friend requests query so stale data refetches on navigation return
+3. Added [FRIEND_REQUEST] DEV diagnostics throughout the pipeline (query, row render, accept/decline, navigation)
+
+### Backend Note
+Backend `/api/friends/requests` returns `sender` as optional. If not populated, rows show "Unknown" name and no avatar. The `senderId` top-level field is always present and sufficient for navigation. Backend should ideally always populate `sender` with at least `{ id, name, image }`.
+
+### Files Changed
+- src/components/friends/FriendsPeoplePane.tsx: senderId extraction fix + [FRIEND_REQUEST] logs
+- src/app/friends.tsx: removed refetchOnMount: false + [FRIEND_REQUEST] query diagnostics
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar
