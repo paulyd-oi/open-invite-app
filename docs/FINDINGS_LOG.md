@@ -1,5 +1,23 @@
 # Findings Log — Frontend
 
+## Profile Open Invites Invalid Date / Dead-End Navigation — FIXED (2026-03-21)
+
+### Root Cause: Invalid Date comparison returns false, bypassing past-event filter
+
+The `friendEvents` filter in `src/app/user/[id].tsx` compared `relevantTime < now` to exclude past events. When `event.startTime` is undefined, empty, or malformed, `new Date(undefined)` produces `Invalid Date`, and `Invalid Date < now` evaluates to `false` in JS — so invalid events passed the filter. These rendered with "Invalid Date" text on the card. Tapping them navigated to event detail which showed "Event details hidden" (the event is ended/inaccessible).
+
+### Fix
+1. Filter now validates `startTime` with `Number.isNaN()` before comparison — events with invalid dates are excluded
+2. `endTime` fallback also uses `Number.isNaN()` check instead of truthy check
+3. Belt-and-suspenders: EventCard onPress guards against invalid event ID or startTime before navigation
+4. [PROFILE_EVENTS] DEV diagnostics log total/excluded/displayed counts and per-event validity
+
+### Backend Note
+Backend `/api/friends/:id/events` returns all events including ended and potentially malformed ones. This is a backend issue to address separately — client-side filter is the correct immediate fix.
+
+### Files Changed
+- src/app/user/[id].tsx: friendEvents filter + EventCard onPress guard
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

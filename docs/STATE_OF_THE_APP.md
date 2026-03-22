@@ -1,5 +1,10 @@
 # State of the App — Frontend
 
+## Fixed This Session (Profile Invalid Events V1 — 2026-03-21)
+- Profile "Open Invites" section no longer shows events with "Invalid Date" — filter rejects events with missing/malformed startTime via Number.isNaN() guard
+- Dead-end navigation from invalid event cards prevented — EventCard onPress guards event.id and startTime validity before router.push
+- Backend note: /api/friends/:id/events still returns ended/malformed events — needs server-side fix separately
+
 ## Stable
 - Onboarding Avatar Upload V2 FIXED + Hardened + Instrumented: Root cause was `isValidBetterAuthToken()` rejecting valid Better Auth opaque tokens (no dot). Fix removed the dot requirement; hardening pass added SAFE_TOKEN_CHARS regex. HTTP-verified against production. Also fixed `formatReactNativeCookieHeader()` malformed cookie headers. Live app still shows "Upload failed" — [ONBOARD_AVATAR] diagnostic logs re-added to welcome.tsx, imageUpload.ts, and authClient.ts covering every step of the upload pipeline: picker, permissions, session check, file existence, compression, sign request/response, Cloudinary upload, complete request, and auth header state. TEMP DIAGNOSTICS — awaiting runtime capture to identify exact failure step.
 - Onboarding UX Refresh V1: Premium ambient visual treatment across all 5 onboarding screens. New OnboardingBackground component (soft violet/accent glow orbs with animated breathing opacity) integrated into OnboardingLayout. CTA copy clarified: Slide 1 "Continue" -> "Create account", Slide 2 "Continue with Email" -> "Create account with email", Slide 5 "Continue" -> "Get started". Slide 2 log-in path separated into distinct bottom section with "Already have an account?" label. Slide 1 "Log In" changed from ghost button to secondary text link. FriendDiscoverySurface empty-state simplified: removed ShareAppButton and icon, replaced with calm one-liner. No auth/upload/routing logic changed.
