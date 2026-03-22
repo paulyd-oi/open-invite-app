@@ -1,31 +1,19 @@
 # Findings Log — Frontend
 
-## Live Activity Lifecycle — No Auto-Expiration + Toggle Default OFF — FIXED (2026-03-21)
+## Notifications Filtering V1 — IMPLEMENTED (2026-03-21)
 
-### Root Cause A: No auto-expiration
-`Activity.request()` in LiveActivityBridge.swift was called without `staleDate` or `dismissalPolicy`. The Live Activity persisted on the Lock Screen and Dynamic Island indefinitely after the event ended. No JS-side cleanup existed either — expired activities were never ended from the foreground.
+### Current State: Notifications had no filtering — all types mixed in single list
 
-### Root Cause B: Toggle default OFF
-`useState(false)` for `liveActivityActive` in event/[id].tsx meant the toggle always rendered as OFF on mount, even though the Live Activity auto-starts on focus for eligible events on iOS.
+The ActivityFeed component rendered all notifications in a flat FlatList with no way to filter or distinguish types. Each notification already has a `type` field (friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral) and per-type icon/color config, but no filter UI existed.
 
 ### Fix
-**Native (iOS 16.2+):** `startActivity()` now builds an `ActivityContent` with `staleDate` set to the event's end time epoch. The system marks the activity as stale when the event ends. Falls back to basic `Activity.request()` on iOS 16.1.
+Added horizontal filter chips above the notification list: All, Events, Friends, Reminders. Each filter maps to a set of notification types. "All" shows current unfiltered behavior. When a filter is active and has no matching items, a FilteredEmptyState with "Show all" button is shown. Filter chips only appear when notifications exist.
 
-**JS cleanup:** New `cleanupExpiredActivities()` function in liveActivity.ts iterates active activities and ends any whose event time has passed. Called from `useFocusEffect` in event/[id].tsx before checking active state.
-
-**Toggle default:** Changed from `useState(false)` to `useState(Platform.OS === "ios")`.
-
-**Bridge:** `endTimeEpoch:(double)endTimeEpoch` added to ObjC bridge declaration.
+### Backend Note
+Backend `GET /api/notifications/paginated` returns a `type` string field on every notification. The type values are well-defined and consistent. No backend changes needed.
 
 ### Files Changed
-- ios/OpenInvite/LiveActivityBridge.swift: `ActivityContent` with `staleDate` on iOS 16.2+
-- ios/OpenInvite/LiveActivityBridge.m: `endTimeEpoch` parameter in bridge
-- src/lib/liveActivity.ts: `endTime` param, `endTimeEpoch` computation, `cleanupExpiredActivities()`, [LIVE_ACTIVITY] DEV logs
-- src/app/event/[id].tsx: pass `endTime` to all 3 `startLiveActivity()` call sites, foreground cleanup in useFocusEffect, toggle default `Platform.OS === "ios"`
-
-### Verification
-- TypeScript: needs runtime check
-- Proof tag: [LIVE_ACTIVITY] DEV logs in liveActivity.ts
+- src/components/activity/ActivityFeed.tsx: filter chips UI, filtered notifications memo, FilteredEmptyState component, [NOTIFICATIONS] DEV diagnostics
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 

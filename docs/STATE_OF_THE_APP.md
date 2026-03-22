@@ -1,10 +1,11 @@
 # State of the App — Frontend
 
-## Fixed This Session (Friend Request Wiring V1 — 2026-03-21)
-- Friend request row tap now navigates to requester's profile — was silently blocked because code used `request.sender?.id` (optional/often undefined) instead of `request.senderId` (required/always present)
-- Friend requests query now refetches on mount — removed `refetchOnMount: false` that caused stale request data
-- Accept/decline mutations were already correctly wired — no changes needed
-- Backend note: `/api/friends/requests` should always populate `sender` object; currently optional
+## Implemented This Session (Notifications Filtering V1 — 2026-03-21)
+- Notifications/Activity feed now has filter chips: All, Events, Friends, Reminders
+- Each filter maps to notification types: Events (event_invite, event_join, event_comment), Friends (friend_request, friend_accepted), Reminders (event_reminder, reminder)
+- "All" shows unfiltered behavior (no regression). Chips only visible when notifications exist.
+- FilteredEmptyState shown when active filter has no matches, with "Show all" reset button
+- Works in both full-screen activity.tsx and embedded FriendsActivityPane
 
 ## Stable
 - Onboarding Avatar Upload V2 FIXED + Hardened + Instrumented: Root cause was `isValidBetterAuthToken()` rejecting valid Better Auth opaque tokens (no dot). Fix removed the dot requirement; hardening pass added SAFE_TOKEN_CHARS regex. HTTP-verified against production. Also fixed `formatReactNativeCookieHeader()` malformed cookie headers. Live app still shows "Upload failed" — [ONBOARD_AVATAR] diagnostic logs re-added to welcome.tsx, imageUpload.ts, and authClient.ts covering every step of the upload pipeline: picker, permissions, session check, file existence, compression, sign request/response, Cloudinary upload, complete request, and auth header state. TEMP DIAGNOSTICS — awaiting runtime capture to identify exact failure step.
@@ -77,8 +78,7 @@
 - Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing: Social feed on cold launch (authenticated users)
 - Social tab calendar privacy ALLOWLIST
-- Discover card redesign V1+V2: Save/bookmark moved from image overlay to themed content panel (top-right circle button). Category pill moved to image top-left overlay. Urgency chip below category. Footer row: date/time (11px/600w metadata) + availability pill (left) | SocialProof avatar stack with real attendee photos from joinRequests (right), separated by 1px border. Content area uses event theme surface token (plaqueBg). Row 2 shows event description (not location/address). Card borderRadius: 20, image aspectRatio: 1.9. LinearGradient vignette removed. Heart icon replaced with Bookmark.
-- Discover truth sync V1: Feed queries use refetchOnMount: true (TQ default) + staleTime 15s so stale/invalidated data refetches on navigation return. Save mutation invalidates parent feed() key (covers feedPopular + feedPaginated) + attending. Attending query added to useLiveRefreshContract focus refetch. [DISCOVER_TRUTH] DEV logs trace enrichedEvents pipeline (user, counts, exclusions, sample RSVP states) and savedEventsList (local vs server saved counts). Fixes empty Discover on second account and cross-surface save sync.: Only OPEN and GROUP/CIRCLE events render. PRIVATE, BUSY, work events excluded from dataset entirely (not masked). Allowlist in social.tsx allEvents + defensive allowlist in FeedCalendar.tsx. shouldShowInSocial() in eventVisibility.ts also uses allowlist. DEV proof: [P0_SOCIAL_TAB_PRIVACY]
+- Discover card redesign V1+V2: Save/bookmark moved from image overlay to themed content panel (top-right circle button). Category pill moved to image top-left overlay. Urgency chip below category. Footer row: date/time (11px/600w metadata) + availability pill (left) | SocialProof avatar stack with real attendee photos from joinRequests (right), separated by 1px border. Content area uses event theme surface token (plaqueBg). Row 2 shows event description (not location/address). Card borderRadius: 20, image aspectRatio: 1.9. LinearGradient vignette removed. Heart icon replaced with Bookmark.: Only OPEN and GROUP/CIRCLE events render. PRIVATE, BUSY, work events excluded from dataset entirely (not masked). Allowlist in social.tsx allEvents + defensive allowlist in FeedCalendar.tsx. shouldShowInSocial() in eventVisibility.ts also uses allowlist. DEV proof: [P0_SOCIAL_TAB_PRIVACY]
 - Social feed: Pure discovery (filters out going/interested/host events, no filter pills UI)
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections collapsible with count display
 - RSVP states: Going, Interested, Can't Make It (no Maybe in types or UI)
@@ -127,15 +127,6 @@
 - Event Detail Full-Page Theme Canvas: Entire event detail page uses canvasColor as background (SafeAreaView). Transition gradient overlay deleted. Quick Info Bar deleted. ThemeEffectLayer moved to SafeAreaView level for full-page particle coverage — Skia fade mask removed, particles drift across entire screen. Net code reduction. EventVisibilityBadge import removed (was only used in Quick Info Bar).
 - Event Detail Section Card Split V1: Monolithic white content slab replaced with separate floating section cards over themed canvas. Four cards: About (description + details + pitch-in + bring list), Who's Coming (attendees + interested), Discussion (comments + memories), Event Settings. Action rows (guest RSVP, host Share/Reminder/Edit) float directly on canvas without card background. Turnout status row ("X going · Getting started") fully removed from host tools. Canvas visible between all section cards via 12px gaps.
 - Event Detail Glass Section Cards V1: Section cards converted from solid white to translucent glass surfaces. Light mode: rgba(255,255,255,0.76) with rgba(255,255,255,0.34) border. Dark mode: rgba(20,20,24,0.52) with rgba(255,255,255,0.10) border. Themed canvas bleeds through card surfaces. All 5 section cards converted: About, Who's Coming, Discussion, Event Settings, Host Reflection. Action rows and invite card unchanged. Plan A (RGBA translucent) used, no BlurView needed.
-
-## Fixed This Session (Live Activity Lifecycle V1 — 2026-03-21)
-- Live Activity auto-expiration: `Activity.request()` now uses `ActivityContent` with `staleDate` set to event end time (iOS 16.2+), so the system auto-expires activities when the event ends. Falls back to basic request on iOS 16.1.
-- JS-side cleanup: New `cleanupExpiredActivities()` in liveActivity.ts runs on foreground focus, ending any activities whose event has passed.
-- `endTime` parameter: `startLiveActivity()` now accepts `endTime`, computes `endTimeEpoch` (defaults to startTime + 1h). Passed from all 3 call sites in event/[id].tsx (auto-start on focus, RSVP going, manual toggle).
-- Toggle default ON: `liveActivityActive` default changed from `false` to `Platform.OS === "ios"` so the toggle reflects the expected state on iOS.
-- ObjC bridge updated: `LiveActivityBridge.m` receives `endTimeEpoch:(double)endTimeEpoch` parameter.
-- DEV diagnostics: [LIVE_ACTIVITY] logs added to liveActivity.ts.
-- Files changed: ios/OpenInvite/LiveActivityBridge.swift, ios/OpenInvite/LiveActivityBridge.m, src/lib/liveActivity.ts, src/app/event/[id].tsx
 
 ## Unstable / Regressions
 - None currently known

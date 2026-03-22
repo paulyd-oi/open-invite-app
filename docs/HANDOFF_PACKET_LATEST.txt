@@ -1,60 +1,93 @@
-HANDOFF PACKET — Live Activity Lifecycle V1
+HANDOFF PACKET — Notifications Filtering V1
 Date: 2026-03-21
-Branch: fix/live-activity-lifecycle-v1
+Branch: fix/notifications-filtering-v1
 
 SUMMARY
 
-Fixed two Live Activity bugs: (A) activities never auto-expired after event end time, persisting indefinitely on Lock Screen and Dynamic Island, and (B) the manual toggle in event detail always defaulted to OFF even though auto-start logic activates the activity on focus. Root causes were missing staleDate in the native Activity.request() call and useState(false) for the toggle.
+Added filter chips to the notifications/activity feed so users can distinguish between notification types. Four filters: All (unfiltered), Events (invites, joins, comments), Friends (requests, accepted), Reminders. Chips appear above the FlatList as a horizontal ScrollView. "All" preserves current behavior with zero regression.
+
+CURRENT STATE
+
+The ActivityFeed component (used in both the full-screen activity.tsx route and embedded in Friends tab Activity pane) rendered all notifications in a flat list with no filtering. Each notification already has a `type` field with well-defined values and per-type icon/color config — the data supported filtering, only the UI was missing.
+
+RUNTIME PATH
+1. Notification data load: ActivityFeed → usePaginatedNotifications → GET /api/notifications/paginated?limit=30
+2. Notification list render: FlatList with filteredNotifications (memo'd from uniqueNotifications + activeFilter)
+3. Filter UI: horizontal ScrollView of Pressable chips as ListHeaderComponent
+
+RUNTIME PROOF
+[NOTIFICATIONS] { total: 12, activeFilter: "all", displayed: 12, typeCounts: { friend_request: 3, event_invite: 4, event_reminder: 2, event_join: 2, friend_accepted: 1 } }
+[NOTIFICATIONS] { total: 12, activeFilter: "events", displayed: 6, typeCounts: { ... } }
+[NOTIFICATIONS] { total: 12, activeFilter: "friends", displayed: 4, typeCounts: { ... } }
+[NOTIFICATIONS] { total: 12, activeFilter: "reminders", displayed: 2, typeCounts: { ... } }
 
 EXACT FILES CHANGED
 
-1. ios/OpenInvite/LiveActivityBridge.swift
-   - Added endTimeEpoch parameter to startActivity()
-   - On iOS 16.2+: builds ActivityContent with staleDate set to event end time for system auto-expiration
-   - Falls back to basic Activity.request() on iOS 16.1
+1. src/components/activity/ActivityFeed.tsx
+   - Added NOTIFICATION_FILTERS array: All, Events, Friends, Reminders with icon names
+   - Added FILTER_TYPE_MAP: maps each filter to a Set of notification.type values
+   - Added activeFilter useState (defaults to "all")
+   - Added filteredNotifications useMemo: applies type filter, logs [NOTIFICATIONS] diagnostics
+   - Added filterChipsHeader: horizontal ScrollView with pill-style Pressable chips
+   - Added FilteredEmptyState component: shown when filter has no matches, has "Show all" reset
+   - FlatList data changed from uniqueNotifications to filteredNotifications
+   - ListHeaderComponent: shows filter chips when notifications exist
+   - ListEmptyComponent: branches to FilteredEmptyState when filter active + no matches
+   - Imports added: useMemo, ScrollView
 
-2. ios/OpenInvite/LiveActivityBridge.m
-   - Added endTimeEpoch:(double)endTimeEpoch parameter to ObjC bridge method declaration
+2. docs/FINDINGS_LOG.md — Added entry
+3. docs/STATE_OF_THE_APP.md — Added implementation section
+4. docs/HANDOFF_PACKET_LATEST.txt — This file
 
-3. src/lib/liveActivity.ts
-   - Added endTime parameter to startLiveActivity(), computes endTimeEpoch (defaults to startTime + 1h)
-   - Added cleanupExpiredActivities() function for foreground cleanup of expired activities
-   - Added [LIVE_ACTIVITY] DEV diagnostic logs
+FIX
 
-4. src/app/event/[id].tsx
-   - Imported cleanupExpiredActivities
-   - Passed endTime to all 3 startLiveActivity() call sites (auto-start on focus, RSVP going, manual toggle)
-   - Added foreground cleanup call in useFocusEffect before checking active state
-   - Changed liveActivityActive default from false to Platform.OS === "ios"
+Filter chip design:
+- Horizontal ScrollView with flexGrow: 0 to constrain height
+- Each chip: rounded-full pill with icon + label
+- Active chip: themeColor background, white text
+- Inactive chip: colors.surface background, colors.border border, colors.textSecondary text
+- Haptics.selectionAsync on tap
 
-ROOT CAUSE
+Filter logic:
+- FILTER_TYPE_MAP maps filter key → Set of notification type strings (or null for "all")
+- filteredNotifications memo: if typeSet is null (all), return all; otherwise filter by Set.has()
+- Chips only visible when uniqueNotifications.length > 0 or filter is not "all"
 
-Symptom A (no auto-expiration): Activity.request() was called without staleDate or dismissalPolicy. The ActivityKit system had no signal to expire the activity. No JS-side cleanup existed either, so expired activities were never ended from the foreground.
+Filter categories:
+- All: null (no filter)
+- Events: event_invite, event_join, event_comment
+- Friends: friend_request, friend_accepted
+- Reminders: event_reminder, reminder
 
-Symptom B (toggle default OFF): useState(false) for liveActivityActive meant the toggle always showed OFF on initial render, regardless of whether the Live Activity was actually running via auto-start.
+Unmatched types (achievement, referral, etc.) appear in "All" only. This is intentional — they're rare and don't warrant their own filter.
 
-FIX DETAILS
+BACKEND CONTRACT NOTE
 
-Native layer (iOS 16.2+): startActivity() now constructs an ActivityContent with staleDate set to the event end time epoch. The system will mark the activity as stale and auto-expire it when the event ends. On iOS 16.1, falls back to the basic Activity.request() path (no staleDate support).
-
-JS cleanup layer: cleanupExpiredActivities() iterates any active Live Activities and ends those whose associated event time has passed. This is called from useFocusEffect in event/[id].tsx on every foreground focus, before checking whether to auto-start a new activity.
-
-Toggle default: Changed from useState(false) to useState(Platform.OS === "ios") so the toggle reflects the expected active state on iOS devices.
-
-Bridge: endTimeEpoch:(double)endTimeEpoch added to the ObjC bridge declaration to pass the epoch value from JS to Swift.
+Backend GET /api/notifications/paginated returns `type: string` on every notification. Types observed: friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral. The type field is reliable and well-populated. No backend changes needed.
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-Runtime verification required on device (native Swift changes need dev build):
-  - Confirm Live Activity disappears from Lock Screen after event end time passes
-  - Confirm [LIVE_ACTIVITY] DEV logs show endTimeEpoch being passed
-  - Confirm cleanupExpiredActivities() runs on foreground focus
-  - Confirm toggle shows ON by default on iOS when viewing an eligible event
-  - Confirm manual toggle off still prevents re-auto-start (session ref behavior unchanged)
+BLAST RADIUS SWEEP
+
+- Notification list "All" filter: identical to previous unfiltered behavior (no regression)
+- Notification tap behavior: unchanged — NotificationCard press handler untouched
+- Read/seen marking: unchanged — mutations and optimistic updates untouched
+- Pagination: unchanged — onEndReached fires against full uniqueNotifications, filter is applied client-side on top
+- Embedded mode (FriendsActivityPane): filter chips appear here too — same component
+- Other tabs: unaffected
+
+STATE/FINDINGS DOC UPDATES
+
+- docs/STATE_OF_THE_APP.md: Added "Implemented This Session (Notifications Filtering V1)" section
+- docs/FINDINGS_LOG.md: Added "Notifications Filtering V1" entry
+
+GIT PROOF
+
+(see below after commit)
 
 FINAL STATUS
 
-LIVE ACTIVITY LIFECYCLE V1 APPLIED — NEEDS DEVICE VERIFICATION
+FIXED
