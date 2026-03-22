@@ -43,6 +43,8 @@ import {
   Trash2,
   ChevronUp,
   MessageCircle,
+  UserPlus,
+  Pencil,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -1365,17 +1367,33 @@ export default function FriendsScreen() {
                       <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
                     </View>
                   )}
-                  <Button
-                    testID="friends-invite-open"
-                    variant="primary"
-                    size="sm"
-                    label="Add"
-                    leftIcon={<Plus size={14} color="#fff" />}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/add-friends" as any);
-                    }}
-                  />
+                  {/* Context-aware header button: Activity=hidden, Chats=New, People=Add */}
+                  {friendsTab === 1 && (
+                    <Button
+                      testID="friends-new-chat"
+                      variant="primary"
+                      size="sm"
+                      label="New"
+                      leftIcon={<Pencil size={14} color="#fff" />}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        handleCreateCirclePress();
+                      }}
+                    />
+                  )}
+                  {friendsTab === 2 && (
+                    <Button
+                      testID="friends-invite-open"
+                      variant="primary"
+                      size="sm"
+                      label="Add"
+                      leftIcon={<UserPlus size={14} color="#fff" />}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push("/add-friends" as any);
+                      }}
+                    />
+                  )}
                 </View>
               }
             />
