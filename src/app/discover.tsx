@@ -252,6 +252,18 @@ export default function DiscoverScreen() {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
 
+    // [DISCOVER_FEED_DEBUG] Raw API response trace
+    if (__DEV__) {
+      const firstFeed = feedEvents[0];
+      devLog("[DISCOVER_FEED_DEBUG]", {
+        feedCount: feedEvents.length,
+        myCount: myEvents.length,
+        firstFeedId: firstFeed?.id?.slice(0, 8) ?? null,
+        firstFeedTitle: firstFeed?.title?.slice(0, 20) ?? null,
+        firstFeedVis: firstFeed?.visibility ?? null,
+      });
+    }
+
     const allEventsMap = new Map<string, PopularEvent>();
     [...feedEvents, ...myEvents].forEach((event) => {
       if (!allEventsMap.has(event.id)) {
@@ -264,6 +276,16 @@ export default function DiscoverScreen() {
 
     // Enrich with canonical attendee count + filter to upcoming + non-private
     const BLOCKED_VIS = ["circle_only", "specific_groups", "private"];
+
+    // [DISCOVER_FEED_DEBUG] Filter trace
+    if (__DEV__) {
+      const pastCount = allEvents.filter((e) => new Date(e.startTime) < now).length;
+      const blockedVisCount = allEvents.filter((e) => e.visibility && BLOCKED_VIS.includes(e.visibility)).length;
+      if (pastCount > 0 || blockedVisCount > 0) {
+        devLog("[DISCOVER_FEED_DEBUG] filter_exclusions", { pastCount, blockedVisCount, totalBefore: allEvents.length });
+      }
+    }
+
     return allEvents
       .filter((e) => {
         if (e.visibility && BLOCKED_VIS.includes(e.visibility)) return false;
