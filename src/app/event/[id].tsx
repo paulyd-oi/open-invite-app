@@ -391,6 +391,7 @@ export default function EventDetailScreen() {
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showRemoveRsvpConfirm, setShowRemoveRsvpConfirm] = useState(false);
   const [showDeleteEventConfirm, setShowDeleteEventConfirm] = useState(false);
+  const [showRemoveImportedConfirm, setShowRemoveImportedConfirm] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
@@ -2538,6 +2539,12 @@ export default function EventDetailScreen() {
                 testID="event-detail-menu-open"
                 onPress={() => {
                   Haptics.selectionAsync();
+                  if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
+                    eventId: id,
+                    isImported: !!event?.isImported,
+                    isBusy: !!event?.isBusy,
+                    isMyEvent,
+                  });
                   setShowEventActionsSheet(true);
                 }}
                 style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden" }}
@@ -2551,6 +2558,12 @@ export default function EventDetailScreen() {
                 testID="event-detail-menu-open"
                 onPress={() => {
                   Haptics.selectionAsync();
+                  if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
+                    eventId: id,
+                    isImported: !!event?.isImported,
+                    isBusy: !!event?.isBusy,
+                    isMyEvent,
+                  });
                   setShowEventActionsSheet(true);
                 }}
                 style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }}
@@ -4335,6 +4348,21 @@ export default function EventDetailScreen() {
         onCancel={() => setShowDeleteEventConfirm(false)}
       />
 
+      {/* [IMPORTED_EVENT] Remove imported event confirmation */}
+      <ConfirmModal
+        visible={showRemoveImportedConfirm}
+        title="Remove from Open Invite"
+        message="This removes the event from Open Invite only. Your device calendar won't be affected."
+        confirmText="Remove"
+        isDestructive
+        onConfirm={() => {
+          if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_confirmed", { eventId: id });
+          setShowRemoveImportedConfirm(false);
+          deleteEventMutation.mutate();
+        }}
+        onCancel={() => setShowRemoveImportedConfirm(false)}
+      />
+
       {/* Prompt arbitration: exactly one modal per RSVP success */}
       <FirstRsvpNudge
         visible={rsvpPromptChoice === "first_rsvp_nudge"}
@@ -4365,7 +4393,7 @@ export default function EventDetailScreen() {
       >
               {/* Actions */}
               <View style={{ paddingHorizontal: 20 }}>
-                {/* Owner Actions */}
+                {/* Owner Actions (app-created, non-busy only) */}
                 {isMyEvent && !event?.isBusy && (
                   <>
                     <Pressable
@@ -4571,8 +4599,8 @@ export default function EventDetailScreen() {
                 </Pressable>
                 )}
 
-                {/* Delete Event - host-only destructive action */}
-                {isMyEvent && !event?.isBusy && (
+                {/* Delete Event - host-only destructive action (app-created only) */}
+                {isMyEvent && !event?.isBusy && !event?.isImported && (
                 <Pressable
                   testID="event-detail-menu-delete"
                   className="flex-row items-center py-4"
@@ -4590,6 +4618,29 @@ export default function EventDetailScreen() {
                     <Trash2 size={20} color={STATUS.destructive.fg} />
                   </View>
                   <Text style={{ color: STATUS.destructive.fg, fontSize: 16, fontWeight: "500" }}>Delete Event</Text>
+                </Pressable>
+                )}
+
+                {/* [IMPORTED_EVENT] Remove from Open Invite — imported events only */}
+                {isMyEvent && !!event?.isImported && (
+                <Pressable
+                  testID="event-detail-menu-remove-imported"
+                  className="flex-row items-center py-4"
+                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                  onPress={() => {
+                    if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_pressed", { eventId: id });
+                    setShowEventActionsSheet(false);
+                    Haptics.selectionAsync();
+                    setTimeout(() => setShowRemoveImportedConfirm(true), 350);
+                  }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: "rgba(239,68,68,0.12)" }}
+                  >
+                    <Trash2 size={20} color={STATUS.destructive.fg} />
+                  </View>
+                  <Text style={{ color: STATUS.destructive.fg, fontSize: 16, fontWeight: "500" }}>Remove from Open Invite</Text>
                 </Pressable>
                 )}
 

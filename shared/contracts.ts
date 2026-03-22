@@ -58,7 +58,7 @@ export const eventSchema = z.object({
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
   isBusy: z.boolean().optional(), // Mark as busy/work time - hidden from social feed, shown greyed
-  isImported: z.boolean().optional(), // true for device-calendar imports, excluded from hosting quota
+  isImported: z.boolean().optional(), // true for device-calendar imports — excluded from hosting quota, read-only
   hostIds: z.array(z.string()).optional(), // Co-host user IDs who can edit the event
   // Host-only summary fields (only returned to event host)
   summary: z.string().nullable().optional(), // Host's reflection notes
