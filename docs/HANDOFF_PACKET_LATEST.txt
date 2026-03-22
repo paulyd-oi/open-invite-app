@@ -1,111 +1,62 @@
-HANDOFF PACKET — Social Tab Swipe Suppression V1
+HANDOFF PACKET — Cache Invalidation Gaps V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Social tab (Open Invites) registering swipe/scroll gestures as card taps, accidentally navigating to event detail. Added touch movement tracking to EventCard's Pressable — finger movement >10px in any direction suppresses onPress.
+Fixed 5 cross-surface cache invalidation and lifecycle gaps identified in docs/SURFACE_AUDIT_REPORT.txt. These caused stale data on Discover, Social, and Activity feeds after RSVP, event CRUD, and friend mutations.
 
-EXACT ROOT CAUSE
+GAP 1 FIX: src/lib/eventQueryKeys.ts
+- Added eventKeys.feedPopular() to 5 helpers:
+  getInvalidateAfterRsvpJoin, getInvalidateAfterRsvpLeave,
+  getInvalidateAfterEventCreate, getInvalidateAfterEventEdit,
+  getInvalidateAfterEventDelete
+- feedPopular() now sits alongside feed() and feedPaginated() in every helper
+- No existing keys removed
 
-EventCard in social.tsx nests a Pressable (tap → navigate to event detail) inside a GestureDetector with Gesture.Pan() (swipe-to-reveal RSVP actions). The Pan gesture has activeOffsetX([-20, 20]) — it only activates after 20px horizontal movement. For shorter swipes, diagonal movements, or vertical scrolls where the Pan gesture fails (failOffsetY=[-10, 10]), the Pressable's onPress still fires on touch-up because no gesture claimed the touch.
+GAP 2 FIX: src/app/discover.tsx
+- Replaced saveMutation ad-hoc invalidation (2 keys: feedPopular + myEvents) with
+  SSOT call: invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save")
+- SSOT helper covers 10 keys: single, attendees, interests, rsvp, feed, feedPaginated,
+  feedPopular, myEvents, calendar, attending
+- Kept setSavedEvents optimistic update, haptics, and toast — only invalidation calls replaced
+- Added imports: invalidateEventKeys, getInvalidateAfterRsvpJoin from eventQueryKeys
 
-This affected all non-own, non-series event cards on the Social tab where swipe-to-reveal is enabled. Own events and series cards (canSwipe=false) were also affected by vertical scroll movements triggering tap.
+GAP 3 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept
+- Added 3 event feed keys: eventKeys.feed(), eventKeys.feedPaginated(), eventKeys.feedPopular()
+- New friend's events now propagate to Social tab and Discover after accept
+- All existing keys preserved (friendKeys.all, requests, suggestions, pinned, circleKeys.all)
 
-RUNTIME PATH
+GAP 4 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept + refreshAfterFriendReject
+- Added ["notifications"] key to both helpers
+- friend_request notification now cleared from Activity feed after accept or reject
+- All existing keys preserved
 
-1. Card render in Social tab:
-   - social.tsx EventCard component (line 123-479)
-   - Cards rendered via EventSection → .map() inside ScrollView
-   - Each card: GestureDetector(panGesture) > Animated.View > Pressable(onPress=handlePress)
-
-2. Press/gesture handler chain:
-   - Touch down → onTouchStart records start position, resets wasSwiping
-   - Touch move → onTouchMove checks delta, sets wasSwiping if >10px
-   - Pan gesture → onStart sets wasSwiping (for 20px+ horizontal swipes)
-   - Touch up → Pressable.onPress fires → handlePress checks wasSwiping flag
-   - If wasSwiping: press suppressed, flag reset
-   - If not swiping: haptic + router.push to event detail
-
-3. Gesture disambiguation mechanism:
-   - Primary: onTouchStart/onTouchMove on Pressable tracks raw finger movement
-   - Secondary: Pan gesture onStart callback sets wasSwiping for swipe-to-reveal
-   - Threshold: 10px movement in any direction suppresses tap
-   - Flag lifecycle: reset on each touch start, set on movement, checked on press
-
-RUNTIME PROOF
-
-Expected [SOCIAL_GESTURE] log output:
-
-  Swipe suppressed:
-  [SOCIAL_GESTURE] press_suppressed { eventId: "abc123", reason: "pan_gesture_active" }
-
-  Scroll suppressed:
-  [SOCIAL_GESTURE] press_suppressed { eventId: "abc123", reason: "pan_gesture_active" }
-
-  Deliberate tap fires:
-  [SOCIAL_GESTURE] press_fired { eventId: "abc123" }
-
-EXACT FILES CHANGED
-
-1. src/app/social.tsx
-   - EventCard: added wasSwiping ref, touchStart ref, MOVE_THRESHOLD constant (10px)
-   - Added onTouchStart callback: records pageX/pageY, resets wasSwiping
-   - Added onTouchMove callback: checks movement delta, sets wasSwiping if >10px
-   - Pan gesture: added .onStart() that sets wasSwiping via runOnJS
-   - Added setWasSwiping callback for runOnJS bridge
-   - handlePress: checks wasSwiping before navigation, logs suppression
-   - Pressable: wired onTouchStart and onTouchMove handlers
-
-2. docs/STATE_OF_THE_APP.md — added swipe-vs-tap disambiguation entry
-3. docs/FINDINGS_LOG.md — added "Social Tab Swipe-as-Tap" finding
-4. docs/HANDOFF_PACKET_LATEST.txt — this file
-
-FIX
-
-Touch movement tracking on the EventCard Pressable. Three mechanisms:
-
-A. onTouchStart: Records finger start position (pageX/pageY), resets wasSwiping flag.
-
-B. onTouchMove: Computes dx/dy from start position. If either exceeds 10px, sets wasSwiping=true. This catches vertical scrolls, horizontal swipes, and diagonal movements.
-
-C. Pan gesture onStart: Sets wasSwiping=true via runOnJS when the Pan gesture activates (20px+ horizontal). Belt-and-suspenders with mechanism B.
-
-handlePress: Returns early if wasSwiping is true, logging the suppression. Otherwise fires haptic + navigation as before.
+GAP 5 FIX: src/app/social.tsx → discoveryEvents memo
+- Added past/ended event filter before existing filters (cheap early return)
+- Pattern: endTime ?? startTime < Date.now(), with Number.isNaN guard for invalid dates
+- Added excludedExpiredCount to [P0_SOCIAL_OPEN_INVITES_FILTER] DEV log
+- Same proven pattern as Task 4 profile fix
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
 
-BLAST RADIUS SWEEP
-
-- Social tab scroll: UNAFFECTED (ScrollView not touched, onTouchMove only on Pressable)
-- Card tap (deliberate): WORKS (finger stays within 10px → wasSwiping stays false → onPress fires)
-- Card flip: N/A (InviteFlipCard not used on Social tab)
-- Swipe-to-reveal: WORKS (Pan gesture unchanged, onStart now also sets wasSwiping as bonus guard)
-- Other tabs: NOT TOUCHED
-- EventListItem (calendar date selection): NOT TOUCHED (separate component, no pan gesture)
-
-STATE/FINDINGS DOC UPDATES
-
-- docs/STATE_OF_THE_APP.md: Added "Social tab swipe-vs-tap disambiguation V1" entry
-- docs/FINDINGS_LOG.md: Added "Social Tab Swipe-as-Tap — FIXED (2026-03-21)" finding
+BLAST RADIUS
+- eventQueryKeys.ts: 5 helpers modified (feedPopular added to each)
+- refreshAfterMutation.ts: 2 helpers modified (event feeds + notifications added)
+- discover.tsx: 1 mutation modified (ad-hoc → SSOT)
+- social.tsx: 1 memo modified (expiry filter added)
+- No UI, layout, or component changes
+- No existing invalidation keys removed
+- feedPopular() now appears in all 5 event invalidation helpers ✓
+- refreshAfterFriendAccept now includes event feed + notification keys ✓
+- refreshAfterFriendReject now includes notification keys ✓
+- discoveryEvents memo now filters past events ✓
 
 GIT PROOF
 
-git show --stat HEAD
-commit 9f258cf6f606a961f126eb6183d68e550e641fea
- docs/FINDINGS_LOG.md           |  19 +++++++
- docs/HANDOFF_PACKET_LATEST.txt | 114 ++++++++++++++++++++++++++---------------
- docs/STATE_OF_THE_APP.md       |   1 +
- src/app/social.tsx             |  34 ++++++++++++
- 4 files changed, 127 insertions(+), 41 deletions(-)
-
-git show --name-only HEAD
-docs/FINDINGS_LOG.md
-docs/HANDOFF_PACKET_LATEST.txt
-docs/STATE_OF_THE_APP.md
-src/app/social.tsx
+(see below after commit)
 
 FINAL STATUS
 

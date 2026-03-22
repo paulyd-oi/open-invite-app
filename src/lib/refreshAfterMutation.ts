@@ -75,6 +75,8 @@ function batchInvalidate(
  *  - friendKeys.pinned       — pinned state may change
  *  - friendKeys.userProfile  — isFriend flag on profile page
  *  - circleKeys.all          — circle member lists reference friends
+ *  - eventKeys.feed/feedPaginated/feedPopular — new friend's events visible in feeds [INVALIDATION_GAPS_V1]
+ *  - ["notifications"]       — friend_request notification now stale [INVALIDATION_GAPS_V1]
  */
 export function refreshAfterFriendAccept(
   qc: QueryClient,
@@ -86,6 +88,12 @@ export function refreshAfterFriendAccept(
     friendKeys.suggestions(),
     friendKeys.pinned(),
     circleKeys.all(),
+    // [INVALIDATION_GAPS_V1] Event feeds — new friend's events may now be visible
+    eventKeys.feed(),
+    eventKeys.feedPaginated(),
+    eventKeys.feedPopular(),
+    // [INVALIDATION_GAPS_V1] Notifications — friend_request notification is now stale
+    ["notifications"] as const,
   ];
   if (userId) {
     keys.push(friendKeys.userProfile(userId));
@@ -100,6 +108,7 @@ export function refreshAfterFriendAccept(
  *  - friendKeys.requests     — request removed
  *  - friendKeys.suggestions  — suggestion may reappear
  *  - friendKeys.userProfile  — pending state on profile page
+ *  - ["notifications"]       — friend_request notification now stale [INVALIDATION_GAPS_V1]
  */
 export function refreshAfterFriendReject(
   qc: QueryClient,
@@ -108,6 +117,8 @@ export function refreshAfterFriendReject(
   const keys: Array<readonly string[]> = [
     friendKeys.requests(),
     friendKeys.suggestions(),
+    // [INVALIDATION_GAPS_V1] Notifications — friend_request notification is now stale
+    ["notifications"] as const,
   ];
   if (userId) {
     keys.push(friendKeys.userProfile(userId));

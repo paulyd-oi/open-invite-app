@@ -1,23 +1,23 @@
 # Findings Log — Frontend
 
-## Social Tab Swipe-as-Tap — FIXED (2026-03-21)
+## Cache Invalidation Gaps V1 — FIXED (2026-03-21)
 
-### Root Cause: No gesture disambiguation between scroll/swipe and card tap
+### Root Cause: Cross-surface invalidation incomplete after RSVP, event CRUD, and friend mutations
 
-EventCard in social.tsx wraps card content in GestureDetector (Pan) + Pressable (tap). The Pan gesture has activeOffsetX=20px threshold — it only activates after 20px horizontal movement. For shorter swipes or vertical scrolls, the Pan gesture either hasn't activated or fails (failOffsetY=10px), but Pressable's onPress still fires on touch-up. Result: any finger movement that doesn't exceed the Pan threshold fires the card press, navigating to event detail.
+Surface audit (docs/SURFACE_AUDIT_REPORT.txt) identified 5 gaps in the TanStack Query invalidation layer:
+
+1. `eventKeys.feedPopular()` missing from all 5 event invalidation helpers — Discover popular feed never refreshed after RSVP/create/edit/delete on other surfaces.
+2. Discover saveMutation used ad-hoc 2-key invalidation instead of SSOT 10-key helper — save action didn't propagate to Social, Calendar, Attending.
+3. `refreshAfterFriendAccept` didn't invalidate event feeds — new friend's events invisible in Social/Discover until manual refresh.
+4. `refreshAfterFriendAccept/Reject` didn't invalidate notifications — friend_request notification persisted in Activity feed after action.
+5. Social tab discoveryEvents memo didn't filter past/ended events — stale time labels rendered on expired events.
 
 ### Fix
-Added touch movement tracking on the Pressable via onTouchStart/onTouchMove. Records start position, checks movement delta on each move. If finger moves >10px in any direction, sets wasSwiping=true which causes handlePress to return early. Pan gesture onStart also sets the flag for swipe-to-reveal cases. The flag resets on each new touch start.
-
-### Files Changed
-- src/app/social.tsx: EventCard component — added wasSwiping ref, touchStart tracking, onTouchStart/onTouchMove handlers, handlePress guard
-
-### Verification
-- TypeScript: PASS
-- verify_frontend.sh: same pre-existing failures only
-- Proof tag: [SOCIAL_GESTURE]
-
----
+- Added `eventKeys.feedPopular()` to getInvalidateAfterRsvpJoin, RsvpLeave, EventCreate, EventEdit, EventDelete (eventQueryKeys.ts)
+- Replaced discover.tsx saveMutation ad-hoc invalidation with `invalidateEventKeys(qc, getInvalidateAfterRsvpJoin(eventId))` SSOT call
+- Added event feed keys (feed, feedPaginated, feedPopular) + `["notifications"]` to refreshAfterFriendAccept (refreshAfterMutation.ts)
+- Added `["notifications"]` to refreshAfterFriendReject (refreshAfterMutation.ts)
+- Added past/ended event filter (endTime ?? startTime < now, Number.isNaN guard) to social.tsx discoveryEvents memo
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 

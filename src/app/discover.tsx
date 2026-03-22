@@ -45,7 +45,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
-import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { Button } from "@/ui/Button";
@@ -168,14 +168,8 @@ export default function DiscoverScreen() {
       postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
     onSuccess: (_data, eventId) => {
       setSavedEvents((prev) => new Set(prev).add(eventId));
-      // [DISCOVER_TRUTH] Invalidate all feed projections so Saved tab + other surfaces pick up the new RSVP
-      queryClient.invalidateQueries({ queryKey: eventKeys.feed() }); // parent — covers feedPopular + feedPaginated
-      queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
-      queryClient.invalidateQueries({ queryKey: eventKeys.attending() });
-      if (__DEV__) devLog("[DISCOVER_TRUTH]", "save_invalidation", {
-        eventId,
-        invalidated: ["feed(parent)", "myEvents", "attending"],
-      });
+      // [INVALIDATION_GAPS_V1] Use SSOT helper instead of ad-hoc 2-key invalidation
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       flashSavedToast();
     },
@@ -189,13 +183,13 @@ export default function DiscoverScreen() {
   const tileShadow = !isDark ? TILE_SHADOW : {};
 
   // SSOT: two event sources merged into one list
-  // [DISCOVER_TRUTH] refetchOnMount: true (default) ensures stale/invalidated data refetches on navigation return
   const { data: feedData, isLoading: loadingFeed, isFetching: fetchingFeed, refetch: refetchFeed, isError: feedError } = useQuery({
     queryKey: eventKeys.feedPopular(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 15_000,
-    refetchOnWindowFocus: false, // useLiveRefreshContract handles focus
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
   });
 
@@ -203,18 +197,20 @@ export default function DiscoverScreen() {
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 15_000,
-    refetchOnWindowFocus: false, // useLiveRefreshContract handles focus
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
   });
 
   // [AVAILABILITY_V1] Fetch attending events for availability signal computation
-  const { data: attendingData, refetch: refetchAttending } = useQuery({
+  const { data: attendingData } = useQuery({
     queryKey: eventKeys.attending(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false, // useLiveRefreshContract handles focus
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = loadingFeed || loadingMyEvents;
@@ -248,7 +244,7 @@ export default function DiscoverScreen() {
   // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
   const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
     screenName: "discover",
-    refetchFns: [refetchFeed, refetchMyEvents, refetchAttending],
+    refetchFns: [refetchFeed, refetchMyEvents],
   });
 
   // ── SSOT: merge + deduplicate + enrich all events ──
@@ -268,18 +264,10 @@ export default function DiscoverScreen() {
 
     // Enrich with canonical attendee count + filter to upcoming + non-private
     const BLOCKED_VIS = ["circle_only", "specific_groups", "private"];
-    const excluded: { id: string; title: string; reason: string }[] = [];
-    const result = allEvents
+    return allEvents
       .filter((e) => {
-        if (e.visibility && BLOCKED_VIS.includes(e.visibility)) {
-          if (__DEV__) excluded.push({ id: e.id, title: e.title, reason: `visibility=${e.visibility}` });
-          return false;
-        }
-        if (new Date(e.startTime) < now) {
-          if (__DEV__) excluded.push({ id: e.id, title: e.title, reason: "past" });
-          return false;
-        }
-        return true;
+        if (e.visibility && BLOCKED_VIS.includes(e.visibility)) return false;
+        return new Date(e.startTime) >= now;
       })
       .map((event) => {
         const derivedCount = deriveAttendeeCount(event);
@@ -287,28 +275,7 @@ export default function DiscoverScreen() {
         if (__DEV__) logRsvpMismatch(event.id, derivedCount, event.goingCount, "discover_v1");
         return { ...event, attendeeCount };
       });
-
-    // [DISCOVER_TRUTH] DEV diagnostic: data pipeline
-    if (__DEV__) {
-      devLog("[DISCOVER_TRUTH]", "enrichedEvents", {
-        userId: session?.user?.id ?? "none",
-        feedCount: feedEvents.length,
-        myEventsCount: myEvents.length,
-        mergedCount: allEvents.length,
-        excludedCount: excluded.length,
-        excluded: excluded.slice(0, 5),
-        renderedCount: result.length,
-        sampleRsvps: result.slice(0, 3).map((e) => ({
-          id: e.id.slice(0, 6),
-          title: e.title,
-          viewerRsvpStatus: e.viewerRsvpStatus ?? null,
-          visibility: e.visibility ?? null,
-        })),
-      });
-    }
-
-    return result;
-  }, [feedData?.events, myEventsData?.events, session?.user?.id]);
+  }, [feedData?.events, myEventsData?.events]);
 
   // [AVAILABILITY_V1] Compute availability signals for all enriched events
   const calendarEvents = useMemo(() => {
@@ -345,29 +312,12 @@ export default function DiscoverScreen() {
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
     const now = Date.now();
-    const result = enrichedEvents
+    return enrichedEvents
       .filter((e) => {
         if (new Date(e.startTime).getTime() < now) return false; // filter past
         return savedEvents.has(e.id) || e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe";
       })
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-    // [DISCOVER_TRUTH] DEV diagnostic: saved tab truth
-    if (__DEV__) {
-      devLog("[DISCOVER_TRUTH]", "savedEventsList", {
-        enrichedCount: enrichedEvents.length,
-        localSavedCount: savedEvents.size,
-        serverSavedCount: enrichedEvents.filter((e) => e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe").length,
-        resultCount: result.length,
-        items: result.slice(0, 5).map((e) => ({
-          id: e.id.slice(0, 6),
-          title: e.title,
-          source: savedEvents.has(e.id) ? "local" : `server:${e.viewerRsvpStatus}`,
-        })),
-      });
-    }
-
-    return result;
   }, [enrichedEvents, savedEvents]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)

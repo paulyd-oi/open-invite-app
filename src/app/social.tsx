@@ -1282,7 +1282,16 @@ export default function SocialScreen() {
     const viewerUserId = session?.user?.id;
 
     let excludedCircleCount = 0;
+    let excludedExpiredCount = 0;
+    const nowMs = Date.now();
     const filtered = feedEvents.filter(event => {
+      // [INVALIDATION_GAPS_V1] Filter past/ended events — same pattern as profile fix
+      const startMs = event.startTime ? new Date(event.startTime).getTime() : NaN;
+      if (Number.isNaN(startMs)) { excludedExpiredCount++; return false; }
+      const endMs = event.endTime ? new Date(event.endTime).getTime() : NaN;
+      const relevantMs = Number.isNaN(endMs) ? startMs : endMs;
+      if (relevantMs < nowMs) { excludedExpiredCount++; return false; }
+
       if (event.userId === viewerUserId) return false;
       if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
       if (myEventIds.has(event.id)) return false;
@@ -1298,6 +1307,7 @@ export default function SocialScreen() {
       devLog('[P0_SOCIAL_OPEN_INVITES_FILTER]', {
         renderedCount: filtered.length,
         excludedCircleCount,
+        excludedExpiredCount, // [SOCIAL_EXPIRY] past/ended events filtered
       });
     }
     return filtered;
