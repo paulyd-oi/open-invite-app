@@ -804,13 +804,6 @@ export default function CreateEventScreen() {
 
     const timeoutId = setTimeout(async () => {
       setIsSearchingPlaces(true);
-      if (__DEV__) devLog("[LOCATION_SEARCH_DEBUG]", "searching", {
-        query: locationQuery,
-        hasCoords: !!userLocation,
-        lat: userLocation?.lat ?? null,
-        lon: userLocation?.lon ?? null,
-        debounceMs,
-      });
       try {
         const results = await searchPlaces(
           locationQuery,
