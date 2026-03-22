@@ -902,7 +902,7 @@ export default function SocialScreen() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthed,
     staleTime: 30 * 1000, // 30s - feed changes often but not instantly
-    refetchOnMount: false, // Don't refetch if we have recent data
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev, // [PERF_SWEEP] Keep pages visible during refetch
     // [INFINITE_QUERY_SSOT] Removed capInfinitePages to fix "Load More" button bug - React Query manages pagination state
@@ -951,7 +951,7 @@ export default function SocialScreen() {
     staleTime: 60 * 1000, // 1 min - user's own events change less often
     refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
@@ -969,7 +969,7 @@ export default function SocialScreen() {
     staleTime: 60 * 1000, // 1 min
     refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
@@ -1114,7 +1114,7 @@ export default function SocialScreen() {
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthed,
     staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
     placeholderData: (prev: any) => prev,
   });

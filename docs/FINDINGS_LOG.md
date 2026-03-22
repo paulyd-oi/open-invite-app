@@ -1,5 +1,21 @@
 # Findings Log — Frontend
 
+## refetchOnMount: false Systemic Sweep — FIXED (2026-03-21)
+
+### Root Cause: refetchOnMount: false prevents stale data refresh on tab navigation
+
+TanStack Query's `refetchOnMount: false` tells the cache to never refetch when a component mounts, even if data is older than staleTime. On mobile with tab navigation, this means navigating away and back shows stale cache indefinitely. The correct behavior is TQ's default (`refetchOnMount: true`) which refetches if data is stale (older than staleTime).
+
+### Evidence
+Same root cause already fixed on Discover (fix/discover-truth-sync-v1) and friend requests (fix/friend-request-wiring-v1). This sweep removes the remaining 8 instances across 4 files: friends.tsx (circles, pinned), social.tsx (feed, myEvents, attending, friends), calendar.tsx (friends), usePaginatedFriends.ts (paginated friends list).
+
+### Fix
+Removed `refetchOnMount: false` from all 8 queries. All retain their existing `staleTime` values (30s–5min) and `placeholderData` where present. TQ default behavior now refetches stale data on mount while keeping cached data visible.
+
+### Intentionally Kept
+- `_layout.tsx` — auth/session queries use explicit invalidation
+- `AnnouncementBanner.tsx` / `UpdateBanner.tsx` — low-frequency banners, intentional
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar

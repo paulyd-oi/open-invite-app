@@ -1,68 +1,43 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — refetchOnMount: false Systemic Sweep V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Removed refetchOnMount: false from 8 TanStack Query hooks across 4 files. This anti-pattern prevented stale data from refreshing when users navigate between tabs. Same root cause already fixed on Discover and friend requests in prior tasks. All queries retain their staleTime (30s-5min) and placeholderData where present. TQ default (refetchOnMount: true) now allows stale data to refetch on mount while keeping cached data visible.
 
-EXACT FILES CHANGED
+REMOVALS
 
-1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+- src/app/friends.tsx:1011 — query key: circleKeys.all(), staleTime: 5min, placeholderData: yes
+- src/app/friends.tsx:1064 — query key: ["pinnedFriendships"], staleTime: 5min, placeholderData: no
+- src/app/social.tsx:905 — query key: eventKeys.feedPaginated(), staleTime: 30s, placeholderData: yes
+- src/app/social.tsx:954 — query key: eventKeys.mine(), staleTime: 1min, placeholderData: yes
+- src/app/social.tsx:972 — query key: eventKeys.attending(), staleTime: 1min, placeholderData: yes
+- src/app/social.tsx:1117 — query key: ["friends"], staleTime: 5min, placeholderData: yes
+- src/app/calendar.tsx:1441 — query key: ["friends"], staleTime: 5min, placeholderData: no
+- src/lib/usePaginatedFriends.ts:75 — query key: qk.friend.list(search), staleTime: 5min, placeholderData: no
 
-ROOT CAUSE
+KEPT INTENTIONALLY
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
-
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
-
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
-
-EVENT DETAIL SOURCE
-
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
-
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
-
-BACKEND CONTRACT NOTE
-
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+- src/app/_layout.tsx:319 — auth/session query uses explicit invalidation on login/logout; refetchOnMount: false prevents redundant auth checks on every screen mount
+- src/components/AnnouncementBanner.tsx:70 — low-frequency banner content, intentionally cached for session duration
+- src/components/UpdateBanner.tsx:57 — low-frequency update check, intentionally cached for session duration
+- src/app/discover.tsx:191,201,212 — already fixed on fix/discover-truth-sync-v1 branch (not yet merged to main)
+- src/app/friends.tsx:866 — already fixed on fix/friend-request-wiring-v1 branch (not yet merged to main)
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
-
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+grep refetchOnMount: false — remaining instances match exclusion list exactly
 
 GIT PROOF
 
 git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
+(see below after commit)
 
 git show --name-only HEAD
-src/app/discover.tsx
+(see below after commit)
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+FIXED

@@ -1438,7 +1438,7 @@ export default function CalendarScreen() {
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
   });
 
