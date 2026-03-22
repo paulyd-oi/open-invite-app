@@ -190,7 +190,7 @@ export default function DiscoverScreen() {
   // SSOT: two event sources merged into one list
   const { data: feedData, isLoading: loadingFeed, isFetching: fetchingFeed, refetch: refetchFeed, isError: feedError } = useQuery({
     queryKey: eventKeys.feedPopular(),
-    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
+    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30_000,
     refetchOnMount: false,
