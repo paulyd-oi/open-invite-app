@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   Pressable,
   Modal,
   ScrollView,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -14,11 +13,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Check, Users, Search } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";
-import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
 
 interface Friend {
@@ -40,100 +38,9 @@ interface Friend {
 interface CreateCircleModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (name: string, emoji: string, memberIds: string[]) => void;
+  onConfirm: (name: string, emoji: string | undefined, memberIds: string[]) => void;
   friends: Friend[];
   isLoading?: boolean;
-}
-
-// ============================================================================
-// P0 CIRCLE EMOJI VALIDATION
-// ============================================================================
-
-/**
- * Check if a single codepoint is in emoji ranges.
- * Used for fallback validation when Intl.Segmenter unavailable.
- */
-function isEmojiCodepoint(codePoint: number): boolean {
-  return (
-    // Misc symbols: U+2600-U+26FF
-    (codePoint >= 0x2600 && codePoint <= 0x26FF) ||
-    // Dingbats: U+2700-U+27BF
-    (codePoint >= 0x2700 && codePoint <= 0x27BF) ||
-    // Supplemental Symbols: U+1F300-U+1FAFF (covers most emoji)
-    (codePoint >= 0x1F300 && codePoint <= 0x1FAFF)
-  );
-}
-
-/**
- * Validates that input contains exactly one emoji grapheme cluster.
- * Handles ZWJ sequences, flags, skin tones, and variation selectors.
- */
-function validateSingleEmoji(input: string): { valid: boolean; emoji: string | null; reason: string; clustersCount: number; usedFallback: boolean } {
-  const trimmed = input.trim();
-  
-  if (!trimmed) {
-    return { valid: false, emoji: null, reason: "empty_input", clustersCount: 0, usedFallback: false };
-  }
-  
-  // Try Intl.Segmenter for accurate grapheme cluster segmentation
-  const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter !== "undefined";
-  
-  if (hasSegmenter) {
-    try {
-      const segmenter = new (Intl as any).Segmenter("en", { granularity: "grapheme" });
-      const segments = [...segmenter.segment(trimmed)];
-      const clusters = segments.map((s: any) => s.segment);
-      
-      if (clusters.length !== 1) {
-        return { 
-          valid: false, 
-          emoji: null, 
-          reason: clusters.length === 0 ? "empty_input" : "multiple_characters", 
-          clustersCount: clusters.length,
-          usedFallback: false,
-        };
-      }
-      
-      const candidate = clusters[0];
-      
-      // Check if the single cluster contains emoji codepoints
-      const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]/u;
-      
-      if (!emojiRegex.test(candidate)) {
-        return { valid: false, emoji: null, reason: "not_emoji", clustersCount: 1, usedFallback: false };
-      }
-      
-      return { valid: true, emoji: candidate, reason: "valid", clustersCount: 1, usedFallback: false };
-    } catch {
-      // Segmenter threw, fall through to fallback
-    }
-  }
-  
-  // FALLBACK: Conservative emoji check when Intl.Segmenter unavailable
-  // Convert to code points array
-  const codePoints = Array.from(trimmed);
-  
-  if (__DEV__) {
-    devLog("[P0_CIRCLE_EMOJI] fallback_used", { reason: "no_segmenter" });
-  }
-  
-  // Fallback is conservative: only accept single codepoint in emoji ranges
-  if (codePoints.length !== 1) {
-    return { 
-      valid: false, 
-      emoji: null, 
-      reason: codePoints.length === 0 ? "empty_input" : "multiple_characters", 
-      clustersCount: codePoints.length,
-      usedFallback: true,
-    };
-  }
-  
-  const cp = codePoints[0].codePointAt(0);
-  if (cp === undefined || !isEmojiCodepoint(cp)) {
-    return { valid: false, emoji: null, reason: "not_emoji", clustersCount: 1, usedFallback: true };
-  }
-  
-  return { valid: true, emoji: codePoints[0], reason: "valid", clustersCount: 1, usedFallback: true };
 }
 
 export function CreateCircleModal({
@@ -146,67 +53,8 @@ export function CreateCircleModal({
   const { themeColor, isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("👥");
-  const [emojiInput, setEmojiInput] = useState("👥");
-  const [emojiValid, setEmojiValid] = useState(true);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  const emojiInputRef = useRef<TextInput>(null);
-  
-  // Toast discipline: track last toast reason to prevent spam
-  const lastToastReasonRef = useRef<string | null>(null);
-  const wasValidRef = useRef<boolean>(true);
-
-  // Handle emoji input change with validation
-  const handleEmojiChange = (text: string) => {
-    setEmojiInput(text);
-    
-    const result = validateSingleEmoji(text);
-    
-    // DEV log only on validation decision (not every keystroke)
-    if (__DEV__ && text.length > 0) {
-      devLog("[P0_CIRCLE_EMOJI] Validation:", {
-        rawInput: text.trim(),
-        clustersCount: result.clustersCount,
-        acceptedEmoji: result.emoji,
-        reason: result.reason,
-        usedFallback: result.usedFallback,
-      });
-    }
-    
-    if (result.valid && result.emoji) {
-      setEmoji(result.emoji);
-      setEmojiValid(true);
-      // Reset toast tracking when input becomes valid
-      lastToastReasonRef.current = null;
-      wasValidRef.current = true;
-    } else if (text.length > 0) {
-      // Toast discipline: only show toast on valid→invalid transition, not on every keystroke
-      const shouldToast = wasValidRef.current && lastToastReasonRef.current !== result.reason;
-      
-      if (shouldToast) {
-        if (result.clustersCount > 1) {
-          safeToast.error("One emoji only", "Choose exactly 1 emoji");
-          lastToastReasonRef.current = "multiple_characters";
-          if (__DEV__) {
-            devLog("[P0_CIRCLE_EMOJI] toast_shown", { reason: "multiple_characters" });
-          }
-        } else if (result.reason === "not_emoji") {
-          safeToast.error("Emoji required", "Pick an emoji, not text");
-          lastToastReasonRef.current = "not_emoji";
-          if (__DEV__) {
-            devLog("[P0_CIRCLE_EMOJI] toast_shown", { reason: "not_emoji" });
-          }
-        }
-      }
-      wasValidRef.current = false;
-      setEmojiValid(false);
-    } else {
-      // Empty input - just mark invalid, don't toast yet
-      wasValidRef.current = false;
-      setEmojiValid(false);
-    }
-  };
 
   const filteredFriends = friends.filter(
     (f) =>
@@ -240,34 +88,10 @@ export function CreateCircleModal({
   };
 
   const handleCreate = () => {
-    // Validate emoji on submit
-    if (!emojiValid || !emoji) {
-      safeToast.error("Pick an emoji", "Choose exactly 1 emoji for your group");
-      if (__DEV__) {
-        devLog("[P0_CIRCLE_EMOJI] Submit blocked:", {
-          rawInput: emojiInput.trim(),
-          acceptedEmoji: null,
-          reason: "invalid_emoji_on_submit",
-        });
-      }
-      return;
-    }
-    
     if (name.trim() && selectedFriends.size > 0) {
-      if (__DEV__) {
-        devLog("[P0_CIRCLE_EMOJI] Submit accepted:", {
-          rawInput: emojiInput.trim(),
-          acceptedEmoji: emoji,
-          reason: "valid_submission",
-        });
-      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onConfirm(name.trim(), emoji, Array.from(selectedFriends));
-      // Reset form
+      onConfirm(name.trim(), undefined, Array.from(selectedFriends));
       setName("");
-      setEmoji("👥");
-      setEmojiInput("👥");
-      setEmojiValid(true);
       setSelectedFriends(new Set());
       setSearchQuery("");
     }
@@ -275,16 +99,12 @@ export function CreateCircleModal({
 
   const handleClose = () => {
     setName("");
-    setEmoji("👥");
-    setEmojiInput("👥");
-    setEmojiValid(true);
     setSelectedFriends(new Set());
     setSearchQuery("");
     onClose();
   };
 
-  // Check if form is valid for submit button styling
-  const canSubmit = name.trim() && selectedFriends.size > 0 && emojiValid && emoji;
+  const canSubmit = name.trim() && selectedFriends.size > 0;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -342,68 +162,19 @@ export function CreateCircleModal({
                 <Text className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
                   Group Name
                 </Text>
-                <View className="flex-row items-center">
-                  {/* Ghost Preview + Emoji Input */}
-                  <View className="mr-3 items-center">
-                    {/* Ghost preview shows current valid emoji or placeholder */}
-                    <View
-                      className="rounded-xl p-3 mb-1"
-                      style={{ 
-                        backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                        borderWidth: emojiValid ? 0 : 1,
-                        borderColor: emojiValid ? "transparent" : "#EF4444",
-                      }}
-                    >
-                      <Text 
-                        className="text-2xl" 
-                        style={{ opacity: emojiValid ? 1 : 0.4 }}
-                      >
-                        {emojiValid && emoji ? emoji : "🙂"}
-                      </Text>
-                    </View>
-                    {/* Emoji keyboard input */}
-                    <TextInput
-                      ref={emojiInputRef}
-                      value={emojiInput}
-                      onChangeText={handleEmojiChange}
-                      placeholder="＋"
-                      placeholderTextColor={colors.textTertiary}
-                      className="text-center rounded-lg px-2 py-1"
-                      style={{
-                        backgroundColor: isDark ? "#1C1C1E" : "#E5E7EB",
-                        color: colors.text,
-                        fontSize: 14,
-                        width: 56,
-                        minHeight: 28,
-                      }}
-                      keyboardType="default"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="e.g., Weekend Warriors"
-                    placeholderTextColor={colors.textTertiary}
-                    className="flex-1 rounded-xl px-4 py-3"
-                    style={{
-                      backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                      color: colors.text,
-                      fontSize: 16,
-                    }}
-                  />
-                </View>
-
-                {/* Helper text hint */}
-                {(!emojiValid || !emoji) && (
-                  <Text 
-                    className="text-xs mt-2 ml-1" 
-                    style={{ color: colors.textTertiary }}
-                  >
-                    Pick 1 emoji (no text)
-                  </Text>
-                )}
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="e.g., Weekend Warriors"
+                  placeholderTextColor={colors.textTertiary}
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                    color: colors.text,
+                    fontSize: 16,
+                  }}
+                  autoFocus
+                />
               </View>
 
               {/* Friend Selection */}

@@ -196,7 +196,7 @@ export default function CirclesScreen() {
   }
 
   const createCircleMutation = useMutation({
-    mutationFn: ({ name, emoji, memberIds }: { name: string; emoji: string; memberIds: string[] }) =>
+    mutationFn: ({ name, emoji, memberIds }: { name: string; emoji?: string; memberIds: string[] }) =>
       api.post<{ circle: Circle }>("/api/circles", { name, emoji, memberIds }),
     onSuccess: (response: { circle: Circle }) => {
       refreshAfterCircleCreate(queryClient);
@@ -337,8 +337,8 @@ export default function CirclesScreen() {
         <CreateCircleModal
           visible={showCreateCircle}
           onClose={() => setShowCreateCircle(false)}
-          onConfirm={(name, emoji, memberIds) => {
-            createCircleMutation.mutate({ name, emoji, memberIds });
+          onConfirm={(name, _emoji, memberIds) => {
+            createCircleMutation.mutate({ name, memberIds });
           }}
           friends={friends.filter((f: Friendship) => f.friend != null).map((f: Friendship) => ({
             id: f.id,

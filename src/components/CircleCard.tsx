@@ -374,7 +374,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               {/* Group avatar: circle photo or circular member arrangement */}
               {circle.photoUrl ? (
                 <View className="w-12 h-12 rounded-full overflow-hidden" style={{ backgroundColor: themeColor + "20" }}>
-                  <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
+                  <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji ?? "👥"} emojiClassName="text-xl" />
                 </View>
               ) : displayedMembers.length >= 2 ? (
                 /* Circular member arrangement scaled for inbox */
@@ -404,7 +404,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                 />
               ) : (
                 <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
-                  <CirclePhotoEmoji photoUrl={null} emoji={circle.emoji} emojiClassName="text-xl" />
+                  <CirclePhotoEmoji photoUrl={null} emoji={circle.emoji ?? "👥"} emojiClassName="text-xl" />
                 </View>
               )}
               {/* Pinned badge */}

@@ -4,7 +4,7 @@ import { EntityAvatar } from "./EntityAvatar";
 
 interface CirclePhotoEmojiProps {
   photoUrl?: string | null;
-  emoji: string;
+  emoji?: string;
   /** NativeWind className for the emoji Text (e.g. "text-2xl") */
   emojiClassName?: string;
   /** Inline style for the emoji Text (e.g. { fontSize: 28 }) */

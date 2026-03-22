@@ -1725,7 +1725,7 @@ export type CircleMessage = z.infer<typeof circleMessageSchema>;
 export const circleSchema = z.object({
   id: z.string(),
   name: z.string(),
-  emoji: z.string(),
+  emoji: z.string().optional(), // Optional — legacy groups have emoji, new groups may not
   type: z.enum(["group", "dm"]).optional(), // "group" (default) or "dm" — from DB schema
   description: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),

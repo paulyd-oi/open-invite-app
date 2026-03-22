@@ -1510,8 +1510,8 @@ export default function FriendsScreen() {
       <CreateCircleModal
         visible={showCreateCircle}
         onClose={() => setShowCreateCircle(false)}
-        onConfirm={(name, emoji, memberIds) => {
-          createCircleMutation.mutate({ name, emoji, memberIds });
+        onConfirm={(name, _emoji, memberIds) => {
+          createCircleMutation.mutate({ name, memberIds });
         }}
         /* INVARIANT_ALLOW_SMALL_MAP */
         friends={friends.filter((f) => f.friend != null).map((f) => ({
