@@ -141,7 +141,7 @@ export function EventListItem({
       <View className="flex-row items-start">
         <View
           className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-          style={{ backgroundColor: isNonVisible ? (isDark ? "#3C3C3E" : "#E5E7EB") : event.isOwn ? `${themeColor}20` : (isDark ? "#2C2C2E" : "#FFF7ED"), overflow: 'hidden' }}
+          style={{ backgroundColor: isNonVisible ? colors.avatarBg : event.isOwn ? `${themeColor}20` : colors.surfaceElevated, overflow: 'hidden' }}
         >
           <EventPhotoEmoji
             photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
@@ -187,7 +187,7 @@ export function EventListItem({
                 photoUrl={displayHostImage}
                 initials={displayHostName?.[0] ?? "?"}
                 size={20}
-                backgroundColor={isDark ? "#2C2C2E" : `${themeColor}20`}
+                backgroundColor={isDark ? colors.avatarBg : `${themeColor}20`}
                 foregroundColor={themeColor}
                 fallbackIcon="person"
                 style={{ marginRight: 8 }}

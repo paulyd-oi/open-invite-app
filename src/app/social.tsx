@@ -328,7 +328,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? colors.surfaceElevated : "#FFF7ED", overflow: 'hidden' }}
+            style={{ backgroundColor: isOwn ? `${themeColor}20` : colors.surfaceElevated, overflow: 'hidden' }}
           >
             <EventPhotoEmoji
               photoUrl={displayEvent.visibility !== "private" && !displayEvent.isBusy ? displayEvent.eventPhotoUrl : undefined}
@@ -469,7 +469,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           style={{ 
             width: ACTION_WIDTH + 20,
-            backgroundColor: colors.surface2,
+            backgroundColor: colors.background,
           }}
         >
           <View className="flex-1 flex-row items-center justify-end pr-4">
