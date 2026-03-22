@@ -1,68 +1,93 @@
-HANDOFF PACKET — Discover Avatar Source Fix
+HANDOFF PACKET — Notifications Filtering V1
 Date: 2026-03-21
+Branch: fix/notifications-filtering-v1
 
 SUMMARY
 
-Fixed Discover card showing only a +N badge instead of real attendee profile photos. Traced the working event detail path to identify the data gap: feed API doesn't populate joinRequests, so avatar list was always empty. Fixed by always including the host (event.user) in the avatar merge list, bumping avatar size to 24px for clear visibility, and adding [DISCOVER_AVATAR_FIX] DEV diagnostics.
+Added filter chips to the notifications/activity feed so users can distinguish between notification types. Four filters: All (unfiltered), Events (invites, joins, comments), Friends (requests, accepted), Reminders. Chips appear above the FlatList as a horizontal ScrollView. "All" preserves current behavior with zero regression.
+
+CURRENT STATE
+
+The ActivityFeed component (used in both the full-screen activity.tsx route and embedded in Friends tab Activity pane) rendered all notifications in a flat list with no filtering. Each notification already has a `type` field with well-defined values and per-type icon/color config — the data supported filtering, only the UI was missing.
+
+RUNTIME PATH
+1. Notification data load: ActivityFeed → usePaginatedNotifications → GET /api/notifications/paginated?limit=30
+2. Notification list render: FlatList with filteredNotifications (memo'd from uniqueNotifications + activeFilter)
+3. Filter UI: horizontal ScrollView of Pressable chips as ListHeaderComponent
+
+RUNTIME PROOF
+[NOTIFICATIONS] { total: 12, activeFilter: "all", displayed: 12, typeCounts: { friend_request: 3, event_invite: 4, event_reminder: 2, event_join: 2, friend_accepted: 1 } }
+[NOTIFICATIONS] { total: 12, activeFilter: "events", displayed: 6, typeCounts: { ... } }
+[NOTIFICATIONS] { total: 12, activeFilter: "friends", displayed: 4, typeCounts: { ... } }
+[NOTIFICATIONS] { total: 12, activeFilter: "reminders", displayed: 2, typeCounts: { ... } }
 
 EXACT FILES CHANGED
 
-1. src/app/discover.tsx
-   - Avatar builder rewritten (~lines 799-830): merges joinRequests + host, dedupes by id
-   - Avatar size bumped 20→24px, border 1.5→2px, overlap -6→-7px
-   - Added fallbackIcon="person-outline" to EntityAvatar for no-photo users
-   - Added [DISCOVER_AVATAR_FIX] DEV log (first 3 cards) with full diagnostic payload
+1. src/components/activity/ActivityFeed.tsx
+   - Added NOTIFICATION_FILTERS array: All, Events, Friends, Reminders with icon names
+   - Added FILTER_TYPE_MAP: maps each filter to a Set of notification.type values
+   - Added activeFilter useState (defaults to "all")
+   - Added filteredNotifications useMemo: applies type filter, logs [NOTIFICATIONS] diagnostics
+   - Added filterChipsHeader: horizontal ScrollView with pill-style Pressable chips
+   - Added FilteredEmptyState component: shown when filter has no matches, has "Show all" reset
+   - FlatList data changed from uniqueNotifications to filteredNotifications
+   - ListHeaderComponent: shows filter chips when notifications exist
+   - ListEmptyComponent: branches to FilteredEmptyState when filter active + no matches
+   - Imports added: useMemo, ScrollView
 
-ROOT CAUSE
+2. docs/FINDINGS_LOG.md — Added entry
+3. docs/STATE_OF_THE_APP.md — Added implementation section
+4. docs/HANDOFF_PACKET_LATEST.txt — This file
 
-Event detail page works because it makes a separate API call to /api/events/:id/attendees?includeAll=true which returns full attendee objects with image URLs. It also has a fallback path that extracts avatars from event.joinRequests.
+FIX
 
-Discover's feed endpoints (/api/events/feed, /api/events) return events with joinRequests as undefined or empty — the backend does not populate this nested relation for list/feed queries (performance optimization). So the previous code built avatars exclusively from joinRequests, got an empty array, and rendered nothing but the +N overflow badge (remaining = attendeeCount - 0).
+Filter chip design:
+- Horizontal ScrollView with flexGrow: 0 to constrain height
+- Each chip: rounded-full pill with icon + label
+- Active chip: themeColor background, white text
+- Inactive chip: colors.surface background, colors.border border, colors.textSecondary text
+- Haptics.selectionAsync on tap
 
-The host user object (event.user with { id, name, image }) IS always populated by the feed API but was never included in the avatar list.
+Filter logic:
+- FILTER_TYPE_MAP maps filter key → Set of notification type strings (or null for "all")
+- filteredNotifications memo: if typeSet is null (all), return all; otherwise filter by Set.has()
+- Chips only visible when uniqueNotifications.length > 0 or filter is not "all"
 
-EVENT DETAIL SOURCE
+Filter categories:
+- All: null (no filter)
+- Events: event_invite, event_join, event_comment
+- Friends: friend_request, friend_accepted
+- Reminders: event_reminder, reminder
 
-File: src/app/event/[id].tsx
-- Primary: useQuery → /api/events/:id/attendees?includeAll=true → normalizes { imageUrl: a.imageUrl ?? a.image }
-- Fallback: event.joinRequests filtered to accepted, mapped to { imageUrl: r.user.image }
-- Renders via: EntityAvatar with photoUrl={a.imageUrl}
-
-DISCOVER FIX
-
-Avatar builder now:
-1. Extracts accepted attendees from joinRequests (when populated — future-proof)
-2. Always includes host (event.user) as a guaranteed avatar source
-3. Merges both lists and dedupes by user id (host won't duplicate if also in joinRequests)
-4. Slices to max 3 displayed avatars
-5. Renders each via EntityAvatar with photoUrl={a.image}, fallbackIcon="person-outline"
-6. +N badge shows only when remaining = attendeeCount - displayed.length > 0
-7. Avatar size increased to 24px so profile photos are clearly distinct from badges
+Unmatched types (achievement, referral, etc.) appear in "All" only. This is intentional — they're rare and don't warrant their own filter.
 
 BACKEND CONTRACT NOTE
 
-The Discover feed API DOES NOT include attendee data in joinRequests — this is a known backend optimization for list queries. The host photo (event.user.image) is the only guaranteed avatar source on the feed payload. For full attendee stacks, the backend would need to include a top-N attendees preview in the feed response. Current fix uses the best available data (host photo + any joinRequests when present).
+Backend GET /api/notifications/paginated returns `type: string` on every notification. Types observed: friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral. The type field is reliable and well-populated. No backend changes needed.
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-Runtime verification requires simulator check with [DISCOVER_AVATAR_FIX] logs:
-- Confirm host photo renders as first avatar circle on cards with attendeeCount > 0
-- Confirm +N badge only appears when attendeeCount > displayed avatars
-- Confirm EntityAvatar renders real profile photo (Tier 2) or person-outline fallback (Tier 5)
+BLAST RADIUS SWEEP
+
+- Notification list "All" filter: identical to previous unfiltered behavior (no regression)
+- Notification tap behavior: unchanged — NotificationCard press handler untouched
+- Read/seen marking: unchanged — mutations and optimistic updates untouched
+- Pagination: unchanged — onEndReached fires against full uniqueNotifications, filter is applied client-side on top
+- Embedded mode (FriendsActivityPane): filter chips appear here too — same component
+- Other tabs: unaffected
+
+STATE/FINDINGS DOC UPDATES
+
+- docs/STATE_OF_THE_APP.md: Added "Implemented This Session (Notifications Filtering V1)" section
+- docs/FINDINGS_LOG.md: Added "Notifications Filtering V1" entry
 
 GIT PROOF
 
-git show --stat HEAD
-commit 30ec21d480368378f2fc7308cb8850e19f0e06d4
- src/app/discover.tsx | 55 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 38 insertions(+), 17 deletions(-)
-
-git show --name-only HEAD
-src/app/discover.tsx
+(see below after commit)
 
 FINAL STATUS
 
-DISCOVER AVATAR SOURCE FIX APPLIED — NEEDS DESIGN REVIEW
+FIXED

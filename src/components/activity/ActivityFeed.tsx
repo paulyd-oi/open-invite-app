@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from "react";
-import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator } from "react-native";
+import React, { useState, useCallback, useRef, useMemo } from "react";
+import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator, ScrollView } from "react-native";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn } from "@/lib/devLog";
 import { trackNotificationMarkRead, trackNotifsEngagement } from "@/analytics/analyticsEventsSSOT";
@@ -301,6 +301,23 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+// ── FilteredEmptyState ────────────────────────────────────────
+
+function FilteredEmptyState({ filter, colors, onReset }: { filter: NotificationFilter; colors: any; onReset: () => void }) {
+  const label = NOTIFICATION_FILTERS.find(f => f.key === filter)?.label ?? filter;
+  return (
+    <View className="items-center justify-center px-8 py-16">
+      <Ionicons name="filter-outline" size={28} color={colors.textTertiary} />
+      <Text className="text-sm text-center mt-3" style={{ color: colors.textSecondary }}>
+        No {label.toLowerCase()} notifications
+      </Text>
+      <Pressable onPress={onReset} className="mt-3 px-4 py-1.5 rounded-full" style={{ backgroundColor: colors.surface }}>
+        <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>Show all</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ── Pagination footer ──────────────────────────────────────────
 
 function PaginationFooter({ colors }: { colors: { textTertiary: string } }) {
@@ -335,6 +352,24 @@ function resolveNotificationTarget(notification: Notification): string | null {
   return null;
 }
 
+// ── Filter definitions ────────────────────────────────────────
+
+type NotificationFilter = "all" | "events" | "friends" | "reminders";
+
+const NOTIFICATION_FILTERS: { key: NotificationFilter; label: string; iconName: React.ComponentProps<typeof Ionicons>["name"] }[] = [
+  { key: "all", label: "All", iconName: "list-outline" },
+  { key: "events", label: "Events", iconName: "calendar-outline" },
+  { key: "friends", label: "Friends", iconName: "people-outline" },
+  { key: "reminders", label: "Reminders", iconName: "notifications-outline" },
+];
+
+const FILTER_TYPE_MAP: Record<NotificationFilter, Set<string> | null> = {
+  all: null, // null = no filter, show everything
+  events: new Set(["event_invite", "event_join", "event_comment"]),
+  friends: new Set(["friend_request", "friend_accepted"]),
+  reminders: new Set(["event_reminder", "reminder"]),
+};
+
 // ── ActivityFeed (reusable) ────────────────────────────────────
 
 export interface ActivityFeedProps {
@@ -352,6 +387,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
   const { markAllSeen } = useMarkAllNotificationsSeen();
 
   // Fetch notifications via paginated hook (fallback-safe)
@@ -367,6 +403,28 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
   } = usePaginatedNotifications({
     enabled: isAuthedForNetwork(bootStatus, session),
   });
+
+  // [NOTIFICATIONS] Filter notifications by active filter
+  const filteredNotifications = useMemo(() => {
+    const typeSet = FILTER_TYPE_MAP[activeFilter];
+    const all = uniqueNotifications;
+    const filtered = typeSet ? all.filter(n => typeSet.has(n.type)) : all;
+
+    if (__DEV__ && all.length > 0) {
+      // Compute type distribution
+      const typeCounts: Record<string, number> = {};
+      for (const n of all) {
+        typeCounts[n.type] = (typeCounts[n.type] ?? 0) + 1;
+      }
+      devLog('[NOTIFICATIONS]', {
+        total: all.length,
+        activeFilter,
+        displayed: filtered.length,
+        typeCounts,
+      });
+    }
+    return filtered;
+  }, [uniqueNotifications, activeFilter]);
 
   // [P1_ENDREACHED_GUARD] Block onEndReached while fetching next page
   const guardedOnEndReached = useCallback(() => {
@@ -488,9 +546,59 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     return null;
   }
 
+  // [NOTIFICATIONS] Filter chips — shown above the list
+  const filterChipsHeader = useMemo(() => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8, gap: 8 }}
+      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+      style={{ flexGrow: 0 }}
+    >
+      {/* INVARIANT_ALLOW_SMALL_MAP */}
+      {NOTIFICATION_FILTERS.map((f) => {
+        const isActive = activeFilter === f.key;
+        return (
+          <Pressable
+            key={f.key}
+            /* INVARIANT_ALLOW_INLINE_HANDLER */
+            onPress={() => {
+              Haptics.selectionAsync();
+              setActiveFilter(f.key);
+            }}
+            className="flex-row items-center rounded-full px-3.5 py-1.5"
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            style={{
+              backgroundColor: isActive ? themeColor : colors.surface,
+              borderWidth: 1,
+              borderColor: isActive ? themeColor : colors.border,
+            }}
+          >
+            <Ionicons
+              name={f.iconName}
+              size={14}
+              color={isActive ? "#fff" : colors.textSecondary}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              className="text-xs font-semibold"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ color: isActive ? "#fff" : colors.textSecondary }}
+            >
+              {f.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  ), [activeFilter, themeColor, colors]);
+
+  // Empty state for filtered view (different from "no notifications at all")
+  const filteredEmptyState = activeFilter !== "all" && filteredNotifications.length === 0 && uniqueNotifications.length > 0;
+
   return (
     <FlatList
-      data={uniqueNotifications}
+      data={filteredNotifications}
       keyExtractor={activityKeyExtractor}
       renderItem={renderNotificationItem}
       initialNumToRender={10}
@@ -501,9 +609,15 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
       contentContainerStyle={{
         paddingTop: embedded ? 4 : 12,
         paddingBottom: embedded ? 20 : 100,
-        flexGrow: uniqueNotifications.length === 0 ? 1 : undefined,
+        flexGrow: filteredNotifications.length === 0 ? 1 : undefined,
       }}
-      ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : isError ? <ErrorState onRetry={onRefresh} /> : <EmptyState />}
+      ListHeaderComponent={uniqueNotifications.length > 0 || activeFilter !== "all" ? filterChipsHeader : null}
+      ListEmptyComponent={
+        isLoading ? <ActivityFeedSkeleton /> :
+        isError ? <ErrorState onRetry={onRefresh} /> :
+        filteredEmptyState ? <FilteredEmptyState filter={activeFilter} colors={colors} onReset={() => setActiveFilter("all")} /> :
+        <EmptyState />
+      }
       ListFooterComponent={isFetchingNextPage ? <PaginationFooter colors={colors} /> : null}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />

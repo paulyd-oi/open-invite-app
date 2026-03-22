@@ -1,5 +1,20 @@
 # Findings Log — Frontend
 
+## Notifications Filtering V1 — IMPLEMENTED (2026-03-21)
+
+### Current State: Notifications had no filtering — all types mixed in single list
+
+The ActivityFeed component rendered all notifications in a flat FlatList with no way to filter or distinguish types. Each notification already has a `type` field (friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral) and per-type icon/color config, but no filter UI existed.
+
+### Fix
+Added horizontal filter chips above the notification list: All, Events, Friends, Reminders. Each filter maps to a set of notification types. "All" shows current unfiltered behavior. When a filter is active and has no matching items, a FilteredEmptyState with "Show all" button is shown. Filter chips only appear when notifications exist.
+
+### Backend Note
+Backend `GET /api/notifications/paginated` returns a `type` string field on every notification. The type values are well-defined and consistent. No backend changes needed.
+
+### Files Changed
+- src/components/activity/ActivityFeed.tsx: filter chips UI, filtered notifications memo, FilteredEmptyState component, [NOTIFICATIONS] DEV diagnostics
+
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
 ### Root Cause: Denylist logic instead of allowlist on social/center tab calendar
