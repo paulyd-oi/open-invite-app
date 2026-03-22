@@ -1,19 +1,22 @@
 # Findings Log — Frontend
 
-## Notifications Filtering V1 — IMPLEMENTED (2026-03-21)
+## Profile Open Invites Invalid Date / Dead-End Navigation — FIXED (2026-03-21)
 
-### Current State: Notifications had no filtering — all types mixed in single list
+### Root Cause: Invalid Date comparison returns false, bypassing past-event filter
 
-The ActivityFeed component rendered all notifications in a flat FlatList with no way to filter or distinguish types. Each notification already has a `type` field (friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral) and per-type icon/color config, but no filter UI existed.
+The `friendEvents` filter in `src/app/user/[id].tsx` compared `relevantTime < now` to exclude past events. When `event.startTime` is undefined, empty, or malformed, `new Date(undefined)` produces `Invalid Date`, and `Invalid Date < now` evaluates to `false` in JS — so invalid events passed the filter. These rendered with "Invalid Date" text on the card. Tapping them navigated to event detail which showed "Event details hidden" (the event is ended/inaccessible).
 
 ### Fix
-Added horizontal filter chips above the notification list: All, Events, Friends, Reminders. Each filter maps to a set of notification types. "All" shows current unfiltered behavior. When a filter is active and has no matching items, a FilteredEmptyState with "Show all" button is shown. Filter chips only appear when notifications exist.
+1. Filter now validates `startTime` with `Number.isNaN()` before comparison — events with invalid dates are excluded
+2. `endTime` fallback also uses `Number.isNaN()` check instead of truthy check
+3. Belt-and-suspenders: EventCard onPress guards against invalid event ID or startTime before navigation
+4. [PROFILE_EVENTS] DEV diagnostics log total/excluded/displayed counts and per-event validity
 
 ### Backend Note
-Backend `GET /api/notifications/paginated` returns a `type` string field on every notification. The type values are well-defined and consistent. No backend changes needed.
+Backend `/api/friends/:id/events` returns all events including ended and potentially malformed ones. This is a backend issue to address separately — client-side filter is the correct immediate fix.
 
 ### Files Changed
-- src/components/activity/ActivityFeed.tsx: filter chips UI, filtered notifications memo, FilteredEmptyState component, [NOTIFICATIONS] DEV diagnostics
+- src/app/user/[id].tsx: friendEvents filter + EventCard onPress guard
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 

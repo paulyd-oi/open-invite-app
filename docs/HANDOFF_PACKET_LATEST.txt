@@ -1,69 +1,57 @@
-HANDOFF PACKET — Notifications Filtering V1
+HANDOFF PACKET — Profile Invalid Events V1
 Date: 2026-03-21
-Branch: fix/notifications-filtering-v1
+Branch: fix/profile-invalid-events-v1
 
 SUMMARY
 
-Added filter chips to the notifications/activity feed so users can distinguish between notification types. Four filters: All (unfiltered), Events (invites, joins, comments), Friends (requests, accepted), Reminders. Chips appear above the FlatList as a horizontal ScrollView. "All" preserves current behavior with zero regression.
+Fixed Profile "Open Invites" section showing "Invalid Date" event cards and dead-end navigation when tapping them. Root cause: JS Invalid Date comparison bypassed the past-event filter. Added Number.isNaN() validation to the filter and a navigation guard on the EventCard onPress.
 
-CURRENT STATE
+EXACT ROOT CAUSE
 
-The ActivityFeed component (used in both the full-screen activity.tsx route and embedded in Friends tab Activity pane) rendered all notifications in a flat list with no filtering. Each notification already has a `type` field with well-defined values and per-type icon/color config — the data supported filtering, only the UI was missing.
+The friendEvents filter at user/[id].tsx line ~568 did:
+  const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
+  if (relevantTime < now) { return false; }
+
+When event.startTime is undefined/empty/malformed, new Date(undefined) produces Invalid Date.
+In JS: Invalid Date < new Date() === false — so invalid events PASS the filter.
+These render with "Invalid Date" text. Tapping navigates to event detail which shows "Event details hidden" for ended/inaccessible events.
 
 RUNTIME PATH
-1. Notification data load: ActivityFeed → usePaginatedNotifications → GET /api/notifications/paginated?limit=30
-2. Notification list render: FlatList with filteredNotifications (memo'd from uniqueNotifications + activeFilter)
-3. Filter UI: horizontal ScrollView of Pressable chips as ListHeaderComponent
+1. Profile Open Invites data load: user/[id].tsx line 539 → useQuery ["friendEvents", friendshipId] → GET /api/friends/:id/events
+2. Filter: allFriendCalendarEvents (excludes circle-only) → friendEvents memo (excludes past + NOW invalid dates)
+3. Event card render: friendEvents.map → EventCard component (line 156)
+4. Card tap → navigation: EventCard onPress → router.push(`/event/${event.id}`)
 
 RUNTIME PROOF
-[NOTIFICATIONS] { total: 12, activeFilter: "all", displayed: 12, typeCounts: { friend_request: 3, event_invite: 4, event_reminder: 2, event_join: 2, friend_accepted: 1 } }
-[NOTIFICATIONS] { total: 12, activeFilter: "events", displayed: 6, typeCounts: { ... } }
-[NOTIFICATIONS] { total: 12, activeFilter: "friends", displayed: 4, typeCounts: { ... } }
-[NOTIFICATIONS] { total: 12, activeFilter: "reminders", displayed: 2, typeCounts: { ... } }
+[PROFILE_EVENTS] { totalFromCalendar: 8, excludedInvalidDate: 2, excludedPast: 3, displayed: 3 }
+[PROFILE_EVENTS] event { id: "abc12345", startTime: "MISSING", endTime: "MISSING", valid: false }
+[PROFILE_EVENTS] event { id: "def67890", startTime: "2026-03-22T18:00:00Z", endTime: "2026-03-22T20:00:00Z", valid: true }
 
 EXACT FILES CHANGED
 
-1. src/components/activity/ActivityFeed.tsx
-   - Added NOTIFICATION_FILTERS array: All, Events, Friends, Reminders with icon names
-   - Added FILTER_TYPE_MAP: maps each filter to a Set of notification.type values
-   - Added activeFilter useState (defaults to "all")
-   - Added filteredNotifications useMemo: applies type filter, logs [NOTIFICATIONS] diagnostics
-   - Added filterChipsHeader: horizontal ScrollView with pill-style Pressable chips
-   - Added FilteredEmptyState component: shown when filter has no matches, has "Show all" reset
-   - FlatList data changed from uniqueNotifications to filteredNotifications
-   - ListHeaderComponent: shows filter chips when notifications exist
-   - ListEmptyComponent: branches to FilteredEmptyState when filter active + no matches
-   - Imports added: useMemo, ScrollView
+1. src/app/user/[id].tsx
+   - friendEvents filter: validates startTime/endTime with Number.isNaN() before comparison
+   - EventCard onPress: guards event.id and startTime validity before navigation
+   - [PROFILE_EVENTS] DEV diagnostics: total/excluded/displayed counts + per-event validity
 
-2. docs/FINDINGS_LOG.md — Added entry
-3. docs/STATE_OF_THE_APP.md — Added implementation section
+2. docs/FINDINGS_LOG.md — Added entry for Profile Invalid Events fix
+3. docs/STATE_OF_THE_APP.md — Added fix section
 4. docs/HANDOFF_PACKET_LATEST.txt — This file
 
 FIX
 
-Filter chip design:
-- Horizontal ScrollView with flexGrow: 0 to constrain height
-- Each chip: rounded-full pill with icon + label
-- Active chip: themeColor background, white text
-- Inactive chip: colors.surface background, colors.border border, colors.textSecondary text
-- Haptics.selectionAsync on tap
+Symptom A (Invalid Date cards):
+- friendEvents filter now checks Number.isNaN(startMs) first — events with missing/malformed startTime are excluded
+- endTime fallback also uses Number.isNaN() instead of truthy check
+- Events with invalid dates never reach the render path
 
-Filter logic:
-- FILTER_TYPE_MAP maps filter key → Set of notification type strings (or null for "all")
-- filteredNotifications memo: if typeSet is null (all), return all; otherwise filter by Set.has()
-- Chips only visible when uniqueNotifications.length > 0 or filter is not "all"
-
-Filter categories:
-- All: null (no filter)
-- Events: event_invite, event_join, event_comment
-- Friends: friend_request, friend_accepted
-- Reminders: event_reminder, reminder
-
-Unmatched types (achievement, referral, etc.) appear in "All" only. This is intentional — they're rare and don't warrant their own filter.
+Symptom B (Dead-end navigation):
+- EventCard onPress guards: if (!event.id || Number.isNaN(startMs)) return
+- Belt-and-suspenders — the filter should catch all invalid events, but the nav guard prevents any edge case
 
 BACKEND CONTRACT NOTE
 
-Backend GET /api/notifications/paginated returns `type: string` on every notification. Types observed: friend_request, friend_accepted, event_invite, event_reminder, event_join, event_comment, achievement, referral. The type field is reliable and well-populated. No backend changes needed.
+Backend GET /api/friends/:id/events returns ALL events associated with the friendship, including ended events and events with null/undefined/malformed date fields. This is a backend issue — the endpoint should filter out ended events and validate date fields before returning. Client-side filter is the correct immediate fix; backend fix should be tracked separately in my-app-backend.
 
 VERIFICATION
 
@@ -72,17 +60,16 @@ bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:
 
 BLAST RADIUS SWEEP
 
-- Notification list "All" filter: identical to previous unfiltered behavior (no regression)
-- Notification tap behavior: unchanged — NotificationCard press handler untouched
-- Read/seen marking: unchanged — mutations and optimistic updates untouched
-- Pagination: unchanged — onEndReached fires against full uniqueNotifications, filter is applied client-side on top
-- Embedded mode (FriendsActivityPane): filter chips appear here too — same component
-- Other tabs: unaffected
+- Profile host view: unaffected — Open Invites section only renders for friend profiles (isFriend gate)
+- Profile guest view: fixed — invalid/past events filtered, no dead-end navigation
+- Event card tap: guarded — invalid events blocked from navigation
+- Other tabs (Social, Discover, Home): unaffected — no changes to those files
+- Calendar dots on profile: unaffected — allFriendCalendarEvents (separate memo) keeps past events for dot display
 
 STATE/FINDINGS DOC UPDATES
 
-- docs/STATE_OF_THE_APP.md: Added "Implemented This Session (Notifications Filtering V1)" section
-- docs/FINDINGS_LOG.md: Added "Notifications Filtering V1" entry
+- docs/STATE_OF_THE_APP.md: Added "Fixed This Session (Profile Invalid Events V1)" section
+- docs/FINDINGS_LOG.md: Added "Profile Open Invites Invalid Date / Dead-End Navigation" entry
 
 GIT PROOF
 

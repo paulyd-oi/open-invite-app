@@ -190,6 +190,12 @@ function EventCard({ event, index }: { event: Event; index: number }) {
     <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
       <Pressable
         onPress={() => {
+          // [PROFILE_EVENTS] Guard: prevent navigation to events with invalid data
+          const startMs = event.startTime ? new Date(event.startTime).getTime() : NaN;
+          if (!event.id || Number.isNaN(startMs)) {
+            if (__DEV__) devLog('[PROFILE_EVENTS]', 'nav_blocked', { eventId: event.id, startTime: event.startTime });
+            return;
+          }
           // [P0_VISIBILITY] Proof log: friend event card tap (always friend-of-host)
           if (__DEV__) {
             devLog('[P0_VISIBILITY] Friend event card tap navigating:', {
@@ -559,20 +565,37 @@ export default function UserProfileScreen() {
     });
   }, [friendEventsData?.events]);
 
-  // P0: Client-side safety net — exclude circle-only + past events for Open Invites list
+  // P0: Client-side safety net — exclude invalid-date, past, and inactive events for Open Invites list
   const friendEvents = useMemo(() => {
     const now = new Date();
-    let excludedCircleCount = 0;
+    let excludedInvalidCount = 0;
     let excludedPastCount = 0;
     const filtered = allFriendCalendarEvents.filter(event => {
-      const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
-      if (relevantTime < now) { excludedPastCount++; return false; }
+      // [PROFILE_EVENTS] Guard: reject events with missing/malformed startTime
+      const startMs = event.startTime ? new Date(event.startTime).getTime() : NaN;
+      if (Number.isNaN(startMs)) { excludedInvalidCount++; return false; }
+
+      // Use endTime if valid, otherwise fall back to startTime
+      const endMs = event.endTime ? new Date(event.endTime).getTime() : NaN;
+      const relevantMs = Number.isNaN(endMs) ? startMs : endMs;
+      if (relevantMs < now.getTime()) { excludedPastCount++; return false; }
       return true;
     });
     if (__DEV__) {
-      devLog('[P0_PROFILE_OPEN_INVITES_FILTER]', {
-        renderedCount: filtered.length,
-        excludedPastCount,
+      devLog('[PROFILE_EVENTS]', {
+        totalFromCalendar: allFriendCalendarEvents.length,
+        excludedInvalidDate: excludedInvalidCount,
+        excludedPast: excludedPastCount,
+        displayed: filtered.length,
+      });
+      // Per-event diagnostics (first 5)
+      allFriendCalendarEvents.slice(0, 5).forEach(e => {
+        devLog('[PROFILE_EVENTS] event', {
+          id: e.id?.slice(0, 8),
+          startTime: e.startTime ?? 'MISSING',
+          endTime: e.endTime ?? 'MISSING',
+          valid: !!e.startTime && !Number.isNaN(new Date(e.startTime).getTime()),
+        });
       });
     }
     return filtered;
