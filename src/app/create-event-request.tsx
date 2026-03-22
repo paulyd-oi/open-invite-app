@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ import {
 import { computeSchedule } from "@/lib/scheduling/engine";
 import type { BusyWindow } from "@/lib/scheduling/types";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
+import EmojiPicker from "rn-emoji-keyboard";
 
 
 export default function CreateEventRequestScreen() {
@@ -97,7 +98,7 @@ export default function CreateEventRequestScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const emojiInputRef = useRef<TextInput>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [showFriendPicker, setShowFriendPicker] = useState(false);
   const [friendSearch, setFriendSearch] = useState("");
@@ -380,13 +381,13 @@ export default function CreateEventRequestScreen() {
             </View>
           </Animated.View>
 
-          {/* Emoji Picker */}
+          {/* Emoji Picker — tap to open rn-emoji-keyboard */}
           <Animated.View entering={FadeInDown.delay(50).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">
               Event Icon
             </Text>
             <Pressable
-              onPress={() => emojiInputRef.current?.focus()}
+              onPress={() => setShowEmojiPicker(true)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
@@ -397,38 +398,7 @@ export default function CreateEventRequestScreen() {
                 >
                   <Text className="text-2xl">{emoji}</Text>
                 </View>
-                <TextInput
-                  ref={emojiInputRef}
-                  value=""
-                  onChangeText={(text) => {
-                    try {
-                      const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
-                      const segments: string[] = hasSegmenter
-                        ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
-                        : Array.from(text);
-                      const emojis = segments.filter((segment) => {
-                        const firstCode = segment.codePointAt(0) || 0;
-                        return firstCode > 127 && segment.trim().length > 0;
-                      });
-                      if (emojis.length > 0) {
-                        setEmoji(emojis[emojis.length - 1]);
-                        Haptics.selectionAsync();
-                      }
-                    } catch {
-                      const trimmed = text.trim();
-                      const firstCode = trimmed.codePointAt(0) || 0;
-                      if (firstCode > 127 && trimmed.length > 0) {
-                        setEmoji(trimmed);
-                        Haptics.selectionAsync();
-                      }
-                    }
-                  }}
-                  placeholder="Tap to change icon"
-                  placeholderTextColor={colors.textTertiary}
-                  style={{ flex: 1, fontSize: 15, color: colors.textSecondary }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+                <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Tap to change icon</Text>
               </View>
             </Pressable>
           </Animated.View>
@@ -926,6 +896,15 @@ export default function CreateEventRequestScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <EmojiPicker
+        open={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onEmojiSelected={(emojiObject) => {
+          setEmoji(emojiObject.emoji);
+          Haptics.selectionAsync();
+          setShowEmojiPicker(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

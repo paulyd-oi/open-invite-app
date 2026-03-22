@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -57,6 +57,7 @@ import { ALL_THEME_IDS, EVENT_THEMES, isPremiumTheme, isValidThemeId, type Theme
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { Lock } from "@/ui/icons";
+import EmojiPicker from "rn-emoji-keyboard";
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -78,7 +79,7 @@ export default function EditEventScreen() {
   });
   const [visibility, setVisibility] = useState<EventVisibility>("all_friends");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const emojiInputRef = useRef<TextInput>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -376,11 +377,11 @@ export default function EditEventScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Emoji Picker — tap to open native emoji keyboard */}
+          {/* Emoji Picker — tap to open rn-emoji-keyboard */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 mt-4">Event Icon</Text>
             <Pressable
-              onPress={() => emojiInputRef.current?.focus()}
+              onPress={() => setShowEmojiPicker(true)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
@@ -388,38 +389,7 @@ export default function EditEventScreen() {
                 <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text className="text-2xl">{emoji}</Text>
                 </View>
-                <TextInput
-                  ref={emojiInputRef}
-                  value=""
-                  onChangeText={(text) => {
-                    try {
-                      const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
-                      const segments: string[] = hasSegmenter
-                        ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
-                        : Array.from(text);
-                      const emojis = segments.filter((segment) => {
-                        const firstCode = segment.codePointAt(0) || 0;
-                        return firstCode > 127 && segment.trim().length > 0;
-                      });
-                      if (emojis.length > 0) {
-                        setEmoji(emojis[emojis.length - 1]);
-                        Haptics.selectionAsync();
-                      }
-                    } catch {
-                      const trimmed = text.trim();
-                      const firstCode = trimmed.codePointAt(0) || 0;
-                      if (firstCode > 127 && trimmed.length > 0) {
-                        setEmoji(trimmed);
-                        Haptics.selectionAsync();
-                      }
-                    }
-                  }}
-                  placeholder="Tap to change icon"
-                  placeholderTextColor={colors.textTertiary}
-                  style={{ flex: 1, fontSize: 15, color: colors.textSecondary }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+                <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Tap to change icon</Text>
               </View>
             </Pressable>
           </Animated.View>
@@ -874,6 +844,15 @@ export default function EditEventScreen() {
         isDestructive
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+      <EmojiPicker
+        open={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onEmojiSelected={(emojiObject) => {
+          setEmoji(emojiObject.emoji);
+          Haptics.selectionAsync();
+          setShowEmojiPicker(false);
+        }}
       />
     </SafeAreaView>
   );
