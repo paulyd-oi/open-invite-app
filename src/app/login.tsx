@@ -134,10 +134,18 @@ export default function LoginScreen() {
       return;
     }
 
+    // Basic email format check — prevents obviously invalid submissions
+    const trimmedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Invalid Email", "Please enter a valid email address");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await authClient.signIn.email({
-        email,
+        email: trimmedEmail,
         password,
       });
 

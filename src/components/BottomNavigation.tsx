@@ -111,6 +111,9 @@ function NavButton({
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={400}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: isActive }}
       style={[
         animatedStyle,
         {
@@ -243,6 +246,7 @@ export default function BottomNavigation() {
 
   return (
     <View
+      accessibilityRole="tablist"
       style={{
         position: "absolute",
         bottom: safeBottom + ISLAND_BOTTOM,
