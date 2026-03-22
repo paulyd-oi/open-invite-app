@@ -1022,7 +1022,7 @@ export default function FriendsScreen() {
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - circles rarely change
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
     placeholderData: (prev: GetCirclesResponse | undefined) => prev, // [PERF_SWEEP] Keep circles visible during refetch
   });
@@ -1075,7 +1075,7 @@ export default function FriendsScreen() {
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
   });
 

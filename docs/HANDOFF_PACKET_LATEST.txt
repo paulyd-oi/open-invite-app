@@ -1,61 +1,41 @@
-HANDOFF PACKET — Cache Invalidation Gaps V1
+HANDOFF PACKET — refetchOnMount: false Systemic Sweep V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed 5 cross-surface cache invalidation and lifecycle gaps identified in docs/SURFACE_AUDIT_REPORT.txt. These caused stale data on Discover, Social, and Activity feeds after RSVP, event CRUD, and friend mutations.
+Removed refetchOnMount: false from 8 TanStack Query hooks across 4 files. This anti-pattern prevented stale data from refreshing when users navigate between tabs. Same root cause already fixed on Discover and friend requests in prior tasks. All queries retain their staleTime (30s-5min) and placeholderData where present. TQ default (refetchOnMount: true) now allows stale data to refetch on mount while keeping cached data visible.
 
-GAP 1 FIX: src/lib/eventQueryKeys.ts
-- Added eventKeys.feedPopular() to 5 helpers:
-  getInvalidateAfterRsvpJoin, getInvalidateAfterRsvpLeave,
-  getInvalidateAfterEventCreate, getInvalidateAfterEventEdit,
-  getInvalidateAfterEventDelete
-- feedPopular() now sits alongside feed() and feedPaginated() in every helper
-- No existing keys removed
+REMOVALS
 
-GAP 2 FIX: src/app/discover.tsx
-- Replaced saveMutation ad-hoc invalidation (2 keys: feedPopular + myEvents) with
-  SSOT call: invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save")
-- SSOT helper covers 10 keys: single, attendees, interests, rsvp, feed, feedPaginated,
-  feedPopular, myEvents, calendar, attending
-- Kept setSavedEvents optimistic update, haptics, and toast — only invalidation calls replaced
-- Added imports: invalidateEventKeys, getInvalidateAfterRsvpJoin from eventQueryKeys
+- src/app/friends.tsx:1011 — query key: circleKeys.all(), staleTime: 5min, placeholderData: yes
+- src/app/friends.tsx:1064 — query key: ["pinnedFriendships"], staleTime: 5min, placeholderData: no
+- src/app/social.tsx:905 — query key: eventKeys.feedPaginated(), staleTime: 30s, placeholderData: yes
+- src/app/social.tsx:954 — query key: eventKeys.mine(), staleTime: 1min, placeholderData: yes
+- src/app/social.tsx:972 — query key: eventKeys.attending(), staleTime: 1min, placeholderData: yes
+- src/app/social.tsx:1117 — query key: ["friends"], staleTime: 5min, placeholderData: yes
+- src/app/calendar.tsx:1441 — query key: ["friends"], staleTime: 5min, placeholderData: no
+- src/lib/usePaginatedFriends.ts:75 — query key: qk.friend.list(search), staleTime: 5min, placeholderData: no
 
-GAP 3 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept
-- Added 3 event feed keys: eventKeys.feed(), eventKeys.feedPaginated(), eventKeys.feedPopular()
-- New friend's events now propagate to Social tab and Discover after accept
-- All existing keys preserved (friendKeys.all, requests, suggestions, pinned, circleKeys.all)
+KEPT INTENTIONALLY
 
-GAP 4 FIX: src/lib/refreshAfterMutation.ts → refreshAfterFriendAccept + refreshAfterFriendReject
-- Added ["notifications"] key to both helpers
-- friend_request notification now cleared from Activity feed after accept or reject
-- All existing keys preserved
-
-GAP 5 FIX: src/app/social.tsx → discoveryEvents memo
-- Added past/ended event filter before existing filters (cheap early return)
-- Pattern: endTime ?? startTime < Date.now(), with Number.isNaN guard for invalid dates
-- Added excludedExpiredCount to [P0_SOCIAL_OPEN_INVITES_FILTER] DEV log
-- Same proven pattern as Task 4 profile fix
+- src/app/_layout.tsx:319 — auth/session query uses explicit invalidation on login/logout; refetchOnMount: false prevents redundant auth checks on every screen mount
+- src/components/AnnouncementBanner.tsx:70 — low-frequency banner content, intentionally cached for session duration
+- src/components/UpdateBanner.tsx:57 — low-frequency update check, intentionally cached for session duration
+- src/app/discover.tsx:191,201,212 — already fixed on fix/discover-truth-sync-v1 branch (not yet merged to main)
+- src/app/friends.tsx:866 — already fixed on fix/friend-request-wiring-v1 branch (not yet merged to main)
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
-bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
-
-BLAST RADIUS
-- eventQueryKeys.ts: 5 helpers modified (feedPopular added to each)
-- refreshAfterMutation.ts: 2 helpers modified (event feeds + notifications added)
-- discover.tsx: 1 mutation modified (ad-hoc → SSOT)
-- social.tsx: 1 memo modified (expiry filter added)
-- No UI, layout, or component changes
-- No existing invalidation keys removed
-- feedPopular() now appears in all 5 event invalidation helpers ✓
-- refreshAfterFriendAccept now includes event feed + notification keys ✓
-- refreshAfterFriendReject now includes notification keys ✓
-- discoveryEvents memo now filters past events ✓
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
+grep refetchOnMount: false — remaining instances match exclusion list exactly
 
 GIT PROOF
 
+git show --stat HEAD
+(see below after commit)
+
+git show --name-only HEAD
 (see below after commit)
 
 FINAL STATUS

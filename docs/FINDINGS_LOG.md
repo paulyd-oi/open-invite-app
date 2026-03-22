@@ -1,23 +1,20 @@
 # Findings Log — Frontend
 
-## Cache Invalidation Gaps V1 — FIXED (2026-03-21)
+## refetchOnMount: false Systemic Sweep — FIXED (2026-03-21)
 
-### Root Cause: Cross-surface invalidation incomplete after RSVP, event CRUD, and friend mutations
+### Root Cause: refetchOnMount: false prevents stale data refresh on tab navigation
 
-Surface audit (docs/SURFACE_AUDIT_REPORT.txt) identified 5 gaps in the TanStack Query invalidation layer:
+TanStack Query's `refetchOnMount: false` tells the cache to never refetch when a component mounts, even if data is older than staleTime. On mobile with tab navigation, this means navigating away and back shows stale cache indefinitely. The correct behavior is TQ's default (`refetchOnMount: true`) which refetches if data is stale (older than staleTime).
 
-1. `eventKeys.feedPopular()` missing from all 5 event invalidation helpers — Discover popular feed never refreshed after RSVP/create/edit/delete on other surfaces.
-2. Discover saveMutation used ad-hoc 2-key invalidation instead of SSOT 10-key helper — save action didn't propagate to Social, Calendar, Attending.
-3. `refreshAfterFriendAccept` didn't invalidate event feeds — new friend's events invisible in Social/Discover until manual refresh.
-4. `refreshAfterFriendAccept/Reject` didn't invalidate notifications — friend_request notification persisted in Activity feed after action.
-5. Social tab discoveryEvents memo didn't filter past/ended events — stale time labels rendered on expired events.
+### Evidence
+Same root cause already fixed on Discover (fix/discover-truth-sync-v1) and friend requests (fix/friend-request-wiring-v1). This sweep removes the remaining 8 instances across 4 files: friends.tsx (circles, pinned), social.tsx (feed, myEvents, attending, friends), calendar.tsx (friends), usePaginatedFriends.ts (paginated friends list).
 
 ### Fix
-- Added `eventKeys.feedPopular()` to getInvalidateAfterRsvpJoin, RsvpLeave, EventCreate, EventEdit, EventDelete (eventQueryKeys.ts)
-- Replaced discover.tsx saveMutation ad-hoc invalidation with `invalidateEventKeys(qc, getInvalidateAfterRsvpJoin(eventId))` SSOT call
-- Added event feed keys (feed, feedPaginated, feedPopular) + `["notifications"]` to refreshAfterFriendAccept (refreshAfterMutation.ts)
-- Added `["notifications"]` to refreshAfterFriendReject (refreshAfterMutation.ts)
-- Added past/ended event filter (endTime ?? startTime < now, Number.isNaN guard) to social.tsx discoveryEvents memo
+Removed `refetchOnMount: false` from all 8 queries. All retain their existing `staleTime` values (30s–5min) and `placeholderData` where present. TQ default behavior now refetches stale data on mount while keeping cached data visible.
+
+### Intentionally Kept
+- `_layout.tsx` — auth/session queries use explicit invalidation
+- `AnnouncementBanner.tsx` / `UpdateBanner.tsx` — low-frequency banners, intentional
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 

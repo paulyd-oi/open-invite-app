@@ -72,7 +72,7 @@ export function usePaginatedFriends({
     enabled,
     staleTime: 5 * 60 * 1000, // 5 min — friends list is stable
     gcTime: 10 * 60 * 1000, // 10 min garbage collection
-    refetchOnMount: false,
+    // refetchOnMount: default (true) — stale data refetches on navigation return
     refetchOnWindowFocus: false,
   });
 
