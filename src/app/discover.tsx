@@ -114,6 +114,8 @@ interface PopularEvent {
   description?: string | null;
   eventPhotoUrl?: string | null;
   themeId?: string | null;
+  isRecurring?: boolean;
+  recurrence?: string | null;
   joinRequests?: Array<{
     id: string;
     userId: string;
@@ -273,7 +275,8 @@ export default function DiscoverScreen() {
     return allEvents
       .filter((e) => {
         if (e.visibility && BLOCKED_VIS.includes(e.visibility)) return false;
-        return new Date(e.startTime) >= now;
+        if (new Date(e.startTime) < now && !e.isRecurring) return false;
+        return true;
       })
       .map((event) => {
         const derivedCount = deriveAttendeeCount(event);
