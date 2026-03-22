@@ -77,8 +77,8 @@ export default function ActivityScreen() {
     checkAndRequestPermission();
   }, [bootStatus, session?.user?.id]);
 
-  // Show login prompt if not authenticated
-  if (!session && !sessionLoading) {
+  // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
+  if (!session && !sessionLoading && bootStatus === 'loggedOut') {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <View className="flex-1 items-center justify-center px-8">
