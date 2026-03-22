@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -49,7 +49,6 @@ import { computeSchedule } from "@/lib/scheduling/engine";
 import type { BusyWindow } from "@/lib/scheduling/types";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 
-const EMOJI_OPTIONS = ["📅", "🏃", "🎬", "🎮", "💃", "🍽️", "☕", "🎉", "🏋️", "📚", "🎵", "⚽"];
 
 export default function CreateEventRequestScreen() {
   const { data: session } = useSession();
@@ -98,7 +97,7 @@ export default function CreateEventRequestScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiInputRef = useRef<TextInput>(null);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [showFriendPicker, setShowFriendPicker] = useState(false);
   const [friendSearch, setFriendSearch] = useState("");
@@ -387,50 +386,51 @@ export default function CreateEventRequestScreen() {
               Event Icon
             </Text>
             <Pressable
-              onPress={() => setShowEmojiPicker(prev => !prev)}
+              onPress={() => emojiInputRef.current?.focus()}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <View
-                    className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}
-                  >
-                    <Text className="text-2xl">{emoji}</Text>
-                  </View>
-                  <Text style={{ color: colors.textSecondary }}>Tap to change icon</Text>
+              <View className="flex-row items-center">
+                <View
+                  className="w-12 h-12 rounded-xl items-center justify-center mr-3"
+                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}
+                >
+                  <Text className="text-2xl">{emoji}</Text>
                 </View>
-                <ChevronDown size={20} color={colors.textTertiary} />
+                <TextInput
+                  ref={emojiInputRef}
+                  value=""
+                  onChangeText={(text) => {
+                    try {
+                      const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
+                      const segments: string[] = hasSegmenter
+                        ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
+                        : Array.from(text);
+                      const emojis = segments.filter((segment) => {
+                        const firstCode = segment.codePointAt(0) || 0;
+                        return firstCode > 127 && segment.trim().length > 0;
+                      });
+                      if (emojis.length > 0) {
+                        setEmoji(emojis[emojis.length - 1]);
+                        Haptics.selectionAsync();
+                      }
+                    } catch {
+                      const trimmed = text.trim();
+                      const firstCode = trimmed.codePointAt(0) || 0;
+                      if (firstCode > 127 && trimmed.length > 0) {
+                        setEmoji(trimmed);
+                        Haptics.selectionAsync();
+                      }
+                    }
+                  }}
+                  placeholder="Tap to change icon"
+                  placeholderTextColor={colors.textTertiary}
+                  style={{ flex: 1, fontSize: 15, color: colors.textSecondary }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
               </View>
             </Pressable>
-
-            {showEmojiPicker && (
-              <View
-                className="rounded-xl p-4 mb-4"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <View className="flex-row flex-wrap justify-between">
-                  {EMOJI_OPTIONS.map((e) => (
-                    <Pressable
-                      key={e}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setEmoji(e);
-                        setShowEmojiPicker(false);
-                      }}
-                      className="w-12 h-12 rounded-xl items-center justify-center mb-2"
-                      style={{
-                        backgroundColor:
-                          emoji === e ? `${themeColor}20` : isDark ? "#2C2C2E" : "#F9FAFB",
-                      }}
-                    >
-                      <Text className="text-2xl">{e}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
           </Animated.View>
 
           {/* Title */}

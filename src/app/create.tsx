@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
@@ -93,26 +93,6 @@ import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
-
-// Comprehensive emoji preset list - frequently used, well-supported across devices
-const EMOJI_OPTIONS = [
-  // Activities & Sports
-  "🏃", "🚴", "🏊", "⚽", "🏀", "🎾", "🏋️", "🧘", "⛳", "🎳",
-  // Food & Drinks
-  "🍽️", "☕", "🍕", "🍔", "🍣", "🍜", "🍻", "🍷", "🧁", "🍦",
-  // Entertainment
-  "🎬", "🎮", "🎤", "🎵", "🎸", "🎨", "🎭", "📺", "🎯", "🎲",
-  // Social & Celebrations
-  "🎉", "🎂", "🥳", "💃", "🕺", "👯", "🤝", "💬", "❤️", "🔥",
-  // Travel & Places
-  "✈️", "🚗", "🏖️", "⛰️", "🏕️", "🌴", "🌆", "🏠", "🏢", "🌎",
-  // Work & Study
-  "📅", "💼", "📚", "✏️", "💻", "📱", "🎓", "📝", "🗓️", "⏰",
-  // Nature & Weather
-  "☀️", "🌙", "⭐", "🌸", "🌻", "🐶", "🐱", "🦋", "🌈", "❄️",
-  // Health & Wellness
-  "💪", "🧠", "💊", "🩺", "😴", "🧘", "🏥", "💆", "🛁", "🌿",
-];
 
 const FREQUENCY_OPTIONS = [
   { value: "once", label: "One Time", icon: "📆" },
@@ -499,10 +479,9 @@ export default function CreateEventScreen() {
     return isCircleEvent ? "circle_only" : "all_friends";
   });
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
-  const [customEmojiInput, setCustomEmojiInput] = useState("");
+  const emojiInputRef = useRef<TextInput>(null);
   const [sendNotification, setSendNotification] = useState(true);
   const isPrivateCircleEvent = true; // Circle events are always private
   const circleEventMode = "open_invite" as const; // Circle events are always open invite
@@ -1422,139 +1401,52 @@ export default function CreateEventScreen() {
             </View>
           )}
 
-          {/* Emoji Picker */}
+          {/* Emoji Picker — tap to open native emoji keyboard */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
             <Pressable
-              onPress={() => setShowEmojiPicker(prev => !prev)}
+              onPress={() => emojiInputRef.current?.focus()}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                    <Text className="text-2xl">{emoji}</Text>
-                  </View>
-                  <Text style={{ color: colors.textSecondary }}>Tap to change icon</Text>
+              <View className="flex-row items-center">
+                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
+                  <Text className="text-2xl">{emoji}</Text>
                 </View>
-                <ChevronDown size={20} color={colors.textTertiary} />
+                <TextInput
+                  ref={emojiInputRef}
+                  value=""
+                  onChangeText={(text) => {
+                    try {
+                      const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
+                      const segments: string[] = hasSegmenter
+                        ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
+                        : Array.from(text);
+                      const emojis = segments.filter((segment) => {
+                        const firstCode = segment.codePointAt(0) || 0;
+                        return firstCode > 127 && segment.trim().length > 0;
+                      });
+                      if (emojis.length > 0) {
+                        setEmoji(emojis[emojis.length - 1]);
+                        Haptics.selectionAsync();
+                      }
+                    } catch {
+                      const trimmed = text.trim();
+                      const firstCode = trimmed.codePointAt(0) || 0;
+                      if (firstCode > 127 && trimmed.length > 0) {
+                        setEmoji(trimmed);
+                        Haptics.selectionAsync();
+                      }
+                    }
+                  }}
+                  placeholder="Tap to change icon"
+                  placeholderTextColor={colors.textTertiary}
+                  style={{ flex: 1, fontSize: 15, color: colors.textSecondary }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
               </View>
             </Pressable>
-
-            {showEmojiPicker && (
-              <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                {/* Custom Emoji Input */}
-                <View className="mb-4">
-                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Type custom emoji</Text>
-                  <View className="flex-row items-center">
-                    <TextInput
-                      value={customEmojiInput}
-                      onChangeText={(text) => {
-                        try {
-                          // Use segmenter to properly handle multi-codepoint emojis (like ✝️, 🙏, flags, etc.)
-                          // Intl.Segmenter may not be available on all RN runtimes — fallback below.
-                          const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter === "function";
-                          const segments: string[] = hasSegmenter
-                            ? [...new (Intl as any).Segmenter().segment(text)].map((s: { segment: string }) => s.segment)
-                            : Array.from(text); // Fallback: split by UTF-16 code units (imperfect for ZWJ sequences)
-                          // Filter to only emoji (non-ASCII graphemes that aren't just whitespace)
-                          const emojis = segments.filter((segment) => {
-                            const firstCode = segment.codePointAt(0) || 0;
-                            return firstCode > 127 && segment.trim().length > 0;
-                          });
-                          if (emojis.length > 0) {
-                            const lastEmoji = emojis[emojis.length - 1];
-                            setCustomEmojiInput(lastEmoji);
-                            setEmoji(lastEmoji);
-                            Haptics.selectionAsync();
-                          } else {
-                            if (text.length > 0 && __DEV__) {
-                              devLog("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
-                            }
-                            setCustomEmojiInput("");
-                          }
-                        } catch (e) {
-                          // Segmenter crash fallback: treat the entire input as the emoji if it's non-ASCII
-                          const trimmed = text.trim();
-                          const firstCode = trimmed.codePointAt(0) || 0;
-                          if (firstCode > 127 && trimmed.length > 0) {
-                            setCustomEmojiInput(trimmed);
-                            setEmoji(trimmed);
-                            Haptics.selectionAsync();
-                          } else {
-                            setCustomEmojiInput("");
-                          }
-                        }
-                      }}
-                      placeholder="Tap to open emoji keyboard"
-                      placeholderTextColor={colors.textTertiary}
-                      className="flex-1 rounded-xl p-4 text-center text-2xl"
-                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB", color: colors.text }}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    {customEmojiInput && (
-                      <Pressable
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setEmoji(customEmojiInput);
-                          setShowEmojiPicker(false);
-                          setCustomEmojiInput("");
-                        }}
-                        className="ml-2 px-4 py-3 rounded-xl"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <Text className="text-white font-semibold">Use</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-
-                {/* Divider */}
-                <View className="flex-row items-center mb-4">
-                  <View className="flex-1 h-px" style={{ backgroundColor: colors.separator }} />
-                  <Text style={{ color: colors.textTertiary }} className="mx-3 text-sm">or pick from below</Text>
-                  <View className="flex-1 h-px" style={{ backgroundColor: colors.separator }} />
-                </View>
-
-                {/* Preset Emojis - organized by category */}
-                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  {[
-                    { label: "Activities", emojis: EMOJI_OPTIONS.slice(0, 10) },
-                    { label: "Food & Drinks", emojis: EMOJI_OPTIONS.slice(10, 20) },
-                    { label: "Entertainment", emojis: EMOJI_OPTIONS.slice(20, 30) },
-                    { label: "Social", emojis: EMOJI_OPTIONS.slice(30, 40) },
-                    { label: "Travel", emojis: EMOJI_OPTIONS.slice(40, 50) },
-                    { label: "Work & Study", emojis: EMOJI_OPTIONS.slice(50, 60) },
-                    { label: "Nature", emojis: EMOJI_OPTIONS.slice(60, 70) },
-                    { label: "Wellness", emojis: EMOJI_OPTIONS.slice(70, 80) },
-                  ].map((category) => (
-                    <View key={category.label} className="mb-3">
-                      <Text style={{ color: colors.textTertiary }} className="text-xs font-medium mb-2 uppercase tracking-wide">
-                        {category.label}
-                      </Text>
-                      <View className="flex-row flex-wrap">
-                        {category.emojis.map((e) => (
-                          <Pressable
-                            key={e}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              setEmoji(e);
-                              setShowEmojiPicker(false);
-                              setCustomEmojiInput("");
-                            }}
-                            className="w-11 h-11 rounded-xl items-center justify-center mr-2 mb-2"
-                            style={{ backgroundColor: emoji === e ? `${themeColor}20` : isDark ? "#2C2C2E" : "#F9FAFB" }}
-                          >
-                            <Text className="text-xl">{e}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
           </Animated.View>
 
           {/* Event Theme Picker V1 */}
