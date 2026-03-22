@@ -13,6 +13,7 @@
 RCT_EXTERN_METHOD(startActivity:(NSString *)eventId
                   eventTitle:(NSString *)eventTitle
                   startTimeEpoch:(double)startTimeEpoch
+                  endTimeEpoch:(double)endTimeEpoch
                   locationName:(NSString *)locationName
                   rsvpStatus:(NSString *)rsvpStatus
                   emoji:(NSString *)emoji

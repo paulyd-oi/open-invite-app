@@ -1,100 +1,60 @@
-HANDOFF PACKET — Friend Request Wiring V1
+HANDOFF PACKET — Live Activity Lifecycle V1
 Date: 2026-03-21
-Branch: fix/friend-request-wiring-v1
+Branch: fix/live-activity-lifecycle-v1
 
 SUMMARY
 
-Fixed friend request rows being non-functional on the Friends > People tab. Row taps silently did nothing because navigation used request.sender?.id (optional, often undefined from backend) instead of request.senderId (required, always present). Also removed refetchOnMount: false from the requests query to prevent stale data.
-
-EXACT ROOT CAUSE
-
-FriendsPeoplePane.tsx line 245: `const senderId = request.sender?.id`
-
-The `sender` object is `.optional()` in the Zod schema (shared/contracts.ts line 388). When the backend doesn't populate the full sender relation, `request.sender` is undefined. The navigation guard at line 270 (`if (senderId)`) evaluates to false, silently blocking the tap.
-
-Meanwhile, `request.senderId` (line 384 in schema) is a required string field — always present. It was never used for navigation.
-
-Secondary: `refetchOnMount: false` on the friend requests query (friends.tsx line 866) meant stale/already-accepted requests persisted in the cache after navigating away and back.
-
-RUNTIME PATH
-1. Friend request data load: friends.tsx line 861 → useQuery ["friendRequests"] → GET /api/friends/requests → { received: FriendRequest[], sent: FriendRequest[] }
-2. Data flows to: friends.tsx line 1001 → receivedRequests = requestsData?.received ?? []
-3. Passed to: FriendsPeoplePane (line 1453) → receivedRequests prop
-4. Row render: FriendsPeoplePane.tsx line 244 → receivedRequests.map → FriendRequestCard
-5. Row tap → onViewProfile → router.push(`/user/${senderId}`)
-6. Accept: onAccept → acceptRequestMutation.mutate(request.id) → PUT /api/friends/request/:id { status: "accepted" }
-7. Decline: onReject → rejectRequestMutation.mutate(request.id) → PUT /api/friends/request/:id { status: "rejected" }
-8. Post-mutation: optimistic cache removal + refetch + refreshAfterFriendAccept/Reject
-
-RUNTIME PROOF
-[FRIEND_REQUEST] query { receivedCount: 2, sentCount: 0, firstReceived: { id: "abc12345", senderId: "def67890", hasSender: false, senderName: "NOT_POPULATED", status: "pending" } }
-[FRIEND_REQUEST] row { requestId: "abc12345", senderId: "def67890", senderName: "NOT_POPULATED", senderImage: "no", hasSenderObj: false, status: "pending" }
-[FRIEND_REQUEST] navigate { senderId: "def67890", target: "/user/def67890" }
-[FRIEND_REQUEST] accept { requestId: "abc12345" }
+Fixed two Live Activity bugs: (A) activities never auto-expired after event end time, persisting indefinitely on Lock Screen and Dynamic Island, and (B) the manual toggle in event detail always defaulted to OFF even though auto-start logic activates the activity on focus. Root causes were missing staleDate in the native Activity.request() call and useState(false) for the toggle.
 
 EXACT FILES CHANGED
 
-1. src/components/friends/FriendsPeoplePane.tsx
-   - Line 245: senderId extraction changed from `request.sender?.id` to `request.senderId ?? request.sender?.id`
-   - Added [FRIEND_REQUEST] DEV logs: per-row data shape, accept/decline actions, navigation target
-   - Added nav_blocked log when senderId is still missing (belt-and-suspenders)
+1. ios/OpenInvite/LiveActivityBridge.swift
+   - Added endTimeEpoch parameter to startActivity()
+   - On iOS 16.2+: builds ActivityContent with staleDate set to event end time for system auto-expiration
+   - Falls back to basic Activity.request() on iOS 16.1
 
-2. src/app/friends.tsx
-   - Line 866: removed `refetchOnMount: false` from friendRequests query
-   - Line 867: removed `refetchOnWindowFocus: false` from friendRequests query
-   - Added [FRIEND_REQUEST] DEV log for query payload shape (count, first item data)
+2. ios/OpenInvite/LiveActivityBridge.m
+   - Added endTimeEpoch:(double)endTimeEpoch parameter to ObjC bridge method declaration
 
-3. docs/FINDINGS_LOG.md — Added entry
-4. docs/STATE_OF_THE_APP.md — Added fix section
-5. docs/HANDOFF_PACKET_LATEST.txt — This file
+3. src/lib/liveActivity.ts
+   - Added endTime parameter to startLiveActivity(), computes endTimeEpoch (defaults to startTime + 1h)
+   - Added cleanupExpiredActivities() function for foreground cleanup of expired activities
+   - Added [LIVE_ACTIVITY] DEV diagnostic logs
 
-FIX
+4. src/app/event/[id].tsx
+   - Imported cleanupExpiredActivities
+   - Passed endTime to all 3 startLiveActivity() call sites (auto-start on focus, RSVP going, manual toggle)
+   - Added foreground cleanup call in useFocusEffect before checking active state
+   - Changed liveActivityActive default from false to Platform.OS === "ios"
 
-Symptom A (row tap does nothing):
-- Changed senderId extraction to use `request.senderId` (required field) as primary, `request.sender?.id` as fallback
-- Navigation now always works when the request has a valid senderId (which it always does per schema)
+ROOT CAUSE
 
-Symptom B (stale/phantom request rows):
-- Removed `refetchOnMount: false` and `refetchOnWindowFocus: false` from the friend requests query
-- Stale data now refetches when navigating back to the friends tab
-- placeholderData kept so UI doesn't flash empty during refetch
+Symptom A (no auto-expiration): Activity.request() was called without staleDate or dismissalPolicy. The ActivityKit system had no signal to expire the activity. No JS-side cleanup existed either, so expired activities were never ended from the foreground.
 
-Accept/decline mutations:
-- Were already correctly wired — they use `request.id` not sender info
-- Optimistic removal, error rollback, post-mutation invalidation all intact
-- No changes needed
+Symptom B (toggle default OFF): useState(false) for liveActivityActive meant the toggle always showed OFF on initial render, regardless of whether the Live Activity was actually running via auto-start.
 
-BACKEND CONTRACT NOTE
+FIX DETAILS
 
-Backend GET /api/friends/requests returns `sender` as optional in the response. When not populated:
-- Row shows "Unknown" name and default avatar (existing fallbacks in FriendRequestCard)
-- Navigation still works via `senderId` (always present)
+Native layer (iOS 16.2+): startActivity() now constructs an ActivityContent with staleDate set to the event end time epoch. The system will mark the activity as stale and auto-expire it when the event ends. On iOS 16.1, falls back to the basic Activity.request() path (no staleDate support).
 
-Recommendation for my-app-backend: Always populate `sender: { id, name, image }` in the friend requests response. The `senderId` field ensures navigation works, but missing sender data degrades the UX (no name, no photo).
+JS cleanup layer: cleanupExpiredActivities() iterates any active Live Activities and ends those whose associated event time has passed. This is called from useFocusEffect in event/[id].tsx on every foreground focus, before checking whether to auto-start a new activity.
+
+Toggle default: Changed from useState(false) to useState(Platform.OS === "ios") so the toggle reflects the expected active state on iOS devices.
+
+Bridge: endTimeEpoch:(double)endTimeEpoch added to the ObjC bridge declaration to pass the epoch value from JS to Swift.
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-BLAST RADIUS SWEEP
-
-- Friends list (People tab): fixed — request rows now navigable
-- Friend request accept/decline: unchanged — already worked (uses request.id)
-- Profile navigation from request row: fixed — uses senderId
-- Other tabs (Social, Discover, Calendar): unaffected — no changes
-- Activity pane: unaffected — doesn't render friend requests
-- Chats pane: unaffected — no changes
-
-STATE/FINDINGS DOC UPDATES
-
-- docs/STATE_OF_THE_APP.md: Added "Fixed This Session (Friend Request Wiring V1)" section
-- docs/FINDINGS_LOG.md: Added "Friend Request Row Wiring" entry with root cause and fix
-
-GIT PROOF
-
-(see below after commit)
+Runtime verification required on device (native Swift changes need dev build):
+  - Confirm Live Activity disappears from Lock Screen after event end time passes
+  - Confirm [LIVE_ACTIVITY] DEV logs show endTimeEpoch being passed
+  - Confirm cleanupExpiredActivities() runs on foreground focus
+  - Confirm toggle shows ON by default on iOS when viewing an eligible event
+  - Confirm manual toggle off still prevents re-auto-start (session ref behavior unchanged)
 
 FINAL STATUS
 
-FIXED
+LIVE ACTIVITY LIFECYCLE V1 APPLIED — NEEDS DEVICE VERIFICATION

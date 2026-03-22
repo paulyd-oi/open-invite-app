@@ -1,24 +1,31 @@
 # Findings Log — Frontend
 
-## Friend Request Row Wiring — FIXED (2026-03-21)
+## Live Activity Lifecycle — No Auto-Expiration + Toggle Default OFF — FIXED (2026-03-21)
 
-### Root Cause: Navigation used sender?.id (optional) instead of senderId (required)
+### Root Cause A: No auto-expiration
+`Activity.request()` in LiveActivityBridge.swift was called without `staleDate` or `dismissalPolicy`. The Live Activity persisted on the Lock Screen and Dynamic Island indefinitely after the event ended. No JS-side cleanup existed either — expired activities were never ended from the foreground.
 
-FriendsPeoplePane line 245 extracted `senderId = request.sender?.id`. The `sender` object is optional in the schema — backend may not populate it for every request. When `sender` is undefined, `senderId` becomes undefined, and the navigation guard `if (senderId)` silently blocked the tap. The top-level `request.senderId` field is required and always present but was never used.
-
-Secondary issue: `refetchOnMount: false` on the friend requests query prevented stale data from refreshing when navigating back to the friends tab.
+### Root Cause B: Toggle default OFF
+`useState(false)` for `liveActivityActive` in event/[id].tsx meant the toggle always rendered as OFF on mount, even though the Live Activity auto-starts on focus for eligible events on iOS.
 
 ### Fix
-1. Changed navigation ID extraction to `request.senderId ?? request.sender?.id` — uses the required field as primary
-2. Removed `refetchOnMount: false` from friend requests query so stale data refetches on navigation return
-3. Added [FRIEND_REQUEST] DEV diagnostics throughout the pipeline (query, row render, accept/decline, navigation)
+**Native (iOS 16.2+):** `startActivity()` now builds an `ActivityContent` with `staleDate` set to the event's end time epoch. The system marks the activity as stale when the event ends. Falls back to basic `Activity.request()` on iOS 16.1.
 
-### Backend Note
-Backend `/api/friends/requests` returns `sender` as optional. If not populated, rows show "Unknown" name and no avatar. The `senderId` top-level field is always present and sufficient for navigation. Backend should ideally always populate `sender` with at least `{ id, name, image }`.
+**JS cleanup:** New `cleanupExpiredActivities()` function in liveActivity.ts iterates active activities and ends any whose event time has passed. Called from `useFocusEffect` in event/[id].tsx before checking active state.
+
+**Toggle default:** Changed from `useState(false)` to `useState(Platform.OS === "ios")`.
+
+**Bridge:** `endTimeEpoch:(double)endTimeEpoch` added to ObjC bridge declaration.
 
 ### Files Changed
-- src/components/friends/FriendsPeoplePane.tsx: senderId extraction fix + [FRIEND_REQUEST] logs
-- src/app/friends.tsx: removed refetchOnMount: false + [FRIEND_REQUEST] query diagnostics
+- ios/OpenInvite/LiveActivityBridge.swift: `ActivityContent` with `staleDate` on iOS 16.2+
+- ios/OpenInvite/LiveActivityBridge.m: `endTimeEpoch` parameter in bridge
+- src/lib/liveActivity.ts: `endTime` param, `endTimeEpoch` computation, `cleanupExpiredActivities()`, [LIVE_ACTIVITY] DEV logs
+- src/app/event/[id].tsx: pass `endTime` to all 3 `startLiveActivity()` call sites, foreground cleanup in useFocusEffect, toggle default `Platform.OS === "ios"`
+
+### Verification
+- TypeScript: needs runtime check
+- Proof tag: [LIVE_ACTIVITY] DEV logs in liveActivity.ts
 
 ## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
 
