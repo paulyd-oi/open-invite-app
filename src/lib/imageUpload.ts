@@ -120,9 +120,12 @@ export async function compressImage(
   const { maxWidth = 1200, maxHeight = 1200, quality = 0.7 } = options;
 
   try {
+    // [PROFILE_PHOTO] Only specify width — expo-image-manipulator's legacy
+    // manipulateAsync stretches to exact dimensions when both width AND height
+    // are given.  Specifying width alone preserves aspect ratio.
     const result = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: maxWidth, height: maxHeight } }],
+      [{ resize: { width: maxWidth } }],
       { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
     );
     return result.uri;

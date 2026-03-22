@@ -42,7 +42,7 @@ export const CLOUDINARY_PRESETS = {
   /** Event Detail hero (4:3 container, rounded corners). Matches container aspect for optimal delivery. */
   HERO_DETAIL: { w: 1080, h: 810, crop: "fill", gravity: "auto" } as CloudinaryTransform,
   THUMBNAIL_SQUARE: { w: 360, h: 360, crop: "fill" } as CloudinaryTransform,
-  AVATAR_THUMB: { w: 120, h: 120, crop: "fill" } as CloudinaryTransform,
+  AVATAR_THUMB: { w: 120, h: 120, crop: "fill", gravity: "face" } as CloudinaryTransform,
 } as const;
 
 const UPLOAD_MARKER = "/image/upload/";

@@ -1101,9 +1101,15 @@ export default function SettingsScreen() {
     mutationFn: (data: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; phone?: string | null; handle?: string; adminBypassCooldown?: boolean }) =>
       api.put<UpdateProfileResponse>("/api/profile", data),
     onSuccess: async (response, variables) => {
-      if (__DEV__) devLog("[EditProfile] Save success", response);
+      if (__DEV__) {
+        devLog("[EditProfile] Save success", response);
+        devLog("[PROFILE_PHOTO]", "mutation_success", {
+          newAvatarUrl: (response.profile?.avatarUrl ?? variables?.avatarUrl)?.slice(0, 80),
+          variablesAvatarUrl: variables?.avatarUrl?.slice(0, 80),
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       // Update cache immediately with response + variables to ensure both profile and user are patched
       queryClient.setQueryData(qk.profile(), (old: any) => ({
         ...old,
@@ -1126,6 +1132,9 @@ export default function SettingsScreen() {
       await updateProfileAndSync(queryClient);
       // SSOT media invalidation — covers userProfile, profiles, friends
       invalidateProfileMedia(queryClient);
+      if (__DEV__) devLog("[PROFILE_PHOTO]", "invalidation_fired", {
+        keys: ["qk.profile()", "qk.profiles()", "qk.friend.all()"],
+      });
       setShowEditProfile(false);
       setHandleError(null);
       safeToast.success("Success", "Profile updated successfully");
@@ -1250,7 +1259,16 @@ export default function SettingsScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setEditImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        if (__DEV__) {
+          devLog("[PROFILE_PHOTO]", "picker_result", {
+            width: asset.width,
+            height: asset.height,
+            aspect: asset.width && asset.height ? (asset.width / asset.height).toFixed(3) : "unknown",
+            uri: asset.uri?.slice(0, 80),
+          });
+        }
+        setEditImage(asset.uri);
       }
     } catch (error) {
       logError("Pick Image", error);
@@ -1321,11 +1339,14 @@ export default function SettingsScreen() {
         if (editImage.startsWith("file://")) {
           // Local file - need to upload first
           try {
-            if (__DEV__) devLog("[EditProfile] Uploading profile photo...");
+            if (__DEV__) devLog("[PROFILE_PHOTO]", "upload_start", { uri: editImage.slice(0, 80) });
             if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_locked", { type: "avatar" });
             const uploadResponse = await uploadImage(editImage, true);
             updates.avatarUrl = uploadResponse.url;
-            if (__DEV__) devLog("[EditProfile] Photo uploaded:", uploadResponse.url);
+            if (__DEV__) devLog("[PROFILE_PHOTO]", "upload_success", {
+              url: uploadResponse.url?.slice(0, 80),
+              publicId: uploadResponse.publicId,
+            });
           } catch (uploadError) {
             setIsUploading(false);
             logError("Profile Photo Upload", uploadError);
