@@ -2896,18 +2896,18 @@ export default function EventDetailScreen() {
                         <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Two-button action bar */}
+                    {/* Two independent pill buttons */}
                     <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
-                      {/* Going — Primary */}
+                      {/* Going — Primary pill */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "center",
-                          paddingVertical: 16,
+                          paddingVertical: 12,
                           paddingHorizontal: 24,
-                          borderRadius: RADIUS.pill,
-                          backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                          borderRadius: 999,
+                          backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
                           opacity: 0.5,
                         }}>
                           <Users size={18} color={colors.textTertiary} />
@@ -2922,25 +2922,19 @@ export default function EventDetailScreen() {
                             flexDirection: "row" as const,
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
-                            paddingVertical: 14,
+                            paddingVertical: 12,
                             paddingHorizontal: 24,
-                            borderRadius: RADIUS.pill,
-                            backgroundColor: pageTheme.backAccent,
+                            borderRadius: 999,
+                            backgroundColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)",
                             opacity: pressed ? 0.85 : 1,
-                            ...(Platform.OS === "ios" ? {
-                              shadowColor: pageTheme.backAccent,
-                              shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: myRsvpStatus === "going" ? 0.35 : 0.25,
-                              shadowRadius: 12,
-                            } : { elevation: 4 }),
                           })}
                         >
-                          <Check size={18} color="#FFFFFF" />
+                          <Check size={18} color={STATUS.going.fg} />
                           <Text style={{
                             marginLeft: 8,
                             fontSize: 16,
                             fontWeight: "700",
-                            color: "#FFFFFF",
+                            color: STATUS.going.fg,
                             letterSpacing: 0.2,
                           }}>
                             {myRsvpStatus === "going" ? "Going ✓" : "I'm In"}
@@ -2948,7 +2942,7 @@ export default function EventDetailScreen() {
                         </Pressable>
                       )}
 
-                      {/* Save — Secondary outlined pill */}
+                      {/* Save — Secondary pill */}
                       <Pressable
                         testID="event-detail-action-save"
                         onPress={() => handleRsvp("interested")}
@@ -2957,14 +2951,12 @@ export default function EventDetailScreen() {
                           flexDirection: "row" as const,
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
-                          paddingVertical: 14,
+                          paddingVertical: 12,
                           paddingHorizontal: 24,
-                          borderRadius: RADIUS.pill,
+                          borderRadius: 999,
                           backgroundColor: myRsvpStatus === "interested"
                             ? (pageTheme.backAccent + "18")
-                            : "transparent",
-                          borderWidth: 1.5,
-                          borderColor: pageTheme.backAccent,
+                            : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)"),
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
