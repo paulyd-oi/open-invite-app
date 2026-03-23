@@ -2851,8 +2851,8 @@ export default function EventDetailScreen() {
                         <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Two independent pill buttons */}
-                    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 14, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                    {/* Two independent pill buttons — row wrapper has NO visual styling */}
+                    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 16, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                       {/* Going — Primary pill */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
@@ -2860,11 +2860,11 @@ export default function EventDetailScreen() {
                           alignItems: "center",
                           justifyContent: "center",
                           paddingVertical: 12,
-                          paddingHorizontal: 28,
+                          paddingHorizontal: 24,
                           borderRadius: 999,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)",
-                          borderWidth: 1,
-                          borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)",
+                          backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF",
+                          borderWidth: 1.5,
+                          borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
                           opacity: 0.5,
                         }}>
                           <Users size={18} color={colors.textTertiary} />
@@ -2880,11 +2880,11 @@ export default function EventDetailScreen() {
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
                             paddingVertical: 12,
-                            paddingHorizontal: 28,
+                            paddingHorizontal: 24,
                             borderRadius: 999,
-                            backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)",
-                            borderWidth: 1,
-                            borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)",
+                            backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF",
+                            borderWidth: 1.5,
+                            borderColor: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.15)",
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
@@ -2911,15 +2911,15 @@ export default function EventDetailScreen() {
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
                           paddingVertical: 12,
-                          paddingHorizontal: 28,
+                          paddingHorizontal: 24,
                           borderRadius: 999,
                           backgroundColor: myRsvpStatus === "interested"
                             ? (pageTheme.backAccent + "18")
-                            : (isDark ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.92)"),
-                          borderWidth: 1,
+                            : (isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF"),
+                          borderWidth: 1.5,
                           borderColor: myRsvpStatus === "interested"
                             ? (pageTheme.backAccent + "40")
-                            : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)"),
+                            : (isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.15)"),
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
