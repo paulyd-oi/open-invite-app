@@ -2702,7 +2702,7 @@ export default function EventDetailScreen() {
                 </View>
               </Animated.View>
             ) : (
-              <View style={{ marginBottom: 18, padding: 16, borderRadius: RADIUS.xl, backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.012)", borderWidth: 0.5, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
+              <View style={{ marginBottom: 18 }}>
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
                   devLog("[P0_RSVP]", "ui render", {
