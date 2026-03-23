@@ -2853,19 +2853,18 @@ export default function EventDetailScreen() {
                     )}
                     {/* Two independent pill buttons — row wrapper has NO visual styling */}
                     <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 16, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
-                      {/* Going — Primary pill */}
+                      {/* Going — Primary pill (solid filled green) */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "center",
-                          paddingVertical: 12,
-                          paddingHorizontal: 24,
+                          paddingVertical: 14,
+                          paddingHorizontal: 28,
+                          minHeight: 48,
                           borderRadius: 999,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF",
-                          borderWidth: 1.5,
-                          borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
-                          opacity: 0.5,
+                          backgroundColor: "#E5E7EB",
+                          opacity: 0.6,
                         }}>
                           <Users size={18} color={colors.textTertiary} />
                           <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
@@ -2879,21 +2878,25 @@ export default function EventDetailScreen() {
                             flexDirection: "row" as const,
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
-                            paddingVertical: 12,
-                            paddingHorizontal: 24,
+                            paddingVertical: 14,
+                            paddingHorizontal: 28,
+                            minHeight: 48,
                             borderRadius: 999,
-                            backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF",
-                            borderWidth: 1.5,
-                            borderColor: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.15)",
+                            backgroundColor: isDark ? "#16A34A" : "#22C55E",
+                            shadowColor: "#22C55E",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 6,
+                            elevation: 3,
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
-                          <Check size={18} color={STATUS.going.fg} />
+                          <Check size={18} color="#FFFFFF" />
                           <Text style={{
                             marginLeft: 8,
                             fontSize: 16,
                             fontWeight: "700",
-                            color: STATUS.going.fg,
+                            color: "#FFFFFF",
                             letterSpacing: 0.2,
                           }}>
                             {myRsvpStatus === "going" ? "Going ✓" : "I'm In"}
@@ -2901,7 +2904,7 @@ export default function EventDetailScreen() {
                         </Pressable>
                       )}
 
-                      {/* Save — Secondary pill */}
+                      {/* Save — Secondary pill (outlined) */}
                       <Pressable
                         testID="event-detail-action-save"
                         onPress={() => handleRsvp("interested")}
@@ -2910,16 +2913,20 @@ export default function EventDetailScreen() {
                           flexDirection: "row" as const,
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
-                          paddingVertical: 12,
-                          paddingHorizontal: 24,
+                          paddingVertical: 14,
+                          paddingHorizontal: 28,
+                          minHeight: 48,
                           borderRadius: 999,
                           backgroundColor: myRsvpStatus === "interested"
-                            ? (pageTheme.backAccent + "18")
-                            : (isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF"),
-                          borderWidth: 1.5,
-                          borderColor: myRsvpStatus === "interested"
-                            ? (pageTheme.backAccent + "40")
-                            : (isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.15)"),
+                            ? (pageTheme.backAccent + "30")
+                            : (isDark ? "#1F2937" : "#FFFFFF"),
+                          borderWidth: 2,
+                          borderColor: pageTheme.backAccent,
+                          shadowColor: "#000000",
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.06,
+                          shadowRadius: 3,
+                          elevation: 2,
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
