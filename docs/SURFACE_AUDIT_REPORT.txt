@@ -1,0 +1,377 @@
+SURFACE AUDIT REPORT
+Date: 2026-03-21
+Repo: open-invite-app (frontend only — backend is my-app-backend, separate repo)
+
+============================================================
+SURFACE 1: DISCOVER
+============================================================
+
+DATA PATHS:
+- feedPopular: eventKeys.feedPopular() ["events","feed","popular"] → GET /api/events/feed?visibility=open_invite → staleTime: 30s
+  Response fields: id, startTime, endTime, visibility, attendeeCount, goingCount, viewerRsvpStatus, eventPhotoUrl, user (host), joinRequests
+  refetchOnMount: false (NOTE: still present — fix on fix/discover-truth-sync-v1 branch, not yet merged to main)
+  placeholderData: yes
+
+- myEvents: eventKeys.myEvents() ["events","my-events"] → GET /api/events → staleTime: 30s
+  refetchOnMount: false (same branch)
+  placeholderData: yes
+
+- attending: eventKeys.attending() ["events","attending"] → GET /api/events/attending → staleTime: 60s
+  refetchOnMount: false (same branch)
+  placeholderData: no
+  Purpose: availability signal computation only (not rendered directly)
+
+EXPIRY/VALIDITY:
+- Feed Popular: PASS — frontend filters `new Date(e.startTime) >= now` in enrichedEvents memo (line ~270)
+- Visibility: PASS — frontend filters out circle_only, specific_groups, private (line ~265)
+- Saved tab: PASS — additional past filter `new Date(e.startTime).getTime() < now` (line ~317)
+- endTime not used for expiry: LOW_UX — events that started but haven't ended could be filtered prematurely by startTime check alone. However since startTime < now means the event has started, this is arguably correct for a "discover new events" surface.
+
+AUDIENCE SCOPING:
+- Feed endpoint: PASS — backend scopes by visibility=open_invite parameter, returns only viewer-accessible events
+- viewerRsvpStatus: PASS — server sets per-viewer RSVP status in response
+- Private events: PASS — blocked both server-side (visibility param) and client-side (BLOCKED_VIS filter)
+- Photos: PASS — hidden for private events (line ~595: `event.visibility !== "private"`)
+
+CACHE INVALIDATION:
+- Discover saveMutation → invalidates feedPopular + myEvents: PARTIAL
+  GAP: STALE_SYNC — saveMutation only invalidates 2 keys (feedPopular, myEvents). Does NOT use getInvalidateAfterRsvpJoin() which covers 9 keys including attending, calendar, feedPaginated. The save IS an RSVP (status="interested") but uses ad-hoc invalidation instead of the SSOT helper.
+
+- RSVP from event detail → getInvalidateAfterRsvpJoin: GAP
+  STALE_SYNC — eventKeys.feedPopular() is NOT in getInvalidateAfterRsvpJoin(). After RSVP-ing on event detail and returning to Discover, the popular feed shows stale viewerRsvpStatus until staleTime expires or manual refresh.
+
+- RSVP from social tab → getInvalidateAfterRsvpJoin: same GAP as above
+  STALE_SYNC — feedPopular not invalidated after social tab swipe RSVP.
+
+- Event create → getInvalidateAfterEventCreate: GAP
+  STALE_SYNC — eventKeys.feedPopular() not in getInvalidateAfterEventCreate(). New event won't appear in Discover popular until staleTime expires.
+
+- Event delete → getInvalidateAfterEventDelete: same GAP
+  STALE_SYNC — deleted event persists in Discover popular cache.
+
+FOCUS/MOUNT REFRESH:
+- refetchOnMount: false (on main; fix pending on unmerged branch)
+- useLiveRefreshContract: yes — manual pull, foreground resume, tab focus all trigger refetchFeed + refetchMyEvents
+- Account-aware query keys: no (keys don't include userId — relies on auth-gated queryFn)
+
+GAPS FOUND:
+1. STALE_SYNC — feedPopular not in getInvalidateAfterRsvpJoin/Leave. RSVP on any other surface leaves Discover popular stale.
+2. STALE_SYNC — feedPopular not in getInvalidateAfterEventCreate/Delete. New/deleted events not reflected in Discover.
+3. STALE_SYNC — Discover saveMutation uses ad-hoc invalidation instead of refreshAfterRsvpJoin SSOT. Missing attending, calendar, feedPaginated, single, attendees, interests, rsvp invalidation.
+4. LOW_UX — refetchOnMount: false still on main (fix on unmerged branch).
+
+============================================================
+SURFACE 2: PROFILE EVENT LISTS
+============================================================
+
+DATA PATHS:
+- userProfile: ["userProfile", id] → GET /api/profile/{id}/profile → staleTime: 0 (default)
+  Response fields: user (FriendUser), isFriend, friendshipId, hasPendingRequest, incomingRequestId
+  refetchOnMount: default (true)
+
+- friendEvents: ["friendEvents", friendshipId] → GET /api/friends/{friendshipId}/events → staleTime: 0 (default)
+  Response fields: events (Event[]), friend (FriendUser)
+  enabled: isAuthed && !!friendshipId && isFriend
+  refetchOnMount: default (true)
+
+EXPIRY/VALIDITY:
+- Circle-only events: PASS — filtered client-side (visibility === "circle_only" || circleId && visibility !== "all_friends")
+- Past events: PASS — filtered by endTime (or startTime if no endTime) < now. Re-evaluated every 60s via minuteTick.
+- Invalid dates: PASS — fixed in Task 4 (Number.isNaN guard before comparison, line ~563-579)
+- Calendar dots: PASS — shows all events including past (intentional for calendar history)
+
+AUDIENCE SCOPING:
+- Non-friend viewers: PASS — friendEvents query disabled when isFriend === false. UI shows "private calendar" placeholder.
+- Backend scoping: PASS — endpoint requires valid friendshipId, server validates friendship.
+- Query key isolation: PASS — ["friendEvents", friendshipId] is per-friendship, no cross-profile cache sharing.
+
+CACHE INVALIDATION:
+- Friend accept on profile → refreshAfterFriendAccept: PASS — invalidates userProfile(userId), isFriend flips, friendEvents query auto-enables.
+- Friend reject on profile → refreshAfterFriendReject: PASS — invalidates userProfile(userId).
+- Unfriend on profile → refreshAfterUnfriend + router.replace("/friends"): PASS — navigates away.
+- RSVP on event detail (for friend's event) → getInvalidateAfterRsvpJoin: GAP
+  STALE_SYNC — friendEvents query key ["friendEvents", friendshipId] is NOT in any RSVP invalidation helper. After RSVP-ing to a friend's event from detail, returning to their profile shows stale event data until default staleTime (0 = always refetch on mount, so this is mitigated by the navigation causing a remount).
+
+FOCUS/MOUNT REFRESH:
+- refetchOnMount: default (true) for both queries
+- useFocusEffect: no
+- Pull-to-refresh: yes (RefreshControl → refetch userProfile)
+- minuteTick: yes — re-evaluates past event filter every 60s
+- Account-aware query keys: yes — ["userProfile", id] includes viewed user id
+
+GAPS FOUND:
+1. STALE_SYNC — friendEvents not explicitly invalidated after RSVP. Mitigated by staleTime: 0 + remount on navigation, but if user navigates back without remount (e.g., swipe-back gesture), could show stale RSVP state on the friend's event cards.
+2. LOW_UX — No useFocusEffect for auto-refresh. Pull-to-refresh only refetches userProfile, not friendEvents directly (though friendEvents has staleTime 0 so it refetches on mount anyway).
+
+============================================================
+SURFACE 3: SOCIAL TAB
+============================================================
+
+DATA PATHS:
+- feedPaginated: eventKeys.feedPaginated() + FEED_PAGE_SIZE → GET /api/events/feed?limit=N&cursor=X → staleTime: 30s
+  Type: useInfiniteQuery (cursor-based)
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: yes
+
+- myEvents (mine): eventKeys.mine() ["events","mine"] → GET /api/events → staleTime: 60s
+  refetchInterval: 60s (polling)
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: yes
+
+- attending: eventKeys.attending() ["events","attending"] → GET /api/events/attending → staleTime: 60s
+  refetchInterval: 60s (polling)
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: yes
+
+- friends: ["friends"] → GET /api/friends → staleTime: 5min
+  Purpose: first-value nudge eligibility only
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: yes
+
+EXPIRY/VALIDITY:
+- Discovery events: PARTIAL
+  PASS: Filters out own events, going/interested events, circle_only events
+  GAP: LIFECYCLE_EXPIRY — discoveryEvents filter (line ~1241-1270) does NOT filter out past/ended events. Only the Group Pane (line ~1383) filters future events. Discovery feed cards for past events will render with stale time labels.
+
+- Calendar (allEvents): PASS — allowlist filter excludes private, busy, work events. Dedupes by ID.
+- Group Pane: PASS — filters to circle events with startTime >= today 00:00
+
+AUDIENCE SCOPING:
+- Feed endpoint: PASS — backend returns only viewer-accessible events
+- viewerRsvpStatus: PASS — per-viewer status in response
+- Privacy filter (allEvents): PASS — explicit allowlist: all_friends, open_invite, circle_only, specific_groups. Excludes private, busy, work.
+- [P0_SOCIAL_TAB_PRIVACY] logging: PASS — detailed per-item audit trail
+
+CACHE INVALIDATION:
+- Social RSVP swipe → getInvalidateAfterRsvpJoin (9 keys): PASS — covers feed, feedPaginated, mine, calendar, attending, single, attendees, interests, rsvp.
+  Optimistic update: PASS — updates viewerRsvpStatus + goingCount in cache, rolls back on error.
+- Event create → getInvalidateAfterEventCreate: PASS — covers feed, feedPaginated, mine, myEvents, calendar.
+- Event delete → getInvalidateAfterEventDelete: PASS — same keys as create.
+- Friend accept → refreshAfterFriendAccept: GAP
+  STALE_SYNC — does NOT invalidate any event feed keys. After accepting a friend, their events should now appear in social feed (friends' events visible). Feed won't update until staleTime expires or manual refresh.
+
+FOCUS/MOUNT REFRESH:
+- refetchOnMount: default (true) for all queries (after sweep)
+- useLiveRefreshContract: yes — manual pull, foreground resume, tab focus trigger refetchFeed + refetchMyEvents + refetchAttending
+- useFocusEffect: yes — invalidates qk.session() for emailVerified sync
+- Polling: myEvents + attending poll every 60s (stops when backgrounded)
+- Account-aware query keys: no (relies on auth-gated queryFn)
+
+GAPS FOUND:
+1. LIFECYCLE_EXPIRY — discoveryEvents does not filter past/ended events. Past events can appear in the Open Invites feed with stale time labels.
+2. STALE_SYNC — refreshAfterFriendAccept does not invalidate event feed keys. New friend's events won't appear in social feed until refetch.
+3. STALE_SYNC — feedPopular (Discover) not invalidated after social RSVP swipe (same as Surface 1 gap).
+
+============================================================
+SURFACE 4: FRIENDS TAB
+============================================================
+
+DATA PATHS:
+- paginatedFriends: friendKeys.paginated(pageSize) ["friends","paginated",{pageSize:20}] → GET /api/friends/paginated?limit=N&cursor=X → staleTime: 5min
+  Type: useInfiniteQuery (cursor-based, capped pages)
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: no
+
+- friendRequests: ["friendRequests"] → GET /api/friends/requests → staleTime: 60s
+  refetchOnMount: false (line 866 — fix on unmerged branch fix/friend-request-wiring-v1)
+  placeholderData: yes
+  Response: { received: FriendRequest[], sent: FriendRequest[] }
+
+- circles: circleKeys.all() ["circles"] → GET /api/circles → staleTime: 5min
+  refetchOnMount: default (true) — comment indicates removal
+  placeholderData: yes
+
+- circleUnread: circleKeys.unreadCount() ["circles","unreadCount"] → GET /api/circles/unread/count → staleTime: 5min
+  refetchOnMount: default (true)
+
+- pinnedFriendships: ["pinnedFriendships"] → GET /api/circles/friends/pinned → staleTime: 5min
+  refetchOnMount: default (true) — comment indicates removal
+
+- friendEvents (per-card mini calendar): ["friendEvents", friendshipId] → GET /api/friends/{friendshipId}/events → staleTime: 60s
+  Per-friend query, rendered inside FriendCard/FriendListItem
+
+EXPIRY/VALIDITY:
+- Friend events (mini calendar): PASS — filters circle_only events and past events (endTime/startTime check)
+- Friends list: PASS — filters null friends (friendship.friend != null)
+- Friend requests: PASS — no expiry concern (requests are either pending or resolved)
+- Circles: PASS — no expiry concern
+- Sent requests: LOW_UX — fetched but NOT displayed anywhere in friends tab. Data is available but UI is missing.
+
+AUDIENCE SCOPING:
+- Friends list: PASS — backend returns only viewer's friends
+- Friend requests: PASS — backend returns only viewer's sent + received requests
+- Circles: PASS — backend returns only viewer's circles
+- Friend request sender info: PASS — sender object + senderId both available. Fixed in Task 5 to prefer senderId (required field) over sender?.id (optional).
+
+CACHE INVALIDATION:
+- Accept request → refreshAfterFriendAccept: PASS — invalidates friendKeys.all, requests, suggestions, pinned, circleKeys.all
+  Optimistic: PASS — removes request from received array, rolls back on error
+  Also: explicit refetch() + refetchRequests() in onSuccess
+
+- Reject request → refreshAfterFriendReject: PASS — invalidates requests, suggestions
+  Optimistic: PASS — removes request from received array, rolls back on error
+
+- Create circle → refreshAfterCircleCreate: PASS — invalidates circleKeys.all, unreadCount + refetchCircles
+
+- Delete circle → refreshAfterCircleLeave: PASS — invalidates circleKeys.all, unreadCount, friendKeys.all + refetchCircles
+  Optimistic: PASS — removes circle from cache, rolls back on error
+
+- Pin circle: PASS — optimistic toggle + refetchCircles on success
+
+- Pin friendship: PASS — updates local state + invalidates ["pinnedFriendships"]
+
+- Friend accept on OTHER surfaces (profile, suggestions): GAP
+  STALE_SYNC — friendKeys.all() is invalidated, but friendKeys.paginated() is NOT explicitly in refreshAfterFriendAccept. The paginated query uses a different key structure ["friends","paginated",{pageSize}] which may not be matched by the ["friends"] prefix invalidation. Need to verify if TanStack Query prefix matching catches this.
+
+FOCUS/MOUNT REFRESH:
+- refetchOnMount: default (true) for all queries except friendRequests (false on main, fix on unmerged branch)
+- useLiveRefreshContract: yes — manual pull, foreground, tab focus trigger refetch + refetchRequests + refetchCircles
+- useFocusEffect: yes — refetches unseen notification count, completes onboarding step
+- Account-aware query keys: no (relies on auth-gated queryFn). View mode and section state DO include userId in storage key.
+
+GAPS FOUND:
+1. LOW_UX — friendRequests still has refetchOnMount: false on main (fix on unmerged branch).
+2. STALE_SYNC — friendKeys.paginated() may not be invalidated by friendKeys.all() invalidation if TanStack Query prefix matching doesn't cover ["friends","paginated",{...}] from ["friends"] root. (Needs verification — TQ v5 prefix matching should cover this, but the object element in the key array may complicate matching.)
+3. LOW_UX — Sent friend requests fetched but not displayed.
+
+============================================================
+SURFACE 5: NOTIFICATIONS / ACTIVITY
+============================================================
+
+DATA PATHS:
+- paginatedNotifications: [...qk.notifications(), {pageSize}] ["notifications",{pageSize:30}] → GET /api/notifications/paginated?limit=N&cursor=X → staleTime: 30s
+  Type: useInfiniteQuery (cursor-based, capped to 5 pages)
+  refetchOnMount: default (true)
+  placeholderData: no
+
+- unseenCount: ["notifications","unseenCount"] → GET /api/notifications/unseen-count → staleTime: 30s
+  refetchInterval: 60s (polling)
+  refetchIntervalInBackground: false
+
+EXPIRY/VALIDITY:
+- Notification expiry: GAP
+  LIFECYCLE_EXPIRY — No client-side filtering of expired/invalid notifications. If a notification references a deleted event or removed friend request, it remains in the list. Tapping shows "Unavailable" toast (resolveNotificationTarget returns null), but the notification itself is still visible.
+
+- Notification data parsing: PASS — parseNotificationData handles JSON parse failure gracefully (returns {})
+- Notification types: PASS — 8 types mapped with icon/color config, plus default fallback
+
+AUDIENCE SCOPING:
+- Notifications: PASS — backend returns only viewer's notifications
+- Notification payloads: PASS — all rendering data comes from notification payload, no secondary queries needed
+- Push routing: PASS — resolveNotificationRoute validates targets before navigation
+
+CACHE INVALIDATION:
+- Mark single read → invalidates unseenCount: PASS
+  Optimistic: PASS — sets read: true, decrements unreadCount, dedupes via marking Set
+
+- Mark all seen → invalidates notifications + unseenCount: PASS
+  Optimistic: PASS — sets all to seen: true, unreadCount: 0
+
+- Friend accept/reject → refreshAfterFriendAccept/Reject: GAP
+  STALE_SYNC — does NOT invalidate qk.notifications(). Stale "friend_request" notification stays in Activity feed after accepting/rejecting from Friends tab.
+
+- RSVP → getInvalidateAfterRsvpJoin: GAP
+  STALE_SYNC — does NOT invalidate notifications. "event_invite" notification remains even after RSVP action taken.
+
+- Push notification received: PASS — invalidates ["notifications"] on push receive (useNotifications.ts line ~907)
+- Profile switch: PASS — invalidates qk.notifications() on active profile change
+- Coming back online: PASS — invalidates qk.notifications() in OfflineBanner
+
+FOCUS/MOUNT REFRESH:
+- refetchOnMount: default (true)
+- useFocusEffect: yes — calls markAllSeen() when screen visible with unreadCount > 0, plus analytics
+- Pull-to-refresh: yes — calls refetch()
+- Account-aware query keys: no (relies on auth-gated queryFn)
+
+GAPS FOUND:
+1. LIFECYCLE_EXPIRY — No filtering of notifications that reference deleted/expired entities. Stale notifications visible until they age out of paginated results.
+2. STALE_SYNC — Friend accept/reject from Friends tab does not invalidate notifications. "friend_request" notification persists in Activity feed.
+3. STALE_SYNC — RSVP action does not invalidate notifications. "event_invite" notification persists after user has already responded.
+4. LOW_UX — No client-side filter chips on main branch. (Fix on unmerged branch fix/notifications-filtering-v1.)
+
+============================================================
+CROSS-SURFACE INVALIDATION MATRIX
+============================================================
+
+| Mutation          | Origin Surface  | Keys Invalidated                                                    | Surfaces Affected                          | Status |
+|-------------------|-----------------|---------------------------------------------------------------------|--------------------------------------------|--------|
+| RSVP (going)      | Event Detail    | single, attendees, interests, rsvp, feed, feedPaginated, mine,     | Social ✓, Calendar ✓, Attending ✓          | GAP    |
+|                   |                 | calendar, attending                                                 | Discover Popular ✗, Notifications ✗        |        |
+| RSVP (interested) | Discover Save   | feedPopular, myEvents (ad-hoc, not SSOT)                           | Discover ✓ (partial)                       | GAP    |
+|                   |                 |                                                                     | Social ✗, Calendar ✗, Attending ✗          |        |
+| RSVP (swipe)      | Social Tab      | same 9 keys as Event Detail RSVP                                   | Social ✓, Calendar ✓                       | GAP    |
+|                   |                 |                                                                     | Discover Popular ✗, Notifications ✗        |        |
+| Event Create      | Create Screen   | feed, feedPaginated, mine, myEvents, calendar + circleKeys.all     | Social ✓, Calendar ✓                       | GAP    |
+|                   |                 |                                                                     | Discover Popular ✗                         |        |
+| Event Edit        | Event Edit      | single, feed, feedPaginated, mine, myEvents, calendar              | Social ✓, Calendar ✓                       | GAP    |
+|                   |                 |                                                                     | Discover Popular ✗                         |        |
+| Event Delete      | Event Detail    | feed, feedPaginated, mine, myEvents, calendar                      | Social ✓, Calendar ✓                       | GAP    |
+|                   |                 |                                                                     | Discover Popular ✗, Attending ✗            |        |
+| Friend Accept     | Friends Tab     | friends.all, requests, suggestions, pinned, circles.all            | Friends ✓, Circles ✓, Profile ✓            | GAP    |
+|                   |                 |                                                                     | Social feed ✗, Notifications ✗             |        |
+| Friend Accept     | Profile Screen  | same + userProfile(userId) + refetch()                             | Friends ✓, Circles ✓, Profile ✓            | GAP    |
+|                   |                 |                                                                     | Social feed ✗, Notifications ✗             |        |
+| Friend Reject     | Friends Tab     | requests, suggestions                                              | Friends ✓                                  | GAP    |
+|                   |                 |                                                                     | Notifications ✗                            |        |
+| Friend Request    | Profile/Suggest | requests, suggestions, userProfile(userId)                         | Friends requests ✓, Profile ✓              | PASS   |
+| Unfriend          | Profile Screen  | friends.all, requests, suggestions, pinned, circles.all + navigate | Friends ✓, Circles ✓                       | PASS   |
+| Circle Create     | Friends Tab     | circles.all, circles.unreadCount                                   | Friends circles ✓                          | PASS   |
+| Circle Leave      | Circle Detail   | circles.all, unreadCount, friends.all + single(id)                 | Friends ✓, Circles ✓                       | PASS   |
+| Circle Pin        | Friends Tab     | circles.all (optimistic) + refetchCircles                          | Friends circles ✓                          | PASS   |
+| Circle Delete     | Friends Tab     | same as Circle Leave + refetchCircles                              | Friends ✓, Circles ✓                       | PASS   |
+| Pin Friendship    | Friends Tab     | ["pinnedFriendships"] + local state                                | Friends sort order ✓                       | PASS   |
+| Comment Create    | Event Detail    | comments(id) only                                                  | Event detail comments ✓                    | PASS   |
+| Comment Delete    | Event Detail    | comments(id) only                                                  | Event detail comments ✓                    | PASS   |
+| Mark Notif Read   | Activity Feed   | unseenCount                                                        | Badge count ✓                              | PASS   |
+| Mark All Seen     | Activity Feed   | notifications, unseenCount                                         | Activity ✓, Badge ✓                        | PASS   |
+
+============================================================
+SUMMARY
+============================================================
+
+TOTAL GAPS: 14
+
+DATA_WRONG_FOR_USER (ship-blockers):
+- None. All surfaces correctly scope data to the authenticated viewer.
+
+LIFECYCLE_EXPIRY (visible data quality):
+1. Social tab discoveryEvents does not filter past/ended events — past events can appear in Open Invites feed.
+2. Notifications referencing deleted events or resolved friend requests remain visible in Activity feed.
+
+STALE_SYNC (cross-surface drift):
+3. eventKeys.feedPopular() missing from getInvalidateAfterRsvpJoin/Leave — RSVP on any surface leaves Discover popular stale.
+4. eventKeys.feedPopular() missing from getInvalidateAfterEventCreate — new events don't appear in Discover popular.
+5. eventKeys.feedPopular() missing from getInvalidateAfterEventDelete — deleted events persist in Discover popular.
+6. Discover saveMutation uses ad-hoc invalidation (2 keys) instead of SSOT helper (9 keys) — save action doesn't propagate to Social, Calendar, Attending.
+7. refreshAfterFriendAccept does not invalidate event feed keys — new friend's events won't appear in Social feed.
+8. refreshAfterFriendAccept/Reject does not invalidate qk.notifications() — stale friend_request notifications persist in Activity.
+9. RSVP does not invalidate qk.notifications() — event_invite notifications persist after responding.
+10. friendEvents ["friendEvents", friendshipId] not invalidated after RSVP on friend's event (mitigated by staleTime: 0 + remount).
+
+LOW_UX (minor):
+11. refetchOnMount: false still present on main for Discover queries (fix on unmerged branch).
+12. refetchOnMount: false still present on main for friend requests query (fix on unmerged branch).
+13. Sent friend requests fetched but not displayed in Friends tab.
+14. No notification filter chips on main (fix on unmerged branch).
+
+RECOMMENDED FIX ORDER:
+1. STALE_SYNC — Add feedPopular() to getInvalidateAfterRsvpJoin, getInvalidateAfterRsvpLeave, getInvalidateAfterEventCreate, getInvalidateAfterEventEdit, getInvalidateAfterEventDelete in eventQueryKeys.ts. Single file change, fixes gaps 3-5.
+2. STALE_SYNC — Refactor Discover saveMutation to use refreshAfterRsvpJoin() SSOT helper instead of ad-hoc invalidation. Fixes gap 6.
+3. STALE_SYNC — Add event feed invalidation to refreshAfterFriendAccept (eventKeys.feed, feedPaginated, feedPopular). Fixes gap 7.
+4. STALE_SYNC — Add qk.notifications() invalidation to refreshAfterFriendAccept, refreshAfterFriendReject. Fixes gap 8.
+5. LIFECYCLE_EXPIRY — Add past/ended event filter to Social discoveryEvents memo. Fixes gap 1.
+6. STALE_SYNC — Add qk.notifications() invalidation to RSVP settled handler (or accept it as low priority since notifications are informational). Fixes gap 9.
+7. LIFECYCLE_EXPIRY — Add client-side filtering for notifications referencing deleted entities (check if eventId/userId still resolvable). Fixes gap 2.
+8. Merge pending branches (fix/discover-truth-sync-v1, fix/friend-request-wiring-v1, fix/notifications-filtering-v1, fix/refetch-on-mount-sweep-v1). Fixes gaps 11-14.
+
+BACKEND FIXES NEEDED (for my-app-backend repo):
+- GET /api/events/feed: Consider filtering out past/ended events server-side. Currently frontend does this filtering, but it means transferring stale data over the network.
+- GET /api/notifications/paginated: Consider excluding notifications that reference deleted entities (events, users) or marking them as stale. Currently no server-side cleanup.
+- GET /api/events/feed?visibility=open_invite: Confirm this endpoint never returns private/circle_only events even without the frontend safety filter.
+
+FRONTEND FIXES NEEDED (for open-invite-app repo):
+- src/lib/eventQueryKeys.ts: Add eventKeys.feedPopular() to getInvalidateAfterRsvpJoin, getInvalidateAfterRsvpLeave, getInvalidateAfterEventCreate, getInvalidateAfterEventEdit, getInvalidateAfterEventDelete.
+- src/app/discover.tsx: Replace saveMutation ad-hoc invalidation with refreshAfterRsvpJoin() SSOT call.
+- src/lib/refreshAfterMutation.ts: Add eventKeys.feed(), feedPaginated(), feedPopular() to refreshAfterFriendAccept. Add qk.notifications() to refreshAfterFriendAccept and refreshAfterFriendReject.
+- src/app/social.tsx: Add past/ended event filter to discoveryEvents memo (same pattern as profile: endTime ?? startTime < now).
+- src/components/activity/ActivityFeed.tsx: Consider filtering notifications where resolveNotificationTarget returns null (deleted entities).

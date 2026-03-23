@@ -186,6 +186,35 @@ Access via `.claude/skills` folder:
 
 ---
 
+## gstack
+
+For **all web browsing**, use the `/browse` skill from gstack. **Never use `mcp__claude-in-chrome__*` tools.**
+
+### Available Skills
+- `/office-hours` — Brainstorming and idea exploration
+- `/plan-ceo-review` — Strategy-level plan review
+- `/plan-eng-review` — Architecture-level plan review
+- `/plan-design-review` — Design-level plan review
+- `/design-consultation` — Design system creation
+- `/review` — Code review before merge
+- `/ship` — Deploy / create PR
+- `/browse` — Web browsing (use this instead of mcp__claude-in-chrome__*)
+- `/qa` — App testing
+- `/qa-only` — Testing only (no fixes)
+- `/design-review` — Visual design audit
+- `/setup-browser-cookies` — Configure browser cookies for authenticated browsing
+- `/retro` — Weekly retrospective
+- `/investigate` — Debug errors
+- `/document-release` — Post-ship doc updates
+- `/codex` — Second opinion / adversarial code review
+- `/careful` — Production/live systems safety mode
+- `/freeze` — Scope edits to one module/directory
+- `/guard` — Maximum safety mode
+- `/unfreeze` — Remove edit restrictions
+- `/gstack-upgrade` — Upgrade gstack to latest version
+
+---
+
 ## Verification Commands
 
 ```bash
