@@ -2851,26 +2851,6 @@ export default function EventDetailScreen() {
                   </Animated.View>
                 )}
 
-                {/* [SOCIAL_PROOF_V2] Momentum nudge above action buttons */}
-                {!myRsvpStatus && !eventMeta.isFull && effectiveGoingCount >= 3 && (
-                  <View style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 8,
-                    marginBottom: 4,
-                  }}>
-                    <Users size={13} color={STATUS.going.fg} />
-                    <Text style={{ fontSize: 12, fontWeight: "500", color: STATUS.going.fg, marginLeft: 5 }}>
-                      {effectiveGoingCount >= 10
-                        ? `${effectiveGoingCount} people are going — don\u2019t miss out`
-                        : effectiveGoingCount >= 5
-                        ? `${effectiveGoingCount} people are in — join them`
-                        : `${effectiveGoingCount} people are going`}
-                    </Text>
-                  </View>
-                )}
-
                 {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <Animated.View style={rsvpButtonAnimStyle}>
