@@ -2679,31 +2679,6 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
-        {effectiveGoingCount > 0 && attendeesList.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(45).springify()}>
-            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 2, paddingBottom: 2 }}>
-              {attendeesList.slice(0, 3).map((a: AttendeeInfo, i: number) => (
-                <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
-                  <EntityAvatar
-                    photoUrl={a.imageUrl ?? null}
-                    initials={a.name ? a.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
-                    size={20}
-                  />
-                </View>
-              ))}
-              <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary, flex: 1 }} numberOfLines={1}>
-                {(() => {
-                  const names = attendeesList.slice(0, 2).map((a: AttendeeInfo) => a.name?.split(" ")[0] ?? "Someone");
-                  const remaining = effectiveGoingCount - names.length;
-                  if (remaining > 0) return `${names.join(", ")} + ${remaining} going`;
-                  return `${names.join(" & ")} going`;
-                })()}
-              </Text>
-            </View>
-          </Animated.View>
-        )}
-
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
