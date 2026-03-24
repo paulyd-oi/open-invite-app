@@ -12,7 +12,7 @@ import { qk } from "@/lib/queryKeys";
 // ============================================
 
 export const FREE_TIER_LIMITS = {
-  maxActiveEvents: 5,
+  maxActiveEvents: Infinity, // Unlimited — event creation is free for all users
   eventHistoryDays: 30,
   recurringEvents: false,
   whosFreeAheadDays: 7,
@@ -87,8 +87,8 @@ export type FeatureKey =
 
 export const PRO_FEATURES: Record<FeatureKey, { title: string; description: string }> = {
   unlimited_events: {
-    title: "Unlimited Events",
-    description: "Host as many events as you want",
+    title: "Premium Hosting Tools",
+    description: "Recurring events, co-hosting, and advanced host controls",
   },
   recurring_events: {
     title: "Recurring Events",
@@ -223,7 +223,7 @@ export function useSubscription() {
   const tier = data?.subscription?.tier ?? "free";
 
   // Helper functions for checking limits
-  const canCreateEvent = () => data?.limits?.canCreateEvent ?? true;
+  const canCreateEvent = () => true; // Event creation is unlimited for all users
   const canCreateCircle = () => data?.limits?.canCreateCircle ?? true;
   const canCreateFriendNote = () => data?.limits?.canCreateFriendNote ?? true;
   const canCreateRecurringEvent = () => data?.limits?.recurringEventsEnabled ?? false;
@@ -244,7 +244,7 @@ export function useSubscription() {
 
     switch (feature) {
       case "unlimited_events":
-        return false;
+        return true; // Event creation is free for all users
       case "recurring_events":
         return data?.limits?.recurringEventsEnabled ?? false;
       case "extended_whos_free":

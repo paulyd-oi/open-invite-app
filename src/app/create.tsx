@@ -68,16 +68,12 @@ import { NotificationPrePromptModal } from "@/components/NotificationPrePromptMo
 // [GROWTH_V1] PostValueInvitePrompt replaced by event-specific share prompt
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, usePremiumDriftGuard, type PaywallContext } from "@/lib/entitlements";
-import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import {
-  MAX_ACTIVE_EVENTS_FREE,
   getActiveEventCount,
-  hasShownActiveEventsPrompt,
-  markActiveEventsPromptShown,
 } from "@/lib/softLimits";
 import {
   type CreateEventRequest,
@@ -513,15 +509,13 @@ export default function CreateEventScreen() {
 
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
-  const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
+  const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   // Prompt arbitration: only ONE modal per create success
   // [GROWTH_V1] "share_event" takes highest priority — shares the actual event just created
   type CreatePromptChoice = "share_event" | "post_value_invite" | "notification" | "none";
   const [createPromptChoice, setCreatePromptChoice] = useState<CreatePromptChoice>("none");
   // [GROWTH_V1] Store created event for post-create share prompt
   const [createdEvent, setCreatedEvent] = useState<{ id: string; title: string; emoji: string; startTime: string; endTime?: string | null; location?: string | null; description?: string | null } | null>(null);
-  const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
-
   // Fetch entitlements for gating
   // usePremiumStatusContract is single source of truth - CRITICAL: don't show gates while isLoading
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
@@ -676,7 +670,7 @@ export default function CreateEventScreen() {
     if (__DEV__) {
       devLog("[P1_HOSTING_NUDGE]", { action: "upgrade_tap", monthKey: nudgeMonthKey });
     }
-    setPaywallContext("ACTIVE_EVENTS_LIMIT");
+    setPaywallContext("RECURRING_EVENTS");
     setShowPaywallModal(true);
   }, [nudgeMonthKey]);
 
@@ -914,12 +908,11 @@ export default function CreateEventScreen() {
   if (__DEV__ && myEvents.length > 0) {
     const importedCount = myEvents.filter((e: any) => e.isImported).length;
     const appCreatedCount = myEvents.length - importedCount;
-    devLog("[PAYWALL_COUNT]", "soft_limit_breakdown", {
+    devLog("[PAYWALL_COUNT]", "event_breakdown", {
       total: myEvents.length,
       imported: importedCount,
       appCreated: appCreatedCount,
       activeEventCount,
-      softLimit: MAX_ACTIVE_EVENTS_FREE,
     });
   }
 
@@ -1034,16 +1027,6 @@ export default function CreateEventScreen() {
         __lastCreateEventReceipt = receipt;
       }
       logError("Create Event", error);
-
-      // Check for HOST_LIMIT_REACHED - show soft limit modal
-      if (receipt.code === "HOST_LIMIT_REACHED") {
-        const errorData = error?.response?.data || error?.data || {};
-        if (errorData.requiresUpgrade) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          setShowSoftLimitModal(true);
-          return;
-        }
-      }
 
       // Actionable user-facing copy from receipt (never generic "Server Error")
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -1172,53 +1155,7 @@ export default function CreateEventScreen() {
         });
       }
     } else {
-      // Soft-limit check: Show upgrade prompt for free users hitting active events limit
-      // Premium check uses usePremiumStatusContract (single source of truth)
-      if (!userIsPro && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        markActiveEventsPromptShown();
-        setShowSoftLimitModal(true);
-        return;
-      }
-
-      // ── [P1_HOSTING_GATE] Hard gate: hosting paywall ──
-      // Premium/unlimited: NEVER gate. canHost=false: paywall.
-      const hostingGateAction: string =
-        (userIsPro || hostingQuota.isUnlimited) ? "premium_suppressed" :
-        !hostingQuota.canHost ? "paywall_opened" :
-        "submit_allowed";
-
-      // [PAYWALL_COUNT] Hard-limit diagnostic
-      if (__DEV__) {
-        devLog("[PAYWALL_COUNT]", "hard_limit_check", {
-          eventsUsed: hostingQuota.eventsUsed,
-          monthlyLimit: hostingQuota.monthlyLimit,
-          remaining: hostingQuota.remaining,
-          canHost: hostingQuota.canHost,
-          isUnlimited: hostingQuota.isUnlimited,
-        });
-      }
-
-      // [P0_PREMIUM_PAYWALL_DECISION] proof log on every submit
-      if (__DEV__) {
-        devLog("[P0_PREMIUM_PAYWALL_DECISION]", {
-          premiumIsPro: userIsPro,
-          quotaIsUnlimited: hostingQuota.isUnlimited,
-          shouldNudgeNow: hostingQuota.nudgeMeta?.shouldNudgeNow ?? null,
-          canHost: hostingQuota.canHost,
-          loadingFlags: { entitlementsLoading, premiumFetching: premiumStatus.isFetching, quotaLoading: hostingQuota.isLoading, quotaFetching: hostingQuota.isFetching, quotaError: !!hostingQuota.error },
-          action: hostingGateAction,
-        });
-      }
-
-      if (hostingGateAction === "paywall_opened") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setPaywallContext('ACTIVE_EVENTS_LIMIT');
-        setShowPaywallModal(true);
-        return;
-      }
-
-      // Check entitlements before creating (recurring gate + fallback)
+      // Event creation is unlimited — only gate premium features (recurring)
       const check = canCreateEvent(entitlements, isRecurring);
 
       if (!check.allowed && check.context) {
@@ -1297,22 +1234,6 @@ export default function CreateEventScreen() {
     };
     if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "create_payload", { reflectionEnabled: createPayload.reflectionEnabled });
     createMutation.mutate(createPayload);
-  };
-
-  // Handle soft-limit modal upgrade action
-  const handleSoftLimitUpgrade = async () => {
-    setShowSoftLimitModal(false);
-    // Try to open paywall directly, or route to subscription page as fallback
-    const result = await openPaywall();
-    if (!result.ok && result.error) {
-      // If openPaywall fails, route to subscription page
-      router.push("/subscription?source=soft_limit_active_events");
-    }
-  };
-
-  const handleSoftLimitDismiss = () => {
-    setShowSoftLimitModal(false);
-    // User can continue creating the event after dismissing
   };
 
   const toggleGroup = (groupId: string) => {
@@ -2513,15 +2434,6 @@ export default function CreateEventScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Soft-Limit Modal */}
-      <SoftLimitModal
-        visible={showSoftLimitModal}
-        onUpgrade={handleSoftLimitUpgrade}
-        onDismiss={handleSoftLimitDismiss}
-        title="You're organizing a lot"
-        description="Premium removes limits and adds smart reminders."
-      />
 
       {/* Onboarding Guide Overlay */}
       {onboardingGuide.shouldShowStep("create_event") && (

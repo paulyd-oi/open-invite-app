@@ -44,24 +44,24 @@ const PAYWALL_COPY: Record<
     secondaryCta: string;
   }
 > = {
-  ACTIVE_EVENTS_LIMIT: {
-    title: "Upgrade to Pro",
-    subtitle: "You're hosting the maximum number of active events on Free.",
+  PREMIUM_THEME: {
+    title: "Premium themes are Pro",
+    subtitle: "Unlock stunning event themes with ambient effects and custom styling.",
     bullets: [
-      "Unlimited active events",
-      "Full event history",
-      "Plan farther ahead with Who's Free (90 days)",
+      "5 premium themes with unique vibes",
+      "Skia particle effects (snow, sparkle, haze)",
+      "Make every invite stand out",
     ],
     primaryCta: "Upgrade to Pro",
     secondaryCta: "Not now",
   },
   RECURRING_EVENTS: {
     title: "Recurring events are Pro",
-    subtitle: "Set weekly or monthly plans so your group stays consistent.",
+    subtitle: "Set it once, and your group meets every week — automatically.",
     bullets: [
-      "Unlimited recurring events",
+      "Weekly, monthly, or custom repeats",
       "Auto-reminders and RSVP tracking",
-      "Keep groups connected",
+      "Keep your crew consistent",
     ],
     primaryCta: "Upgrade to Pro",
     secondaryCta: "Not now",

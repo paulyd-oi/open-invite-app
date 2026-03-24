@@ -1,6 +1,6 @@
 // freemiumLimits.ts
 // Shared freemium model constants for Open Invite v3.0
-// Product Principle: Participation is free, power users pay
+// Product Principle: Hosting is free, premium tools are Pro
 
 // ============================================
 // FREE TIER LIMITS
@@ -8,7 +8,7 @@
 
 export const FREE_TIER_LIMITS = {
   // Events
-  maxActiveEvents: 5,           // Max concurrent future events
+  maxActiveEvents: Infinity,    // Unlimited — event creation is free for all users
   eventHistoryDays: 30,         // Days of event history visible
   recurringEvents: false,       // Can't create recurring events
 

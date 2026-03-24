@@ -1,17 +1,17 @@
 /**
  * Soft Limits for Free Tier
- * 
- * These are non-blocking limits that prompt users to upgrade
- * but still allow them to proceed after dismissing the modal.
+ *
+ * Event creation is unlimited for all users.
+ * Premium features (recurring events, premium themes, co-hosting,
+ * analytics) are gated behind Pro.
  */
-
-// Maximum active events for free users before showing upgrade prompt
-export const MAX_ACTIVE_EVENTS_FREE = 5;
 
 /**
  * Count active events from the user's event list
  * An event is "active" if it's in the future or currently ongoing
- * 
+ *
+ * Retained for analytics/display — no longer used for gating.
+ *
  * @param events - Array of events from calendar/feed queries
  * @returns Count of active events
  */
@@ -23,7 +23,7 @@ export function getActiveEventCount(
   const now = new Date();
 
   return events.filter((event) => {
-    // [PAYWALL_COUNT] Imported calendar events don't count toward hosting limits
+    // Imported calendar events are separate from app-created events
     if (event.isImported) return false;
 
     const startTime = new Date(event.startTime);
@@ -42,22 +42,4 @@ export function getActiveEventCount(
 
     return false;
   }).length;
-}
-
-/**
- * Session-scoped tracking for upgrade prompts
- * Prevents spamming the user with multiple prompts per session
- */
-let activeEventsPromptShownThisSession = false;
-
-export function hasShownActiveEventsPrompt(): boolean {
-  return activeEventsPromptShownThisSession;
-}
-
-export function markActiveEventsPromptShown(): void {
-  activeEventsPromptShownThisSession = true;
-}
-
-export function resetActiveEventsPromptTracking(): void {
-  activeEventsPromptShownThisSession = false;
 }

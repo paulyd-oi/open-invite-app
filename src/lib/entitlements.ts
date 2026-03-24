@@ -21,7 +21,6 @@ export type Plan = "FREE" | "PRO" | "LIFETIME_PRO";
 
 // Paywall context enum - matches spec exactly
 export type PaywallContext =
-  | "ACTIVE_EVENTS_LIMIT"
   | "RECURRING_EVENTS"
   | "WHOS_FREE_HORIZON"
   | "UPCOMING_BIRTHDAYS_HORIZON"
@@ -29,7 +28,8 @@ export type PaywallContext =
   | "CIRCLE_MEMBERS_LIMIT"
   | "INSIGHTS_LOCKED"
   | "HISTORY_LIMIT"
-  | "PRIORITY_SYNC_LOCKED";
+  | "PRIORITY_SYNC_LOCKED"
+  | "PREMIUM_THEME";
 
 // Feature limits
 export interface PlanLimits {
@@ -103,7 +103,7 @@ async function entitlementsQueryFn(): Promise<EntitlementsResponse> {
 const FREE_LIMITS: PlanLimits = {
   whosFreeHorizonDays: 7,
   upcomingBirthdaysHorizonDays: 7,
-  activeEventsMax: 5,
+  activeEventsMax: null, // Unlimited — event creation is free for all users
   eventHistoryDays: 30,
   circlesMax: 2,
   membersPerCircleMax: 15,
@@ -806,26 +806,21 @@ export function isPremiumFromSubscription(
 // ============================================
 
 /**
- * Check if user can create an event
+ * Check if user can create an event.
+ * Event creation is always allowed — only premium features (recurring) are gated.
  */
 export function canCreateEvent(
   entitlements: EntitlementsResponse | undefined,
   isRecurring?: boolean
 ): { allowed: boolean; context?: PaywallContext } {
   const features = getFeatures(entitlements);
-  const limits = getLimits(entitlements);
-  const usage = entitlements?.usage ?? { activeEventsCount: 0, circlesCount: 0, friendNotesCount: 0 };
 
-  // Check recurring
+  // Check recurring — Pro-only feature
   if (isRecurring && !features.recurringEvents) {
     return { allowed: false, context: "RECURRING_EVENTS" };
   }
 
-  // Check active events limit
-  if (limits.activeEventsMax !== null && usage.activeEventsCount >= limits.activeEventsMax) {
-    return { allowed: false, context: "ACTIVE_EVENTS_LIMIT" };
-  }
-
+  // Event creation is unlimited for all users
   return { allowed: true };
 }
 
@@ -938,7 +933,6 @@ export function canViewFullHistory(
 export function reasonToContext(reason: string): PaywallContext {
   const mapping: Record<string, PaywallContext> = {
     RECURRING_EVENTS: "RECURRING_EVENTS",
-    ACTIVE_EVENTS_LIMIT: "ACTIVE_EVENTS_LIMIT",
     WHOS_FREE_HORIZON: "WHOS_FREE_HORIZON",
     UPCOMING_BIRTHDAYS_HORIZON: "UPCOMING_BIRTHDAYS_HORIZON",
     CIRCLES_LIMIT: "CIRCLES_LIMIT",
@@ -946,6 +940,7 @@ export function reasonToContext(reason: string): PaywallContext {
     INSIGHTS_LOCKED: "INSIGHTS_LOCKED",
     HISTORY_LIMIT: "HISTORY_LIMIT",
     PRIORITY_SYNC_LOCKED: "PRIORITY_SYNC_LOCKED",
+    PREMIUM_THEME: "PREMIUM_THEME",
   };
-  return mapping[reason] ?? "ACTIVE_EVENTS_LIMIT";
+  return mapping[reason] ?? "RECURRING_EVENTS";
 }
