@@ -31,6 +31,7 @@ export const PREMIUM_THEME_IDS = [
   "valentines",
   "garden_party",
   "spring_brunch",
+  "easter",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -287,6 +288,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(250, 204, 21, 0.10)",
     chipAccent: "#A78BFA",
     effectPreset: "butterfly_flutter",
+  },
+  easter: {
+    label: "Easter",
+    swatch: "🐣",
+    gradientTint: "rgba(196, 181, 253, 0.22)",
+    vibeLabel: "You're Invited",
+    backAccent: "#A78BFA",
+    backBgDark: "#1A1530",
+    backBgLight: "#F5F3FF",
+    pageTintDark: "rgba(196, 181, 253, 0.20)",
+    pageTintLight: "rgba(196, 181, 253, 0.10)",
+    chipAccent: "#A78BFA",
+    effectPreset: "easter_confetti",
   },
 };
 

@@ -460,6 +460,30 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.7, 1.1],
     pulsePeriodRange: [1.5, 3.0],
   },
+  easter_confetti: {
+    particleCount: 20,
+    minSize: 3,
+    maxSize: 6,
+    minOpacity: 0.5,
+    maxOpacity: 0.8,
+    minSpeed: 25,
+    maxSpeed: 50,
+    swayAmplitude: 20,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 5,
+    direction: 1,
+    blurSigma: 0.5,
+    colors: [
+      "rgba(244, 163, 188, 1)",  // pastel pink
+      "rgba(196, 181, 253, 1)",  // pastel lavender
+      "rgba(167, 243, 208, 1)",  // pastel mint
+      "rgba(253, 230, 138, 1)",  // pastel yellow
+    ],
+    shape: "mixed",
+    minRotationSpeed: 1.0,
+    maxRotationSpeed: 3.0,
+    rectAspect: 0.5,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
