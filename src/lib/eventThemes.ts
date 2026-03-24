@@ -41,6 +41,11 @@ export const PREMIUM_THEME_IDS = [
   "awards_night",
   "date_night",
   "pool_party",
+  // Wave B
+  "anniversary",
+  "beach_day",
+  "cozy_night",
+  "movie_night",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -57,10 +62,10 @@ export interface ThemePack {
 export const THEME_PACKS: readonly ThemePack[] = [
   { label: "Essentials", premium: false, ids: BASIC_THEME_IDS },
   { label: "Celebration", premium: true, ids: ["birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day", "new_years_eve", "awards_night"] },
-  { label: "Romance", premium: true, ids: ["valentines", "romance_elegant", "date_night"] },
+  { label: "Romance", premium: true, ids: ["valentines", "romance_elegant", "date_night", "anniversary"] },
   { label: "Spring", premium: true, ids: ["spring_bloom", "garden_party", "spring_brunch", "easter"] },
-  { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau", "pool_party"] },
-  { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night"] },
+  { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau", "pool_party", "beach_day"] },
+  { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night"] },
 ] as const;
 
 // ─── Theme Tokens ────────────────────────────────────────
@@ -434,6 +439,60 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     chipAccent: "#06B6D4",
     effectPreset: "rising_bubbles",
   },
+
+  // ── Wave B Premium ──
+  anniversary: {
+    label: "Anniversary",
+    swatch: "💍",
+    gradientTint: "rgba(212, 175, 55, 0.18)",
+    vibeLabel: "Cheers to Us",
+    backAccent: "#C9A84C",
+    backBgDark: "#141008",
+    backBgLight: "#FDF8EE",
+    pageTintDark: "rgba(201, 168, 76, 0.16)",
+    pageTintLight: "rgba(201, 168, 76, 0.08)",
+    chipAccent: "#C9A84C",
+    effectPreset: "rose_petals",
+  },
+  beach_day: {
+    label: "Beach Day",
+    swatch: "🏖️",
+    gradientTint: "rgba(245, 158, 11, 0.22)",
+    vibeLabel: "You're Invited",
+    backAccent: "#F59E0B",
+    backBgDark: "#1A1408",
+    backBgLight: "#FFFBEB",
+    pageTintDark: "rgba(245, 158, 11, 0.18)",
+    pageTintLight: "rgba(245, 158, 11, 0.10)",
+    chipAccent: "#F59E0B",
+    effectPreset: "coastal_haze",
+  },
+  cozy_night: {
+    label: "Cozy Night",
+    swatch: "🕯️",
+    gradientTint: "rgba(180, 120, 60, 0.22)",
+    vibeLabel: "Come Hang",
+    backAccent: "#B4783C",
+    backBgDark: "#1A1008",
+    backBgLight: "#FBF3E8",
+    pageTintDark: "rgba(180, 120, 60, 0.18)",
+    pageTintLight: "rgba(180, 120, 60, 0.10)",
+    chipAccent: "#B4783C",
+    effectPreset: "candlelight",
+  },
+  movie_night: {
+    label: "Movie Night",
+    swatch: "🎬",
+    gradientTint: "rgba(100, 110, 130, 0.24)",
+    vibeLabel: "Showtime",
+    backAccent: "#64748B",
+    backBgDark: "#0F1218",
+    backBgLight: "#F1F5F9",
+    pageTintDark: "rgba(100, 116, 139, 0.22)",
+    pageTintLight: "rgba(100, 116, 139, 0.10)",
+    chipAccent: "#64748B",
+    effectPreset: "projector_dust",
+  },
 };
 
 // ─── Seasonal Visibility (picker-only, does not remove from catalog) ──
@@ -455,6 +514,7 @@ const THEME_SEASON: Partial<Record<ThemeId, [start: number, end: number]>> = {
   luau:           [5, 8],
   bonfire_night:  [5, 8],
   pool_party:     [5, 8],
+  beach_day:      [5, 8],
   fourth_of_july: [6, 7],
   fall_harvest:   [9, 11],
   winter_glow:    [11, 1],

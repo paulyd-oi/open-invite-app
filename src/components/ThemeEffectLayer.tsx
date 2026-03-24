@@ -751,6 +751,31 @@ const EFFECT_CONFIGS = {
     shaderPreset: "bokeh",
     shaderOpacity: 0.06,
   },
+  // ── Wave B effects ──
+  projector_dust: {
+    particleCount: 12,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.08,
+    maxOpacity: 0.22,
+    minSpeed: 4,
+    maxSpeed: 10,
+    swayAmplitude: 12,
+    minSwayPeriod: 5,
+    maxSwayPeriod: 10,
+    direction: -1,
+    blurSigma: 2.0,
+    colors: [
+      "rgba(200, 200, 210, 1)",   // cool silver
+      "rgba(220, 220, 230, 1)",   // soft platinum
+      "rgba(180, 185, 200, 1)",   // blue-grey
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.5, 1.0],
+    pulsePeriodRange: [3, 7],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
