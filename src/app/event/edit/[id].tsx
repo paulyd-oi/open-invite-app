@@ -54,7 +54,7 @@ import {
   getInvalidateAfterEventDelete,
 } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
-import { EVENT_THEMES, isPremiumTheme, isValidThemeId, THEME_PACKS, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, isValidThemeId, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { Lock } from "@/ui/icons";
@@ -407,8 +407,8 @@ export default function EditEventScreen() {
                 This event keeps its premium theme from your previous Pro access. You can keep this look or switch to a free theme.
               </Text>
             )}
-            {THEME_PACKS.map((pack, packIdx) => {
-              const isFirstPremium = pack.premium && (packIdx === 0 || !THEME_PACKS[packIdx - 1].premium);
+            {getVisibleThemePacks(new Date(), originalThemeId).map((pack, packIdx, packs) => {
+              const isFirstPremium = pack.premium && (packIdx === 0 || !packs[packIdx - 1].premium);
               return (
                 <View key={pack.label}>
                   {/* Premium section divider — shown once before the first premium pack */}

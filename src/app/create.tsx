@@ -42,7 +42,7 @@ import {
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
-import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, THEME_PACKS, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -1370,8 +1370,8 @@ export default function CreateEventScreen() {
           {/* Event Theme Picker — Curated Collections */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
             <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4 }}>Event Theme</Text>
-            {THEME_PACKS.map((pack, packIdx) => {
-              const isFirstPremium = pack.premium && (packIdx === 0 || !THEME_PACKS[packIdx - 1].premium);
+            {getVisibleThemePacks().map((pack, packIdx, packs) => {
+              const isFirstPremium = pack.premium && (packIdx === 0 || !packs[packIdx - 1].premium);
               return (
                 <View key={pack.label}>
                   {/* Premium section divider — shown once before the first premium pack */}

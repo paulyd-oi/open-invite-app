@@ -436,6 +436,62 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
   },
 };
 
+// ─── Seasonal Visibility (picker-only, does not remove from catalog) ──
+
+/**
+ * Month-based visibility windows for seasonal themes.
+ * [startMonth, endMonth] inclusive, 1-indexed. Wraps across year boundary
+ * when start > end (e.g. [11, 1] = Nov, Dec, Jan).
+ * Themes absent from this map are evergreen (always visible).
+ */
+const THEME_SEASON: Partial<Record<ThemeId, [start: number, end: number]>> = {
+  valentines:     [1, 2],
+  spring_bloom:   [3, 5],
+  garden_party:   [3, 5],
+  spring_brunch:  [3, 5],
+  easter:         [3, 5],
+  graduation:     [4, 6],
+  summer_splash:  [5, 8],
+  luau:           [5, 8],
+  bonfire_night:  [5, 8],
+  pool_party:     [5, 8],
+  fourth_of_july: [6, 7],
+  fall_harvest:   [9, 11],
+  winter_glow:    [11, 1],
+  new_years_eve:  [12, 1],
+};
+
+/** True if `themeId` should appear in the picker for the given date. */
+export function isThemeVisibleInPicker(themeId: ThemeId, now: Date = new Date()): boolean {
+  const window = THEME_SEASON[themeId];
+  if (!window) return true; // evergreen
+  const m = now.getMonth() + 1; // 1-indexed
+  const [s, e] = window;
+  return s <= e ? m >= s && m <= e : m >= s || m <= e;
+}
+
+/**
+ * Return THEME_PACKS filtered to only include seasonally-visible themes.
+ * Packs whose visible list becomes empty are omitted entirely.
+ * `preserve` injects an extra theme ID that must remain visible regardless
+ * of season (used in edit flow for the event's current theme).
+ */
+export function getVisibleThemePacks(
+  now: Date = new Date(),
+  preserve?: ThemeId | null,
+): ThemePack[] {
+  const result: ThemePack[] = [];
+  for (const pack of THEME_PACKS) {
+    const visibleIds = pack.ids.filter(
+      (tid) => isThemeVisibleInPicker(tid, now) || tid === preserve,
+    ) as readonly ThemeId[];
+    if (visibleIds.length > 0) {
+      result.push({ ...pack, ids: visibleIds });
+    }
+  }
+  return result;
+}
+
 // ─── Helpers ─────────────────────────────────────────────
 
 export function isValidThemeId(id: string | null | undefined): id is ThemeId {
