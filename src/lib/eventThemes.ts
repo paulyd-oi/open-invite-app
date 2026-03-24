@@ -141,6 +141,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(0,172,193,0.30)",
     pageTintLight: "rgba(0,172,193,0.16)",
     chipAccent: "#00ACC1",
+    effectPreset: "rising_bubbles",
   },
   fall_harvest: {
     label: "Fall Harvest",

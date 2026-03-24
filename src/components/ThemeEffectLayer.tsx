@@ -367,6 +367,28 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.8, 1.1],
     pulsePeriodRange: [2.5, 4.5],
   },
+  rising_bubbles: {
+    particleCount: 20,
+    minSize: 4,
+    maxSize: 14,
+    minOpacity: 0.12,
+    maxOpacity: 0.30,
+    minSpeed: 10,
+    maxSpeed: 25,
+    swayAmplitude: 18,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 7,
+    direction: -1,
+    blurSigma: 2.5,
+    colors: [
+      "rgba(255, 255, 255, 1)", // white
+      "rgba(186, 230, 253, 1)", // light blue
+      "rgba(147, 197, 253, 1)", // blue tint
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
