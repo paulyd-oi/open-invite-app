@@ -435,6 +435,31 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.2,
     maxRotationSpeed: 0.8,
   },
+  butterfly_flutter: {
+    particleCount: 12,
+    minSize: 4,
+    maxSize: 8,
+    minOpacity: 0.4,
+    maxOpacity: 0.7,
+    minSpeed: 8,
+    maxSpeed: 18,
+    swayAmplitude: 50,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 5,
+    direction: -1,
+    blurSigma: 1.2,
+    colors: [
+      "rgba(192, 132, 252, 1)",  // pastel purple
+      "rgba(251, 146, 60, 1)",   // soft orange
+      "rgba(147, 197, 253, 1)",  // light blue
+    ],
+    shape: "mixed",
+    minRotationSpeed: 0.5,
+    maxRotationSpeed: 2.0,
+    rectAspect: 0.6,
+    pulseRange: [0.7, 1.1],
+    pulsePeriodRange: [1.5, 3.0],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
