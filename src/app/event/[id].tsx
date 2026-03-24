@@ -2726,22 +2726,20 @@ export default function EventDetailScreen() {
                         paddingVertical: 14,
                         paddingHorizontal: 16,
                         borderRadius: RADIUS.xl,
-                        backgroundColor: myRsvpStatus === "going" ? STATUS.going.bgSoft :
-                                         myRsvpStatus === "interested" ? STATUS.interested.bgSoft : colors.surface,
+                        backgroundColor: "rgba(255, 255, 255, 0.28)",
                         borderWidth: 1,
-                        borderColor: myRsvpStatus === "going" ? STATUS.going.border :
-                                     myRsvpStatus === "interested" ? STATUS.interested.border : colors.border,
+                        borderColor: "rgba(255, 255, 255, 0.42)",
                       }}
                     >
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        {myRsvpStatus === "going" && <Check size={18} color={STATUS.going.fg} />}
+                        {myRsvpStatus === "going" && <Check size={18} color="#16A34A" />}
                         {myRsvpStatus === "interested" && <Heart size={18} color={STATUS.interested.fg} />}
                         {myRsvpStatus === "not_going" && <X size={18} color={colors.textTertiary} />}
                         <Text style={{
                           marginLeft: 8,
                           fontSize: 15,
                           fontWeight: "600",
-                          color: myRsvpStatus === "going" ? STATUS.going.fg :
+                          color: myRsvpStatus === "going" ? "#15803D" :
                                  myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary,
                         }}>
                           {myRsvpStatus === "going" ? "You're In" :
@@ -2751,9 +2749,9 @@ export default function EventDetailScreen() {
                       <Pressable
                         onPress={() => setShowRsvpOptions(!showRsvpOptions)}
                         disabled={rsvpMutation.isPending}
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: "rgba(255, 255, 255, 0.42)", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.5)" }}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>Change</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: "#374151" }}>Change</Text>
                       </Pressable>
                     </View>
                     {myRsvpStatus === "going" && (
@@ -2874,22 +2872,18 @@ export default function EventDetailScreen() {
                           testID="event-detail-action-going"
                           onPress={() => handleRsvp("going")}
                           disabled={rsvpMutation.isPending}
-                          style={({ pressed }) => ({
-                            flexDirection: "row" as const,
-                            alignItems: "center" as const,
-                            justifyContent: "center" as const,
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
                             paddingVertical: 14,
                             paddingHorizontal: 28,
                             minHeight: 48,
                             borderRadius: 999,
-                            backgroundColor: isDark ? "#16A34A" : "#22C55E",
-                            shadowColor: "#22C55E",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 6,
-                            elevation: 3,
-                            opacity: pressed ? 0.85 : 1,
-                          })}
+                            backgroundColor: "rgba(34, 197, 94, 0.78)",
+                            borderWidth: 1,
+                            borderColor: "rgba(255, 255, 255, 0.18)",
+                          }}
                         >
                           <Check size={18} color="#FFFFFF" />
                           <Text style={{
@@ -2909,26 +2903,18 @@ export default function EventDetailScreen() {
                         testID="event-detail-action-save"
                         onPress={() => handleRsvp("interested")}
                         disabled={rsvpMutation.isPending}
-                        style={({ pressed }) => ({
-                          flexDirection: "row" as const,
-                          alignItems: "center" as const,
-                          justifyContent: "center" as const,
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
                           paddingVertical: 14,
                           paddingHorizontal: 28,
                           minHeight: 48,
                           borderRadius: 999,
-                          backgroundColor: myRsvpStatus === "interested"
-                            ? (pageTheme.backAccent + "30")
-                            : (isDark ? "#1F2937" : "#FFFFFF"),
-                          borderWidth: 2,
-                          borderColor: pageTheme.backAccent,
-                          shadowColor: "#000000",
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.06,
-                          shadowRadius: 3,
-                          elevation: 2,
-                          opacity: pressed ? 0.85 : 1,
-                        })}
+                          backgroundColor: "rgba(255, 255, 255, 0.42)",
+                          borderWidth: 1.5,
+                          borderColor: "rgba(255, 255, 255, 0.55)",
+                        }}
                       >
                         <Heart size={18} color={pageTheme.backAccent} />
                         <Text style={{
