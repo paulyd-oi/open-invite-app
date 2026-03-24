@@ -32,6 +32,7 @@ export const PREMIUM_THEME_IDS = [
   "garden_party",
   "spring_brunch",
   "easter",
+  "graduation",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -301,6 +302,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(196, 181, 253, 0.10)",
     chipAccent: "#A78BFA",
     effectPreset: "easter_confetti",
+  },
+  graduation: {
+    label: "Graduation",
+    swatch: "🎓",
+    gradientTint: "rgba(30, 58, 138, 0.25)",
+    vibeLabel: "Congratulations",
+    backAccent: "#FFD700",
+    backBgDark: "#0A0E2A",
+    backBgLight: "#EEF2FF",
+    pageTintDark: "rgba(30, 58, 138, 0.22)",
+    pageTintLight: "rgba(30, 58, 138, 0.12)",
+    chipAccent: "#FFD700",
+    effectPreset: "graduation_toss",
   },
 };
 

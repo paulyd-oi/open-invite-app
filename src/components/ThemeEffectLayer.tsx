@@ -484,6 +484,30 @@ const EFFECT_CONFIGS = {
     maxRotationSpeed: 3.0,
     rectAspect: 0.5,
   },
+  graduation_toss: {
+    particleCount: 24,
+    minSize: 3,
+    maxSize: 7,
+    minOpacity: 0.6,
+    maxOpacity: 0.9,
+    minSpeed: 35,
+    maxSpeed: 70,
+    swayAmplitude: 30,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 4,
+    direction: 1,
+    blurSigma: 0.5,
+    colors: [
+      "rgba(255, 215, 0, 1)",   // gold
+      "rgba(255, 215, 0, 1)",   // gold (weighted)
+      "rgba(30, 58, 138, 1)",   // navy
+      "rgba(255, 255, 255, 1)", // white
+    ],
+    shape: "mixed",
+    minRotationSpeed: 1.5,
+    maxRotationSpeed: 4.0,
+    rectAspect: 0.8,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
