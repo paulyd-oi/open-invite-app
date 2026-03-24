@@ -97,5 +97,6 @@ ios/**/xcuserdata/
 ios/**/.DS_Store
 .claude_artifacts/
 *.png
+!assets/theme-backgrounds/*.png
 Terminal Saved Output.txt
 .gstack/

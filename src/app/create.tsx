@@ -42,9 +42,10 @@ import {
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
-import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, THEME_BACKGROUNDS, type ThemeId } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
+import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
@@ -1304,6 +1305,15 @@ export default function CreateEventScreen() {
       {selectedThemeId && previewTheme.visualStack?.gradient && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
           <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
+        </View>
+      )}
+      {/* Static background image — between gradient and particles */}
+      {selectedThemeId && previewTheme.visualStack?.image && THEME_BACKGROUNDS[previewTheme.visualStack.image.source] && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <BackgroundImageLayer
+            source={THEME_BACKGROUNDS[previewTheme.visualStack.image.source]}
+            opacity={previewTheme.visualStack.image.opacity}
+          />
         </View>
       )}
       {/* Live theme particle effects — behind all content */}

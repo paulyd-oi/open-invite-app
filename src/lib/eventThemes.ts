@@ -78,11 +78,32 @@ export interface ThemeVisualStack {
   };
   shader?: "aurora" | "shimmer" | "plasma" | "bokeh";
   particles?: string;    // effectPreset name from EFFECT_CONFIGS
+  image?: {
+    source: string;         // key into THEME_BACKGROUNDS registry
+    opacity?: number;       // 0-1, default 0.25
+    blendMode?: "normal" | "overlay" | "softLight";  // default "normal"
+  };
   // Future layers (not implemented yet, but schema-reserved):
-  // image?: { source: string; opacity?: number; parallax?: boolean };
   // video?: { source: string; opacity?: number };
   // filter?: "film_grain" | "vignette" | "noise" | "color_shift";
 }
+
+// ─── Background Image Registry ──────────────────────────
+// Keys match visualStack.image.source values. Actual require() calls live
+// here so theme tokens stay serializable (plain strings, no require()).
+// Replace placeholder PNGs with real atmospheric textures when available.
+
+import type { ImageSourcePropType } from "react-native";
+
+/* eslint-disable @typescript-eslint/no-var-requires */
+export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
+  movie_night_bg: require("../../assets/theme-backgrounds/movie_night.png"),
+  cozy_night_bg: require("../../assets/theme-backgrounds/cozy_night.png"),
+  date_night_bg: require("../../assets/theme-backgrounds/date_night.png"),
+  party_night_bg: require("../../assets/theme-backgrounds/party_night.png"),
+  awards_night_bg: require("../../assets/theme-backgrounds/awards_night.png"),
+};
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 // ─── Theme Tokens ────────────────────────────────────────
 
@@ -258,7 +279,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139, 92, 246, 0.30)",
     pageTintLight: "rgba(139, 92, 246, 0.14)",
     chipAccent: "#A855F7",
-    visualStack: { shader: "plasma", particles: "disco_pulse" },
+    visualStack: { shader: "plasma", particles: "disco_pulse", image: { source: "party_night_bg", opacity: 0.15 } },
   },
   spring_bloom: {
     label: "Spring Bloom",
@@ -429,7 +450,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(212, 175, 55, 0.16)",
     pageTintLight: "rgba(212, 175, 55, 0.08)",
     chipAccent: "#D4AF37",
-    visualStack: { shader: "shimmer", particles: "golden_sparkle" },
+    visualStack: { shader: "shimmer", particles: "golden_sparkle", image: { source: "awards_night_bg", opacity: 0.18 } },
   },
   date_night: {
     label: "Date Night",
@@ -442,7 +463,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 83, 9, 0.18)",
     pageTintLight: "rgba(180, 83, 9, 0.08)",
     chipAccent: "#B45309",
-    visualStack: { gradient: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 }, shader: "bokeh", particles: "candlelight" },
+    visualStack: { gradient: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "date_night_bg", opacity: 0.18 } },
   },
   pool_party: {
     label: "Pool Party",
@@ -496,7 +517,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 120, 60, 0.18)",
     pageTintLight: "rgba(180, 120, 60, 0.10)",
     chipAccent: "#B4783C",
-    visualStack: { gradient: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 }, shader: "bokeh", particles: "candlelight" },
+    visualStack: { gradient: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.2 } },
   },
   movie_night: {
     label: "Movie Night",
@@ -509,7 +530,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100, 116, 139, 0.22)",
     pageTintLight: "rgba(100, 116, 139, 0.10)",
     chipAccent: "#64748B",
-    visualStack: { gradient: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 }, particles: "projector_dust" },
+    visualStack: { gradient: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 }, particles: "projector_dust", image: { source: "movie_night_bg", opacity: 0.2 } },
   },
 };
 
