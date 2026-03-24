@@ -68,6 +68,22 @@ export const THEME_PACKS: readonly ThemePack[] = [
   { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night"] },
 ] as const;
 
+// ─── Visual Stack (composable layer schema) ─────────────
+
+export interface ThemeVisualStack {
+  gradient?: {
+    colors: string[];
+    speed?: number;      // 0 = static, default 3
+    angle?: number;       // degrees, default 180
+  };
+  shader?: "aurora" | "shimmer" | "plasma" | "bokeh";
+  particles?: string;    // effectPreset name from EFFECT_CONFIGS
+  // Future layers (not implemented yet, but schema-reserved):
+  // image?: { source: string; opacity?: number; parallax?: boolean };
+  // video?: { source: string; opacity?: number };
+  // filter?: "film_grain" | "vignette" | "noise" | "color_shift";
+}
+
 // ─── Theme Tokens ────────────────────────────────────────
 
 export interface EventThemeTokens {
@@ -91,14 +107,8 @@ export interface EventThemeTokens {
   pageTintLight: string;
   /** Chip/badge accent */
   chipAccent: string;
-  /** Ambient effect preset identifier (null = no effect) */
-  effectPreset?: string | null;
-  /** Animated gradient background layer config (omit = no gradient) */
-  gradientConfig?: {
-    colors: string[];
-    speed?: number;
-    angle?: number;
-  };
+  /** Composable visual layer stack */
+  visualStack?: ThemeVisualStack;
 }
 
 // ─── Theme Catalog ───────────────────────────────────────
@@ -116,7 +126,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "transparent",
     pageTintLight: "transparent",
     chipAccent: "#8E8E93",
-    gradientConfig: { colors: ["rgba(40,40,45,0.3)", "rgba(60,60,65,0.15)", "rgba(40,40,45,0.3)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(40,40,45,0.3)", "rgba(60,60,65,0.15)", "rgba(40,40,45,0.3)"], speed: 2 } },
   },
   chill_hang: {
     label: "Chill Hang",
@@ -129,8 +139,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(20,184,166,0.24)",
     pageTintLight: "rgba(20,184,166,0.14)",
     chipAccent: "#14B8A6",
-    effectPreset: "coastal_haze",
-    gradientConfig: { colors: ["rgba(20,184,166,0.25)", "rgba(110,220,200,0.15)", "rgba(20,184,166,0.25)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(20,184,166,0.25)", "rgba(110,220,200,0.15)", "rgba(20,184,166,0.25)"], speed: 3 }, shader: "aurora", particles: "coastal_haze" },
   },
   dinner_night: {
     label: "Dinner Night",
@@ -143,7 +152,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255,152,0,0.22)",
     pageTintLight: "rgba(255,152,0,0.12)",
     chipAccent: "#FF9800",
-    gradientConfig: { colors: ["rgba(255,248,235,0.2)", "rgba(255,200,120,0.15)", "rgba(255,248,235,0.2)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(255,248,235,0.2)", "rgba(255,200,120,0.15)", "rgba(255,248,235,0.2)"], speed: 2 } },
   },
   game_night: {
     label: "Game Night",
@@ -156,7 +165,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139,92,246,0.28)",
     pageTintLight: "rgba(139,92,246,0.16)",
     chipAccent: "#8B5CF6",
-    effectPreset: "arcade_sparkle",
+    visualStack: { particles: "arcade_sparkle" },
   },
   worship_night: {
     label: "Worship Night",
@@ -169,8 +178,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(156,124,99,0.20)",
     pageTintLight: "rgba(156,124,99,0.10)",
     chipAccent: "#9C7C63",
-    effectPreset: "light_rays",
-    gradientConfig: { colors: ["rgba(156,124,99,0.2)", "rgba(255,215,0,0.1)", "rgba(156,124,99,0.2)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(156,124,99,0.2)", "rgba(255,215,0,0.1)", "rgba(156,124,99,0.2)"], speed: 2 }, shader: "shimmer", particles: "light_rays" },
   },
 
   // ── Premium (Pro) ──
@@ -185,7 +193,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(0,172,193,0.30)",
     pageTintLight: "rgba(0,172,193,0.16)",
     chipAccent: "#00ACC1",
-    effectPreset: "rising_bubbles",
+    visualStack: { particles: "rising_bubbles" },
   },
   fall_harvest: {
     label: "Fall Harvest",
@@ -198,7 +206,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(212,118,59,0.24)",
     pageTintLight: "rgba(212,118,59,0.12)",
     chipAccent: "#D4763B",
-    effectPreset: "falling_leaves",
+    visualStack: { particles: "falling_leaves" },
   },
   winter_glow: {
     label: "Winter Glow",
@@ -211,7 +219,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100,149,237,0.30)",
     pageTintLight: "rgba(100,149,237,0.18)",
     chipAccent: "#6495ED",
-    effectPreset: "snowfall",
+    visualStack: { particles: "snowfall" },
   },
   game_day: {
     label: "Game Day",
@@ -224,7 +232,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(67,160,71,0.30)",
     pageTintLight: "rgba(67,160,71,0.18)",
     chipAccent: "#43A047",
-    effectPreset: "glitter_shimmer",
+    visualStack: { particles: "glitter_shimmer" },
   },
   birthday_bash: {
     label: "Birthday Bash",
@@ -237,8 +245,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255,107,74,0.24)",
     pageTintLight: "rgba(255,107,74,0.12)",
     chipAccent: "#FF6B4A",
-    effectPreset: "confetti_rain",
-    gradientConfig: { colors: ["rgba(236,72,153,0.2)", "rgba(249,115,22,0.15)", "rgba(236,72,153,0.2)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(236,72,153,0.2)", "rgba(249,115,22,0.15)", "rgba(236,72,153,0.2)"], speed: 3 }, particles: "confetti_rain" },
   },
   party_night: {
     label: "Party Night",
@@ -251,7 +258,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139, 92, 246, 0.30)",
     pageTintLight: "rgba(139, 92, 246, 0.14)",
     chipAccent: "#A855F7",
-    effectPreset: "disco_pulse",
+    visualStack: { shader: "plasma", particles: "disco_pulse" },
   },
   spring_bloom: {
     label: "Spring Bloom",
@@ -264,8 +271,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(34, 197, 94, 0.20)",
     pageTintLight: "rgba(34, 197, 94, 0.14)",
     chipAccent: "#22C55E",
-    effectPreset: "cherry_blossom",
-    gradientConfig: { colors: ["rgba(34,197,94,0.18)", "rgba(244,163,188,0.12)", "rgba(34,197,94,0.18)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(34,197,94,0.18)", "rgba(244,163,188,0.12)", "rgba(34,197,94,0.18)"], speed: 3 }, particles: "cherry_blossom" },
   },
   romance_elegant: {
     label: "Romance",
@@ -278,8 +284,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(190, 18, 60, 0.20)",
     pageTintLight: "rgba(190, 18, 60, 0.10)",
     chipAccent: "#BE123C",
-    effectPreset: "rose_petals",
-    gradientConfig: { colors: ["rgba(190,18,60,0.18)", "rgba(212,175,55,0.1)", "rgba(190,18,60,0.18)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(190,18,60,0.18)", "rgba(212,175,55,0.1)", "rgba(190,18,60,0.18)"], speed: 2 }, particles: "rose_petals" },
   },
   celebration: {
     label: "Celebration",
@@ -292,7 +297,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255, 215, 0, 0.20)",
     pageTintLight: "rgba(255, 215, 0, 0.10)",
     chipAccent: "#FFD700",
-    effectPreset: "firework_burst",
+    visualStack: { particles: "firework_burst" },
   },
   valentines: {
     label: "Valentine's",
@@ -305,8 +310,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(236, 72, 153, 0.22)",
     pageTintLight: "rgba(236, 72, 153, 0.12)",
     chipAccent: "#EC4899",
-    effectPreset: "floating_hearts",
-    gradientConfig: { colors: ["rgba(236,72,153,0.2)", "rgba(190,18,60,0.15)", "rgba(236,72,153,0.2)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(236,72,153,0.2)", "rgba(190,18,60,0.15)", "rgba(236,72,153,0.2)"], speed: 3 }, particles: "floating_hearts" },
   },
   garden_party: {
     label: "Garden Party",
@@ -319,8 +323,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(132, 204, 22, 0.18)",
     pageTintLight: "rgba(132, 204, 22, 0.10)",
     chipAccent: "#84CC16",
-    effectPreset: "dandelion_seeds",
-    gradientConfig: { colors: ["rgba(132,204,22,0.18)", "rgba(250,204,21,0.12)", "rgba(132,204,22,0.18)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(132,204,22,0.18)", "rgba(250,204,21,0.12)", "rgba(132,204,22,0.18)"], speed: 3 }, particles: "dandelion_seeds" },
   },
   spring_brunch: {
     label: "Spring Brunch",
@@ -333,8 +336,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(167, 139, 250, 0.22)",
     pageTintLight: "rgba(167, 139, 250, 0.13)",
     chipAccent: "#A78BFA",
-    effectPreset: "butterfly_flutter",
-    gradientConfig: { colors: ["rgba(255,248,235,0.18)", "rgba(167,139,250,0.12)", "rgba(255,248,235,0.18)"], speed: 3 },
+    visualStack: { gradient: { colors: ["rgba(255,248,235,0.18)", "rgba(167,139,250,0.12)", "rgba(255,248,235,0.18)"], speed: 3 }, particles: "butterfly_flutter" },
   },
   easter: {
     label: "Easter",
@@ -347,7 +349,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(196, 181, 253, 0.20)",
     pageTintLight: "rgba(196, 181, 253, 0.10)",
     chipAccent: "#A78BFA",
-    effectPreset: "easter_confetti",
+    visualStack: { particles: "easter_confetti" },
   },
   graduation: {
     label: "Graduation",
@@ -360,8 +362,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(30, 58, 138, 0.22)",
     pageTintLight: "rgba(30, 58, 138, 0.12)",
     chipAccent: "#FFD700",
-    effectPreset: "graduation_toss",
-    gradientConfig: { colors: ["rgba(30,58,138,0.2)", "rgba(255,215,0,0.1)", "rgba(30,58,138,0.2)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(30,58,138,0.2)", "rgba(255,215,0,0.1)", "rgba(30,58,138,0.2)"], speed: 2 }, particles: "graduation_toss" },
   },
   bonfire_night: {
     label: "Bonfire Night",
@@ -374,7 +375,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(217, 119, 6, 0.22)",
     pageTintLight: "rgba(217, 119, 6, 0.12)",
     chipAccent: "#D97706",
-    effectPreset: "fireflies",
+    visualStack: { shader: "bokeh", particles: "fireflies" },
   },
   luau: {
     label: "Luau",
@@ -387,7 +388,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(251, 113, 133, 0.20)",
     pageTintLight: "rgba(251, 113, 133, 0.10)",
     chipAccent: "#FB7185",
-    effectPreset: "tropical_drift",
+    visualStack: { particles: "tropical_drift" },
   },
   fourth_of_july: {
     label: "4th of July",
@@ -400,7 +401,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(60, 59, 110, 0.24)",
     pageTintLight: "rgba(60, 59, 110, 0.12)",
     chipAccent: "#B22234",
-    effectPreset: "patriot_stars",
+    visualStack: { particles: "patriot_stars" },
   },
 
   // ── Wave A Premium ──
@@ -415,7 +416,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255, 215, 0, 0.18)",
     pageTintLight: "rgba(255, 215, 0, 0.08)",
     chipAccent: "#FFD700",
-    effectPreset: "firework_burst",
+    visualStack: { particles: "firework_burst" },
   },
   awards_night: {
     label: "Awards Night",
@@ -428,7 +429,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(212, 175, 55, 0.16)",
     pageTintLight: "rgba(212, 175, 55, 0.08)",
     chipAccent: "#D4AF37",
-    effectPreset: "golden_sparkle",
+    visualStack: { shader: "shimmer", particles: "golden_sparkle" },
   },
   date_night: {
     label: "Date Night",
@@ -441,8 +442,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 83, 9, 0.18)",
     pageTintLight: "rgba(180, 83, 9, 0.08)",
     chipAccent: "#B45309",
-    effectPreset: "candlelight",
-    gradientConfig: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 }, shader: "bokeh", particles: "candlelight" },
   },
   pool_party: {
     label: "Pool Party",
@@ -455,7 +455,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(6, 182, 212, 0.26)",
     pageTintLight: "rgba(6, 182, 212, 0.14)",
     chipAccent: "#06B6D4",
-    effectPreset: "rising_bubbles",
+    visualStack: { particles: "rising_bubbles" },
   },
 
   // ── Wave B Premium ──
@@ -470,8 +470,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(201, 168, 76, 0.16)",
     pageTintLight: "rgba(201, 168, 76, 0.08)",
     chipAccent: "#C9A84C",
-    effectPreset: "rose_petals",
-    gradientConfig: { colors: ["rgba(201,168,76,0.15)", "rgba(190,18,60,0.08)", "rgba(201,168,76,0.15)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(201,168,76,0.15)", "rgba(190,18,60,0.08)", "rgba(201,168,76,0.15)"], speed: 2 }, particles: "rose_petals" },
   },
   beach_day: {
     label: "Beach Day",
@@ -484,7 +483,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(245, 158, 11, 0.18)",
     pageTintLight: "rgba(245, 158, 11, 0.10)",
     chipAccent: "#F59E0B",
-    effectPreset: "coastal_haze",
+    visualStack: { shader: "aurora", particles: "coastal_haze" },
   },
   cozy_night: {
     label: "Cozy Night",
@@ -497,8 +496,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 120, 60, 0.18)",
     pageTintLight: "rgba(180, 120, 60, 0.10)",
     chipAccent: "#B4783C",
-    effectPreset: "candlelight",
-    gradientConfig: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 }, shader: "bokeh", particles: "candlelight" },
   },
   movie_night: {
     label: "Movie Night",
@@ -511,8 +509,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100, 116, 139, 0.22)",
     pageTintLight: "rgba(100, 116, 139, 0.10)",
     chipAccent: "#64748B",
-    effectPreset: "projector_dust",
-    gradientConfig: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 },
+    visualStack: { gradient: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 }, particles: "projector_dust" },
   },
 };
 

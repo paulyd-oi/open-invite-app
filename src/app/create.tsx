@@ -1301,9 +1301,9 @@ export default function CreateEventScreen() {
     <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
       <SafeAreaView className="flex-1" edges={["top"]}>
       {/* Live animated gradient background — below particles */}
-      {selectedThemeId && previewTheme.gradientConfig && (
+      {selectedThemeId && previewTheme.visualStack?.gradient && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
-          <AnimatedGradientLayer config={previewTheme.gradientConfig} />
+          <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
         </View>
       )}
       {/* Live theme particle effects — behind all content */}
