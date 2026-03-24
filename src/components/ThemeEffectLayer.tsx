@@ -532,6 +532,29 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.0, 1.0],
     pulsePeriodRange: [2.0, 5.0],
   },
+  tropical_drift: {
+    particleCount: 18,
+    minSize: 4,
+    maxSize: 16,
+    minOpacity: 0.15,
+    maxOpacity: 0.5,
+    minSpeed: 8,
+    maxSpeed: 18,
+    swayAmplitude: 25,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 8,
+    direction: 1,
+    blurSigma: 3.0,
+    colors: [
+      "rgba(251, 113, 133, 1)",  // coral
+      "rgba(20, 184, 166, 1)",   // teal
+      "rgba(250, 204, 21, 1)",   // golden yellow
+      "rgba(255, 255, 255, 1)",  // white
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.2,
+    maxRotationSpeed: 0.8,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;

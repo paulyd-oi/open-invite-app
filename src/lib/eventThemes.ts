@@ -34,6 +34,7 @@ export const PREMIUM_THEME_IDS = [
   "easter",
   "graduation",
   "bonfire_night",
+  "luau",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -329,6 +330,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(217, 119, 6, 0.12)",
     chipAccent: "#D97706",
     effectPreset: "fireflies",
+  },
+  luau: {
+    label: "Luau",
+    swatch: "🌺",
+    gradientTint: "rgba(251, 113, 133, 0.22)",
+    vibeLabel: "Aloha!",
+    backAccent: "#FB7185",
+    backBgDark: "#1A1015",
+    backBgLight: "#FFF1F2",
+    pageTintDark: "rgba(251, 113, 133, 0.20)",
+    pageTintLight: "rgba(251, 113, 133, 0.10)",
+    chipAccent: "#FB7185",
+    effectPreset: "tropical_drift",
   },
 };
 
