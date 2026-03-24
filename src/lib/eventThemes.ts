@@ -33,6 +33,7 @@ export const PREMIUM_THEME_IDS = [
   "spring_brunch",
   "easter",
   "graduation",
+  "bonfire_night",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -315,6 +316,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(30, 58, 138, 0.12)",
     chipAccent: "#FFD700",
     effectPreset: "graduation_toss",
+  },
+  bonfire_night: {
+    label: "Bonfire Night",
+    swatch: "🔥",
+    gradientTint: "rgba(217, 119, 6, 0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#D97706",
+    backBgDark: "#1A120A",
+    backBgLight: "#FEF3C7",
+    pageTintDark: "rgba(217, 119, 6, 0.22)",
+    pageTintLight: "rgba(217, 119, 6, 0.12)",
+    chipAccent: "#D97706",
+    effectPreset: "fireflies",
   },
 };
 

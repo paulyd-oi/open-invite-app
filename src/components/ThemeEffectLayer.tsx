@@ -508,6 +508,30 @@ const EFFECT_CONFIGS = {
     maxRotationSpeed: 4.0,
     rectAspect: 0.8,
   },
+  fireflies: {
+    particleCount: 15,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.0,
+    maxOpacity: 0.55,
+    minSpeed: 2,
+    maxSpeed: 6,
+    swayAmplitude: 20,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 10,
+    direction: -1,
+    blurSigma: 2.5,
+    colors: [
+      "rgba(251, 191, 36, 1)",   // warm amber
+      "rgba(255, 215, 0, 1)",    // gold
+      "rgba(253, 224, 71, 1)",   // light gold
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.0, 1.0],
+    pulsePeriodRange: [2.0, 5.0],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
