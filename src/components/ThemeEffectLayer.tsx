@@ -36,6 +36,9 @@ let Group: any = null;
 let BlurMask: any = null;
 let RRect: any = null;
 let Rect: any = null;
+let Path: any = null;
+let Shader: any = null;
+let SkiaNamespace: any = null;
 let _skiaAvailable = false;
 try {
   const Skia = require("@shopify/react-native-skia");
@@ -45,10 +48,114 @@ try {
   BlurMask = Skia.BlurMask;
   RRect = Skia.RRect;
   Rect = Skia.Rect;
+  Path = Skia.Path;
+  Shader = Skia.Shader;
+  SkiaNamespace = Skia.Skia;
   _skiaAvailable = !!(Canvas && Circle && Group && BlurMask);
 } catch {
   // Skia native module not available — particles will not render
 }
+
+// ─── SkSL shader sources (compiled once at module load) ──────
+
+const AURORA_SKSL = `
+uniform float iTime;
+uniform float2 iResolution;
+half4 main(float2 fragCoord) {
+  float2 uv = fragCoord / iResolution;
+  float wave1 = sin(uv.x * 3.0 + iTime * 0.3) * 0.5 + 0.5;
+  float wave2 = sin(uv.y * 2.0 + iTime * 0.2 + 1.0) * 0.5 + 0.5;
+  float blend = wave1 * wave2;
+  float3 c1 = float3(0.1, 0.6, 0.4);
+  float3 c2 = float3(0.3, 0.2, 0.7);
+  float3 col = mix(c1, c2, blend);
+  return half4(col, 1.0);
+}
+`;
+
+const SHIMMER_SKSL = `
+uniform float iTime;
+uniform float2 iResolution;
+half4 main(float2 fragCoord) {
+  float2 uv = fragCoord / iResolution;
+  float band = sin(uv.x * 6.28 - iTime * 1.5) * 0.5 + 0.5;
+  band = pow(band, 8.0);
+  float3 col = float3(1.0, 0.95, 0.8) * band;
+  return half4(col, 1.0);
+}
+`;
+
+const PLASMA_SKSL = `
+uniform float iTime;
+uniform float2 iResolution;
+half4 main(float2 fragCoord) {
+  float2 uv = fragCoord / iResolution;
+  float v = sin(uv.x * 4.0 + iTime * 0.4);
+  v += sin(uv.y * 4.0 + iTime * 0.3);
+  v += sin((uv.x + uv.y) * 3.0 + iTime * 0.5);
+  v = v / 3.0 * 0.5 + 0.5;
+  float3 col = mix(float3(0.8, 0.2, 0.5), float3(0.2, 0.5, 0.9), v);
+  return half4(col, 1.0);
+}
+`;
+
+const BOKEH_SKSL = `
+uniform float iTime;
+uniform float2 iResolution;
+half4 main(float2 fragCoord) {
+  float2 uv = fragCoord / iResolution;
+  float acc = 0.0;
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    float2 center = float2(
+      0.5 + 0.3 * sin(iTime * 0.2 + fi * 1.3),
+      0.5 + 0.3 * cos(iTime * 0.15 + fi * 1.7)
+    );
+    float d = distance(uv, center);
+    acc += 0.02 / (d * d + 0.01);
+  }
+  acc = clamp(acc * 0.05, 0.0, 1.0);
+  float3 col = float3(1.0, 0.85, 0.6) * acc;
+  return half4(col, 1.0);
+}
+`;
+
+// ─── Lazy shader compilation (deferred to first access) ─────
+// Module-load compilation can fail silently if native Skia hasn't initialized
+// the RuntimeEffect factory yet. Lazy-init ensures we compile after the native
+// module is fully ready, and caches the result for all subsequent renders.
+
+const SHADER_SOURCES: Record<string, string> = {
+  aurora: AURORA_SKSL,
+  shimmer: SHIMMER_SKSL,
+  plasma: PLASMA_SKSL,
+  bokeh: BOKEH_SKSL,
+};
+
+const _shaderCache: Record<string, any> = {};
+
+function getShaderEffect(presetId: string): any {
+  if (presetId in _shaderCache) return _shaderCache[presetId];
+
+  const sksl = SHADER_SOURCES[presetId];
+  if (!sksl || !SkiaNamespace?.RuntimeEffect?.Make) {
+    _shaderCache[presetId] = null;
+    return null;
+  }
+
+  try {
+    const effect = SkiaNamespace.RuntimeEffect.Make(sksl);
+    _shaderCache[presetId] = effect;
+    return effect;
+  } catch {
+    _shaderCache[presetId] = null;
+    return null;
+  }
+}
+
+// ─── Shape types ─────────────────────────────────────────────
+
+type ShapeType = "circle" | "rect" | "heart" | "star" | "leaf" | "snowflake";
 
 // ─── Effect preset config ────────────────────────────────────
 
@@ -77,6 +184,8 @@ interface EffectConfig {
   pulsePeriodRange?: [number, number];
   /** Particle shape: circle (default), rect, or mixed */
   shape?: "circle" | "rect" | "mixed";
+  /** Array of shapes — each particle picks randomly. Overrides shape/mixed. */
+  shapes?: ShapeType[];
   /** Rotation speed range in radians/sec (0 = no rotation) */
   minRotationSpeed?: number;
   maxRotationSpeed?: number;
@@ -90,6 +199,10 @@ interface EffectConfig {
   hueCycleSpeed?: number;
   /** Color wash: base opacity */
   washOpacity?: number;
+  /** SkSL shader background layer — renders BEHIND particles at low opacity */
+  shaderPreset?: "aurora" | "shimmer" | "plasma" | "bokeh";
+  /** Shader background opacity override (default 0.15) */
+  shaderOpacity?: number;
 }
 
 // ─── Effect presets ──────────────────────────────────────────
@@ -134,13 +247,14 @@ const EFFECT_CONFIGS = {
       "rgba(210, 225, 250, 1)",   // cool periwinkle
       "rgba(200, 215, 255, 1)",   // cornflower frost
     ],
+    shapes: ["snowflake", "circle"],
   },
   coastal_haze: {
     particleCount: 18,
     minSize: 12,
     maxSize: 22,
-    minOpacity: 0.07,
-    maxOpacity: 0.14,
+    minOpacity: 0.09,
+    maxOpacity: 0.17,
     minSpeed: 4,
     maxSpeed: 7,
     swayAmplitude: 26,
@@ -154,6 +268,7 @@ const EFFECT_CONFIGS = {
       "rgba(160, 240, 225, 1)",   // light aqua
       "rgba(220, 255, 245, 1)",   // soft white-mint
     ],
+    shaderPreset: "aurora",
   },
   arcade_sparkle: {
     particleCount: 28,
@@ -222,7 +337,7 @@ const EFFECT_CONFIGS = {
       "rgba(185, 28, 28, 1)",
       "rgba(234, 179, 8, 1)",
     ],
-    shape: "circle",
+    shapes: ["leaf"],
     minRotationSpeed: 0.8,
     maxRotationSpeed: 2.5,
   },
@@ -297,7 +412,8 @@ const EFFECT_CONFIGS = {
     ],
     colorWash: true,
     hueCycleSpeed: 20,
-    washOpacity: 0.12,
+    washOpacity: 0.16,
+    shaderPreset: "plasma",
   },
   cherry_blossom: {
     particleCount: 16,
@@ -317,23 +433,23 @@ const EFFECT_CONFIGS = {
       "rgba(251, 207, 232, 1)", // soft white-pink
       "rgba(236, 72, 153, 0.6)", // translucent pink
     ],
-    shape: "circle",
+    shapes: ["leaf", "circle"],
     minRotationSpeed: 0.5,
     maxRotationSpeed: 1.5,
   },
   rose_petals: {
-    particleCount: 14,
-    minSize: 6,
-    maxSize: 13,
-    minOpacity: 0.4,
-    maxOpacity: 0.75,
-    minSpeed: 10,
-    maxSpeed: 20,
-    swayAmplitude: 25,
+    particleCount: 11,
+    minSize: 5,
+    maxSize: 10,
+    minOpacity: 0.3,
+    maxOpacity: 0.6,
+    minSpeed: 8,
+    maxSpeed: 16,
+    swayAmplitude: 22,
     minSwayPeriod: 4,
     maxSwayPeriod: 9,
     direction: 1,
-    blurSigma: 2.0,
+    blurSigma: 2.5,
     colors: [
       "rgba(190, 18, 60, 1)",   // deep rose
       "rgba(220, 38, 38, 1)",   // crimson
@@ -344,24 +460,24 @@ const EFFECT_CONFIGS = {
     maxRotationSpeed: 1.0,
   },
   floating_hearts: {
-    particleCount: 16,
+    particleCount: 12,
     minSize: 4,
-    maxSize: 10,
-    minOpacity: 0.35,
-    maxOpacity: 0.7,
-    minSpeed: 15,
-    maxSpeed: 30,
-    swayAmplitude: 20,
+    maxSize: 8,
+    minOpacity: 0.25,
+    maxOpacity: 0.55,
+    minSpeed: 12,
+    maxSpeed: 22,
+    swayAmplitude: 18,
     minSwayPeriod: 3,
     maxSwayPeriod: 6,
     direction: -1,
-    blurSigma: 1.5,
+    blurSigma: 1.8,
     colors: [
       "rgba(236, 72, 153, 1)",  // pink
       "rgba(239, 68, 68, 1)",   // red
       "rgba(251, 207, 232, 1)", // soft rose
     ],
-    shape: "circle",
+    shapes: ["heart"],
     minRotationSpeed: 0.3,
     maxRotationSpeed: 1.0,
     pulseRange: [0.8, 1.1],
@@ -412,6 +528,7 @@ const EFFECT_CONFIGS = {
     maxRotationSpeed: 0,
     pulseRange: [0.7, 1.2],
     pulsePeriodRange: [4, 8],
+    shaderPreset: "shimmer",
   },
   dandelion_seeds: {
     particleCount: 14,
@@ -479,7 +596,7 @@ const EFFECT_CONFIGS = {
       "rgba(167, 243, 208, 1)",  // pastel mint
       "rgba(253, 230, 138, 1)",  // pastel yellow
     ],
-    shape: "mixed",
+    shapes: ["star", "rect", "circle"],
     minRotationSpeed: 1.0,
     maxRotationSpeed: 3.0,
     rectAspect: 0.5,
@@ -503,7 +620,7 @@ const EFFECT_CONFIGS = {
       "rgba(30, 58, 138, 1)",   // navy
       "rgba(255, 255, 255, 1)", // white
     ],
-    shape: "mixed",
+    shapes: ["star", "rect", "circle"],
     minRotationSpeed: 1.5,
     maxRotationSpeed: 4.0,
     rectAspect: 0.8,
@@ -531,6 +648,7 @@ const EFFECT_CONFIGS = {
     maxRotationSpeed: 0,
     pulseRange: [0.0, 1.0],
     pulsePeriodRange: [2.0, 5.0],
+    shaderPreset: "bokeh",
   },
   tropical_drift: {
     particleCount: 18,
@@ -573,7 +691,7 @@ const EFFECT_CONFIGS = {
       "rgba(255, 255, 255, 1)",  // white
       "rgba(60, 59, 110, 1)",    // #3C3B6E blue
     ],
-    shape: "circle",
+    shapes: ["star"],
     minRotationSpeed: 0,
     maxRotationSpeed: 0,
     pulseRange: [0.3, 1.0],
@@ -606,11 +724,58 @@ interface ParticleSeed {
   /** Rotation speed in radians/sec */
   rotationSpeed: number;
   /** Particle shape */
-  shape: "circle" | "rect";
+  shape: ShapeType;
+  /** Cached SVG path string for path-based shapes (heart, star, leaf, snowflake) */
+  pathData?: string;
   /** Width for rect particles */
   width: number;
   /** Height for rect particles */
   height: number;
+}
+
+// ─── SVG path generators (centered at 0,0, scaled to radius) ─
+
+function pathForShape(shape: ShapeType, r: number): string | undefined {
+  switch (shape) {
+    case "heart":
+      return `M 0 ${-r * 0.35} C ${-r} ${-r * 1.1} ${-r} ${r * 0.3} 0 ${r} C ${r} ${r * 0.3} ${r} ${-r * 1.1} 0 ${-r * 0.35} Z`;
+
+    case "star": {
+      // 5-pointed star: 10 vertices alternating outer (r) and inner (r*0.4)
+      const outerR = r;
+      const innerR = r * 0.4;
+      const parts: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        const angle = -Math.PI / 2 + i * Math.PI / 5;
+        const rad = i % 2 === 0 ? outerR : innerR;
+        const x = Math.round(rad * Math.cos(angle) * 100) / 100;
+        const y = Math.round(rad * Math.sin(angle) * 100) / 100;
+        parts.push(`${i === 0 ? "M" : "L"} ${x} ${y}`);
+      }
+      return parts.join(" ") + " Z";
+    }
+
+    case "leaf":
+      return `M 0 ${-r} C ${r * 0.55} ${-r * 0.4} ${r * 0.55} ${r * 0.4} 0 ${r} C ${-r * 0.55} ${r * 0.4} ${-r * 0.55} ${-r * 0.4} 0 ${-r} Z`;
+
+    case "snowflake": {
+      // Filled 6-pointed star: 12 vertices alternating outer (r) and inner (r*0.45)
+      const outerR = r;
+      const innerR = r * 0.45;
+      const parts: string[] = [];
+      for (let i = 0; i < 12; i++) {
+        const angle = -Math.PI / 2 + i * Math.PI / 6;
+        const rad = i % 2 === 0 ? outerR : innerR;
+        const x = Math.round(rad * Math.cos(angle) * 100) / 100;
+        const y = Math.round(rad * Math.sin(angle) * 100) / 100;
+        parts.push(`${i === 0 ? "M" : "L"} ${x} ${y}`);
+      }
+      return parts.join(" ") + " Z";
+    }
+
+    default:
+      return undefined;
+  }
 }
 
 function seedParticles(config: EffectConfig, width: number, height: number): ParticleSeed[] {
@@ -630,12 +795,18 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
     }
 
     // Shape and rotation seeding
-    const shapeType = config.shape === "mixed"
-      ? (r() > 0.5 ? "circle" : "rect")
-      : (config.shape ?? "circle");
+    const shapeType: ShapeType = config.shapes
+      ? config.shapes[Math.floor(r() * config.shapes.length)]
+      : config.shape === "mixed"
+        ? (r() > 0.5 ? "circle" : "rect")
+        : (config.shape ?? "circle") as ShapeType;
     const radius = config.minSize + r() * (config.maxSize - config.minSize);
     const aspect = config.rectAspect ?? 1;
     const rotSpeed = (config.minRotationSpeed ?? 0) + r() * ((config.maxRotationSpeed ?? 0) - (config.minRotationSpeed ?? 0));
+    // Cache path data at seed time — never generate per frame
+    const pathData = (shapeType !== "circle" && shapeType !== "rect")
+      ? pathForShape(shapeType, radius)
+      : undefined;
 
     particles.push({
       x: r() * width,
@@ -653,6 +824,7 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
       rotation: r() * Math.PI * 2,
       rotationSpeed: (r() > 0.5 ? 1 : -1) * rotSpeed,
       shape: shapeType,
+      pathData,
       width: shapeType === "rect" ? radius * 2 * aspect : radius * 2,
       height: radius * 2,
     });
@@ -730,6 +902,17 @@ const SkiaParticle = memo(function SkiaParticle({
         >
           <BlurMask blur={blurSigma} />
         </RRect>
+      </Group>
+    );
+  }
+
+  // Path-based shapes: heart, star, leaf, snowflake
+  if (seed.pathData && Path) {
+    return (
+      <Group transform={circleTransform} opacity={opacity}>
+        <Path path={seed.pathData} color={seed.color}>
+          <BlurMask blur={blurSigma} style="normal" />
+        </Path>
       </Group>
     );
   }
@@ -863,6 +1046,46 @@ const ColorWashField = memo(function ColorWashField({
   );
 });
 
+// ─── Shader background layer (SkSL RuntimeEffect) ───────────
+
+const ShaderBackgroundField = memo(function ShaderBackgroundField({
+  shaderPreset,
+  shaderOpacity,
+  width,
+  height,
+}: {
+  shaderPreset: string;
+  shaderOpacity: number;
+  width: number;
+  height: number;
+}) {
+  // Lazy-compile on first render (cached after first call)
+  const effect = getShaderEffect(shaderPreset);
+
+  // Hooks MUST be called unconditionally (Rules of Hooks) — lightweight no-ops when effect is null
+  const elapsed = useSharedValue(0);
+
+  useFrameCallback((frameInfo) => {
+    "worklet";
+    elapsed.value += (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+  });
+
+  const uniforms = useDerivedValue(() => ({
+    iTime: elapsed.value,
+    iResolution: [width, height],
+  }));
+
+  if (!effect || !Shader || !Rect) return null;
+
+  return (
+    <Group opacity={shaderOpacity}>
+      <Rect x={0} y={0} width={width} height={height}>
+        <Shader source={effect} uniforms={uniforms} />
+      </Rect>
+    </Group>
+  );
+});
+
 // ─── Skia error boundary (fail-safe, not fail-hard) ─────────
 
 class SkiaErrorBoundary extends React.Component<
@@ -896,13 +1119,24 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
     ? EFFECT_CONFIGS[presetId]
     : null;
 
+
   if (!_skiaAvailable || !config || reducedMotion) return null;
 
   const isColorWash = (config as EffectConfig).colorWash === true;
+  const shaderPreset = (config as EffectConfig).shaderPreset;
+  const shaderOpacity = (config as EffectConfig).shaderOpacity ?? 0.15;
 
   return (
     <SkiaErrorBoundary>
       <Canvas style={styles.container} pointerEvents="none">
+        {shaderPreset && (
+          <ShaderBackgroundField
+            shaderPreset={shaderPreset}
+            shaderOpacity={shaderOpacity}
+            width={width}
+            height={height}
+          />
+        )}
         {isColorWash ? (
           <ColorWashField config={config} width={width} height={height} />
         ) : (
