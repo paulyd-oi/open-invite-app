@@ -138,6 +138,7 @@ import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/h
 import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2454,6 +2455,10 @@ export default function EventDetailScreen() {
 
       {/* Full-page particle effect — behind all content */}
       <ThemeEffectLayer themeId={event.themeId} />
+      {/* Atmospheric filter overlay — after particles, before content */}
+      {pageTheme.visualStack?.filter && (
+        <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
+      )}
 
       <KeyboardAwareScrollView
         className="flex-1"

@@ -83,9 +83,9 @@ export interface ThemeVisualStack {
     opacity?: number;       // 0-1, default 0.25
     blendMode?: "normal" | "overlay" | "softLight";  // default "normal"
   };
+  filter?: "film_grain" | "vignette" | "noise" | "color_shift";
   // Future layers (not implemented yet, but schema-reserved):
   // video?: { source: string; opacity?: number };
-  // filter?: "film_grain" | "vignette" | "noise" | "color_shift";
 }
 
 // ─── Background Image Registry ──────────────────────────
@@ -279,7 +279,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139, 92, 246, 0.30)",
     pageTintLight: "rgba(139, 92, 246, 0.14)",
     chipAccent: "#A855F7",
-    visualStack: { shader: "plasma", particles: "disco_pulse", image: { source: "party_night_bg", opacity: 0.15 } },
+    visualStack: { shader: "plasma", particles: "disco_pulse", image: { source: "party_night_bg", opacity: 0.15 }, filter: "color_shift" },
   },
   spring_bloom: {
     label: "Spring Bloom",
@@ -450,7 +450,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(212, 175, 55, 0.16)",
     pageTintLight: "rgba(212, 175, 55, 0.08)",
     chipAccent: "#D4AF37",
-    visualStack: { shader: "shimmer", particles: "golden_sparkle", image: { source: "awards_night_bg", opacity: 0.18 } },
+    visualStack: { shader: "shimmer", particles: "golden_sparkle", image: { source: "awards_night_bg", opacity: 0.18 }, filter: "vignette" },
   },
   date_night: {
     label: "Date Night",
@@ -463,7 +463,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 83, 9, 0.18)",
     pageTintLight: "rgba(180, 83, 9, 0.08)",
     chipAccent: "#B45309",
-    visualStack: { gradient: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "date_night_bg", opacity: 0.18 } },
+    visualStack: { gradient: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "date_night_bg", opacity: 0.18 }, filter: "film_grain" },
   },
   pool_party: {
     label: "Pool Party",
@@ -517,7 +517,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 120, 60, 0.18)",
     pageTintLight: "rgba(180, 120, 60, 0.10)",
     chipAccent: "#B4783C",
-    visualStack: { gradient: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.2 } },
+    visualStack: { gradient: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.2 }, filter: "vignette" },
   },
   movie_night: {
     label: "Movie Night",
@@ -530,7 +530,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100, 116, 139, 0.22)",
     pageTintLight: "rgba(100, 116, 139, 0.10)",
     chipAccent: "#64748B",
-    visualStack: { gradient: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 }, particles: "projector_dust", image: { source: "movie_night_bg", opacity: 0.2 } },
+    visualStack: { gradient: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 }, particles: "projector_dust", image: { source: "movie_night_bg", opacity: 0.2 }, filter: "film_grain" },
   },
 };
 

@@ -46,6 +46,7 @@ import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, 
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
+import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
@@ -1320,6 +1321,12 @@ export default function CreateEventScreen() {
       {selectedThemeId && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
           <ThemeEffectLayer themeId={selectedThemeId} />
+        </View>
+      )}
+      {/* Atmospheric filter overlay — after particles, before content */}
+      {selectedThemeId && previewTheme.visualStack?.filter && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <ThemeFilterLayer filter={previewTheme.visualStack.filter} />
         </View>
       )}
 
