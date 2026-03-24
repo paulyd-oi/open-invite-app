@@ -456,7 +456,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
   },
   beach_day: {
     label: "Beach Day",
-    swatch: "🏖️",
+    swatch: "🌊",
     gradientTint: "rgba(245, 158, 11, 0.22)",
     vibeLabel: "You're Invited",
     backAccent: "#F59E0B",
@@ -469,7 +469,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
   },
   cozy_night: {
     label: "Cozy Night",
-    swatch: "🕯️",
+    swatch: "🫖",
     gradientTint: "rgba(180, 120, 60, 0.22)",
     vibeLabel: "Come Hang",
     backAccent: "#B4783C",
