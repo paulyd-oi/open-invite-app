@@ -24,6 +24,7 @@ export const PREMIUM_THEME_IDS = [
   "winter_glow",
   "game_day",
   "birthday_bash",
+  "party_night",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -188,6 +189,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(255,107,74,0.12)",
     chipAccent: "#FF6B4A",
     effectPreset: "confetti_rain",
+  },
+  party_night: {
+    label: "Party Night",
+    swatch: "🪩",
+    gradientTint: "rgba(139, 92, 246, 0.30)",
+    vibeLabel: "Let's Party",
+    backAccent: "#A855F7",
+    backBgDark: "#0F0520",
+    backBgLight: "#F3E8FF",
+    pageTintDark: "rgba(139, 92, 246, 0.25)",
+    pageTintLight: "rgba(139, 92, 246, 0.12)",
+    chipAccent: "#A855F7",
+    effectPreset: "disco_pulse",
   },
 };
 

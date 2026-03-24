@@ -251,6 +251,29 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.0, 1.0],
     pulsePeriodRange: [0.8, 2.0],
   },
+  disco_pulse: {
+    particleCount: 0,
+    minSize: 0,
+    maxSize: 0,
+    minOpacity: 0.10,
+    maxOpacity: 0.15,
+    minSpeed: 0,
+    maxSpeed: 0,
+    swayAmplitude: 0,
+    minSwayPeriod: 1,
+    maxSwayPeriod: 1,
+    direction: 1,
+    blurSigma: 0,
+    colors: [
+      "rgba(139, 92, 246, 1)",  // purple
+      "rgba(236, 72, 153, 1)",  // pink
+      "rgba(59, 130, 246, 1)",  // blue
+      "rgba(16, 185, 129, 1)",  // teal
+    ],
+    colorWash: true,
+    hueCycleSpeed: 20,
+    washOpacity: 0.12,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
