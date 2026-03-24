@@ -389,6 +389,30 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0,
     maxRotationSpeed: 0,
   },
+  light_rays: {
+    particleCount: 8,
+    minSize: 30,
+    maxSize: 60,
+    minOpacity: 0.06,
+    maxOpacity: 0.15,
+    minSpeed: 2,
+    maxSpeed: 5,
+    swayAmplitude: 40,
+    minSwayPeriod: 8,
+    maxSwayPeriod: 16,
+    direction: -1,
+    blurSigma: 25,
+    colors: [
+      "rgba(255, 215, 0, 1)",   // warm gold
+      "rgba(255, 191, 0, 1)",   // amber
+      "rgba(255, 235, 180, 1)", // soft warm white
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.7, 1.2],
+    pulsePeriodRange: [4, 8],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;

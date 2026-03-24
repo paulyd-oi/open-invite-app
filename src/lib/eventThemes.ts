@@ -126,7 +126,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(156,124,99,0.20)",
     pageTintLight: "rgba(156,124,99,0.10)",
     chipAccent: "#9C7C63",
-    effectPreset: "ambient_dust",
+    effectPreset: "light_rays",
   },
 
   // ── Premium (Pro) ──
