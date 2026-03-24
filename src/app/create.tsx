@@ -1459,6 +1459,34 @@ export default function CreateEventScreen() {
                 </View>
               );
             })}
+            {/* Create My Theme CTA — Pro-gated */}
+            <Pressable
+              onPress={() => {
+                if (!userIsPro) {
+                  openPaywall?.({ source: "custom_theme_builder" });
+                  return;
+                }
+                Haptics.selectionAsync();
+                router.push("/theme-builder");
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+              }}
+            >
+              <Sparkles size={14} color={glassTertiary} />
+              <Text style={{ fontSize: 12, fontWeight: "600", color: glassSecondary }}>
+                Create My Theme
+              </Text>
+              {!userIsPro && <Lock size={10} color={glassTertiary} />}
+            </Pressable>
             <View style={{ height: 12 }} />
           </Animated.View>
 
