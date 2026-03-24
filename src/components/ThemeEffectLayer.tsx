@@ -33,6 +33,8 @@ let Canvas: any = null;
 let Circle: any = null;
 let Group: any = null;
 let BlurMask: any = null;
+let RRect: any = null;
+let Rect: any = null;
 let _skiaAvailable = false;
 try {
   const Skia = require("@shopify/react-native-skia");
@@ -40,6 +42,8 @@ try {
   Circle = Skia.Circle;
   Group = Skia.Group;
   BlurMask = Skia.BlurMask;
+  RRect = Skia.RRect;
+  Rect = Skia.Rect;
   _skiaAvailable = !!(Canvas && Circle && Group && BlurMask);
 } catch {
   // Skia native module not available — particles will not render
@@ -70,6 +74,21 @@ interface EffectConfig {
   pulseRange?: [number, number];
   /** Pulse cycle period range in seconds */
   pulsePeriodRange?: [number, number];
+  /** Particle shape: circle (default), rect, or mixed */
+  shape?: "circle" | "rect" | "mixed";
+  /** Rotation speed range in radians/sec (0 = no rotation) */
+  minRotationSpeed?: number;
+  maxRotationSpeed?: number;
+  /** Aspect ratio for rect particles (width/height, default 1) */
+  rectAspect?: number;
+  /** If true, particles don't move vertically — static with fade only */
+  staticPosition?: boolean;
+  /** If true, render as full-screen color wash instead of particles */
+  colorWash?: boolean;
+  /** Color wash: hue cycle speed in degrees/sec */
+  hueCycleSpeed?: number;
+  /** Color wash: base opacity */
+  washOpacity?: number;
 }
 
 // ─── Effect presets ──────────────────────────────────────────
@@ -179,6 +198,16 @@ interface ParticleSeed {
   pulsePeriod: number;
   /** Pulse: phase offset in radians */
   pulsePhase: number;
+  /** Current rotation angle in radians */
+  rotation: number;
+  /** Rotation speed in radians/sec */
+  rotationSpeed: number;
+  /** Particle shape */
+  shape: "circle" | "rect";
+  /** Width for rect particles */
+  width: number;
+  /** Height for rect particles */
+  height: number;
 }
 
 function seedParticles(config: EffectConfig, width: number, height: number): ParticleSeed[] {
@@ -196,10 +225,19 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
       const [tMin, tMax] = config.pulsePeriodRange!;
       pulsePeriod = tMin + r() * (tMax - tMin);
     }
+
+    // Shape and rotation seeding
+    const shapeType = config.shape === "mixed"
+      ? (r() > 0.5 ? "circle" : "rect")
+      : (config.shape ?? "circle");
+    const radius = config.minSize + r() * (config.maxSize - config.minSize);
+    const aspect = config.rectAspect ?? 1;
+    const rotSpeed = (config.minRotationSpeed ?? 0) + r() * ((config.maxRotationSpeed ?? 0) - (config.minRotationSpeed ?? 0));
+
     particles.push({
       x: r() * width,
       y: r() * height,
-      radius: config.minSize + r() * (config.maxSize - config.minSize),
+      radius,
       opacity: baseOpacity,
       speed: config.minSpeed + r() * (config.maxSpeed - config.minSpeed),
       swayAmplitude: (0.4 + r() * 0.6) * config.swayAmplitude,
@@ -209,6 +247,11 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
       pulseAmp,
       pulsePeriod,
       pulsePhase: r() * Math.PI * 2,
+      rotation: r() * Math.PI * 2,
+      rotationSpeed: (r() > 0.5 ? 1 : -1) * rotSpeed,
+      shape: shapeType,
+      width: shapeType === "rect" ? radius * 2 * aspect : radius * 2,
+      height: radius * 2,
     });
   }
   return particles;
@@ -251,16 +294,49 @@ const SkiaParticle = memo(function SkiaParticle({
     return Math.max(0, p.opacity + pulse * p.pulseAmp);
   });
 
+  const rotation = useDerivedValue(() => {
+    return particles.value[index]?.rotation ?? 0;
+  });
+
+  // CRITICAL: Full transform must be a derived value for Skia to animate per-frame.
+  // Dereferencing .value in JSX evaluates once at render, not per-frame.
+  const rectTransform = useDerivedValue(() => [
+    { translateX: cx.value },
+    { translateY: cy.value },
+    { rotate: rotation.value },
+    { translateX: -seed.width / 2 },
+    { translateY: -seed.height / 2 },
+  ]);
+
+  const circleTransform = useDerivedValue(() => [
+    { translateX: cx.value },
+    { translateY: cy.value },
+    { rotate: rotation.value },
+  ]);
+
+  if (seed.shape === "rect" && RRect) {
+    return (
+      <Group transform={rectTransform} opacity={opacity}>
+        <RRect
+          x={0}
+          y={0}
+          width={seed.width}
+          height={seed.height}
+          r={seed.width * 0.15}
+          color={seed.color}
+        >
+          <BlurMask blur={blurSigma} />
+        </RRect>
+      </Group>
+    );
+  }
+
   return (
-    <Circle
-      cx={cx}
-      cy={cy}
-      r={seed.radius}
-      color={seed.color}
-      opacity={opacity}
-    >
-      <BlurMask blur={blurSigma} />
-    </Circle>
+    <Group transform={circleTransform} opacity={opacity}>
+      <Circle cx={0} cy={0} r={seed.radius} color={seed.color}>
+        <BlurMask blur={blurSigma} />
+      </Circle>
+    </Group>
   );
 });
 
@@ -289,16 +365,20 @@ const ParticleField = memo(function ParticleField({
     elapsed.value += dt;
 
     const updated = particles.value.map((p) => {
-      let newY = p.y + p.speed * config.direction * dt;
+      let newY = p.y;
 
-      // Respawn at opposite edge when leaving bounds
-      if (config.direction === 1 && newY > height + p.radius * 2) {
-        newY = -p.radius * 2;
-      } else if (config.direction === -1 && newY < -p.radius * 2) {
-        newY = height + p.radius * 2;
+      if (!config.staticPosition) {
+        newY = p.y + p.speed * config.direction * dt;
+
+        // Respawn at opposite edge when leaving bounds
+        if (config.direction === 1 && newY > height + p.radius * 2) {
+          newY = -p.radius * 2;
+        } else if (config.direction === -1 && newY < -p.radius * 2) {
+          newY = height + p.radius * 2;
+        }
       }
 
-      return { ...p, y: newY };
+      return { ...p, y: newY, rotation: p.rotation + p.rotationSpeed * dt };
     });
 
     particles.value = updated;
@@ -316,6 +396,66 @@ const ParticleField = memo(function ParticleField({
           blurSigma={config.blurSigma}
         />
       ))}
+    </Group>
+  );
+});
+
+// ─── Color wash field (for disco_pulse-style effects) ────────
+
+/** Parse "rgba(r,g,b,a)" to [r,g,b] — called once at mount, not in worklet */
+function parseRgba(rgba: string): [number, number, number] {
+  const m = rgba.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  return m ? [+m[1], +m[2], +m[3]] : [128, 128, 128];
+}
+
+const ColorWashField = memo(function ColorWashField({
+  config,
+  width,
+  height,
+}: {
+  config: EffectConfig;
+  width: number;
+  height: number;
+}) {
+  const elapsed = useSharedValue(0);
+  // Pre-parse colors to RGB arrays for worklet interpolation
+  const parsedColors = useMemo(
+    () => config.colors.map(parseRgba),
+    [config.colors]
+  );
+  const cycleDuration = 360 / (config.hueCycleSpeed ?? 20); // seconds per full cycle
+
+  useFrameCallback((frameInfo) => {
+    "worklet";
+    const dt = (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+    elapsed.value += dt;
+  });
+
+  // Smoothly interpolate between adjacent colors
+  const currentColor = useDerivedValue(() => {
+    const n = parsedColors.length;
+    if (n === 0) return "rgba(128,128,128,1)";
+    const pos = ((elapsed.value % cycleDuration) / cycleDuration) * n;
+    const idx = Math.floor(pos) % n;
+    const nextIdx = (idx + 1) % n;
+    const t = pos - Math.floor(pos); // 0..1 blend factor
+    const [r1, g1, b1] = parsedColors[idx];
+    const [r2, g2, b2] = parsedColors[nextIdx];
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgba(${r},${g},${b},1)`;
+  });
+
+  const washOpacity = config.washOpacity ?? 0.12;
+
+  if (!Rect) return null;
+
+  return (
+    <Group opacity={washOpacity}>
+      <Rect x={0} y={0} width={width} height={height} color={currentColor}>
+        <BlurMask blur={40} />
+      </Rect>
     </Group>
   );
 });
@@ -355,10 +495,16 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
 
   if (!_skiaAvailable || !config || reducedMotion) return null;
 
+  const isColorWash = (config as EffectConfig).colorWash === true;
+
   return (
     <SkiaErrorBoundary>
       <Canvas style={styles.container} pointerEvents="none">
-        <ParticleField config={config} width={width} height={height} />
+        {isColorWash ? (
+          <ColorWashField config={config} width={width} height={height} />
+        ) : (
+          <ParticleField config={config} width={width} height={height} />
+        )}
       </Canvas>
     </SkiaErrorBoundary>
   );
