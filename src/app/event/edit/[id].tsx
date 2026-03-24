@@ -24,6 +24,7 @@ import {
   ListChecks,
   X,
   Plus,
+  Crown,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -53,7 +54,7 @@ import {
   getInvalidateAfterEventDelete,
 } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
-import { ALL_THEME_IDS, EVENT_THEMES, isPremiumTheme, isValidThemeId, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, isValidThemeId, THEME_PACKS, type ThemeId } from "@/lib/eventThemes";
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { Lock } from "@/ui/icons";
@@ -398,62 +399,82 @@ export default function EditEventScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Event Theme Picker V1 */}
+          {/* Event Theme Picker — Curated Collections */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 8, marginTop: 4 }}>Event Theme</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4, marginTop: 4 }}>Event Theme</Text>
             {hasPreservedPremiumTheme && (
               <Text style={{ color: colors.textTertiary, fontSize: 12, marginBottom: 8, lineHeight: 16 }}>
                 This event keeps its premium theme from your previous Pro access. You can keep this look or switch to a free theme.
               </Text>
             )}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
-                {ALL_THEME_IDS.map((tid) => {
-                  const t = EVENT_THEMES[tid];
-                  const selected = selectedThemeId === tid;
-                  const premium = isPremiumTheme(tid);
-                  // Preserved: this is the event's original premium theme, kept after downgrade
-                  const isPreserved = premium && !userIsPro && tid === originalThemeId;
-                  const locked = premium && !userIsPro && !isPreserved;
-                  return (
-                    <Pressable
-                      key={tid}
-                      onPress={() => {
-                        if (locked) {
-                          openPaywall?.({ source: "theme_picker" });
-                          return;
-                        }
-                        Haptics.selectionAsync();
-                        setSelectedThemeId(selected ? null : tid);
-                      }}
-                      style={{
-                        width: 72,
-                        alignItems: "center",
-                        paddingVertical: 10,
-                        paddingHorizontal: 4,
-                        borderRadius: 14,
-                        borderWidth: selected ? 2 : 1,
-                        borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                        backgroundColor: selected
-                          ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
-                          : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
-                        opacity: locked ? 0.65 : 1,
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
-                      <Text style={{ fontSize: 10, fontWeight: "600", color: selected ? t.backAccent : colors.textSecondary, textAlign: "center" }} numberOfLines={1}>
-                        {t.label}
-                      </Text>
-                      {locked && (
-                        <View style={{ position: "absolute", top: 4, right: 4 }}>
-                          <Lock size={10} color={colors.textTertiary} />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+            {THEME_PACKS.map((pack, packIdx) => {
+              const isFirstPremium = pack.premium && (packIdx === 0 || !THEME_PACKS[packIdx - 1].premium);
+              return (
+                <View key={pack.label}>
+                  {/* Premium section divider — shown once before the first premium pack */}
+                  {isFirstPremium && (
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 2, paddingHorizontal: 4 }}>
+                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
+                      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8 }}>
+                        <Crown size={10} color={colors.textTertiary} />
+                        <Text style={{ fontSize: 10, fontWeight: "600", color: colors.textTertiary, marginLeft: 3, letterSpacing: 0.5 }}>PRO</Text>
+                      </View>
+                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textTertiary, marginTop: 8, marginBottom: 4, paddingLeft: 4 }}>{pack.label}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
+                    <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
+                      {pack.ids.map((tid) => {
+                        const t = EVENT_THEMES[tid];
+                        const selected = selectedThemeId === tid;
+                        const premium = isPremiumTheme(tid);
+                        // Preserved: this is the event's original premium theme, kept after downgrade
+                        const isPreserved = premium && !userIsPro && tid === originalThemeId;
+                        const locked = premium && !userIsPro && !isPreserved;
+                        return (
+                          <Pressable
+                            key={tid}
+                            onPress={() => {
+                              if (locked) {
+                                openPaywall?.({ source: "theme_picker" });
+                                return;
+                              }
+                              Haptics.selectionAsync();
+                              setSelectedThemeId(selected ? null : tid);
+                            }}
+                            style={{
+                              width: 72,
+                              alignItems: "center",
+                              paddingVertical: 10,
+                              paddingHorizontal: 4,
+                              borderRadius: 14,
+                              borderWidth: selected ? 2 : 1,
+                              borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                              backgroundColor: selected
+                                ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
+                                : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
+                              opacity: locked ? 0.65 : 1,
+                            }}
+                          >
+                            <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: "600", color: selected ? t.backAccent : colors.textSecondary, textAlign: "center" }} numberOfLines={1}>
+                              {t.label}
+                            </Text>
+                            {locked && (
+                              <View style={{ position: "absolute", top: 4, right: 4 }}>
+                                <Lock size={10} color={colors.textTertiary} />
+                              </View>
+                            )}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              );
+            })}
+            <View style={{ height: 12 }} />
           </Animated.View>
 
           {/* Title */}

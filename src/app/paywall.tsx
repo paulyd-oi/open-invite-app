@@ -350,40 +350,45 @@ export default function PaywallScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
-      {/* Header */}
-      <LinearGradient
-        colors={[themeColor, `${themeColor}CC`]}
-        style={{
-          paddingTop: 60,
-          paddingBottom: 28,
-          paddingHorizontal: 20,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-        }}
-      >
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.canGoBack() ? router.back() : router.replace("/");
+      {/* Header — frosted atmospheric gradient */}
+      <View style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: "hidden" }}>
+        <LinearGradient
+          colors={isDark ? ["#1a1a2e", `${themeColor}40`, "#0f0f23"] : [`${themeColor}18`, `${themeColor}30`, `${themeColor}10`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            paddingTop: 60,
+            paddingBottom: 28,
+            paddingHorizontal: 20,
           }}
-          className="absolute top-14 right-5 w-8 h-8 rounded-full bg-white/20 items-center justify-center"
-          style={{ zIndex: 10 }}
         >
-          <X size={20} color="#fff" />
-        </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.canGoBack() ? router.back() : router.replace("/");
+            }}
+            className="absolute top-14 right-5 w-8 h-8 rounded-full items-center justify-center"
+            style={{ zIndex: 10, backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}
+          >
+            <X size={20} color={isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.4)"} />
+          </Pressable>
 
-        <Animated.View entering={FadeInDown.delay(100)} className="items-center">
-          <View className="w-20 h-20 rounded-full bg-white/20 items-center justify-center mb-4">
-            <Crown size={40} color="#fff" />
-          </View>
-          <Text className="text-white text-3xl font-bold text-center">
-            Upgrade to Pro
-          </Text>
-          <Text className="text-white/80 text-center mt-2 text-base">
-            Unlock unlimited hosting and organizer tools
-          </Text>
-        </Animated.View>
-      </LinearGradient>
+          <Animated.View entering={FadeInDown.delay(100)} className="items-center">
+            <View
+              className="w-20 h-20 rounded-full items-center justify-center mb-4"
+              style={{ backgroundColor: `${themeColor}25` }}
+            >
+              <Crown size={40} color={themeColor} />
+            </View>
+            <Text style={{ color: isDark ? "#FFFFFF" : colors.text }} className="text-3xl font-bold text-center">
+              Upgrade to Pro
+            </Text>
+            <Text style={{ color: isDark ? "rgba(255,255,255,0.6)" : colors.textSecondary }} className="text-center mt-2 text-base">
+              Premium themes, effects, and event atmosphere
+            </Text>
+          </Animated.View>
+        </LinearGradient>
+      </View>
 
       <ScrollView
         className="flex-1"
@@ -396,11 +401,21 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(150)}>
           <Pressable
             onPress={() => { setSelectedPlan("lifetime"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            className="rounded-2xl p-4 mb-3"
+            className="rounded-2xl p-4 mb-3 overflow-hidden"
             style={{
-              backgroundColor: selectedPlan === "lifetime" ? `${themeColor}15` : colors.surface,
-              borderWidth: 2,
-              borderColor: selectedPlan === "lifetime" ? themeColor : colors.border,
+              backgroundColor: selectedPlan === "lifetime"
+                ? isDark ? `${themeColor}18` : `${themeColor}0C`
+                : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              borderWidth: selectedPlan === "lifetime" ? 1.5 : 1,
+              borderColor: selectedPlan === "lifetime"
+                ? `${themeColor}80`
+                : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              ...(selectedPlan === "lifetime" && {
+                shadowColor: themeColor,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+              }),
             }}
           >
             {/* Badge */}
@@ -457,11 +472,21 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(200)}>
           <Pressable
             onPress={() => { setSelectedPlan("yearly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            className="rounded-2xl p-4 mb-3"
+            className="rounded-2xl p-4 mb-3 overflow-hidden"
             style={{
-              backgroundColor: selectedPlan === "yearly" ? `${themeColor}15` : colors.surface,
-              borderWidth: 2,
-              borderColor: selectedPlan === "yearly" ? themeColor : colors.border,
+              backgroundColor: selectedPlan === "yearly"
+                ? isDark ? `${themeColor}18` : `${themeColor}0C`
+                : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              borderWidth: selectedPlan === "yearly" ? 1.5 : 1,
+              borderColor: selectedPlan === "yearly"
+                ? `${themeColor}80`
+                : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              ...(selectedPlan === "yearly" && {
+                shadowColor: themeColor,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+              }),
             }}
           >
             <View className="flex-row items-center justify-between">
@@ -506,11 +531,21 @@ export default function PaywallScreen() {
         <Animated.View entering={FadeInUp.delay(250)}>
           <Pressable
             onPress={() => { setSelectedPlan("monthly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            className="rounded-2xl p-4 mb-6"
+            className="rounded-2xl p-4 mb-6 overflow-hidden"
             style={{
-              backgroundColor: selectedPlan === "monthly" ? `${themeColor}15` : colors.surface,
-              borderWidth: 2,
-              borderColor: selectedPlan === "monthly" ? themeColor : colors.border,
+              backgroundColor: selectedPlan === "monthly"
+                ? isDark ? `${themeColor}18` : `${themeColor}0C`
+                : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              borderWidth: selectedPlan === "monthly" ? 1.5 : 1,
+              borderColor: selectedPlan === "monthly"
+                ? `${themeColor}80`
+                : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              ...(selectedPlan === "monthly" && {
+                shadowColor: themeColor,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+              }),
             }}
           >
             <View className="flex-row items-center justify-between">
@@ -543,9 +578,19 @@ export default function PaywallScreen() {
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-3 ml-1">
             COMPARE PLANS
           </Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <View
+            className="rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+            }}
+          >
             {/* Header row */}
-            <View className="flex-row py-3 px-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
+            <View
+              className="flex-row py-3 px-4"
+              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}
+            >
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="font-semibold">Feature</Text>
               </View>
@@ -565,9 +610,9 @@ export default function PaywallScreen() {
                 <View
                   className="px-4 py-2"
                   style={{
-                    backgroundColor: isDark ? "#1A1A1C" : "#FAFAFA",
+                    backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
                     borderTopWidth: catIdx > 0 ? 1 : 0,
-                    borderTopColor: colors.border,
+                    borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
                   }}
                 >
                   <Text style={{ color: colors.textTertiary }} className="text-xs font-semibold uppercase">
@@ -578,7 +623,10 @@ export default function PaywallScreen() {
                   <View
                     key={f.name}
                     className="flex-row py-3 px-4 items-center"
-                    style={{ borderTopWidth: 1, borderTopColor: colors.border }}
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+                    }}
                   >
                     <View className="flex-1 flex-row items-center">
                       {f.icon}
@@ -611,9 +659,13 @@ export default function PaywallScreen() {
         {!revenueCatEnabled && (
           <View
             className="rounded-2xl p-4 mt-6"
-            style={{ backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B" }}
+            style={{
+              backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(245,158,11,0.3)" : "rgba(245,158,11,0.25)",
+            }}
           >
-            <Text className="text-amber-800 text-center">
+            <Text style={{ color: isDark ? "#FBBF24" : "#92400E" }} className="text-center">
               Payments are being set up. Please check back soon!
             </Text>
           </View>
@@ -621,18 +673,27 @@ export default function PaywallScreen() {
       </ScrollView>
 
       {/* ── Bottom CTA ──────────────────────────────────────────── */}
-      <SafeAreaView edges={["bottom"]} style={{ backgroundColor: colors.background }}>
-        <View className="px-5 pb-4">
+      <SafeAreaView
+        edges={["bottom"]}
+        style={{
+          backgroundColor: colors.background,
+          borderTopWidth: 1,
+          borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+        }}
+      >
+        <View className="px-5 pb-4 pt-3">
           <Pressable
             onPress={handlePurchase}
             disabled={isPurchasing || !revenueCatEnabled || !getPackageForPlan()}
-            className="rounded-2xl py-4 items-center"
+            className="rounded-2xl py-4 items-center overflow-hidden"
             style={{
-              backgroundColor: isPurchasing || !revenueCatEnabled ? colors.border : themeColor,
-              shadowColor: themeColor,
+              backgroundColor: isPurchasing || !revenueCatEnabled
+                ? isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
+                : themeColor,
+              shadowColor: isPurchasing || !revenueCatEnabled ? "transparent" : themeColor,
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
+              shadowOpacity: 0.25,
+              shadowRadius: 16,
             }}
           >
             {isPurchasing ? (
@@ -656,7 +717,7 @@ export default function PaywallScreen() {
 
             {Platform.OS === "ios" && (
               <>
-                <Text style={{ color: colors.border }} className="py-2">|</Text>
+                <Text style={{ color: colors.textTertiary }} className="py-2">|</Text>
                 <Pressable
                   onPress={handleRedeemOfferCode}
                   disabled={isPurchasing}

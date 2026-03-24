@@ -41,6 +41,23 @@ export const PREMIUM_THEME_IDS = [
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
 export type ThemeId = (typeof ALL_THEME_IDS)[number];
 
+// ─── Curated Theme Packs (picker merchandising) ──────────
+
+export interface ThemePack {
+  label: string;
+  premium: boolean;
+  ids: readonly ThemeId[];
+}
+
+export const THEME_PACKS: readonly ThemePack[] = [
+  { label: "Essentials", premium: false, ids: BASIC_THEME_IDS },
+  { label: "Celebration", premium: true, ids: ["birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day"] },
+  { label: "Romance", premium: true, ids: ["valentines", "romance_elegant"] },
+  { label: "Spring", premium: true, ids: ["spring_bloom", "garden_party", "spring_brunch", "easter"] },
+  { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau"] },
+  { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night"] },
+] as const;
+
 // ─── Theme Tokens ────────────────────────────────────────
 
 export interface EventThemeTokens {

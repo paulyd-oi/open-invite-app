@@ -250,7 +250,15 @@ export function PaywallModal({
           >
             <View
               className="mx-4 rounded-3xl overflow-hidden"
-              style={{ marginBottom: Math.max(insets.bottom, 8) + 8 }}
+              style={{
+                marginBottom: Math.max(insets.bottom, 8) + 8,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.08)",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.4,
+                shadowRadius: 24,
+              }}
             >
               {/* Dark gradient base */}
               <LinearGradient
@@ -315,17 +323,21 @@ export function PaywallModal({
                       key={index}
                       entering={FadeInUp.delay(250 + index * 50)}
                       className="flex-row items-center py-3 px-4 rounded-xl mb-2"
-                      style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.04)",
+                        borderWidth: 1,
+                        borderColor: "rgba(255,255,255,0.06)",
+                      }}
                     >
                       <View
                         className="w-6 h-6 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: `${themeColor}30` }}
+                        style={{ backgroundColor: `${themeColor}25` }}
                       >
                         <Check size={14} color={themeColor} />
                       </View>
                       <Text
                         className="flex-1 text-base"
-                        style={{ color: "#FFFFFF" }}
+                        style={{ color: "rgba(255,255,255,0.9)" }}
                       >
                         {bullet}
                       </Text>
@@ -338,8 +350,14 @@ export function PaywallModal({
                   {/* Primary CTA */}
                   <Pressable
                     onPress={handlePrimary}
-                    className="py-4 rounded-2xl flex-row items-center justify-center"
-                    style={{ backgroundColor: themeColor }}
+                    className="py-4 rounded-2xl flex-row items-center justify-center overflow-hidden"
+                    style={{
+                      backgroundColor: themeColor,
+                      shadowColor: themeColor,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 16,
+                    }}
                   >
                     <Crown size={20} color="#FFFFFF" />
                     <Text className="text-white text-lg font-semibold ml-2">
@@ -354,7 +372,7 @@ export function PaywallModal({
                   >
                     <Text
                       className="text-base"
-                      style={{ color: "rgba(255,255,255,0.5)" }}
+                      style={{ color: "rgba(255,255,255,0.45)" }}
                     >
                       {copy.secondaryCta}
                     </Text>
