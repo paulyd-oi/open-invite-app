@@ -29,7 +29,6 @@ import {
   RotateCcw,
   Palette,
   Users,
-  TrendingUp,
   Flame,
   Ticket,
 } from "@/ui/icons";
@@ -298,7 +297,7 @@ export default function SubscriptionScreen() {
   // Get source-aware messaging
   const getSourceCopy = () => {
     switch (source) {
-      case "soft_limit_active_events":
+      case "premium_theme_upsell":
         return {
           headline: "Unlock premium themes",
           subhead: "Make every event feel special with premium collections and effects.",
@@ -358,13 +357,6 @@ export default function SubscriptionScreen() {
       title: "Planning",
       features: [
         { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
-        { name: "Recurring Events", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
-      ],
-    },
-    {
-      title: "Insights",
-      features: [
-        { name: "Analytics", icon: <TrendingUp size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],
     },
   ];

@@ -12,7 +12,7 @@ export type UpgradeTrigger =
   | "poll_attempt"
   | "nudge_attempt"
   | "templates_attempt"
-  | "soft_limit_active_events";
+  | "premium_theme_upsell";
 
 /**
  * Check if a specific trigger has been shown this session

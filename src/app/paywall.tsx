@@ -21,7 +21,6 @@ import {
   CalendarDays,
   Palette,
   Users,
-  TrendingUp,
   Lock,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -308,13 +307,6 @@ export default function PaywallScreen() {
       title: "Planning",
       features: [
         { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
-        { name: "Recurring Events", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
-      ],
-    },
-    {
-      title: "Insights",
-      features: [
-        { name: "Analytics", icon: <TrendingUp size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],
     },
   ];
