@@ -697,6 +697,60 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.3, 1.0],
     pulsePeriodRange: [1.5, 3.0],
   },
+  // ── Wave A effects ──
+  golden_sparkle: {
+    particleCount: 18,
+    minSize: 1.5,
+    maxSize: 3,
+    minOpacity: 0.0,
+    maxOpacity: 0.6,
+    minSpeed: 0,
+    maxSpeed: 0,
+    swayAmplitude: 0,
+    minSwayPeriod: 1,
+    maxSwayPeriod: 2,
+    direction: 1,
+    blurSigma: 1.0,
+    colors: [
+      "rgba(212, 175, 55, 1)",   // classic gold
+      "rgba(255, 215, 0, 1)",    // bright gold
+      "rgba(255, 235, 180, 1)",  // warm champagne
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    staticPosition: true,
+    pulseRange: [0.0, 1.0],
+    pulsePeriodRange: [1.5, 3.5],
+    shaderPreset: "shimmer",
+    shaderOpacity: 0.08,
+  },
+  candlelight: {
+    particleCount: 10,
+    minSize: 8,
+    maxSize: 20,
+    minOpacity: 0.05,
+    maxOpacity: 0.12,
+    minSpeed: 2,
+    maxSpeed: 5,
+    swayAmplitude: 15,
+    minSwayPeriod: 6,
+    maxSwayPeriod: 12,
+    direction: -1,
+    blurSigma: 14,
+    colors: [
+      "rgba(255, 183, 77, 1)",   // warm amber
+      "rgba(255, 152, 0, 1)",    // deep amber
+      "rgba(255, 224, 178, 1)",  // soft candlelight
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.6, 1.1],
+    pulsePeriodRange: [3, 7],
+    shaderPreset: "bokeh",
+    shaderOpacity: 0.06,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;

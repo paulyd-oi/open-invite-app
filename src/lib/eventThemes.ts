@@ -1,7 +1,7 @@
 /**
  * Event Themes V1 — SSOT for event card theme catalog.
  *
- * 5 free essentials + 17 premium (Pro) themes across themed packs.
+ * 5 free essentials + 21 premium (Pro) themes across themed packs.
  * Each theme defines minimal styling tokens for flip card + page chrome.
  *
  * Priority: explicit event.themeId > neutral fallback.
@@ -36,6 +36,11 @@ export const PREMIUM_THEME_IDS = [
   "bonfire_night",
   "luau",
   "fourth_of_july",
+  // Wave A
+  "new_years_eve",
+  "awards_night",
+  "date_night",
+  "pool_party",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -51,10 +56,10 @@ export interface ThemePack {
 
 export const THEME_PACKS: readonly ThemePack[] = [
   { label: "Essentials", premium: false, ids: BASIC_THEME_IDS },
-  { label: "Celebration", premium: true, ids: ["birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day"] },
-  { label: "Romance", premium: true, ids: ["valentines", "romance_elegant"] },
+  { label: "Celebration", premium: true, ids: ["birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day", "new_years_eve", "awards_night"] },
+  { label: "Romance", premium: true, ids: ["valentines", "romance_elegant", "date_night"] },
   { label: "Spring", premium: true, ids: ["spring_bloom", "garden_party", "spring_brunch", "easter"] },
-  { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau"] },
+  { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau", "pool_party"] },
   { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night"] },
 ] as const;
 
@@ -374,6 +379,60 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(60, 59, 110, 0.12)",
     chipAccent: "#B22234",
     effectPreset: "patriot_stars",
+  },
+
+  // ── Wave A Premium ──
+  new_years_eve: {
+    label: "New Year's Eve",
+    swatch: "🥂",
+    gradientTint: "rgba(255, 215, 0, 0.22)",
+    vibeLabel: "Happy New Year!",
+    backAccent: "#FFD700",
+    backBgDark: "#0A0A18",
+    backBgLight: "#FFF9E6",
+    pageTintDark: "rgba(255, 215, 0, 0.18)",
+    pageTintLight: "rgba(255, 215, 0, 0.08)",
+    chipAccent: "#FFD700",
+    effectPreset: "firework_burst",
+  },
+  awards_night: {
+    label: "Awards Night",
+    swatch: "🏆",
+    gradientTint: "rgba(212, 175, 55, 0.20)",
+    vibeLabel: "You're Invited",
+    backAccent: "#D4AF37",
+    backBgDark: "#0E0C08",
+    backBgLight: "#FBF6EA",
+    pageTintDark: "rgba(212, 175, 55, 0.16)",
+    pageTintLight: "rgba(212, 175, 55, 0.08)",
+    chipAccent: "#D4AF37",
+    effectPreset: "golden_sparkle",
+  },
+  date_night: {
+    label: "Date Night",
+    swatch: "🕯️",
+    gradientTint: "rgba(180, 83, 9, 0.22)",
+    vibeLabel: "You're Invited",
+    backAccent: "#B45309",
+    backBgDark: "#1A120A",
+    backBgLight: "#FDF4E8",
+    pageTintDark: "rgba(180, 83, 9, 0.18)",
+    pageTintLight: "rgba(180, 83, 9, 0.08)",
+    chipAccent: "#B45309",
+    effectPreset: "candlelight",
+  },
+  pool_party: {
+    label: "Pool Party",
+    swatch: "🏊",
+    gradientTint: "rgba(6, 182, 212, 0.28)",
+    vibeLabel: "Dive In!",
+    backAccent: "#06B6D4",
+    backBgDark: "#0A2530",
+    backBgLight: "#ECFEFF",
+    pageTintDark: "rgba(6, 182, 212, 0.26)",
+    pageTintLight: "rgba(6, 182, 212, 0.14)",
+    chipAccent: "#06B6D4",
+    effectPreset: "rising_bubbles",
   },
 };
 
