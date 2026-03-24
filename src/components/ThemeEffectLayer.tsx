@@ -177,6 +177,32 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.70, 1.15],
     pulsePeriodRange: [2.2, 4.5],
   },
+  confetti_rain: {
+    particleCount: 30,
+    minSize: 3,
+    maxSize: 7,
+    minOpacity: 0.7,
+    maxOpacity: 0.95,
+    minSpeed: 50,
+    maxSpeed: 90,
+    swayAmplitude: 25,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 4,
+    direction: 1,
+    blurSigma: 0.5,
+    colors: [
+      "rgba(239, 68, 68, 1)",     // red
+      "rgba(59, 130, 246, 1)",    // blue
+      "rgba(250, 204, 21, 1)",    // yellow
+      "rgba(34, 197, 94, 1)",     // green
+      "rgba(236, 72, 153, 1)",    // pink
+      "rgba(249, 115, 22, 1)",    // orange
+    ],
+    shape: "mixed",
+    minRotationSpeed: 1.5,
+    maxRotationSpeed: 4.0,
+    rectAspect: 0.5,
+  },
   falling_leaves: {
     particleCount: 18,
     minSize: 5,

@@ -186,6 +186,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255,107,74,0.24)",
     pageTintLight: "rgba(255,107,74,0.12)",
     chipAccent: "#FF6B4A",
+    effectPreset: "confetti_rain",
   },
 };
 
