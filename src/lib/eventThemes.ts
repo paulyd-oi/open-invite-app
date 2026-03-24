@@ -26,6 +26,7 @@ export const PREMIUM_THEME_IDS = [
   "birthday_bash",
   "party_night",
   "spring_bloom",
+  "romance_elegant",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -216,6 +217,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(34, 197, 94, 0.10)",
     chipAccent: "#22C55E",
     effectPreset: "cherry_blossom",
+  },
+  romance_elegant: {
+    label: "Romance",
+    swatch: "🌹",
+    gradientTint: "rgba(190, 18, 60, 0.22)",
+    vibeLabel: "You're Invited",
+    backAccent: "#BE123C",
+    backBgDark: "#1A0A10",
+    backBgLight: "#FFF1F2",
+    pageTintDark: "rgba(190, 18, 60, 0.20)",
+    pageTintLight: "rgba(190, 18, 60, 0.10)",
+    chipAccent: "#BE123C",
+    effectPreset: "rose_petals",
   },
 };
 

@@ -321,6 +321,28 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.5,
     maxRotationSpeed: 1.5,
   },
+  rose_petals: {
+    particleCount: 14,
+    minSize: 6,
+    maxSize: 13,
+    minOpacity: 0.4,
+    maxOpacity: 0.75,
+    minSpeed: 10,
+    maxSpeed: 20,
+    swayAmplitude: 25,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 9,
+    direction: 1,
+    blurSigma: 2.0,
+    colors: [
+      "rgba(190, 18, 60, 1)",   // deep rose
+      "rgba(220, 38, 38, 1)",   // crimson
+      "rgba(136, 19, 55, 1)",   // burgundy
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.3,
+    maxRotationSpeed: 1.0,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
