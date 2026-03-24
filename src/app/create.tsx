@@ -41,8 +41,9 @@ import {
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
-import { ALL_THEME_IDS, BASIC_THEME_IDS, EVENT_THEMES, isPremiumTheme, type ThemeId } from "@/lib/eventThemes";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import { ALL_THEME_IDS, BASIC_THEME_IDS, EVENT_THEMES, isPremiumTheme, resolveEventTheme, type ThemeId } from "@/lib/eventThemes";
+import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -501,6 +502,23 @@ export default function CreateEventScreen() {
 
   // Event Themes V1 state
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
+
+  // Live theme preview — derive background color from selected theme
+  const previewTheme = resolveEventTheme(selectedThemeId);
+  const previewBg = selectedThemeId
+    ? (isDark ? previewTheme.backBgDark : previewTheme.backBgLight)
+    : colors.background;
+  const previewBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: withTiming(previewBg, { duration: 350 }),
+  }), [previewBg]);
+
+  // Glass treatment for form fields when theme is active
+  const themed = !!selectedThemeId;
+  const glassSurface = themed ? "rgba(255,255,255,0.10)" : colors.surface;
+  const glassBorder = themed ? "rgba(255,255,255,0.15)" : colors.border;
+  const glassText = themed ? "#FFFFFF" : colors.text;
+  const glassSecondary = themed ? "rgba(255,255,255,0.6)" : colors.textSecondary;
+  const glassTertiary = themed ? "rgba(255,255,255,0.4)" : colors.textTertiary;
 
   // Banner photo state
   const [bannerLocalUri, setBannerLocalUri] = useState<string | null>(null);
@@ -1251,7 +1269,7 @@ export default function CreateEventScreen() {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
-          <Text style={{ color: colors.text }} className="text-xl font-semibold mb-2">
+          <Text style={{ color: glassText }} className="text-xl font-semibold mb-2">
             Sign in to create events
           </Text>
           <Button
@@ -1278,22 +1296,30 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <SafeAreaView testID="create-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+    <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+      {/* Live theme particle effects — behind all content */}
+      {selectedThemeId && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
+          <ThemeEffectLayer themeId={selectedThemeId} />
+        </View>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
         <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
           <View>
-            <Text style={{ color: colors.text }} className="text-3xl font-bold">Create Event</Text>
-            <Text style={{ color: colors.textSecondary }} className="mt-1">Share what you're up to</Text>
+            <Text style={{ color: selectedThemeId ? "#FFFFFF" : colors.text }} className="text-3xl font-bold">Create Event</Text>
+            <Text style={{ color: selectedThemeId ? "rgba(255,255,255,0.6)" : colors.textSecondary }} className="mt-1">Share what you're up to</Text>
           </View>
           <Pressable
             onPress={() => router.back()}
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+            style={{ backgroundColor: selectedThemeId ? "rgba(255,255,255,0.15)" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
           >
-            <X size={20} color={colors.text} />
+            <X size={20} color={selectedThemeId ? "#FFFFFF" : colors.text} />
           </Pressable>
         </View>
 
@@ -1325,76 +1351,83 @@ export default function CreateEventScreen() {
 
           {/* Emoji Picker — tap to open rn-emoji-keyboard */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
             <Pressable
               onPress={() => setShowEmojiPicker(true)}
               className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
             >
               <View className="flex-row items-center">
-                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
+                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themed ? "rgba(255,255,255,0.12)" : (isDark ? "#2C2C2E" : "#FFF7ED") }}>
                   <Text className="text-2xl">{emoji}</Text>
                 </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Tap to change icon</Text>
+                <Text style={{ color: glassSecondary, fontSize: 15 }}>Tap to change icon</Text>
               </View>
             </Pressable>
           </Animated.View>
 
-          {/* Event Theme Picker V1 */}
+          {/* Event Theme Picker — Categorized Sections */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>Event Theme</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
-                {ALL_THEME_IDS.map((tid) => {
-                  const t = EVENT_THEMES[tid];
-                  const selected = selectedThemeId === tid;
-                  const premium = isPremiumTheme(tid);
-                  const locked = premium && !userIsPro;
-                  return (
-                    <Pressable
-                      key={tid}
-                      onPress={() => {
-                        if (locked) {
-                          openPaywall?.({ source: "theme_picker" });
-                          return;
-                        }
-                        Haptics.selectionAsync();
-                        setSelectedThemeId(selected ? null : tid);
-                      }}
-                      style={{
-                        width: 72,
-                        alignItems: "center",
-                        paddingVertical: 10,
-                        paddingHorizontal: 4,
-                        borderRadius: 14,
-                        borderWidth: selected ? 2 : 1,
-                        borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                        backgroundColor: selected
-                          ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
-                          : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
-                        opacity: locked ? 0.65 : 1,
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
-                      <Text style={{ fontSize: 10, fontWeight: "600", color: selected ? t.backAccent : colors.textSecondary, textAlign: "center" }} numberOfLines={1}>
-                        {t.label}
-                      </Text>
-                      {locked && (
-                        <View style={{ position: "absolute", top: 4, right: 4 }}>
-                          <Lock size={10} color={colors.textTertiary} />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
+            <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4 }}>Event Theme</Text>
+            {([
+              { label: "Basics", ids: ["neutral", "chill_hang", "dinner_night", "game_night", "worship_night"] },
+              { label: "Seasonal", ids: ["spring_bloom", "spring_brunch", "summer_splash", "fall_harvest", "winter_glow", "easter", "fourth_of_july", "bonfire_night"] },
+              { label: "Celebration", ids: ["birthday_bash", "celebration", "graduation", "party_night", "game_day", "luau"] },
+              { label: "Elegant", ids: ["romance_elegant", "valentines", "garden_party"] },
+            ] as { label: string; ids: ThemeId[] }[]).map((cat) => (
+              <View key={cat.label}>
+                <Text style={{ fontSize: 11, fontWeight: "600", color: glassTertiary, marginTop: 8, marginBottom: 4, paddingLeft: 4 }}>{cat.label}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
+                  <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
+                    {cat.ids.map((tid) => {
+                      const t = EVENT_THEMES[tid];
+                      const selected = selectedThemeId === tid;
+                      const premium = isPremiumTheme(tid);
+                      const locked = premium && !userIsPro;
+                      return (
+                        <Pressable
+                          key={tid}
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedThemeId(selected ? null : tid);
+                          }}
+                          style={{
+                            width: 84,
+                            alignItems: "center",
+                            paddingVertical: 10,
+                            paddingHorizontal: 4,
+                            borderRadius: 14,
+                            borderWidth: selected ? 2 : 1,
+                            borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                            backgroundColor: selected
+                              ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
+                              : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
+                            opacity: locked ? 0.65 : 1,
+                          }}
+                        >
+                          <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
+                          <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: "600", color: selected ? t.backAccent : glassSecondary, textAlign: "center", height: 26 }} numberOfLines={2}>
+                            {t.label}
+                          </Text>
+                          {locked && (
+                            <View style={{ position: "absolute", top: 4, right: 4 }}>
+                              <Lock size={10} color={glassTertiary} />
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </View>
-            </ScrollView>
+            ))}
+            <View style={{ height: 12 }} />
           </Animated.View>
 
           {/* Cover Photo — compact idle, full preview when selected */}
           <Animated.View entering={FadeInDown.delay(50).springify()}>
             {bannerLocalUri ? (
-              <View className="rounded-xl mb-4 overflow-hidden" style={{ borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-xl mb-4 overflow-hidden" style={{ borderWidth: 1, borderColor: glassBorder }}>
                 <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 11 }} />
                 {uploadingBanner && (
                   <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", borderRadius: 11 }}>
@@ -1426,52 +1459,52 @@ export default function CreateEventScreen() {
                   alignItems: "center",
                   paddingHorizontal: 14,
                   paddingVertical: 10,
-                  backgroundColor: colors.surface,
+                  backgroundColor: glassSurface,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: glassBorder,
                   borderStyle: "dashed",
                   gap: 8,
                 }}
               >
-                <Camera size={16} color={colors.textTertiary} />
-                <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500" }}>Add cover photo</Text>
+                <Camera size={16} color={glassTertiary} />
+                <Text style={{ color: glassTertiary, fontSize: 13, fontWeight: "500" }}>Add cover photo</Text>
               </Pressable>
             )}
           </Animated.View>
 
           {/* Title */}
           <Animated.View entering={FadeInDown.delay(75).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Title *</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Title *</Text>
             <TextInput
               testID="create-input-title"
               value={title}
               onChangeText={setTitle}
               placeholder="What are you doing?"
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={glassTertiary}
               className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.text }}
+              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder, color: glassText }}
             />
           </Animated.View>
 
           {/* Description */}
           <Animated.View entering={FadeInDown.delay(100).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Description</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Description</Text>
             <TextInput
               testID="create-input-description"
               value={description}
               onChangeText={setDescription}
               placeholder="Add some details..."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={glassTertiary}
               multiline
               numberOfLines={3}
               className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.text, minHeight: 80, textAlignVertical: "top" }}
+              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder, color: glassText, minHeight: 80, textAlignVertical: "top" }}
             />
           </Animated.View>
 
           {/* Location with Search */}
           <Animated.View entering={FadeInDown.delay(150).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Location</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Location</Text>
 
             {/* Selected Place Display */}
             {selectedPlace && !showLocationSearch ? (
@@ -1481,15 +1514,15 @@ export default function CreateEventScreen() {
                   setLocationQuery(location);
                 }}
                 className="rounded-xl mb-4 p-4"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: "#4ECDC440" }}
+                style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: themed ? glassBorder : "#4ECDC440" }}
               >
                 <View className="flex-row items-start">
                   <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#4ECDC420" }}>
                     <MapPin size={20} color="#4ECDC4" />
                   </View>
                   <View className="flex-1">
-                    <Text style={{ color: colors.text }} className="font-semibold">{selectedPlace.name}</Text>
-                    <Text style={{ color: colors.textSecondary }} className="text-sm mt-1">{selectedPlace.address}</Text>
+                    <Text style={{ color: glassText }} className="font-semibold">{selectedPlace.name}</Text>
+                    <Text style={{ color: glassSecondary }} className="text-sm mt-1">{selectedPlace.address}</Text>
                   </View>
                   <Pressable
                     onPress={() => {
@@ -1499,15 +1532,15 @@ export default function CreateEventScreen() {
                     }}
                     className="p-1"
                   >
-                    <X size={18} color={colors.textTertiary} />
+                    <X size={18} color={glassTertiary} />
                   </Pressable>
                 </View>
               </Pressable>
             ) : (
               <View className="mb-4">
                 {/* Search Input */}
-                <View className="rounded-xl flex-row items-center px-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  <Search size={18} color={colors.textTertiary} />
+                <View className="rounded-xl flex-row items-center px-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+                  <Search size={18} color={glassTertiary} />
                   <TextInput
                     testID="create-input-location"
                     value={showLocationSearch ? locationQuery : location}
@@ -1521,9 +1554,9 @@ export default function CreateEventScreen() {
                       }
                     }}
                     placeholder="Search for a place..."
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={glassTertiary}
                     className="flex-1 p-4"
-                    style={{ color: colors.text }}
+                    style={{ color: glassText }}
                   />
                   {isSearchingPlaces && (
                     <ActivityIndicator size="small" color="#4ECDC4" />
@@ -1535,25 +1568,25 @@ export default function CreateEventScreen() {
                   <Animated.View
                     entering={FadeIn.duration(200)}
                     className="rounded-xl mt-2 overflow-hidden"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
                   >
                     {placeSuggestions.map((place, index) => (
                       <Pressable
                         key={`${place.id}-${index}`}
                         onPress={() => handleSelectPlace(place)}
                         className="p-4 flex-row items-center"
-                        style={{ borderBottomWidth: index < placeSuggestions.length - 1 ? 1 : 0, borderBottomColor: colors.separator }}
+                        style={{ borderBottomWidth: index < placeSuggestions.length - 1 ? 1 : 0, borderBottomColor: glassBorder }}
                       >
                         <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
                           {index === 0 ? (
                             <ArrowRight size={18} color="#4ECDC4" />
                           ) : (
-                            <MapPin size={18} color={colors.textTertiary} />
+                            <MapPin size={18} color={glassTertiary} />
                           )}
                         </View>
                         <View className="flex-1">
-                          <Text style={{ color: colors.text }} className="font-medium">{place.name}</Text>
-                          <Text style={{ color: colors.textSecondary }} className="text-sm" numberOfLines={1}>
+                          <Text style={{ color: glassText }} className="font-medium">{place.name}</Text>
+                          <Text style={{ color: glassSecondary }} className="text-sm" numberOfLines={1}>
                             {place.address}
                           </Text>
                         </View>
@@ -1584,7 +1617,7 @@ export default function CreateEventScreen() {
 
           {/* Date & Time */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">When</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">When</Text>
             <View
               style={{
                 borderColor: isSmartMode ? themeColor : "transparent",
@@ -1594,11 +1627,11 @@ export default function CreateEventScreen() {
             >
               <View
                 className="rounded-xl p-4 mb-4"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
               >
                 {/* Start Row */}
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
+                  <Text style={{ color: glassSecondary }} className="text-xs font-medium w-12">START</Text>
                   <View className="flex-row flex-1 items-center justify-end">
                     <DateTimePicker
                       value={startDate}
@@ -1619,7 +1652,7 @@ export default function CreateEventScreen() {
 
                 {/* End Row */}
                 <View className="flex-row items-center justify-between">
-                  <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
+                  <Text style={{ color: glassSecondary }} className="text-xs font-medium w-12">END</Text>
                   <View className="flex-row flex-1 items-center justify-end">
                     <DateTimePicker
                       value={endDate}
@@ -1654,26 +1687,26 @@ export default function CreateEventScreen() {
           {/* Frequency (Recurring) - Only for non-circle events */}
           {!isCircleEvent && (
           <Animated.View entering={FadeInDown.delay(225).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Frequency</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Frequency</Text>
             <Pressable
               testID="create-select-frequency"
               onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
               className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
             >
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
                   <RefreshCw size={18} color={themeColor} />
-                  <Text style={{ color: colors.text }} className="ml-3 font-medium">
+                  <Text style={{ color: glassText }} className="ml-3 font-medium">
                     {FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label}
                   </Text>
                 </View>
-                <ChevronDown size={20} color={colors.textTertiary} />
+                <ChevronDown size={20} color={glassTertiary} />
               </View>
             </Pressable>
 
             {showFrequencyPicker && (
-              <View className="rounded-xl p-2 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-xl p-2 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
                 {FREQUENCY_OPTIONS.map((option) => (
                   <Pressable
                     key={option.value}
@@ -1687,7 +1720,7 @@ export default function CreateEventScreen() {
                     <Text className="text-xl mr-3">{option.icon}</Text>
                     <Text
                       className="flex-1 font-medium"
-                      style={{ color: frequency === option.value ? themeColor : colors.text }}
+                      style={{ color: frequency === option.value ? themeColor : glassText }}
                     >
                       {option.label}
                     </Text>
@@ -1711,7 +1744,7 @@ export default function CreateEventScreen() {
 
           {/* Find Best Time — routes to Who's Free SSOT */}
           <Animated.View entering={FadeInDown.delay(245).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Need Help Picking a Time?</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Need Help Picking a Time?</Text>
             <View className="mb-4">
               <Pressable
                 onPress={() => {
@@ -1736,7 +1769,7 @@ export default function CreateEventScreen() {
                   <Text className="font-semibold" style={{ color: themeColor }}>
                     Find Best Time
                   </Text>
-                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                  <Text className="text-sm" style={{ color: glassSecondary }}>
                     See when friends are free
                   </Text>
                 </View>
@@ -1750,17 +1783,17 @@ export default function CreateEventScreen() {
             {isCircleEvent ? (
               <>
                 {/* Group Only Visibility - Simplified */}
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Visibility</Text>
+                <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Visibility</Text>
                 <View className="rounded-xl p-3 mb-4 flex-row items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Lock size={16} color={colors.textSecondary} />
-                  <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>
+                  <Lock size={16} color={glassSecondary} />
+                  <Text className="text-sm ml-2" style={{ color: glassSecondary }}>
                     Only friends in this group can see and join.
                   </Text>
                 </View>
               </>
             ) : (
               <>
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Who's Invited?</Text>
+                <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Who's Invited?</Text>
                 <View className="flex-row mb-4">
                   <Pressable
                     testID="create-select-visibility-all"
@@ -1770,15 +1803,15 @@ export default function CreateEventScreen() {
                     }}
                     className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
                     style={{
-                      backgroundColor: visibility === "all_friends" ? `${themeColor}15` : colors.surface,
+                      backgroundColor: visibility === "all_friends" ? `${themeColor}15` : glassSurface,
                       borderWidth: 1,
-                      borderColor: visibility === "all_friends" ? `${themeColor}40` : colors.border
+                      borderColor: visibility === "all_friends" ? `${themeColor}40` : glassBorder
                     }}
                   >
-                    <Compass size={18} color={visibility === "all_friends" ? themeColor : colors.textTertiary} />
+                    <Compass size={18} color={visibility === "all_friends" ? themeColor : glassTertiary} />
                     <Text
                       className="ml-2 font-medium"
-                      style={{ color: visibility === "all_friends" ? themeColor : colors.textSecondary }}
+                      style={{ color: visibility === "all_friends" ? themeColor : glassSecondary }}
                     >
                       All Friends
                     </Text>
@@ -1791,15 +1824,15 @@ export default function CreateEventScreen() {
                     }}
                     className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
                     style={{
-                      backgroundColor: visibility === "specific_groups" ? "#4ECDC415" : colors.surface,
+                      backgroundColor: visibility === "specific_groups" ? "#4ECDC415" : glassSurface,
                       borderWidth: 1,
-                      borderColor: visibility === "specific_groups" ? "#4ECDC440" : colors.border
+                      borderColor: visibility === "specific_groups" ? "#4ECDC440" : glassBorder
                     }}
                   >
-                    <Users size={18} color={visibility === "specific_groups" ? "#4ECDC4" : colors.textTertiary} />
+                    <Users size={18} color={visibility === "specific_groups" ? "#4ECDC4" : glassTertiary} />
                     <Text
                       className="ml-2 font-medium"
-                      style={{ color: visibility === "specific_groups" ? "#4ECDC4" : colors.textSecondary }}
+                      style={{ color: visibility === "specific_groups" ? "#4ECDC4" : glassSecondary }}
                     >
                       Circles
                     </Text>
@@ -1808,11 +1841,11 @@ export default function CreateEventScreen() {
 
                 {/* Circle Selection */}
                 {visibility === "specific_groups" && (
-                  <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                    <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Circles</Text>
+                  <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+                    <Text style={{ color: glassText }} className="text-sm font-medium mb-3">Select Circles</Text>
                     {circles.length === 0 ? (
                       <View className="items-center py-4">
-                        <Text style={{ color: colors.textTertiary }} className="text-center mb-3">
+                        <Text style={{ color: glassTertiary }} className="text-center mb-3">
                           No circles yet.
                         </Text>
                         <Pressable
@@ -1836,7 +1869,7 @@ export default function CreateEventScreen() {
                           >
                             <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-base" />
                           </View>
-                          <Text style={{ color: colors.text }} className="flex-1 font-medium">{circle.name}</Text>
+                          <Text style={{ color: glassText }} className="flex-1 font-medium">{circle.name}</Text>
                           {selectedGroupIds.includes(circle.id) && (
                             <Check size={20} color={themeColor} />
                           )}
@@ -1852,7 +1885,7 @@ export default function CreateEventScreen() {
           {/* Send Notification - Only for non-circle events */}
           {!isCircleEvent && (
           <Animated.View entering={FadeInDown.delay(275).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Send Notification</Text>
+            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Send Notification</Text>
             <View className="flex-row mb-4">
               <Pressable
                 testID="create-toggle-notification-yes"
@@ -1862,15 +1895,15 @@ export default function CreateEventScreen() {
                 }}
                 className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
                 style={{
-                  backgroundColor: sendNotification ? `${themeColor}15` : colors.surface,
+                  backgroundColor: sendNotification ? `${themeColor}15` : glassSurface,
                   borderWidth: 1,
-                  borderColor: sendNotification ? `${themeColor}40` : colors.border
+                  borderColor: sendNotification ? `${themeColor}40` : glassBorder
                 }}
               >
-                <Bell size={18} color={sendNotification ? themeColor : colors.textTertiary} />
+                <Bell size={18} color={sendNotification ? themeColor : glassTertiary} />
                 <Text
                   className="ml-2 font-medium"
-                  style={{ color: sendNotification ? themeColor : colors.textSecondary }}
+                  style={{ color: sendNotification ? themeColor : glassSecondary }}
                 >
                   Yes
                 </Text>
@@ -1883,21 +1916,21 @@ export default function CreateEventScreen() {
                 }}
                 className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
                 style={{
-                  backgroundColor: !sendNotification ? `${colors.textTertiary}15` : colors.surface,
+                  backgroundColor: !sendNotification ? `${glassTertiary}15` : glassSurface,
                   borderWidth: 1,
-                  borderColor: !sendNotification ? `${colors.textTertiary}40` : colors.border
+                  borderColor: !sendNotification ? `${glassTertiary}40` : glassBorder
                 }}
               >
-                <BellOff size={18} color={!sendNotification ? colors.textSecondary : colors.textTertiary} />
+                <BellOff size={18} color={!sendNotification ? glassSecondary : glassTertiary} />
                 <Text
                   className="ml-2 font-medium"
-                  style={{ color: !sendNotification ? colors.textSecondary : colors.textTertiary }}
+                  style={{ color: !sendNotification ? glassSecondary : glassTertiary }}
                 >
                   No
                 </Text>
               </Pressable>
             </View>
-            <Text style={{ color: colors.textTertiary }} className="text-xs mb-4 ml-1">
+            <Text style={{ color: glassTertiary }} className="text-xs mb-4 ml-1">
               {sendNotification
                 ? visibility === "specific_groups"
                   ? "Friends in selected groups will be notified"
@@ -1911,8 +1944,8 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(285).springify()}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-1">
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Limit number of guests</Text>
-                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Once full, RSVPs close automatically.</Text>
+                <Text style={{ color: glassSecondary }} className="text-sm font-medium">Limit number of guests</Text>
+                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Once full, RSVPs close automatically.</Text>
               </View>
               <Switch
                 value={hasCapacity}
@@ -1922,13 +1955,13 @@ export default function CreateEventScreen() {
                   if (!value) setCapacityInput("");
                   else if (!capacityInput) setCapacityInput("6");
                 }}
-                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
-                thumbColor={hasCapacity ? themeColor : colors.textTertiary}
+                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+                thumbColor={hasCapacity ? themeColor : glassTertiary}
               />
             </View>
             {hasCapacity && (
-              <View className="rounded-xl p-3 mb-4 flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">Max guests</Text>
+              <View className="rounded-xl p-3 mb-4 flex-row items-center justify-between" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+                <Text style={{ color: glassSecondary }} className="text-sm">Max guests</Text>
                 <View className="flex-row items-center">
                   <Pressable
                     onPress={() => {
@@ -1937,11 +1970,11 @@ export default function CreateEventScreen() {
                       if (current > 2) setCapacityInput(String(current - 1));
                     }}
                     className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: colors.background }}
+                    style={{ backgroundColor: themed ? "rgba(255,255,255,0.08)" : colors.background }}
                   >
-                    <Text style={{ color: parseInt(capacityInput || "2") <= 2 ? colors.textTertiary : colors.text }} className="text-xl font-medium">−</Text>
+                    <Text style={{ color: parseInt(capacityInput || "2") <= 2 ? glassTertiary : glassText }} className="text-xl font-medium">−</Text>
                   </Pressable>
-                  <Text style={{ color: colors.text }} className="text-lg font-semibold mx-4 min-w-[32px] text-center">
+                  <Text style={{ color: glassText }} className="text-lg font-semibold mx-4 min-w-[32px] text-center">
                     {capacityInput || "2"}
                   </Text>
                   <Pressable
@@ -1951,9 +1984,9 @@ export default function CreateEventScreen() {
                       if (current < 100) setCapacityInput(String(current + 1));
                     }}
                     className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: colors.background }}
+                    style={{ backgroundColor: themed ? "rgba(255,255,255,0.08)" : colors.background }}
                   >
-                    <Text style={{ color: parseInt(capacityInput || "2") >= 100 ? colors.textTertiary : themeColor }} className="text-xl font-medium">+</Text>
+                    <Text style={{ color: parseInt(capacityInput || "2") >= 100 ? glassTertiary : themeColor }} className="text-xl font-medium">+</Text>
                   </Pressable>
                 </View>
               </View>
@@ -1964,8 +1997,8 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(290).springify()}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-1">
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Pitch In</Text>
-                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Let guests chip in for costs.</Text>
+                <Text style={{ color: glassSecondary }} className="text-sm font-medium">Pitch In</Text>
+                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Let guests chip in for costs.</Text>
               </View>
               <Switch
                 value={pitchInEnabled}
@@ -1978,20 +2011,20 @@ export default function CreateEventScreen() {
                     setPitchInNote("");
                   }
                 }}
-                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
-                thumbColor={pitchInEnabled ? themeColor : colors.textTertiary}
+                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+                thumbColor={pitchInEnabled ? themeColor : glassTertiary}
               />
             </View>
             {pitchInEnabled && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
                 {/* Amount input */}
-                <View className="rounded-xl p-3 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="rounded-xl p-3 mb-3" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
                   <TextInput
                     value={pitchInAmount}
                     onChangeText={setPitchInAmount}
                     placeholder="Suggested amount (e.g. $10)"
-                    placeholderTextColor={colors.textTertiary}
-                    style={{ fontSize: 14, color: colors.text }}
+                    placeholderTextColor={glassTertiary}
+                    style={{ fontSize: 14, color: glassText }}
                     keyboardType="default"
                   />
                 </View>
@@ -2014,15 +2047,15 @@ export default function CreateEventScreen() {
                         paddingHorizontal: 14,
                         paddingVertical: 8,
                         borderRadius: 10,
-                        backgroundColor: pitchInMethod === key ? `${themeColor}18` : colors.surface,
+                        backgroundColor: pitchInMethod === key ? `${themeColor}18` : glassSurface,
                         borderWidth: 1,
-                        borderColor: pitchInMethod === key ? themeColor : colors.border,
+                        borderColor: pitchInMethod === key ? themeColor : glassBorder,
                       }}
                     >
                       <Text style={{
                         fontSize: 13,
                         fontWeight: pitchInMethod === key ? "600" : "400",
-                        color: pitchInMethod === key ? themeColor : colors.textSecondary,
+                        color: pitchInMethod === key ? themeColor : glassSecondary,
                       }}>
                         {label}
                       </Text>
@@ -2031,16 +2064,16 @@ export default function CreateEventScreen() {
                 </ScrollView>
 
                 {/* Handle input with @ prefix for Venmo/Cash App */}
-                <View className="rounded-xl p-3 mb-3 flex-row items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="rounded-xl p-3 mb-3 flex-row items-center" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
                   {(pitchInMethod === "venmo" || pitchInMethod === "cashapp") && (
-                    <Text style={{ fontSize: 14, color: colors.textTertiary, marginRight: 2 }}>@</Text>
+                    <Text style={{ fontSize: 14, color: glassTertiary, marginRight: 2 }}>@</Text>
                   )}
                   <TextInput
                     value={pitchInHandle}
                     onChangeText={setPitchInHandle}
                     placeholder={pitchInMethod === "venmo" ? "username" : pitchInMethod === "cashapp" ? "cashtag" : pitchInMethod === "paypal" ? "PayPal email or username" : "Handle or username"}
-                    placeholderTextColor={colors.textTertiary}
-                    style={{ fontSize: 14, color: colors.text, flex: 1 }}
+                    placeholderTextColor={glassTertiary}
+                    style={{ fontSize: 14, color: glassText, flex: 1 }}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
@@ -2065,24 +2098,24 @@ export default function CreateEventScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 7,
                         borderRadius: 16,
-                        backgroundColor: pitchInNote === preset ? `${themeColor}18` : colors.surface,
+                        backgroundColor: pitchInNote === preset ? `${themeColor}18` : glassSurface,
                         borderWidth: 1,
-                        borderColor: pitchInNote === preset ? themeColor : colors.border,
+                        borderColor: pitchInNote === preset ? themeColor : glassBorder,
                       }}
                     >
-                      <Text style={{ fontSize: 12, color: pitchInNote === preset ? themeColor : colors.textSecondary }}>
+                      <Text style={{ fontSize: 12, color: pitchInNote === preset ? themeColor : glassSecondary }}>
                         {preset}
                       </Text>
                     </Pressable>
                   ))}
                 </ScrollView>
-                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
                   <TextInput
                     value={pitchInNote}
                     onChangeText={setPitchInNote}
                     placeholder="Note (e.g. for food & drinks)"
-                    placeholderTextColor={colors.textTertiary}
-                    style={{ fontSize: 14, color: colors.text }}
+                    placeholderTextColor={glassTertiary}
+                    style={{ fontSize: 14, color: glassText }}
                     maxLength={100}
                   />
                 </View>
@@ -2094,8 +2127,8 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(295).springify()}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-1">
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">What to bring</Text>
-                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Guests can claim items to bring.</Text>
+                <Text style={{ color: glassSecondary }} className="text-sm font-medium">What to bring</Text>
+                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Guests can claim items to bring.</Text>
               </View>
               <Switch
                 value={bringListEnabled}
@@ -2107,21 +2140,21 @@ export default function CreateEventScreen() {
                     setBringListInput("");
                   }
                 }}
-                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
-                thumbColor={bringListEnabled ? themeColor : colors.textTertiary}
+                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+                thumbColor={bringListEnabled ? themeColor : glassTertiary}
               />
             </View>
             {bringListEnabled && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
                 {/* Add item row */}
                 <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                  <View className="flex-1 rounded-xl p-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View className="flex-1 rounded-xl p-3" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
                     <TextInput
                       value={bringListInput}
                       onChangeText={setBringListInput}
                       placeholder="e.g. Chips, Ice, Cups..."
-                      placeholderTextColor={colors.textTertiary}
-                      style={{ fontSize: 14, color: colors.text }}
+                      placeholderTextColor={glassTertiary}
+                      style={{ fontSize: 14, color: glassText }}
                       maxLength={60}
                       onSubmitEditing={() => {
                         const trimmed = bringListInput.trim();
@@ -2148,12 +2181,12 @@ export default function CreateEventScreen() {
                       borderRadius: 12,
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: bringListInput.trim() ? themeColor : colors.surface,
+                      backgroundColor: bringListInput.trim() ? themeColor : glassSurface,
                       borderWidth: 1,
-                      borderColor: bringListInput.trim() ? themeColor : colors.border,
+                      borderColor: bringListInput.trim() ? themeColor : glassBorder,
                     }}
                   >
-                    <Text style={{ fontSize: 20, fontWeight: "500", color: bringListInput.trim() ? "white" : colors.textTertiary }}>+</Text>
+                    <Text style={{ fontSize: 20, fontWeight: "500", color: bringListInput.trim() ? "white" : glassTertiary }}>+</Text>
                   </Pressable>
                 </View>
                 {/* Item list */}
@@ -2164,9 +2197,9 @@ export default function CreateEventScreen() {
                       <View
                         key={`${item}-${index}`}
                         className="flex-row items-center rounded-xl px-3 py-2.5"
-                        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                        style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
                       >
-                        <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{item}</Text>
+                        <Text style={{ fontSize: 14, color: glassText, flex: 1 }}>{item}</Text>
                         <Pressable
                           onPress={() => {
                             Haptics.selectionAsync();
@@ -2174,7 +2207,7 @@ export default function CreateEventScreen() {
                           }}
                           hitSlop={8}
                         >
-                          <X size={16} color={colors.textTertiary} />
+                          <X size={16} color={glassTertiary} />
                         </Pressable>
                       </View>
                     ))}
@@ -2197,10 +2230,10 @@ export default function CreateEventScreen() {
                 borderColor: isDark ? "#3A3A3C" : "#FDBA74",
               }}
             >
-              <Text style={{ color: colors.text, fontWeight: "600", fontSize: 14, marginBottom: 4 }}>
+              <Text style={{ color: glassText, fontWeight: "600", fontSize: 14, marginBottom: 4 }}>
                 Almost at your monthly limit
               </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+              <Text style={{ color: glassSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
                 You've hosted 2 of 3 events this month. Upgrade for unlimited hosting.
               </Text>
               <View style={{ flexDirection: "row", gap: 10 }}>
@@ -2223,7 +2256,7 @@ export default function CreateEventScreen() {
                     paddingHorizontal: 16,
                   }}
                 >
-                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Not now</Text>
+                  <Text style={{ color: glassTertiary, fontSize: 13 }}>Not now</Text>
                 </Pressable>
               </View>
             </Animated.View>
@@ -2233,7 +2266,7 @@ export default function CreateEventScreen() {
           {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.monthlyLimit != null && (
             <Text
               className="text-xs text-center mt-3"
-              style={{ color: hostingQuota.canHost ? colors.textTertiary : "#EF4444" }}
+              style={{ color: hostingQuota.canHost ? glassTertiary : "#EF4444" }}
             >
               {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events hosted this month
             </Text>
@@ -2304,7 +2337,7 @@ export default function CreateEventScreen() {
               }}
               className="mt-2 py-2 items-center"
             >
-              <Text style={{ color: colors.textTertiary }} className="text-xs">
+              <Text style={{ color: glassTertiary }} className="text-xs">
                 DEV: Show last create-event error
               </Text>
             </Pressable>
@@ -2368,10 +2401,10 @@ export default function CreateEventScreen() {
             {/* Success header */}
             <View style={{ alignItems: "center", marginBottom: 20 }}>
               <Text style={{ fontSize: 28, marginBottom: 4 }}>{createdEvent?.emoji || "🎉"}</Text>
-              <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: glassText, textAlign: "center" }}>
                 Your event is live!
               </Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+              <Text style={{ fontSize: 14, color: glassSecondary, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
                 Share it so friends can join
               </Text>
             </View>
@@ -2427,7 +2460,7 @@ export default function CreateEventScreen() {
               }}
               style={{ alignItems: "center", paddingVertical: 14, marginTop: 4 }}
             >
-              <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary }}>
+              <Text style={{ fontSize: 14, fontWeight: "500", color: glassSecondary }}>
                 I'll share later
               </Text>
             </Pressable>
@@ -2457,5 +2490,6 @@ export default function CreateEventScreen() {
         }}
       />
     </SafeAreaView>
+    </Animated.View>
   );
 }
