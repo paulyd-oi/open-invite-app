@@ -226,6 +226,31 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.8,
     maxRotationSpeed: 2.5,
   },
+  firework_burst: {
+    particleCount: 25,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.4,
+    maxOpacity: 0.9,
+    minSpeed: 60,
+    maxSpeed: 120,
+    swayAmplitude: 40,
+    minSwayPeriod: 1.5,
+    maxSwayPeriod: 3,
+    direction: -1,
+    blurSigma: 1.2,
+    colors: [
+      "rgba(255, 215, 0, 1)",   // gold
+      "rgba(239, 68, 68, 1)",   // red
+      "rgba(59, 130, 246, 1)",  // blue
+      "rgba(255, 255, 255, 1)", // white
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.3, 1.0],
+    pulsePeriodRange: [1.5, 3.0],
+  },
   glitter_shimmer: {
     particleCount: 25,
     minSize: 1.5,
@@ -273,6 +298,28 @@ const EFFECT_CONFIGS = {
     colorWash: true,
     hueCycleSpeed: 20,
     washOpacity: 0.12,
+  },
+  cherry_blossom: {
+    particleCount: 16,
+    minSize: 4,
+    maxSize: 9,
+    minOpacity: 0.35,
+    maxOpacity: 0.65,
+    minSpeed: 12,
+    maxSpeed: 25,
+    swayAmplitude: 35,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 8,
+    direction: 1,
+    blurSigma: 1.8,
+    colors: [
+      "rgba(244, 163, 188, 1)", // light pink
+      "rgba(251, 207, 232, 1)", // soft white-pink
+      "rgba(236, 72, 153, 0.6)", // translucent pink
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.5,
+    maxRotationSpeed: 1.5,
   },
 } as const satisfies Record<string, EffectConfig>;
 

@@ -25,6 +25,7 @@ export const PREMIUM_THEME_IDS = [
   "game_day",
   "birthday_bash",
   "party_night",
+  "spring_bloom",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -202,6 +203,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(139, 92, 246, 0.12)",
     chipAccent: "#A855F7",
     effectPreset: "disco_pulse",
+  },
+  spring_bloom: {
+    label: "Spring Bloom",
+    swatch: "🌸",
+    gradientTint: "rgba(34, 197, 94, 0.20)",
+    vibeLabel: "You're Invited",
+    backAccent: "#22C55E",
+    backBgDark: "#0A1F10",
+    backBgLight: "#F0FFF4",
+    pageTintDark: "rgba(34, 197, 94, 0.18)",
+    pageTintLight: "rgba(34, 197, 94, 0.10)",
+    chipAccent: "#22C55E",
+    effectPreset: "cherry_blossom",
   },
 };
 
