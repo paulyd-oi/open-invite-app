@@ -555,6 +555,30 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.2,
     maxRotationSpeed: 0.8,
   },
+  patriot_stars: {
+    particleCount: 22,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.4,
+    maxOpacity: 0.9,
+    minSpeed: 55,
+    maxSpeed: 110,
+    swayAmplitude: 35,
+    minSwayPeriod: 1.5,
+    maxSwayPeriod: 3,
+    direction: -1,
+    blurSigma: 1.0,
+    colors: [
+      "rgba(178, 34, 52, 1)",    // #B22234 red
+      "rgba(255, 255, 255, 1)",  // white
+      "rgba(60, 59, 110, 1)",    // #3C3B6E blue
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.3, 1.0],
+    pulsePeriodRange: [1.5, 3.0],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;

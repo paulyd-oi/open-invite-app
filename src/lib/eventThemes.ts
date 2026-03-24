@@ -35,6 +35,7 @@ export const PREMIUM_THEME_IDS = [
   "graduation",
   "bonfire_night",
   "luau",
+  "fourth_of_july",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -343,6 +344,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(251, 113, 133, 0.10)",
     chipAccent: "#FB7185",
     effectPreset: "tropical_drift",
+  },
+  fourth_of_july: {
+    label: "4th of July",
+    swatch: "🇺🇸",
+    gradientTint: "rgba(60, 59, 110, 0.28)",
+    vibeLabel: "Happy 4th!",
+    backAccent: "#B22234",
+    backBgDark: "#0A0A1E",
+    backBgLight: "#EEF0FF",
+    pageTintDark: "rgba(60, 59, 110, 0.24)",
+    pageTintLight: "rgba(60, 59, 110, 0.12)",
+    chipAccent: "#B22234",
+    effectPreset: "patriot_stars",
   },
 };
 
