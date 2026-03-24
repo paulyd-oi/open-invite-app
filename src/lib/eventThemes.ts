@@ -174,6 +174,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(67,160,71,0.30)",
     pageTintLight: "rgba(67,160,71,0.18)",
     chipAccent: "#43A047",
+    effectPreset: "glitter_shimmer",
   },
   birthday_bash: {
     label: "Birthday Bash",

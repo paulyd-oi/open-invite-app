@@ -226,6 +226,31 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.8,
     maxRotationSpeed: 2.5,
   },
+  glitter_shimmer: {
+    particleCount: 25,
+    minSize: 1.5,
+    maxSize: 3.5,
+    minOpacity: 0.0,
+    maxOpacity: 0.8,
+    minSpeed: 0,
+    maxSpeed: 0,
+    swayAmplitude: 0,
+    minSwayPeriod: 1,
+    maxSwayPeriod: 2,
+    direction: 1,
+    blurSigma: 0.8,
+    colors: [
+      "rgba(255, 215, 0, 1)",   // gold
+      "rgba(192, 192, 192, 1)", // silver
+      "rgba(255, 255, 255, 1)", // white
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    staticPosition: true,
+    pulseRange: [0.0, 1.0],
+    pulsePeriodRange: [0.8, 2.0],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
