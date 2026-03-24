@@ -29,6 +29,7 @@ export const PREMIUM_THEME_IDS = [
   "romance_elegant",
   "celebration",
   "valentines",
+  "garden_party",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -259,6 +260,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(236, 72, 153, 0.12)",
     chipAccent: "#EC4899",
     effectPreset: "floating_hearts",
+  },
+  garden_party: {
+    label: "Garden Party",
+    swatch: "🌼",
+    gradientTint: "rgba(132, 204, 22, 0.20)",
+    vibeLabel: "You're Invited",
+    backAccent: "#84CC16",
+    backBgDark: "#0F1F0A",
+    backBgLight: "#F7FEE7",
+    pageTintDark: "rgba(132, 204, 22, 0.18)",
+    pageTintLight: "rgba(132, 204, 22, 0.10)",
+    chipAccent: "#84CC16",
+    effectPreset: "dandelion_seeds",
   },
 };
 

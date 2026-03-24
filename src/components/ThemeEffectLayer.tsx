@@ -413,6 +413,28 @@ const EFFECT_CONFIGS = {
     pulseRange: [0.7, 1.2],
     pulsePeriodRange: [4, 8],
   },
+  dandelion_seeds: {
+    particleCount: 14,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.25,
+    maxOpacity: 0.45,
+    minSpeed: 6,
+    maxSpeed: 14,
+    swayAmplitude: 30,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 9,
+    direction: -1,
+    blurSigma: 1.5,
+    colors: [
+      "rgba(255, 255, 255, 1)",   // white
+      "rgba(255, 253, 240, 1)",   // soft cream
+      "rgba(245, 245, 230, 1)",   // pale cream
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.2,
+    maxRotationSpeed: 0.8,
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
