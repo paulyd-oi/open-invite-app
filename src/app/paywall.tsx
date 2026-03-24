@@ -292,7 +292,7 @@ export default function PaywallScreen() {
     {
       title: "Themes & Atmosphere",
       features: [
-        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 essentials", proValue: "All 22 themes" },
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 essentials", proValue: "All 26 themes" },
         { name: "Premium Effects", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],
     },
