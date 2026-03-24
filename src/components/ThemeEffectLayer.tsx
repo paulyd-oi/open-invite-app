@@ -10,6 +10,7 @@
  *   winter_glow   → soft snowfall drifting downward
  *   chill_hang    → coastal haze (slow aqua mist rising)
  *   game_night    → arcade sparkle (violet/white sparks rising with pulse)
+ *   fall_harvest  → falling leaves (warm amber/red circles drifting down)
  *
  * Effect preset mapping lives in eventThemes.ts (effectPreset field).
  * Absolutely positioned at the SafeAreaView level for full-page coverage.
@@ -175,6 +176,29 @@ const EFFECT_CONFIGS = {
     ],
     pulseRange: [0.70, 1.15],
     pulsePeriodRange: [2.2, 4.5],
+  },
+  falling_leaves: {
+    particleCount: 18,
+    minSize: 5,
+    maxSize: 12,
+    minOpacity: 0.5,
+    maxOpacity: 0.85,
+    minSpeed: 20,
+    maxSpeed: 40,
+    swayAmplitude: 45,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 7,
+    direction: 1,
+    blurSigma: 1.0,
+    colors: [
+      "rgba(217, 119, 6, 1)",
+      "rgba(194, 65, 12, 1)",
+      "rgba(185, 28, 28, 1)",
+      "rgba(234, 179, 8, 1)",
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.8,
+    maxRotationSpeed: 2.5,
   },
 } as const satisfies Record<string, EffectConfig>;
 

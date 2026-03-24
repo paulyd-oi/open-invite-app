@@ -148,6 +148,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(212,118,59,0.24)",
     pageTintLight: "rgba(212,118,59,0.12)",
     chipAccent: "#D4763B",
+    effectPreset: "falling_leaves",
   },
   winter_glow: {
     label: "Winter Glow",
