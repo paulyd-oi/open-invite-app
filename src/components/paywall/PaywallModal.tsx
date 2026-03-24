@@ -5,9 +5,10 @@
 
 import React, { useEffect } from "react";
 import { View, Text, Modal, Pressable, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeIn, FadeInUp, SlideInUp } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { X, Check, Sparkles, Crown } from "@/ui/icons";
 import { useRouter } from "expo-router";
@@ -217,141 +218,168 @@ export function PaywallModal({
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
       transparent
+      animationType="none"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <View className="flex-1" style={{ backgroundColor: SCRIM.medium }}>
-        <Pressable className="flex-1" onPress={handleSecondary} />
-        <Animated.View
-          entering={SlideInUp.springify().damping(15)}
-          className="rounded-t-3xl overflow-hidden"
-          style={{ backgroundColor: colors.background }}
-        >
-          <SafeAreaView edges={["bottom"]}>
-            {/* Header with gradient */}
-            <LinearGradient
-              colors={[`${themeColor}30`, "transparent"]}
-              style={{ paddingTop: 20, paddingHorizontal: 24, paddingBottom: 16 }}
+      <Animated.View
+        entering={FadeIn.duration(200)}
+        exiting={FadeOut.duration(200)}
+        className="flex-1"
+      >
+        {/* Blurred backdrop */}
+        <Pressable className="absolute inset-0" onPress={handleSecondary}>
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={{ flex: 1, backgroundColor: SCRIM.medium }}
+          />
+        </Pressable>
+
+        {/* Bottom-aligned glass card */}
+        <View className="flex-1 justify-end">
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            exiting={SlideOutDown.springify().damping(20)}
+          >
+            <View
+              className="mx-4 rounded-3xl overflow-hidden"
+              style={{ marginBottom: Math.max(insets.bottom, 8) + 8 }}
             >
-              {/* Close button */}
-              <Pressable
-                onPress={handleSecondary}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full items-center justify-center"
-                style={{ backgroundColor: colors.surface }}
-                hitSlop={12}
-              >
-                <X size={18} color={colors.textSecondary} />
-              </Pressable>
+              {/* Dark gradient base */}
+              <LinearGradient
+                colors={["#1a1a2e", "#16213e", "#0f0f23"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ position: "absolute", width: "100%", height: "100%" }}
+              />
 
-              {/* Icon */}
-              <Animated.View
-                entering={FadeIn.delay(100)}
-                className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
-                style={{ backgroundColor: `${themeColor}20` }}
-              >
-                <Sparkles size={32} color={themeColor} />
-              </Animated.View>
+              {/* Glass blur overlay */}
+              <BlurView
+                intensity={40}
+                tint="dark"
+                style={{ position: "absolute", width: "100%", height: "100%" }}
+              />
 
-              {/* Title */}
-              <Animated.Text
-                entering={FadeInUp.delay(150)}
-                className="text-2xl font-bold"
-                style={{ color: colors.text }}
-              >
-                {copy.title}
-              </Animated.Text>
-
-              {/* Subtitle */}
-              <Animated.Text
-                entering={FadeInUp.delay(200)}
-                className="text-base mt-2"
-                style={{ color: colors.textSecondary }}
-              >
-                {copy.subtitle}
-              </Animated.Text>
-            </LinearGradient>
-
-            {/* Bullets */}
-            <ScrollView
-              className="px-6"
-              style={{ maxHeight: 200 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {copy.bullets.map((bullet, index) => (
-                <Animated.View
-                  key={index}
-                  entering={FadeInUp.delay(250 + index * 50)}
-                  className="flex-row items-center py-3"
-                  style={{
-                    borderBottomWidth: index < copy.bullets.length - 1 ? 1 : 0,
-                    borderBottomColor: colors.separator,
-                  }}
-                >
-                  <View
-                    className="w-6 h-6 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: `${themeColor}20` }}
-                  >
-                    <Check size={14} color={themeColor} />
-                  </View>
-                  <Text
-                    className="flex-1 text-base"
-                    style={{ color: colors.text }}
-                  >
-                    {bullet}
-                  </Text>
-                </Animated.View>
-              ))}
-            </ScrollView>
-
-            {/* CTAs */}
-            <View className="px-6 pt-4 pb-2">
-              {/* Primary CTA */}
-              <Pressable
-                onPress={handlePrimary}
-                className="py-4 rounded-2xl flex-row items-center justify-center"
-                style={{ backgroundColor: themeColor }}
-              >
-                <Crown size={20} color="#FFFFFF" />
-                <Text className="text-white text-lg font-semibold ml-2">
-                  {copy.primaryCta}
-                </Text>
-              </Pressable>
-
-              {/* Secondary CTA */}
-              <Pressable
-                onPress={handleSecondary}
-                className="py-4 items-center mt-2"
-              >
-                <Text
-                  className="text-base"
-                  style={{ color: colors.textSecondary }}
-                >
-                  {copy.secondaryCta}
-                </Text>
-              </Pressable>
-
-              {/* Restore purchases (optional) */}
-              {onRestore && (
+              <View className="p-6 relative">
+                {/* Close button */}
                 <Pressable
-                  onPress={handleRestore}
-                  className="py-2 items-center"
+                  onPress={handleSecondary}
+                  className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+                  hitSlop={12}
                 >
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors.textTertiary }}
-                  >
-                    Restore purchases
-                  </Text>
+                  <X size={18} color="rgba(255,255,255,0.6)" />
                 </Pressable>
-              )}
+
+                {/* Icon */}
+                <Animated.View
+                  entering={FadeIn.delay(100)}
+                  className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
+                  style={{ backgroundColor: `${themeColor}30` }}
+                >
+                  <Sparkles size={32} color={themeColor} />
+                </Animated.View>
+
+                {/* Title */}
+                <Animated.Text
+                  entering={FadeInUp.delay(150)}
+                  className="text-2xl font-bold"
+                  style={{ color: "#FFFFFF" }}
+                >
+                  {copy.title}
+                </Animated.Text>
+
+                {/* Subtitle */}
+                <Animated.Text
+                  entering={FadeInUp.delay(200)}
+                  className="text-base mt-2"
+                  style={{ color: "rgba(255,255,255,0.6)" }}
+                >
+                  {copy.subtitle}
+                </Animated.Text>
+
+                {/* Bullets */}
+                <ScrollView
+                  style={{ maxHeight: 200, marginTop: 16 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {copy.bullets.map((bullet, index) => (
+                    <Animated.View
+                      key={index}
+                      entering={FadeInUp.delay(250 + index * 50)}
+                      className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                      style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                    >
+                      <View
+                        className="w-6 h-6 rounded-full items-center justify-center mr-3"
+                        style={{ backgroundColor: `${themeColor}30` }}
+                      >
+                        <Check size={14} color={themeColor} />
+                      </View>
+                      <Text
+                        className="flex-1 text-base"
+                        style={{ color: "#FFFFFF" }}
+                      >
+                        {bullet}
+                      </Text>
+                    </Animated.View>
+                  ))}
+                </ScrollView>
+
+                {/* CTAs */}
+                <View className="pt-4">
+                  {/* Primary CTA */}
+                  <Pressable
+                    onPress={handlePrimary}
+                    className="py-4 rounded-2xl flex-row items-center justify-center"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <Crown size={20} color="#FFFFFF" />
+                    <Text className="text-white text-lg font-semibold ml-2">
+                      {copy.primaryCta}
+                    </Text>
+                  </Pressable>
+
+                  {/* Secondary CTA */}
+                  <Pressable
+                    onPress={handleSecondary}
+                    className="py-4 items-center mt-2"
+                  >
+                    <Text
+                      className="text-base"
+                      style={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      {copy.secondaryCta}
+                    </Text>
+                  </Pressable>
+
+                  {/* Restore purchases (optional) */}
+                  {onRestore && (
+                    <Pressable
+                      onPress={handleRestore}
+                      className="py-2 items-center"
+                    >
+                      <Text
+                        className="text-sm"
+                        style={{ color: "rgba(255,255,255,0.35)" }}
+                      >
+                        Restore purchases
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
             </View>
-          </SafeAreaView>
-        </Animated.View>
-      </View>
+          </Animated.View>
+        </View>
+      </Animated.View>
     </Modal>
   );
 }
