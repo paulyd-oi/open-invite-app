@@ -45,23 +45,23 @@ const PAYWALL_COPY: Record<
   }
 > = {
   PREMIUM_THEME: {
-    title: "Premium themes are Pro",
-    subtitle: "Unlock stunning event themes with ambient effects and custom styling.",
+    title: "Make your event unforgettable",
+    subtitle: "Premium themes with stunning animated effects your guests will love.",
     bullets: [
-      "5 premium themes with unique vibes",
-      "Skia particle effects (snow, sparkle, haze)",
-      "Make every invite stand out",
+      "Premium themes with unique vibes",
+      "Animated page effects — confetti, snow, sparkles",
+      "Every invite stands out",
     ],
     primaryCta: "Upgrade to Pro",
     secondaryCta: "Not now",
   },
   RECURRING_EVENTS: {
-    title: "Recurring events are Pro",
-    subtitle: "Set it once, and your group meets every week — automatically.",
+    title: "Set it and forget it",
+    subtitle: "Your group meets every week — automatically.",
     bullets: [
       "Weekly, monthly, or custom repeats",
-      "Auto-reminders and RSVP tracking",
-      "Keep your crew consistent",
+      "Auto-reminders for every occurrence",
+      "Never plan the same event twice",
     ],
     primaryCta: "Upgrade to Pro",
     secondaryCta: "Not now",
