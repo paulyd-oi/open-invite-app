@@ -44,6 +44,7 @@ import {
 import { trackEventCreated } from "@/lib/rateApp";
 import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
@@ -1299,6 +1300,12 @@ export default function CreateEventScreen() {
   return (
     <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
       <SafeAreaView className="flex-1" edges={["top"]}>
+      {/* Live animated gradient background — below particles */}
+      {selectedThemeId && previewTheme.gradientConfig && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
+          <AnimatedGradientLayer config={previewTheme.gradientConfig} />
+        </View>
+      )}
       {/* Live theme particle effects — behind all content */}
       {selectedThemeId && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">

@@ -93,6 +93,12 @@ export interface EventThemeTokens {
   chipAccent: string;
   /** Ambient effect preset identifier (null = no effect) */
   effectPreset?: string | null;
+  /** Animated gradient background layer config (omit = no gradient) */
+  gradientConfig?: {
+    colors: string[];
+    speed?: number;
+    angle?: number;
+  };
 }
 
 // ─── Theme Catalog ───────────────────────────────────────
@@ -110,6 +116,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "transparent",
     pageTintLight: "transparent",
     chipAccent: "#8E8E93",
+    gradientConfig: { colors: ["rgba(40,40,45,0.3)", "rgba(60,60,65,0.15)", "rgba(40,40,45,0.3)"], speed: 2 },
   },
   chill_hang: {
     label: "Chill Hang",
@@ -123,6 +130,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(20,184,166,0.14)",
     chipAccent: "#14B8A6",
     effectPreset: "coastal_haze",
+    gradientConfig: { colors: ["rgba(20,184,166,0.25)", "rgba(110,220,200,0.15)", "rgba(20,184,166,0.25)"], speed: 3 },
   },
   dinner_night: {
     label: "Dinner Night",
@@ -135,6 +143,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255,152,0,0.22)",
     pageTintLight: "rgba(255,152,0,0.12)",
     chipAccent: "#FF9800",
+    gradientConfig: { colors: ["rgba(255,248,235,0.2)", "rgba(255,200,120,0.15)", "rgba(255,248,235,0.2)"], speed: 2 },
   },
   game_night: {
     label: "Game Night",
@@ -161,6 +170,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(156,124,99,0.10)",
     chipAccent: "#9C7C63",
     effectPreset: "light_rays",
+    gradientConfig: { colors: ["rgba(156,124,99,0.2)", "rgba(255,215,0,0.1)", "rgba(156,124,99,0.2)"], speed: 2 },
   },
 
   // ── Premium (Pro) ──
@@ -228,6 +238,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(255,107,74,0.12)",
     chipAccent: "#FF6B4A",
     effectPreset: "confetti_rain",
+    gradientConfig: { colors: ["rgba(236,72,153,0.2)", "rgba(249,115,22,0.15)", "rgba(236,72,153,0.2)"], speed: 3 },
   },
   party_night: {
     label: "Party Night",
@@ -254,6 +265,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(34, 197, 94, 0.14)",
     chipAccent: "#22C55E",
     effectPreset: "cherry_blossom",
+    gradientConfig: { colors: ["rgba(34,197,94,0.18)", "rgba(244,163,188,0.12)", "rgba(34,197,94,0.18)"], speed: 3 },
   },
   romance_elegant: {
     label: "Romance",
@@ -267,6 +279,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(190, 18, 60, 0.10)",
     chipAccent: "#BE123C",
     effectPreset: "rose_petals",
+    gradientConfig: { colors: ["rgba(190,18,60,0.18)", "rgba(212,175,55,0.1)", "rgba(190,18,60,0.18)"], speed: 2 },
   },
   celebration: {
     label: "Celebration",
@@ -293,6 +306,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(236, 72, 153, 0.12)",
     chipAccent: "#EC4899",
     effectPreset: "floating_hearts",
+    gradientConfig: { colors: ["rgba(236,72,153,0.2)", "rgba(190,18,60,0.15)", "rgba(236,72,153,0.2)"], speed: 3 },
   },
   garden_party: {
     label: "Garden Party",
@@ -306,6 +320,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(132, 204, 22, 0.10)",
     chipAccent: "#84CC16",
     effectPreset: "dandelion_seeds",
+    gradientConfig: { colors: ["rgba(132,204,22,0.18)", "rgba(250,204,21,0.12)", "rgba(132,204,22,0.18)"], speed: 3 },
   },
   spring_brunch: {
     label: "Spring Brunch",
@@ -319,6 +334,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(167, 139, 250, 0.13)",
     chipAccent: "#A78BFA",
     effectPreset: "butterfly_flutter",
+    gradientConfig: { colors: ["rgba(255,248,235,0.18)", "rgba(167,139,250,0.12)", "rgba(255,248,235,0.18)"], speed: 3 },
   },
   easter: {
     label: "Easter",
@@ -345,6 +361,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(30, 58, 138, 0.12)",
     chipAccent: "#FFD700",
     effectPreset: "graduation_toss",
+    gradientConfig: { colors: ["rgba(30,58,138,0.2)", "rgba(255,215,0,0.1)", "rgba(30,58,138,0.2)"], speed: 2 },
   },
   bonfire_night: {
     label: "Bonfire Night",
@@ -425,6 +442,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(180, 83, 9, 0.08)",
     chipAccent: "#B45309",
     effectPreset: "candlelight",
+    gradientConfig: { colors: ["rgba(136,19,55,0.18)", "rgba(180,83,9,0.12)", "rgba(136,19,55,0.18)"], speed: 2 },
   },
   pool_party: {
     label: "Pool Party",
@@ -453,6 +471,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(201, 168, 76, 0.08)",
     chipAccent: "#C9A84C",
     effectPreset: "rose_petals",
+    gradientConfig: { colors: ["rgba(201,168,76,0.15)", "rgba(190,18,60,0.08)", "rgba(201,168,76,0.15)"], speed: 2 },
   },
   beach_day: {
     label: "Beach Day",
@@ -479,6 +498,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(180, 120, 60, 0.10)",
     chipAccent: "#B4783C",
     effectPreset: "candlelight",
+    gradientConfig: { colors: ["rgba(180,120,60,0.2)", "rgba(100,60,20,0.15)", "rgba(180,120,60,0.2)"], speed: 2 },
   },
   movie_night: {
     label: "Movie Night",
@@ -492,6 +512,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(100, 116, 139, 0.10)",
     chipAccent: "#64748B",
     effectPreset: "projector_dust",
+    gradientConfig: { colors: ["rgba(15,18,24,0.3)", "rgba(50,55,70,0.2)", "rgba(15,18,24,0.3)"], speed: 2 },
   },
 };
 
