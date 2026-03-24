@@ -101,9 +101,12 @@ export default function EditEventScreen() {
 
   // Event Themes V1
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
+  const [originalThemeId, setOriginalThemeId] = useState<ThemeId | null>(null);
   const premiumStatus = usePremiumStatusContract();
   const { isPro: userIsPro } = premiumStatus;
   const { openPaywall } = useSubscription();
+  // Downgrade-safe: event's original premium theme is preserved even without Pro
+  const hasPreservedPremiumTheme = !userIsPro && originalThemeId !== null && isPremiumTheme(originalThemeId);
 
   // Fetch event data
   const { data: myEventsData } = useQuery({
@@ -156,6 +159,7 @@ export default function EditEventScreen() {
       const evtThemeId = (event as any).themeId;
       if (isValidThemeId(evtThemeId)) {
         setSelectedThemeId(evtThemeId);
+        setOriginalThemeId(evtThemeId);
       }
       setIsLoaded(true);
     }
@@ -397,13 +401,20 @@ export default function EditEventScreen() {
           {/* Event Theme Picker V1 */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
             <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 8, marginTop: 4 }}>Event Theme</Text>
+            {hasPreservedPremiumTheme && (
+              <Text style={{ color: colors.textTertiary, fontSize: 12, marginBottom: 8, lineHeight: 16 }}>
+                This event keeps its premium theme from your previous Pro access. You can keep this look or switch to a free theme.
+              </Text>
+            )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
               <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
                 {ALL_THEME_IDS.map((tid) => {
                   const t = EVENT_THEMES[tid];
                   const selected = selectedThemeId === tid;
                   const premium = isPremiumTheme(tid);
-                  const locked = premium && !userIsPro;
+                  // Preserved: this is the event's original premium theme, kept after downgrade
+                  const isPreserved = premium && !userIsPro && tid === originalThemeId;
+                  const locked = premium && !userIsPro && !isPreserved;
                   return (
                     <Pressable
                       key={tid}
