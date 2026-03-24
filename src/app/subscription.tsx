@@ -300,8 +300,8 @@ export default function SubscriptionScreen() {
     switch (source) {
       case "soft_limit_active_events":
         return {
-          headline: "Founder Pro for organizers",
-          subhead: "Unlimited active events and smarter reminders.",
+          headline: "Unlock premium themes",
+          subhead: "Make every event feel special with premium collections and effects.",
         };
       case "poll_attempt":
         return {
@@ -337,13 +337,14 @@ export default function SubscriptionScreen() {
     {
       title: "Hosting",
       features: [
-        { name: "Events per Month", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "3 max", proValue: "Unlimited" },
+        { name: "Event Hosting", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "Unlimited", proValue: "Unlimited" },
       ],
     },
     {
-      title: "Themes",
+      title: "Themes & Atmosphere",
       features: [
-        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "Default", proValue: "All themes" },
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 essentials", proValue: "All 22 themes" },
+        { name: "Premium Effects", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],
     },
     {

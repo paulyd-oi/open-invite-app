@@ -2217,7 +2217,7 @@ export default function CreateEventScreen() {
             )}
           </Animated.View>
 
-          {/* [P1_HOSTING_NUDGE] Soft nudge banner — 2/3 events used */}
+          {/* [P1_HOSTING_NUDGE] Soft nudge banner — premium themes upsell */}
           {showNudgeBanner && (
             <Animated.View
               entering={FadeInDown.delay(200).springify()}
@@ -2231,10 +2231,10 @@ export default function CreateEventScreen() {
               }}
             >
               <Text style={{ color: glassText, fontWeight: "600", fontSize: 14, marginBottom: 4 }}>
-                Almost at your monthly limit
+                Make your event stand out
               </Text>
               <Text style={{ color: glassSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-                You've hosted 2 of 3 events this month. Upgrade for unlimited hosting.
+                Unlock premium themes, effects, and seasonal collections with Pro.
               </Text>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
@@ -2262,15 +2262,7 @@ export default function CreateEventScreen() {
             </Animated.View>
           )}
 
-          {/* Hosting quota indicator — hidden for Pro/unlimited */}
-          {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.monthlyLimit != null && (
-            <Text
-              className="text-xs text-center mt-3"
-              style={{ color: hostingQuota.canHost ? glassTertiary : "#EF4444" }}
-            >
-              {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events hosted this month
-            </Text>
-          )}
+          {/* Hosting is unlimited for all tiers — quota indicator removed */}
 
           {/* [P1_CREATE_ENTITLEMENTS_TIMEOUT] Entitlements loading timeout message */}
           {entitlementsTimedOut && (entitlementsLoading || hostingQuota.isLoading) && (
