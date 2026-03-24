@@ -343,6 +343,30 @@ const EFFECT_CONFIGS = {
     minRotationSpeed: 0.3,
     maxRotationSpeed: 1.0,
   },
+  floating_hearts: {
+    particleCount: 16,
+    minSize: 4,
+    maxSize: 10,
+    minOpacity: 0.35,
+    maxOpacity: 0.7,
+    minSpeed: 15,
+    maxSpeed: 30,
+    swayAmplitude: 20,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 6,
+    direction: -1,
+    blurSigma: 1.5,
+    colors: [
+      "rgba(236, 72, 153, 1)",  // pink
+      "rgba(239, 68, 68, 1)",   // red
+      "rgba(251, 207, 232, 1)", // soft rose
+    ],
+    shape: "circle",
+    minRotationSpeed: 0.3,
+    maxRotationSpeed: 1.0,
+    pulseRange: [0.8, 1.1],
+    pulsePeriodRange: [2.5, 4.5],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;

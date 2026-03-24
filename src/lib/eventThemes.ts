@@ -28,6 +28,7 @@ export const PREMIUM_THEME_IDS = [
   "spring_bloom",
   "romance_elegant",
   "celebration",
+  "valentines",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -244,6 +245,19 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(255, 215, 0, 0.10)",
     chipAccent: "#FFD700",
     effectPreset: "firework_burst",
+  },
+  valentines: {
+    label: "Valentine's",
+    swatch: "💕",
+    gradientTint: "rgba(236, 72, 153, 0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#EC4899",
+    backBgDark: "#2A0A1E",
+    backBgLight: "#FFF0F5",
+    pageTintDark: "rgba(236, 72, 153, 0.22)",
+    pageTintLight: "rgba(236, 72, 153, 0.12)",
+    chipAccent: "#EC4899",
+    effectPreset: "floating_hearts",
   },
 };
 
