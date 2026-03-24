@@ -1145,6 +1145,14 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="theme-builder"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

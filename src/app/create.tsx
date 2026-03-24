@@ -39,14 +39,18 @@ import {
   Crown,
   Share2,
   Camera,
+  Pencil,
+  Trash2,
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
 import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, THEME_BACKGROUNDS, type ThemeId } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import { BuilderEffectPreview } from "@/components/BuilderEffectPreview";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
+import { loadCustomThemes, deleteCustomTheme, MAX_CUSTOM_THEMES, type CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
@@ -507,17 +511,29 @@ export default function CreateEventScreen() {
   // Event Themes V1 state
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
 
+  // Custom themes — loaded from MMKV, refreshed on focus
+  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
+  const [selectedCustomTheme, setSelectedCustomTheme] = useState<CustomTheme | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      setCustomThemes(loadCustomThemes());
+    }, []),
+  );
+
   // Live theme preview — derive background color from selected theme
   const previewTheme = resolveEventTheme(selectedThemeId);
+  const hasTheme = !!selectedThemeId || !!selectedCustomTheme;
   const previewBg = selectedThemeId
     ? (isDark ? previewTheme.backBgDark : previewTheme.backBgLight)
-    : colors.background;
+    : selectedCustomTheme
+      ? "#0A0A18"
+      : colors.background;
   const previewBgStyle = useAnimatedStyle(() => ({
     backgroundColor: withTiming(previewBg, { duration: 350 }),
   }), [previewBg]);
 
   // Glass treatment for form fields when theme is active
-  const themed = !!selectedThemeId;
+  const themed = hasTheme;
   const glassSurface = themed ? "rgba(255,255,255,0.10)" : colors.surface;
   const glassBorder = themed ? "rgba(255,255,255,0.15)" : colors.border;
   const glassText = themed ? "#FFFFFF" : colors.text;
@@ -1252,7 +1268,8 @@ export default function CreateEventScreen() {
         eventPhotoPublicId: bannerUpload.publicId,
       } : {}),
       // Event Themes V1
-      ...(selectedThemeId ? { themeId: selectedThemeId } : {}),
+      // TODO: Backend custom theme support — currently falls back to neutral for server storage
+      ...(selectedThemeId ? { themeId: selectedThemeId } : selectedCustomTheme ? { themeId: "neutral" as ThemeId } : {}),
     };
     if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "create_payload", { reflectionEnabled: createPayload.reflectionEnabled });
     createMutation.mutate(createPayload);
@@ -1308,6 +1325,12 @@ export default function CreateEventScreen() {
           <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
         </View>
       )}
+      {/* Custom theme gradient preview */}
+      {selectedCustomTheme?.visualStack?.gradient && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
+          <AnimatedGradientLayer config={selectedCustomTheme.visualStack.gradient} />
+        </View>
+      )}
       {/* Static background image — between gradient and particles */}
       {selectedThemeId && previewTheme.visualStack?.image && THEME_BACKGROUNDS[previewTheme.visualStack.image.source] && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
@@ -1317,16 +1340,40 @@ export default function CreateEventScreen() {
           />
         </View>
       )}
+      {/* Custom theme background image */}
+      {selectedCustomTheme?.visualStack?.image && THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source] && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <BackgroundImageLayer
+            source={THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source]}
+            opacity={selectedCustomTheme.visualStack.image.opacity}
+          />
+        </View>
+      )}
       {/* Live theme particle effects — behind all content */}
       {selectedThemeId && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
           <ThemeEffectLayer themeId={selectedThemeId} />
         </View>
       )}
+      {/* Custom theme particle/shader effects */}
+      {selectedCustomTheme && (selectedCustomTheme.visualStack?.particles || selectedCustomTheme.visualStack?.shader) && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
+          <BuilderEffectPreview
+            particles={selectedCustomTheme.visualStack.particles}
+            shader={selectedCustomTheme.visualStack.shader}
+          />
+        </View>
+      )}
       {/* Atmospheric filter overlay — after particles, before content */}
       {selectedThemeId && previewTheme.visualStack?.filter && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
           <ThemeFilterLayer filter={previewTheme.visualStack.filter} />
+        </View>
+      )}
+      {/* Custom theme filter */}
+      {selectedCustomTheme?.visualStack?.filter && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <ThemeFilterLayer filter={selectedCustomTheme.visualStack.filter} />
         </View>
       )}
 
@@ -1336,7 +1383,7 @@ export default function CreateEventScreen() {
       >
         <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
           <View>
-            <Text style={{ color: selectedThemeId ? "#FFFFFF" : colors.text }} className="text-3xl font-bold">Create Event</Text>
+            <Text style={{ color: hasTheme ? "#FFFFFF" : colors.text }} className="text-3xl font-bold">Create Event</Text>
             <Text style={{ color: selectedThemeId ? "rgba(255,255,255,0.6)" : colors.textSecondary }} className="mt-1">Share what you're up to</Text>
           </View>
           <Pressable
@@ -1344,7 +1391,7 @@ export default function CreateEventScreen() {
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: selectedThemeId ? "rgba(255,255,255,0.15)" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
           >
-            <X size={20} color={selectedThemeId ? "#FFFFFF" : colors.text} />
+            <X size={20} color={hasTheme ? "#FFFFFF" : colors.text} />
           </Pressable>
         </View>
 
@@ -1394,6 +1441,155 @@ export default function CreateEventScreen() {
           {/* Event Theme Picker — Curated Collections */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
             <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4 }}>Event Theme</Text>
+
+            {/* ─── My Themes — saved custom themes (Pro-gated) ─── */}
+            {userIsPro && (
+              <View>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 4, paddingHorizontal: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: glassTertiary }}>My Themes</Text>
+                  {customThemes.length > 0 && (
+                    <Text style={{ fontSize: 10, color: glassTertiary }}>{customThemes.length}/{MAX_CUSTOM_THEMES}</Text>
+                  )}
+                </View>
+                {customThemes.length === 0 ? (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      router.push("/theme-builder");
+                    }}
+                    style={{
+                      alignItems: "center",
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                      backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Sparkles size={18} color={glassTertiary} />
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: glassSecondary, marginTop: 6 }}>
+                      Create your first theme
+                    </Text>
+                    <Text style={{ fontSize: 10, color: glassTertiary, marginTop: 2 }}>
+                      Mix gradients, effects & filters
+                    </Text>
+                  </Pressable>
+                ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
+                  <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
+                    {customThemes.map((ct) => {
+                      const isSelected = selectedCustomTheme?.id === ct.id;
+                      const gradColors = ct.visualStack.gradient?.colors ?? ["#333", "#555"];
+                      return (
+                        <Pressable
+                          key={ct.id}
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            if (isSelected) {
+                              setSelectedCustomTheme(null);
+                            } else {
+                              setSelectedCustomTheme(ct);
+                              setSelectedThemeId(null);
+                            }
+                          }}
+                          style={{
+                            width: 84,
+                            alignItems: "center",
+                            paddingVertical: 10,
+                            paddingHorizontal: 4,
+                            borderRadius: 14,
+                            borderWidth: isSelected ? 2 : 1,
+                            borderColor: isSelected ? (gradColors[0] ?? "#8B5CF6") : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                            backgroundColor: isSelected
+                              ? (isDark ? "rgba(139,92,246,0.15)" : "rgba(139,92,246,0.08)")
+                              : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
+                          }}
+                        >
+                          {/* Edit / Delete icons — visible when selected */}
+                          {isSelected && (
+                            <View style={{ position: "absolute", top: 3, right: 3, flexDirection: "row", gap: 2, zIndex: 1 }}>
+                              <Pressable
+                                onPress={() => {
+                                  Haptics.selectionAsync();
+                                  router.push({ pathname: "/theme-builder", params: { editId: ct.id } });
+                                }}
+                                hitSlop={6}
+                                style={{ padding: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" }}
+                              >
+                                <Pencil size={10} color="#FFFFFF" />
+                              </Pressable>
+                              <Pressable
+                                onPress={() => {
+                                  Alert.alert(
+                                    "Delete Theme",
+                                    `Delete "${ct.name}"? This can't be undone.`,
+                                    [
+                                      { text: "Cancel", style: "cancel" },
+                                      {
+                                        text: "Delete",
+                                        style: "destructive",
+                                        onPress: () => {
+                                          deleteCustomTheme(ct.id);
+                                          if (selectedCustomTheme?.id === ct.id) {
+                                            setSelectedCustomTheme(null);
+                                          }
+                                          setCustomThemes(loadCustomThemes());
+                                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                        },
+                                      },
+                                    ],
+                                  );
+                                }}
+                                hitSlop={6}
+                                style={{ padding: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" }}
+                              >
+                                <Trash2 size={10} color="#EF4444" />
+                              </Pressable>
+                            </View>
+                          )}
+                          {/* Mini gradient preview circle */}
+                          <View style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            marginBottom: 4,
+                            overflow: "hidden",
+                            borderWidth: 1,
+                            borderColor: "rgba(255,255,255,0.15)",
+                          }}>
+                            <View style={{
+                              flex: 1,
+                              flexDirection: "row",
+                            }}>
+                              {gradColors.slice(0, 3).map((gc, gi) => (
+                                <View key={gi} style={{ flex: 1, backgroundColor: gc }} />
+                              ))}
+                            </View>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              lineHeight: 13,
+                              fontWeight: "600",
+                              color: isSelected ? "#8B5CF6" : glassSecondary,
+                              textAlign: "center",
+                              height: 26,
+                            }}
+                            numberOfLines={2}
+                          >
+                            {ct.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+                )}
+              </View>
+            )}
+
             {getVisibleThemePacks().map((pack, packIdx, packs) => {
               const isFirstPremium = pack.premium && (packIdx === 0 || !packs[packIdx - 1].premium);
               return (
@@ -1427,6 +1623,7 @@ export default function CreateEventScreen() {
                               }
                               Haptics.selectionAsync();
                               setSelectedThemeId(selected ? null : tid);
+                              setSelectedCustomTheme(null);
                             }}
                             style={{
                               width: 84,
@@ -1459,6 +1656,41 @@ export default function CreateEventScreen() {
                 </View>
               );
             })}
+            {/* Create My Theme CTA — Pro-gated, cap-aware */}
+            {(() => {
+              const atCap = userIsPro && customThemes.length >= MAX_CUSTOM_THEMES;
+              return (
+                <Pressable
+                  onPress={() => {
+                    if (!userIsPro) {
+                      openPaywall?.({ source: "custom_theme_builder" });
+                      return;
+                    }
+                    if (atCap) return;
+                    Haptics.selectionAsync();
+                    router.push("/theme-builder");
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                    opacity: atCap ? 0.4 : 1,
+                  }}
+                >
+                  <Sparkles size={14} color={glassTertiary} />
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: glassSecondary }}>
+                    {atCap ? `${MAX_CUSTOM_THEMES} themes max` : "Create My Theme"}
+                  </Text>
+                  {!userIsPro && <Lock size={10} color={glassTertiary} />}
+                </Pressable>
+              );
+            })()}
             <View style={{ height: 12 }} />
           </Animated.View>
 

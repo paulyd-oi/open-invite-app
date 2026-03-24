@@ -30,7 +30,7 @@ import {
 import { resolveEventTheme } from "@/lib/eventThemes";
 
 // ─── Safe Skia import (fail-safe if native binary unavailable) ──
-let Canvas: any = null;
+export let Canvas: any = null;
 let Circle: any = null;
 let Group: any = null;
 let BlurMask: any = null;
@@ -39,7 +39,7 @@ let Rect: any = null;
 let Path: any = null;
 let Shader: any = null;
 let SkiaNamespace: any = null;
-let _skiaAvailable = false;
+export let _skiaAvailable = false;
 try {
   const Skia = require("@shopify/react-native-skia");
   Canvas = Skia.Canvas;
@@ -207,7 +207,7 @@ interface EffectConfig {
 
 // ─── Effect presets ──────────────────────────────────────────
 
-const EFFECT_CONFIGS = {
+export const EFFECT_CONFIGS = {
   ambient_dust: {
     particleCount: 20,
     minSize: 2,
@@ -1007,7 +1007,7 @@ const SkiaParticle = memo(function SkiaParticle({
 
 // ─── Animated particle field ────────────────────────────────
 
-const ParticleField = memo(function ParticleField({
+export const ParticleField = memo(function ParticleField({
   config,
   width,
   height,
@@ -1073,7 +1073,7 @@ function parseRgba(rgba: string): [number, number, number] {
   return m ? [+m[1], +m[2], +m[3]] : [128, 128, 128];
 }
 
-const ColorWashField = memo(function ColorWashField({
+export const ColorWashField = memo(function ColorWashField({
   config,
   width,
   height,
@@ -1127,7 +1127,7 @@ const ColorWashField = memo(function ColorWashField({
 
 // ─── Shader background layer (SkSL RuntimeEffect) ───────────
 
-const ShaderBackgroundField = memo(function ShaderBackgroundField({
+export const ShaderBackgroundField = memo(function ShaderBackgroundField({
   shaderPreset,
   shaderOpacity,
   width,
@@ -1167,7 +1167,7 @@ const ShaderBackgroundField = memo(function ShaderBackgroundField({
 
 // ─── Skia error boundary (fail-safe, not fail-hard) ─────────
 
-class SkiaErrorBoundary extends React.Component<
+export class SkiaErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean }
 > {
