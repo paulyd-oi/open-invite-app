@@ -8,7 +8,6 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
-  Switch,
   Alert,
   Share,
   Modal,
@@ -22,37 +21,25 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import {
   MapPin,
-  Clock,
-  Users,
-  Compass,
-  ChevronDown,
-  Check,
-  X,
-  RefreshCw,
-  Calendar,
   Search,
   ArrowRight,
-  Bell,
-  BellOff,
-  Sparkles,
-  Lock,
-  Crown,
   Share2,
   Camera,
-  Pencil,
-  Trash2,
+  X,
+  Sparkles,
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
-import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, THEME_BACKGROUNDS, THEME_VIDEOS, type ThemeId } from "@/lib/eventThemes";
-import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
-import { BuilderEffectPreview } from "@/components/BuilderEffectPreview";
-import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
-import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
-import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
-import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
+import { EVENT_THEMES, resolveEventTheme, type ThemeId } from "@/lib/eventThemes";
 import { loadCustomThemes, deleteCustomTheme, MAX_CUSTOM_THEMES, type CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import BottomSheet from "@/components/BottomSheet";
+import { CreateEditorHeader } from "@/components/create/CreateEditorHeader";
+import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
+import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
+import { ThemeSwatchRail } from "@/components/create/ThemeSwatchRail";
+import { EffectSwatchRail } from "@/components/create/EffectSwatchRail";
+import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -61,7 +48,6 @@ import { uploadByKind } from "@/lib/imageUpload";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import BottomNavigation from "@/components/BottomNavigation";
-import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -100,12 +86,6 @@ import { postIdempotent } from "@/lib/idempotencyKey";
 import EmojiPicker from "rn-emoji-keyboard";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
-
-const FREQUENCY_OPTIONS = [
-  { value: "once", label: "One Time", icon: "📆" },
-  { value: "weekly", label: "Weekly", icon: "🔄" },
-  { value: "monthly", label: "Monthly", icon: "📅" },
-];
 
 // Place suggestion type
 interface PlaceSuggestion {
@@ -540,6 +520,9 @@ export default function CreateEventScreen() {
   const glassText = themed ? "#FFFFFF" : colors.text;
   const glassSecondary = themed ? "rgba(255,255,255,0.6)" : colors.textSecondary;
   const glassTertiary = themed ? "rgba(255,255,255,0.4)" : colors.textTertiary;
+
+  // Bottom dock sheet state
+  const [activeDockMode, setActiveDockMode] = useState<DockMode | null>(null);
 
   // Banner photo state
   const [bannerLocalUri, setBannerLocalUri] = useState<string | null>(null);
@@ -1130,6 +1113,45 @@ export default function CreateEventScreen() {
     setBannerUpload(null);
   };
 
+  // Dock mode handler — toggles sheets
+  const handleDockMode = useCallback((mode: DockMode) => {
+    setActiveDockMode((prev) => (prev === mode ? null : mode));
+  }, []);
+
+  // Theme selection from swatch rail
+  const handleThemeSelect = useCallback((id: ThemeId | null) => {
+    setSelectedThemeId(id);
+    setSelectedCustomTheme(null);
+  }, []);
+
+  const handleCustomThemeSelect = useCallback((ct: CustomTheme | null) => {
+    setSelectedCustomTheme(ct);
+    if (ct) setSelectedThemeId(null);
+  }, []);
+
+  const handleDeleteCustomTheme = useCallback((id: string) => {
+    deleteCustomTheme(id);
+    if (selectedCustomTheme?.id === id) setSelectedCustomTheme(null);
+    setCustomThemes(loadCustomThemes());
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [selectedCustomTheme]);
+
+  const handleOpenThemeBuilder = useCallback((editId?: string) => {
+    Haptics.selectionAsync();
+    if (editId) {
+      router.push({ pathname: "/theme-builder", params: { editId } });
+    } else {
+      router.push("/theme-builder");
+    }
+  }, [router]);
+
+  // Effect selection from effect swatch rail
+  const handleEffectSelect = useCallback((_effectKey: string | null) => {
+    // Effect selection updates the theme's particle preset at runtime.
+    // For V1 this is view-only — the effect preview comes from the selected theme.
+    // Future: allow overriding the effect independently of the theme.
+  }, []);
+
   const handleCreate = () => {
     // [P0_SINGLEFLIGHT] Prevent double-submit while mutation is in-flight
     if (createMutation.isPending) {
@@ -1307,7 +1329,7 @@ export default function CreateEventScreen() {
   }
 
   // [CREATE_CTA_RENDER] DEV-only: confirm CTA is reachable
-  const computedPaddingBottom = 100 + insets.bottom;
+  const computedPaddingBottom = 140 + insets.bottom; // Extra room for dock
   if (__DEV__) {
     devLog('[CREATE_CTA_RENDER]', {
       disabled: createMutation.isPending,
@@ -1319,100 +1341,39 @@ export default function CreateEventScreen() {
 
   return (
     <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
-      <SafeAreaView className="flex-1" edges={["top"]}>
-      {/* Live animated gradient background — below particles */}
-      {selectedThemeId && previewTheme.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
-          <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
-        </View>
-      )}
-      {/* Custom theme gradient preview */}
-      {selectedCustomTheme?.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }} pointerEvents="none">
-          <AnimatedGradientLayer config={selectedCustomTheme.visualStack.gradient} />
-        </View>
-      )}
-      {/* Static background image — between gradient and particles */}
-      {selectedThemeId && previewTheme.visualStack?.image && THEME_BACKGROUNDS[previewTheme.visualStack.image.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <BackgroundImageLayer
-            source={THEME_BACKGROUNDS[previewTheme.visualStack.image.source]}
-            opacity={previewTheme.visualStack.image.opacity}
-          />
-        </View>
-      )}
-      {/* Custom theme background image */}
-      {selectedCustomTheme?.visualStack?.image && THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <BackgroundImageLayer
-            source={THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source]}
-            opacity={selectedCustomTheme.visualStack.image.opacity}
-          />
-        </View>
-      )}
-      {/* Looping video background — between image and particles */}
-      {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeVideoLayer
-            source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
-            poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
-            opacity={previewTheme.visualStack.video.opacity}
-            isActive={true}
-          />
-        </View>
-      )}
-      {/* Live theme particle effects — behind all content */}
-      {selectedThemeId && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
-          <ThemeEffectLayer themeId={selectedThemeId} />
-        </View>
-      )}
-      {/* Custom theme particle/shader effects */}
-      {selectedCustomTheme && (selectedCustomTheme.visualStack?.particles || selectedCustomTheme.visualStack?.shader) && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
-          <BuilderEffectPreview
-            particles={selectedCustomTheme.visualStack.particles}
-            shader={selectedCustomTheme.visualStack.shader}
-          />
-        </View>
-      )}
-      {/* Atmospheric filter overlay — after particles, before content */}
-      {selectedThemeId && previewTheme.visualStack?.filter && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeFilterLayer filter={previewTheme.visualStack.filter} />
-        </View>
-      )}
-      {/* Custom theme filter */}
-      {selectedCustomTheme?.visualStack?.filter && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeFilterLayer filter={selectedCustomTheme.visualStack.filter} />
-        </View>
-      )}
+      {/* ── Editor Header ── */}
+      <CreateEditorHeader
+        onCancel={() => router.back()}
+        onSave={handleCreate}
+        isPending={createMutation.isPending}
+        themed={themed}
+        glassText={glassText}
+        glassSecondary={glassSecondary}
+        themeColor={themeColor}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
-        <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-          <View>
-            <Text style={{ color: hasTheme ? "#FFFFFF" : colors.text }} className="text-3xl font-bold">Create Event</Text>
-            <Text style={{ color: selectedThemeId ? "rgba(255,255,255,0.6)" : colors.textSecondary }} className="mt-1">Share what you're up to</Text>
-          </View>
-          <Pressable
-            onPress={() => router.back()}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: selectedThemeId ? "rgba(255,255,255,0.15)" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
-          >
-            <X size={20} color={hasTheme ? "#FFFFFF" : colors.text} />
-          </Pressable>
-        </View>
-
         <ScrollView
-          className="flex-1 px-5"
+          className="flex-1"
           contentContainerStyle={{ paddingBottom: computedPaddingBottom }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* ── Live Preview Hero ── */}
+          <CreatePreviewHero
+            title={title}
+            emoji={emoji}
+            selectedThemeId={selectedThemeId}
+            previewTheme={previewTheme}
+            selectedCustomTheme={selectedCustomTheme}
+            glassText={glassText}
+            glassSecondary={glassSecondary}
+            themed={themed}
+          />
+
           {isSmartMode && (
             <View
               style={{
@@ -1420,6 +1381,7 @@ export default function CreateEventScreen() {
                 borderRadius: 12,
                 padding: 12,
                 marginBottom: 16,
+                marginHorizontal: 16,
                 borderWidth: 1,
                 borderColor: "#A7F3D0",
               }}
@@ -1433,6 +1395,7 @@ export default function CreateEventScreen() {
             </View>
           )}
 
+          <View className="px-5">
           {/* Emoji Picker — tap to open rn-emoji-keyboard */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
@@ -1448,262 +1411,6 @@ export default function CreateEventScreen() {
                 <Text style={{ color: glassSecondary, fontSize: 15 }}>Tap to change icon</Text>
               </View>
             </Pressable>
-          </Animated.View>
-
-          {/* Event Theme Picker — Curated Collections */}
-          <Animated.View entering={FadeInDown.delay(25).springify()}>
-            <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4 }}>Event Theme</Text>
-
-            {/* ─── My Themes — saved custom themes (Pro-gated) ─── */}
-            {userIsPro && (
-              <View>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 4, paddingHorizontal: 4 }}>
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: glassTertiary }}>My Themes</Text>
-                  {customThemes.length > 0 && (
-                    <Text style={{ fontSize: 10, color: glassTertiary }}>{customThemes.length}/{MAX_CUSTOM_THEMES}</Text>
-                  )}
-                </View>
-                {customThemes.length === 0 ? (
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      router.push("/theme-builder");
-                    }}
-                    style={{
-                      alignItems: "center",
-                      paddingVertical: 16,
-                      paddingHorizontal: 20,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-                      backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <Sparkles size={18} color={glassTertiary} />
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: glassSecondary, marginTop: 6 }}>
-                      Create your first theme
-                    </Text>
-                    <Text style={{ fontSize: 10, color: glassTertiary, marginTop: 2 }}>
-                      Mix gradients, effects & filters
-                    </Text>
-                  </Pressable>
-                ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
-                  <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
-                    {customThemes.map((ct) => {
-                      const isSelected = selectedCustomTheme?.id === ct.id;
-                      const gradColors = ct.visualStack.gradient?.colors ?? ["#333", "#555"];
-                      return (
-                        <Pressable
-                          key={ct.id}
-                          onPress={() => {
-                            Haptics.selectionAsync();
-                            if (isSelected) {
-                              setSelectedCustomTheme(null);
-                            } else {
-                              setSelectedCustomTheme(ct);
-                              setSelectedThemeId(null);
-                            }
-                          }}
-                          style={{
-                            width: 84,
-                            alignItems: "center",
-                            paddingVertical: 10,
-                            paddingHorizontal: 4,
-                            borderRadius: 14,
-                            borderWidth: isSelected ? 2 : 1,
-                            borderColor: isSelected ? (gradColors[0] ?? "#8B5CF6") : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                            backgroundColor: isSelected
-                              ? (isDark ? "rgba(139,92,246,0.15)" : "rgba(139,92,246,0.08)")
-                              : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
-                          }}
-                        >
-                          {/* Edit / Delete icons — visible when selected */}
-                          {isSelected && (
-                            <View style={{ position: "absolute", top: 3, right: 3, flexDirection: "row", gap: 2, zIndex: 1 }}>
-                              <Pressable
-                                onPress={() => {
-                                  Haptics.selectionAsync();
-                                  router.push({ pathname: "/theme-builder", params: { editId: ct.id } });
-                                }}
-                                hitSlop={6}
-                                style={{ padding: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" }}
-                              >
-                                <Pencil size={10} color="#FFFFFF" />
-                              </Pressable>
-                              <Pressable
-                                onPress={() => {
-                                  Alert.alert(
-                                    "Delete Theme",
-                                    `Delete "${ct.name}"? This can't be undone.`,
-                                    [
-                                      { text: "Cancel", style: "cancel" },
-                                      {
-                                        text: "Delete",
-                                        style: "destructive",
-                                        onPress: () => {
-                                          deleteCustomTheme(ct.id);
-                                          if (selectedCustomTheme?.id === ct.id) {
-                                            setSelectedCustomTheme(null);
-                                          }
-                                          setCustomThemes(loadCustomThemes());
-                                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                        },
-                                      },
-                                    ],
-                                  );
-                                }}
-                                hitSlop={6}
-                                style={{ padding: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" }}
-                              >
-                                <Trash2 size={10} color="#EF4444" />
-                              </Pressable>
-                            </View>
-                          )}
-                          {/* Mini gradient preview circle */}
-                          <View style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            marginBottom: 4,
-                            overflow: "hidden",
-                            borderWidth: 1,
-                            borderColor: "rgba(255,255,255,0.15)",
-                          }}>
-                            <View style={{
-                              flex: 1,
-                              flexDirection: "row",
-                            }}>
-                              {gradColors.slice(0, 3).map((gc, gi) => (
-                                <View key={gi} style={{ flex: 1, backgroundColor: gc }} />
-                              ))}
-                            </View>
-                          </View>
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              lineHeight: 13,
-                              fontWeight: "600",
-                              color: isSelected ? "#8B5CF6" : glassSecondary,
-                              textAlign: "center",
-                              height: 26,
-                            }}
-                            numberOfLines={2}
-                          >
-                            {ct.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-                )}
-              </View>
-            )}
-
-            {getVisibleThemePacks().map((pack, packIdx, packs) => {
-              const isFirstPremium = pack.premium && (packIdx === 0 || !packs[packIdx - 1].premium);
-              return (
-                <View key={pack.label}>
-                  {/* Premium section divider — shown once before the first premium pack */}
-                  {isFirstPremium && (
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 2, paddingHorizontal: 4 }}>
-                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
-                      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8 }}>
-                        <Crown size={10} color={glassTertiary} />
-                        <Text style={{ fontSize: 10, fontWeight: "600", color: glassTertiary, marginLeft: 3, letterSpacing: 0.5 }}>PRO</Text>
-                      </View>
-                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
-                    </View>
-                  )}
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: glassTertiary, marginTop: 8, marginBottom: 4, paddingLeft: 4 }}>{pack.label}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
-                    <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
-                      {pack.ids.map((tid) => {
-                        const t = EVENT_THEMES[tid];
-                        const selected = selectedThemeId === tid;
-                        const premium = isPremiumTheme(tid);
-                        const locked = premium && !userIsPro;
-                        return (
-                          <Pressable
-                            key={tid}
-                            onPress={() => {
-                              if (locked) {
-                                openPaywall?.({ source: "theme_picker" });
-                                return;
-                              }
-                              Haptics.selectionAsync();
-                              setSelectedThemeId(selected ? null : tid);
-                              setSelectedCustomTheme(null);
-                            }}
-                            style={{
-                              width: 84,
-                              alignItems: "center",
-                              paddingVertical: 10,
-                              paddingHorizontal: 4,
-                              borderRadius: 14,
-                              borderWidth: selected ? 2 : 1,
-                              borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                              backgroundColor: selected
-                                ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
-                                : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
-                              opacity: locked ? 0.65 : 1,
-                            }}
-                          >
-                            <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
-                            <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: "600", color: selected ? t.backAccent : glassSecondary, textAlign: "center", height: 26 }} numberOfLines={2}>
-                              {t.label}
-                            </Text>
-                            {locked && (
-                              <View style={{ position: "absolute", top: 4, right: 4 }}>
-                                <Lock size={10} color={glassTertiary} />
-                              </View>
-                            )}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
-                </View>
-              );
-            })}
-            {/* Create My Theme CTA — Pro-gated, cap-aware */}
-            {(() => {
-              const atCap = userIsPro && customThemes.length >= MAX_CUSTOM_THEMES;
-              return (
-                <Pressable
-                  onPress={() => {
-                    if (!userIsPro) {
-                      openPaywall?.({ source: "custom_theme_builder" });
-                      return;
-                    }
-                    if (atCap) return;
-                    Haptics.selectionAsync();
-                    router.push("/theme-builder");
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    paddingVertical: 10,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                    opacity: atCap ? 0.4 : 1,
-                  }}
-                >
-                  <Sparkles size={14} color={glassTertiary} />
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: glassSecondary }}>
-                    {atCap ? `${MAX_CUSTOM_THEMES} themes max` : "Create My Theme"}
-                  </Text>
-                  {!userIsPro && <Lock size={10} color={glassTertiary} />}
-                </Pressable>
-              );
-            })()}
-            <View style={{ height: 12 }} />
           </Animated.View>
 
           {/* Cover Photo — compact idle, full preview when selected */}
@@ -1966,64 +1673,6 @@ export default function CreateEventScreen() {
             </View>
           </Animated.View>
 
-          {/* Frequency (Recurring) - Only for non-circle events */}
-          {!isCircleEvent && (
-          <Animated.View entering={FadeInDown.delay(225).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Frequency</Text>
-            <Pressable
-              testID="create-select-frequency"
-              onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <RefreshCw size={18} color={themeColor} />
-                  <Text style={{ color: glassText }} className="ml-3 font-medium">
-                    {FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label}
-                  </Text>
-                </View>
-                <ChevronDown size={20} color={glassTertiary} />
-              </View>
-            </Pressable>
-
-            {showFrequencyPicker && (
-              <View className="rounded-xl p-2 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                {FREQUENCY_OPTIONS.map((option) => (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      handleFrequencyChange(option.value as "once" | "weekly" | "monthly");
-                    }}
-                    className="flex-row items-center p-3 rounded-lg mb-1"
-                    style={{ backgroundColor: frequency === option.value ? `${themeColor}15` : "transparent" }}
-                  >
-                    <Text className="text-xl mr-3">{option.icon}</Text>
-                    <Text
-                      className="flex-1 font-medium"
-                      style={{ color: frequency === option.value ? themeColor : glassText }}
-                    >
-                      {option.label}
-                    </Text>
-                    {frequency === option.value && <Check size={20} color={themeColor} />}
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {frequency !== "once" && (
-              <View className="rounded-xl p-3 mb-4 flex-row items-center" style={{ backgroundColor: `${themeColor}15` }}>
-                <RefreshCw size={16} color={themeColor} />
-                <Text style={{ color: themeColor }} className="ml-2 text-sm">
-                  This event will repeat {frequency} starting{" "}
-                  {startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-          )}
-
           {/* Find Best Time — routes to Who's Free SSOT */}
           <Animated.View entering={FadeInDown.delay(245).springify()}>
             <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Need Help Picking a Time?</Text>
@@ -2060,514 +1709,7 @@ export default function CreateEventScreen() {
             </View>
           </Animated.View>
 
-          {/* Visibility */}
-          <Animated.View entering={FadeInDown.delay(250).springify()}>
-            {isCircleEvent ? (
-              <>
-                {/* Group Only Visibility - Simplified */}
-                <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Visibility</Text>
-                <View className="rounded-xl p-3 mb-4 flex-row items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Lock size={16} color={glassSecondary} />
-                  <Text className="text-sm ml-2" style={{ color: glassSecondary }}>
-                    Only friends in this group can see and join.
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Who's Invited?</Text>
-                <View className="flex-row mb-4">
-                  <Pressable
-                    testID="create-select-visibility-all"
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setVisibility("all_friends");
-                    }}
-                    className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
-                    style={{
-                      backgroundColor: visibility === "all_friends" ? `${themeColor}15` : glassSurface,
-                      borderWidth: 1,
-                      borderColor: visibility === "all_friends" ? `${themeColor}40` : glassBorder
-                    }}
-                  >
-                    <Compass size={18} color={visibility === "all_friends" ? themeColor : glassTertiary} />
-                    <Text
-                      className="ml-2 font-medium"
-                      style={{ color: visibility === "all_friends" ? themeColor : glassSecondary }}
-                    >
-                      All Friends
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    testID="create-select-visibility-circles"
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setVisibility("specific_groups");
-                    }}
-                    className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
-                    style={{
-                      backgroundColor: visibility === "specific_groups" ? "#4ECDC415" : glassSurface,
-                      borderWidth: 1,
-                      borderColor: visibility === "specific_groups" ? "#4ECDC440" : glassBorder
-                    }}
-                  >
-                    <Users size={18} color={visibility === "specific_groups" ? "#4ECDC4" : glassTertiary} />
-                    <Text
-                      className="ml-2 font-medium"
-                      style={{ color: visibility === "specific_groups" ? "#4ECDC4" : glassSecondary }}
-                    >
-                      Circles
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {/* Circle Selection */}
-                {visibility === "specific_groups" && (
-                  <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                    <Text style={{ color: glassText }} className="text-sm font-medium mb-3">Select Circles</Text>
-                    {circles.length === 0 ? (
-                      <View className="items-center py-4">
-                        <Text style={{ color: glassTertiary }} className="text-center mb-3">
-                          No circles yet.
-                        </Text>
-                        <Pressable
-                          onPress={() => router.push("/friends" as any)}
-                          style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: themeColor }}
-                        >
-                          <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "600" }}>Go to Friends</Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      circles.map((circle: Circle) => (
-                        <Pressable
-                          key={circle.id}
-                          onPress={() => toggleGroup(circle.id)}
-                          className="flex-row items-center p-3 rounded-lg mb-2"
-                          style={{ backgroundColor: selectedGroupIds.includes(circle.id) ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F9FAFB" }}
-                        >
-                          <View
-                            className="w-8 h-8 rounded-lg items-center justify-center mr-3 overflow-hidden"
-                            style={{ backgroundColor: `${themeColor}20` }}
-                          >
-                            <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-base" />
-                          </View>
-                          <Text style={{ color: glassText }} className="flex-1 font-medium">{circle.name}</Text>
-                          {selectedGroupIds.includes(circle.id) && (
-                            <Check size={20} color={themeColor} />
-                          )}
-                        </Pressable>
-                      ))
-                    )}
-                  </View>
-                )}
-              </>
-            )}
-          </Animated.View>
-
-          {/* Send Notification - Only for non-circle events */}
-          {!isCircleEvent && (
-          <Animated.View entering={FadeInDown.delay(275).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Send Notification</Text>
-            <View className="flex-row mb-4">
-              <Pressable
-                testID="create-toggle-notification-yes"
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSendNotification(true);
-                }}
-                className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
-                style={{
-                  backgroundColor: sendNotification ? `${themeColor}15` : glassSurface,
-                  borderWidth: 1,
-                  borderColor: sendNotification ? `${themeColor}40` : glassBorder
-                }}
-              >
-                <Bell size={18} color={sendNotification ? themeColor : glassTertiary} />
-                <Text
-                  className="ml-2 font-medium"
-                  style={{ color: sendNotification ? themeColor : glassSecondary }}
-                >
-                  Yes
-                </Text>
-              </Pressable>
-              <Pressable
-                testID="create-toggle-notification-no"
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSendNotification(false);
-                }}
-                className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
-                style={{
-                  backgroundColor: !sendNotification ? `${glassTertiary}15` : glassSurface,
-                  borderWidth: 1,
-                  borderColor: !sendNotification ? `${glassTertiary}40` : glassBorder
-                }}
-              >
-                <BellOff size={18} color={!sendNotification ? glassSecondary : glassTertiary} />
-                <Text
-                  className="ml-2 font-medium"
-                  style={{ color: !sendNotification ? glassSecondary : glassTertiary }}
-                >
-                  No
-                </Text>
-              </Pressable>
-            </View>
-            <Text style={{ color: glassTertiary }} className="text-xs mb-4 ml-1">
-              {sendNotification
-                ? visibility === "specific_groups"
-                  ? "Friends in selected groups will be notified"
-                  : "All friends will be notified about this event"
-                : "No notifications will be sent"}
-            </Text>
-          </Animated.View>
-          )}
-
-          {/* Capacity */}
-          <Animated.View entering={FadeInDown.delay(285).springify()}>
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-1">
-                <Text style={{ color: glassSecondary }} className="text-sm font-medium">Limit number of guests</Text>
-                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Once full, RSVPs close automatically.</Text>
-              </View>
-              <Switch
-                value={hasCapacity}
-                onValueChange={(value) => {
-                  Haptics.selectionAsync();
-                  setHasCapacity(value);
-                  if (!value) setCapacityInput("");
-                  else if (!capacityInput) setCapacityInput("6");
-                }}
-                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
-                thumbColor={hasCapacity ? themeColor : glassTertiary}
-              />
-            </View>
-            {hasCapacity && (
-              <View className="rounded-xl p-3 mb-4 flex-row items-center justify-between" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                <Text style={{ color: glassSecondary }} className="text-sm">Max guests</Text>
-                <View className="flex-row items-center">
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      const current = parseInt(capacityInput) || 2;
-                      if (current > 2) setCapacityInput(String(current - 1));
-                    }}
-                    className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: themed ? "rgba(255,255,255,0.08)" : colors.background }}
-                  >
-                    <Text style={{ color: parseInt(capacityInput || "2") <= 2 ? glassTertiary : glassText }} className="text-xl font-medium">−</Text>
-                  </Pressable>
-                  <Text style={{ color: glassText }} className="text-lg font-semibold mx-4 min-w-[32px] text-center">
-                    {capacityInput || "2"}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      const current = parseInt(capacityInput) || 2;
-                      if (current < 100) setCapacityInput(String(current + 1));
-                    }}
-                    className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: themed ? "rgba(255,255,255,0.08)" : colors.background }}
-                  >
-                    <Text style={{ color: parseInt(capacityInput || "2") >= 100 ? glassTertiary : themeColor }} className="text-xl font-medium">+</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-          </Animated.View>
-
-          {/* Pitch In V1 — payment handle for cost sharing */}
-          <Animated.View entering={FadeInDown.delay(290).springify()}>
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-1">
-                <Text style={{ color: glassSecondary }} className="text-sm font-medium">Pitch In</Text>
-                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Let guests chip in for costs.</Text>
-              </View>
-              <Switch
-                value={pitchInEnabled}
-                onValueChange={(value) => {
-                  Haptics.selectionAsync();
-                  setPitchInEnabled(value);
-                  if (!value) {
-                    setPitchInHandle("");
-                    setPitchInAmount("");
-                    setPitchInNote("");
-                  }
-                }}
-                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
-                thumbColor={pitchInEnabled ? themeColor : glassTertiary}
-              />
-            </View>
-            {pitchInEnabled && (
-              <Animated.View entering={FadeInDown.delay(50).springify()}>
-                {/* Amount input */}
-                <View className="rounded-xl p-3 mb-3" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                  <TextInput
-                    value={pitchInAmount}
-                    onChangeText={setPitchInAmount}
-                    placeholder="Suggested amount (e.g. $10)"
-                    placeholderTextColor={glassTertiary}
-                    style={{ fontSize: 14, color: glassText }}
-                    keyboardType="default"
-                  />
-                </View>
-
-                {/* Payment method picker */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 10 }} contentContainerStyle={{ gap: 6 }}>
-                  {([
-                    { key: "venmo" as const, label: "Venmo" },
-                    { key: "cashapp" as const, label: "Cash App" },
-                    { key: "paypal" as const, label: "PayPal" },
-                    { key: "other" as const, label: "Other" },
-                  ]).map(({ key, label }) => (
-                    <Pressable
-                      key={key}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setPitchInMethod(key);
-                      }}
-                      style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 8,
-                        borderRadius: 10,
-                        backgroundColor: pitchInMethod === key ? `${themeColor}18` : glassSurface,
-                        borderWidth: 1,
-                        borderColor: pitchInMethod === key ? themeColor : glassBorder,
-                      }}
-                    >
-                      <Text style={{
-                        fontSize: 13,
-                        fontWeight: pitchInMethod === key ? "600" : "400",
-                        color: pitchInMethod === key ? themeColor : glassSecondary,
-                      }}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-
-                {/* Handle input with @ prefix for Venmo/Cash App */}
-                <View className="rounded-xl p-3 mb-3 flex-row items-center" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                  {(pitchInMethod === "venmo" || pitchInMethod === "cashapp") && (
-                    <Text style={{ fontSize: 14, color: glassTertiary, marginRight: 2 }}>@</Text>
-                  )}
-                  <TextInput
-                    value={pitchInHandle}
-                    onChangeText={setPitchInHandle}
-                    placeholder={pitchInMethod === "venmo" ? "username" : pitchInMethod === "cashapp" ? "cashtag" : pitchInMethod === "paypal" ? "PayPal email or username" : "Handle or username"}
-                    placeholderTextColor={glassTertiary}
-                    style={{ fontSize: 14, color: glassText, flex: 1 }}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-
-                {/* Note presets + input */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 8 }} contentContainerStyle={{ gap: 6 }}>
-                  {[
-                    "Help cover snacks and drinks",
-                    "Help cover venue costs",
-                    "Help cover supplies",
-                    "Help support the event",
-                    "Totally optional, but appreciated",
-                  ].map((preset) => (
-                    <Pressable
-                      key={preset}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setPitchInNote(preset);
-                      }}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 7,
-                        borderRadius: 16,
-                        backgroundColor: pitchInNote === preset ? `${themeColor}18` : glassSurface,
-                        borderWidth: 1,
-                        borderColor: pitchInNote === preset ? themeColor : glassBorder,
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, color: pitchInNote === preset ? themeColor : glassSecondary }}>
-                        {preset}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                  <TextInput
-                    value={pitchInNote}
-                    onChangeText={setPitchInNote}
-                    placeholder="Note (e.g. for food & drinks)"
-                    placeholderTextColor={glassTertiary}
-                    style={{ fontSize: 14, color: glassText }}
-                    maxLength={100}
-                  />
-                </View>
-              </Animated.View>
-            )}
-          </Animated.View>
-
-          {/* What to Bring V2 — item list builder */}
-          <Animated.View entering={FadeInDown.delay(295).springify()}>
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-1">
-                <Text style={{ color: glassSecondary }} className="text-sm font-medium">What to bring</Text>
-                <Text style={{ color: glassTertiary }} className="text-xs mt-0.5">Guests can claim items to bring.</Text>
-              </View>
-              <Switch
-                value={bringListEnabled}
-                onValueChange={(value) => {
-                  Haptics.selectionAsync();
-                  setBringListEnabled(value);
-                  if (!value) {
-                    setBringListItems([]);
-                    setBringListInput("");
-                  }
-                }}
-                trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
-                thumbColor={bringListEnabled ? themeColor : glassTertiary}
-              />
-            </View>
-            {bringListEnabled && (
-              <Animated.View entering={FadeInDown.delay(50).springify()}>
-                {/* Add item row */}
-                <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                  <View className="flex-1 rounded-xl p-3" style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-                    <TextInput
-                      value={bringListInput}
-                      onChangeText={setBringListInput}
-                      placeholder="e.g. Chips, Ice, Cups..."
-                      placeholderTextColor={glassTertiary}
-                      style={{ fontSize: 14, color: glassText }}
-                      maxLength={60}
-                      onSubmitEditing={() => {
-                        const trimmed = bringListInput.trim();
-                        if (trimmed && bringListItems.length < 20) {
-                          setBringListItems((prev) => [...prev, trimmed]);
-                          setBringListInput("");
-                        }
-                      }}
-                      returnKeyType="done"
-                    />
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      const trimmed = bringListInput.trim();
-                      if (trimmed && bringListItems.length < 20) {
-                        Haptics.selectionAsync();
-                        setBringListItems((prev) => [...prev, trimmed]);
-                        setBringListInput("");
-                      }
-                    }}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: bringListInput.trim() ? themeColor : glassSurface,
-                      borderWidth: 1,
-                      borderColor: bringListInput.trim() ? themeColor : glassBorder,
-                    }}
-                  >
-                    <Text style={{ fontSize: 20, fontWeight: "500", color: bringListInput.trim() ? "white" : glassTertiary }}>+</Text>
-                  </Pressable>
-                </View>
-                {/* Item list */}
-                {bringListItems.length > 0 && (
-                  <View className="mb-4" style={{ gap: 6 }}>
-                    {/* INVARIANT_ALLOW_SMALL_MAP */}
-                    {bringListItems.map((item, index) => (
-                      <View
-                        key={`${item}-${index}`}
-                        className="flex-row items-center rounded-xl px-3 py-2.5"
-                        style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
-                      >
-                        <Text style={{ fontSize: 14, color: glassText, flex: 1 }}>{item}</Text>
-                        <Pressable
-                          onPress={() => {
-                            Haptics.selectionAsync();
-                            setBringListItems((prev) => prev.filter((_, i) => i !== index));
-                          }}
-                          hitSlop={8}
-                        >
-                          <X size={16} color={glassTertiary} />
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </Animated.View>
-            )}
-          </Animated.View>
-
-          {/* [P1_HOSTING_NUDGE] Soft nudge banner — premium themes upsell */}
-          {showNudgeBanner && (
-            <Animated.View
-              entering={FadeInDown.delay(200).springify()}
-              style={{
-                backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED",
-                borderRadius: 12,
-                padding: 14,
-                marginTop: 12,
-                borderWidth: 1,
-                borderColor: isDark ? "#3A3A3C" : "#FDBA74",
-              }}
-            >
-              <Text style={{ color: glassText, fontWeight: "600", fontSize: 14, marginBottom: 4 }}>
-                Make your event stand out
-              </Text>
-              <Text style={{ color: glassSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-                Unlock premium themes, effects, and seasonal collections with Pro.
-              </Text>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable
-                  onPress={handleNudgeUpgrade}
-                  style={{
-                    backgroundColor: themeColor,
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                  }}
-                >
-                  <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 13 }}>Upgrade</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleNudgeDismiss}
-                  style={{
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                  }}
-                >
-                  <Text style={{ color: glassTertiary, fontSize: 13 }}>Not now</Text>
-                </Pressable>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Hosting is unlimited for all tiers — quota indicator removed */}
-
-          {/* [P1_CREATE_ENTITLEMENTS_TIMEOUT] Entitlements loading timeout message */}
-          {entitlementsTimedOut && (entitlementsLoading || hostingQuota.isLoading) && (
-            <View
-              className="rounded-xl p-3 mt-3"
-              style={{ backgroundColor: isDark ? "#332B00" : "#FFFBEB", borderColor: "#F59E0B40", borderWidth: 1 }}
-            >
-              <Text className="text-xs text-center mb-2" style={{ color: isDark ? "#FCD34D" : "#92400E" }}>
-                Still loading your plan details...
-              </Text>
-              <Pressable
-                onPress={() => {
-                  setEntitlementsTimedOut(false);
-                  refetchEntitlements();
-                  hostingQuota.refetch();
-                }}
-                className="self-center px-4 py-1.5 rounded-lg"
-                style={{ backgroundColor: "#F59E0B20" }}
-              >
-                <Text className="text-xs font-semibold" style={{ color: "#F59E0B" }}>Retry</Text>
-              </Pressable>
-            </View>
-          )}
+          {/* Advanced settings moved to Settings sheet — see SettingsSheetContent */}
 
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
@@ -2616,8 +1758,128 @@ export default function CreateEventScreen() {
               </Text>
             </Pressable>
           )}
+          </View>{/* close px-5 */}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Bottom Editing Dock ── */}
+      <CreateBottomDock
+        activeMode={activeDockMode}
+        onModeChange={handleDockMode}
+        themed={themed}
+        glassText={glassText}
+        glassTertiary={glassTertiary}
+        themeColor={themeColor}
+      />
+
+      {/* ── Theme Sheet ── */}
+      <BottomSheet
+        visible={activeDockMode === "theme"}
+        onClose={() => setActiveDockMode(null)}
+        title="Theme"
+        heightPct={0.55}
+      >
+        <ThemeSwatchRail
+          selectedThemeId={selectedThemeId}
+          selectedCustomTheme={selectedCustomTheme}
+          customThemes={customThemes}
+          userIsPro={userIsPro}
+          isDark={isDark}
+          glassText={glassText}
+          glassSecondary={glassSecondary}
+          glassTertiary={glassTertiary}
+          onSelectTheme={handleThemeSelect}
+          onSelectCustomTheme={handleCustomThemeSelect}
+          onDeleteCustomTheme={handleDeleteCustomTheme}
+          onOpenPaywall={() => {
+            setPaywallContext("PREMIUM_THEME");
+            setShowPaywallModal(true);
+          }}
+          onOpenThemeBuilder={handleOpenThemeBuilder}
+        />
+      </BottomSheet>
+
+      {/* ── Effect Sheet ── */}
+      <BottomSheet
+        visible={activeDockMode === "effect"}
+        onClose={() => setActiveDockMode(null)}
+        title="Effect"
+        heightPct={0.5}
+      >
+        <EffectSwatchRail
+          selectedThemeId={selectedThemeId}
+          glassText={glassText}
+          glassSecondary={glassSecondary}
+          glassTertiary={glassTertiary}
+          themeColor={themeColor}
+          isDark={isDark}
+          onSelectEffect={handleEffectSelect}
+        />
+      </BottomSheet>
+
+      {/* ── Settings Sheet ── */}
+      <BottomSheet
+        visible={activeDockMode === "settings"}
+        onClose={() => setActiveDockMode(null)}
+        title="Settings"
+        heightPct={0.65}
+      >
+        <SettingsSheetContent
+          isCircleEvent={isCircleEvent}
+          frequency={frequency}
+          showFrequencyPicker={showFrequencyPicker}
+          onToggleFrequencyPicker={() => setShowFrequencyPicker((p) => !p)}
+          onFrequencyChange={handleFrequencyChange}
+          startDate={startDate}
+          visibility={visibility}
+          onSetVisibility={setVisibility}
+          selectedGroupIds={selectedGroupIds}
+          onToggleGroup={toggleGroup}
+          circles={circles}
+          sendNotification={sendNotification}
+          onSetSendNotification={setSendNotification}
+          hasCapacity={hasCapacity}
+          onSetHasCapacity={setHasCapacity}
+          capacityInput={capacityInput}
+          onSetCapacityInput={setCapacityInput}
+          pitchInEnabled={pitchInEnabled}
+          onSetPitchInEnabled={setPitchInEnabled}
+          pitchInAmount={pitchInAmount}
+          onSetPitchInAmount={setPitchInAmount}
+          pitchInMethod={pitchInMethod}
+          onSetPitchInMethod={setPitchInMethod}
+          pitchInHandle={pitchInHandle}
+          onSetPitchInHandle={setPitchInHandle}
+          pitchInNote={pitchInNote}
+          onSetPitchInNote={setPitchInNote}
+          bringListEnabled={bringListEnabled}
+          onSetBringListEnabled={setBringListEnabled}
+          bringListItems={bringListItems}
+          onSetBringListItems={setBringListItems}
+          bringListInput={bringListInput}
+          onSetBringListInput={setBringListInput}
+          showNudgeBanner={showNudgeBanner}
+          onNudgeUpgrade={handleNudgeUpgrade}
+          onNudgeDismiss={handleNudgeDismiss}
+          entitlementsTimedOut={entitlementsTimedOut}
+          entitlementsLoading={entitlementsLoading}
+          hostingQuotaLoading={hostingQuota.isLoading}
+          onRetryEntitlements={() => {
+            setEntitlementsTimedOut(false);
+            refetchEntitlements();
+            hostingQuota.refetch();
+          }}
+          themed={themed}
+          isDark={isDark}
+          themeColor={themeColor}
+          glassText={glassText}
+          glassSecondary={glassSecondary}
+          glassTertiary={glassTertiary}
+          glassSurface={glassSurface}
+          glassBorder={glassBorder}
+          colors={colors}
+        />
+      </BottomSheet>
 
       <BottomNavigation />
 
@@ -2763,7 +2025,6 @@ export default function CreateEventScreen() {
           setShowEmojiPicker(false);
         }}
       />
-    </SafeAreaView>
     </Animated.View>
   );
 }
