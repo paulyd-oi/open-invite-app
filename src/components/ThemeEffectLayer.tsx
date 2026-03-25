@@ -155,7 +155,7 @@ function getShaderEffect(presetId: string): any {
 
 // ─── Shape types ─────────────────────────────────────────────
 
-type ShapeType = "circle" | "rect" | "heart" | "star" | "leaf" | "snowflake";
+type ShapeType = "circle" | "rect" | "heart" | "star" | "leaf" | "snowflake" | "football";
 
 // ─── Effect preset config ────────────────────────────────────
 
@@ -318,6 +318,32 @@ export const EFFECT_CONFIGS = {
     maxRotationSpeed: 4.0,
     rectAspect: 0.5,
   },
+  party_confetti: {
+    particleCount: 32,
+    minSize: 4,
+    maxSize: 9,
+    minOpacity: 0.65,
+    maxOpacity: 0.95,
+    minSpeed: 40,
+    maxSpeed: 80,
+    swayAmplitude: 30,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 5,
+    direction: 1,
+    blurSigma: 0.4,
+    colors: [
+      "rgba(255, 80, 60, 1)",    // party red
+      "rgba(255, 215, 0, 1)",    // gold
+      "rgba(236, 72, 153, 1)",   // hot pink
+      "rgba(59, 130, 246, 1)",   // blue
+      "rgba(16, 185, 129, 1)",   // teal
+      "rgba(168, 85, 247, 1)",   // purple
+    ],
+    shapes: ["star", "rect", "circle"],
+    minRotationSpeed: 2.0,
+    maxRotationSpeed: 5.0,
+    rectAspect: 0.35,
+  },
   falling_leaves: {
     particleCount: 18,
     minSize: 5,
@@ -360,7 +386,7 @@ export const EFFECT_CONFIGS = {
       "rgba(59, 130, 246, 1)",  // blue
       "rgba(255, 255, 255, 1)", // white
     ],
-    shape: "circle",
+    shapes: ["star", "circle"],
     minRotationSpeed: 0,
     maxRotationSpeed: 0,
     pulseRange: [0.3, 1.0],
@@ -455,7 +481,7 @@ export const EFFECT_CONFIGS = {
       "rgba(220, 38, 38, 1)",   // crimson
       "rgba(136, 19, 55, 1)",   // burgundy
     ],
-    shapes: ["leaf", "circle"],
+    shapes: ["heart"],
     minRotationSpeed: 0.3,
     maxRotationSpeed: 1.0,
   },
@@ -548,7 +574,7 @@ export const EFFECT_CONFIGS = {
       "rgba(255, 253, 240, 1)",   // soft cream
       "rgba(245, 245, 230, 1)",   // pale cream
     ],
-    shape: "circle",
+    shapes: ["leaf", "circle"],
     minRotationSpeed: 0.2,
     maxRotationSpeed: 0.8,
   },
@@ -669,7 +695,7 @@ export const EFFECT_CONFIGS = {
       "rgba(250, 204, 21, 1)",   // golden yellow
       "rgba(255, 255, 255, 1)",  // white
     ],
-    shape: "circle",
+    shapes: ["circle", "leaf"],
     minRotationSpeed: 0.2,
     maxRotationSpeed: 0.8,
   },
@@ -716,7 +742,7 @@ export const EFFECT_CONFIGS = {
       "rgba(255, 215, 0, 1)",    // bright gold
       "rgba(255, 235, 180, 1)",  // warm champagne
     ],
-    shape: "circle",
+    shapes: ["star"],
     minRotationSpeed: 0,
     maxRotationSpeed: 0,
     staticPosition: true,
@@ -729,15 +755,15 @@ export const EFFECT_CONFIGS = {
     particleCount: 10,
     minSize: 8,
     maxSize: 20,
-    minOpacity: 0.05,
-    maxOpacity: 0.12,
+    minOpacity: 0.08,
+    maxOpacity: 0.20,
     minSpeed: 2,
     maxSpeed: 5,
     swayAmplitude: 15,
     minSwayPeriod: 6,
     maxSwayPeriod: 12,
     direction: -1,
-    blurSigma: 14,
+    blurSigma: 8,
     colors: [
       "rgba(255, 183, 77, 1)",   // warm amber
       "rgba(255, 152, 0, 1)",    // deep amber
@@ -751,30 +777,59 @@ export const EFFECT_CONFIGS = {
     shaderPreset: "bokeh",
     shaderOpacity: 0.06,
   },
+  date_night_glow: {
+    particleCount: 14,
+    minSize: 5,
+    maxSize: 16,
+    minOpacity: 0.10,
+    maxOpacity: 0.28,
+    minSpeed: 3,
+    maxSpeed: 7,
+    swayAmplitude: 18,
+    minSwayPeriod: 5,
+    maxSwayPeriod: 10,
+    direction: -1,
+    blurSigma: 5,
+    colors: [
+      "rgba(255, 183, 77, 1)",   // warm amber
+      "rgba(255, 152, 0, 1)",    // deep amber
+      "rgba(255, 224, 178, 1)",  // soft candlelight
+      "rgba(220, 38, 38, 0.5)",  // faint crimson hint
+    ],
+    shapes: ["circle", "heart"],
+    minRotationSpeed: 0.1,
+    maxRotationSpeed: 0.4,
+    pulseRange: [0.6, 1.1],
+    pulsePeriodRange: [3, 7],
+    shaderPreset: "bokeh",
+    shaderOpacity: 0.08,
+  },
   // ── Wave B effects ──
   projector_dust: {
-    particleCount: 12,
+    particleCount: 16,
     minSize: 2,
     maxSize: 5,
-    minOpacity: 0.08,
-    maxOpacity: 0.22,
+    minOpacity: 0.12,
+    maxOpacity: 0.35,
     minSpeed: 4,
     maxSpeed: 10,
     swayAmplitude: 12,
     minSwayPeriod: 5,
     maxSwayPeriod: 10,
     direction: -1,
-    blurSigma: 2.0,
+    blurSigma: 1.5,
     colors: [
       "rgba(200, 200, 210, 1)",   // cool silver
       "rgba(220, 220, 230, 1)",   // soft platinum
       "rgba(180, 185, 200, 1)",   // blue-grey
+      "rgba(255, 255, 255, 0.6)", // faint white flash
     ],
-    shape: "circle",
+    shapes: ["circle", "rect"],
     minRotationSpeed: 0,
-    maxRotationSpeed: 0,
-    pulseRange: [0.5, 1.0],
-    pulsePeriodRange: [3, 7],
+    maxRotationSpeed: 0.3,
+    rectAspect: 0.3,
+    pulseRange: [0.4, 1.0],
+    pulsePeriodRange: [2, 6],
   },
   // ── Art-direction pass: semantic gap fills ──
   heart_float: {
@@ -795,16 +850,16 @@ export const EFFECT_CONFIGS = {
       "rgba(190, 18, 60, 1)",    // deep rose
       "rgba(220, 38, 38, 0.7)",  // soft crimson
     ],
-    shapes: ["heart"],
+    shapes: ["heart", "circle"],
     minRotationSpeed: 0.2,
     maxRotationSpeed: 0.6,
     pulseRange: [0.8, 1.1],
     pulsePeriodRange: [3, 6],
   },
   stadium_glitter: {
-    particleCount: 22,
+    particleCount: 24,
     minSize: 2,
-    maxSize: 4,
+    maxSize: 6,
     minOpacity: 0.0,
     maxOpacity: 0.75,
     minSpeed: 0,
@@ -816,12 +871,13 @@ export const EFFECT_CONFIGS = {
     blurSigma: 0.6,
     colors: [
       "rgba(255, 255, 255, 1)",  // flash white
-      "rgba(67, 160, 71, 1)",    // stadium green
+      "rgba(200, 200, 210, 1)",  // silver
       "rgba(255, 215, 0, 1)",    // gold
+      "rgba(139, 69, 19, 1)",    // football brown
     ],
-    shapes: ["star", "circle"],
-    minRotationSpeed: 0,
-    maxRotationSpeed: 0,
+    shapes: ["star", "circle", "football"],
+    minRotationSpeed: 0.2,
+    maxRotationSpeed: 0.8,
     staticPosition: true,
     pulseRange: [0.0, 1.0],
     pulsePeriodRange: [0.6, 1.8],
@@ -954,6 +1010,10 @@ function pathForShape(shape: ShapeType, r: number): string | undefined {
       }
       return parts.join(" ") + " Z";
     }
+
+    case "football":
+      // Pointed oval: two cubic Bézier arcs forming a football/eye shape
+      return `M ${-r} 0 C ${-r} ${-r * 0.6} ${r} ${-r * 0.6} ${r} 0 C ${r} ${r * 0.6} ${-r} ${r * 0.6} ${-r} 0 Z`;
 
     default:
       return undefined;
