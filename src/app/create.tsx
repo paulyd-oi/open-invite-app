@@ -1385,7 +1385,6 @@ export default function CreateEventScreen() {
             glassSecondary={glassSecondary}
             themed={themed}
             coverImageUrl={selectedCoverItem?.url ?? bannerLocalUri}
-            onPressCover={() => setShowCoverPicker(true)}
           />
 
           {isSmartMode && (

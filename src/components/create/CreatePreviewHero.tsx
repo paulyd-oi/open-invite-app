@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
@@ -22,8 +22,6 @@ interface CreatePreviewHeroProps {
   themed: boolean;
   /** Cover image URL to display over the visual stack. */
   coverImageUrl?: string | null;
-  /** Called when user taps the hero to open the cover picker. */
-  onPressCover?: () => void;
 }
 
 /**
@@ -39,7 +37,6 @@ export function CreatePreviewHero({
   glassSecondary,
   themed,
   coverImageUrl,
-  onPressCover,
 }: CreatePreviewHeroProps) {
   const hasVisuals = !!selectedThemeId || !!selectedCustomTheme;
   const hasTitle = !!title.trim();
@@ -47,8 +44,7 @@ export function CreatePreviewHero({
   const hasCover = !!coverImageUrl;
 
   return (
-    <Pressable
-      onPress={onPressCover}
+    <View
       style={{
         height: 220,
         overflow: "hidden",
@@ -198,6 +194,6 @@ export function CreatePreviewHero({
           {hasTitle ? title : "Your Event Title"}
         </Text>
       </View>
-    </Pressable>
+    </View>
   );
 }
