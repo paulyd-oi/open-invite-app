@@ -45,7 +45,6 @@ import type { CoverMediaItem } from "@/components/create/coverMedia.types";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "react-native";
 import { uploadByKind } from "@/lib/imageUpload";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -1411,35 +1410,40 @@ export default function CreateEventScreen() {
           )}
 
           <View className="px-4">
-          {/* Cover Photo — compact idle, full preview when selected */}
+          {/* Cover Photo — text row entry point (hero is the visual preview) */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             {bannerLocalUri ? (
-              <View className="rounded-2xl mb-3 overflow-hidden" style={{ borderWidth: 0.5, borderColor: glassBorder }}>
-                <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 11 }} />
-                {uploadingBanner && (
-                  <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", borderRadius: 11 }}>
-                    <ActivityIndicator color="#fff" />
-                    <Text style={{ color: "#fff", fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading…</Text>
-                  </View>
-                )}
-                <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 8 }}>
-                  <Pressable
-                    onPress={handlePickBanner}
-                    style={{ backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}
-                  >
-                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Change</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleRemoveBanner}
-                    style={{ backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, width: 28, height: 28, alignItems: "center", justifyContent: "center" }}
-                  >
-                    <X size={14} color="#fff" />
-                  </Pressable>
-                </View>
+              <View
+                className="rounded-xl mb-4"
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: glassSurface,
+                  borderWidth: 0.5,
+                  borderColor: glassBorder,
+                }}
+              >
+                <Pressable
+                  onPress={() => setShowCoverPicker(true)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}
+                >
+                  <Camera size={16} color={glassSecondary} />
+                  <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Change cover</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleRemoveBanner}
+                  hitSlop={8}
+                  style={{ padding: 4 }}
+                >
+                  <X size={14} color={glassTertiary} />
+                </Pressable>
               </View>
             ) : (
               <Pressable
-                onPress={handlePickBanner}
+                onPress={() => setShowCoverPicker(true)}
                 className="rounded-xl mb-4"
                 style={{
                   flexDirection: "row",
