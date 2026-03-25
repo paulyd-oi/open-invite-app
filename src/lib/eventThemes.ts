@@ -84,8 +84,11 @@ export interface ThemeVisualStack {
     blendMode?: "normal" | "overlay" | "softLight";  // default "normal"
   };
   filter?: "film_grain" | "vignette" | "noise" | "color_shift";
-  // Future layers (not implemented yet, but schema-reserved):
-  // video?: { source: string; opacity?: number };
+  video?: {
+    source: string;         // key into THEME_VIDEOS registry
+    poster?: string;        // key into THEME_BACKGROUNDS for static fallback
+    opacity?: number;       // 0-1, default 0.7
+  };
 }
 
 // ─── Background Image Registry ──────────────────────────
@@ -118,6 +121,14 @@ export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
   spring_bloom_bg: require("../../assets/theme-backgrounds/spring_bloom.png"),
   luau_bg: require("../../assets/theme-backgrounds/luau.png"),
   movie_night_v2_bg: require("../../assets/theme-backgrounds/movie_night_v2.png"),
+};
+
+// ─── Video Background Registry ───────────────────────────
+// Keys match visualStack.video.source values. Actual require() calls live
+// here so theme tokens stay serializable (plain strings, no require()).
+
+export const THEME_VIDEOS: Record<string, number> = {
+  pool_party_loop: require("../../assets/theme-videos/pool_party_loop.mp4"),
 };
 /* eslint-enable @typescript-eslint/no-var-requires */
 
@@ -492,7 +503,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(6, 182, 212, 0.26)",
     pageTintLight: "rgba(6, 182, 212, 0.14)",
     chipAccent: "#06B6D4",
-    visualStack: { gradient: { colors: ["rgba(10,37,48,0.3)", "rgba(6,182,212,0.18)", "rgba(147,197,253,0.08)", "rgba(10,37,48,0.3)"], speed: 3 }, particles: "pool_shimmer", image: { source: "pool_party_bg", opacity: 0.25 } },
+    visualStack: { gradient: { colors: ["rgba(10,37,48,0.3)", "rgba(6,182,212,0.18)", "rgba(147,197,253,0.08)", "rgba(10,37,48,0.3)"], speed: 3 }, particles: "pool_shimmer", image: { source: "pool_party_bg", opacity: 0.25 }, video: { source: "pool_party_loop", poster: "pool_party_bg", opacity: 0.7 } },
   },
 
   // ── Wave B Premium ──

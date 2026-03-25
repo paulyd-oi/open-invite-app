@@ -136,9 +136,10 @@ import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
-import { resolveEventTheme } from "@/lib/eventThemes";
+import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
+import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2452,6 +2453,18 @@ export default function EventDetailScreen() {
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={["bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
+
+      {/* Looping video background — behind particles and content */}
+      {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <ThemeVideoLayer
+            source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
+            poster={pageTheme.visualStack.video.poster ? THEME_BACKGROUNDS[pageTheme.visualStack.video.poster] : undefined}
+            opacity={pageTheme.visualStack.video.opacity}
+            isActive={true}
+          />
+        </View>
+      )}
 
       {/* Full-page particle effect — behind all content */}
       <ThemeEffectLayer themeId={event.themeId} />

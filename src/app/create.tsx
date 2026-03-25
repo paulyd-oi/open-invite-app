@@ -44,11 +44,12 @@ import {
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
-import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, THEME_BACKGROUNDS, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, resolveEventTheme, getVisibleThemePacks, THEME_BACKGROUNDS, THEME_VIDEOS, type ThemeId } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { BuilderEffectPreview } from "@/components/BuilderEffectPreview";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
+import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
 import { loadCustomThemes, deleteCustomTheme, MAX_CUSTOM_THEMES, type CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withTiming } from "react-native-reanimated";
@@ -1346,6 +1347,17 @@ export default function CreateEventScreen() {
           <BackgroundImageLayer
             source={THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source]}
             opacity={selectedCustomTheme.visualStack.image.opacity}
+          />
+        </View>
+      )}
+      {/* Looping video background — between image and particles */}
+      {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <ThemeVideoLayer
+            source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
+            poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
+            opacity={previewTheme.visualStack.video.opacity}
+            isActive={true}
           />
         </View>
       )}
