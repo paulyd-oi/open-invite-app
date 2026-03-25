@@ -5,7 +5,7 @@
  * Features: search bar, category chip rail, 2-column thumbnail grid, upload CTA.
  * Selecting an item calls onSelectCover immediately (no confirm step).
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,15 @@ import {
   ScrollView,
   FlatList,
   TextInput,
+  ActivityIndicator,
   Dimensions,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import * as Haptics from "expo-haptics";
 import BottomSheet from "@/components/BottomSheet";
 import { Search, Upload, X, ImagePlus } from "@/ui/icons";
-import { COVER_CATEGORIES, FEATURED_COVERS, MOCK_GIFS } from "./coverMedia.data";
+import { COVER_CATEGORIES, FEATURED_COVERS } from "./coverMedia.data";
+import { searchTenorGifs, fetchTenorFeatured } from "./tenorApi";
 import type { CoverMediaItem } from "./coverMedia.types";
 
 /* ------------------------------------------------------------------ */
@@ -115,9 +117,10 @@ function CategoryChipRail({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      contentContainerStyle={{ paddingHorizontal: 16 }}
       style={{ flexGrow: 0, marginBottom: 12 }}
     >
+      <View style={{ flexDirection: "row", gap: 8 }}>
       {COVER_CATEGORIES.map((cat) => {
         const active = cat.id === activeCategory;
         return (
@@ -148,6 +151,7 @@ function CategoryChipRail({
           </Pressable>
         );
       })}
+      </View>
     </ScrollView>
   );
 }
@@ -258,17 +262,69 @@ export function CoverMediaPickerSheet({
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Tenor GIF state
+  const [gifResults, setGifResults] = useState<CoverMediaItem[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Reset state when sheet opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       setActiveTab("featured");
       setActiveCategory("all");
       setSearchQuery("");
+      setGifResults([]);
     }
   }, [visible]);
 
+  // Load trending GIFs when GIF tab is selected
+  useEffect(() => {
+    if (activeTab !== "gifs") return;
+    if (searchQuery.trim()) return; // search handles its own fetch
+    let cancelled = false;
+    setGifLoading(true);
+    fetchTenorFeatured().then((results) => {
+      if (!cancelled) {
+        setGifResults(results);
+        setGifLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced GIF search (300ms)
+  useEffect(() => {
+    if (activeTab !== "gifs") return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const q = searchQuery.trim();
+    if (!q) {
+      // Revert to trending
+      setGifLoading(true);
+      fetchTenorFeatured().then((results) => {
+        setGifResults(results);
+        setGifLoading(false);
+      });
+      return;
+    }
+
+    setGifLoading(true);
+    debounceRef.current = setTimeout(() => {
+      searchTenorGifs(q).then((results) => {
+        setGifResults(results);
+        setGifLoading(false);
+      });
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery, activeTab]);
+
   // Filter items based on tab, category, and search
   const filteredItems = useMemo(() => {
+    if (activeTab === "gifs") return gifResults;
+
     let items: CoverMediaItem[] = [];
 
     if (activeTab === "featured") {
@@ -276,24 +332,21 @@ export function CoverMediaPickerSheet({
       if (activeCategory !== "all") {
         items = items.filter((i) => i.category === activeCategory);
       }
-    } else if (activeTab === "gifs") {
-      items = MOCK_GIFS;
+      // Search filter for featured
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        items = items.filter(
+          (i) =>
+            i.tags?.some((t) => t.includes(q)) ||
+            i.category?.includes(q),
+        );
+      }
     } else {
       items = userUploads;
     }
 
-    // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      items = items.filter(
-        (i) =>
-          i.tags?.some((t) => t.includes(q)) ||
-          i.category?.includes(q),
-      );
-    }
-
     return items;
-  }, [activeTab, activeCategory, searchQuery, userUploads]);
+  }, [activeTab, activeCategory, searchQuery, userUploads, gifResults]);
 
   const handleSelectItem = useCallback(
     (item: CoverMediaItem) => {
@@ -382,6 +435,11 @@ export function CoverMediaPickerSheet({
       {/* Content */}
       {activeTab === "uploads" && userUploads.length === 0 ? (
         <UploadsEmptyState onUpload={handleUploadPress} />
+      ) : activeTab === "gifs" && gifLoading && gifResults.length === 0 ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
+          <ActivityIndicator color="rgba(255,255,255,0.5)" />
+          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>Loading GIFs…</Text>
+        </View>
       ) : (
         <FlatList
           data={filteredItems}
