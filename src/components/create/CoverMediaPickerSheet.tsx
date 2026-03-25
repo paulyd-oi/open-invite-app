@@ -266,10 +266,13 @@ export function CoverMediaPickerSheet({
   const [gifResults, setGifResults] = useState<CoverMediaItem[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track pending upload so we can launch the picker after Modal fully dismisses
+  const pendingUploadRef = useRef(false);
 
   // Reset state when sheet opens
   useEffect(() => {
     if (visible) {
+      pendingUploadRef.current = false;
       setActiveTab("featured");
       setActiveCategory("all");
       setSearchQuery("");
@@ -359,13 +362,19 @@ export function CoverMediaPickerSheet({
 
   const handleUploadPress = useCallback(() => {
     Haptics.selectionAsync();
-    // Close sheet first, then open picker after a brief delay so the
-    // Modal dismissal doesn't block the system image picker presentation.
+    // Set pending flag — the actual picker launch happens in onDismiss
+    // after the Modal's dismiss animation fully completes on iOS.
+    pendingUploadRef.current = true;
     onClose();
-    setTimeout(() => {
+  }, [onClose]);
+
+  // Called by BottomSheet's Modal onDismiss (fires after dismiss animation ends)
+  const handleSheetDismiss = useCallback(() => {
+    if (pendingUploadRef.current) {
+      pendingUploadRef.current = false;
       onPickLocalImage();
-    }, 400);
-  }, [onPickLocalImage, onClose]);
+    }
+  }, [onPickLocalImage]);
 
   const renderItem = useCallback(
     ({ item }: { item: CoverMediaItem }) => (
@@ -384,6 +393,7 @@ export function CoverMediaPickerSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
+      onDismiss={handleSheetDismiss}
       title="Cover Media"
       heightPct={0.75}
       maxHeightPct={0.9}

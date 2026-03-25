@@ -66,8 +66,8 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
   {
     id: "f-4",
     type: "image",
-    url: "https://images.unsplash.com/photo-1464349153459-f0199f4a3662?w=1280&q=80",
-    thumbnailUrl: "https://images.unsplash.com/photo-1464349153459-f0199f4a3662?w=400&q=60",
+    url: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&q=60",
     source: "featured",
     category: "birthday",
     tags: ["birthday", "cake", "candles", "celebration"],

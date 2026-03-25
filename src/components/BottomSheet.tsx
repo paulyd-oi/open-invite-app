@@ -52,6 +52,8 @@ export interface BottomSheetProps {
   keyboardMode?: "none" | "padding";
   /** ReactNode rendered to the right of the title row. */
   headerRight?: React.ReactNode;
+  /** Fires after the Modal dismiss animation completes (iOS). */
+  onDismiss?: () => void;
   children: React.ReactNode;
 }
 
@@ -69,6 +71,7 @@ export default function BottomSheet({
   enableBackdropClose = true,
   keyboardMode = "none",
   headerRight,
+  onDismiss,
   children,
 }: BottomSheetProps) {
   const { colors } = useTheme();
@@ -149,6 +152,7 @@ export default function BottomSheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={onDismiss}
     >
       {keyboardMode === "padding" ? (
         <KeyboardAvoidingView
