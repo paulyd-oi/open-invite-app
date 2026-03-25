@@ -28,6 +28,7 @@ import { BootLoading } from '@/components/BootLoading';
 import { AutoSyncProvider } from '@/components/AutoSyncProvider';
 import { setupDeepLinkListener, consumePendingDeepLinkRoute } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
+import { hydrateCustomThemeCache } from '@/lib/customThemeStorage';
 import { useOfflineSync } from '@/lib/offlineSync';
 import { BACKEND_URL } from '@/lib/config';
 import { useBootAuthority, hasBootResolvedOnce } from '@/hooks/useBootAuthority';
@@ -1175,6 +1176,11 @@ export default function RootLayout() {
   // Initialize network monitoring once on mount
   useEffect(() => {
     initNetworkMonitoring();
+  }, []);
+
+  // Hydrate custom theme cache from AsyncStorage (non-blocking)
+  useEffect(() => {
+    hydrateCustomThemeCache();
   }, []);
 
   // Global unhandled promise rejection logger for better error visibility during dev

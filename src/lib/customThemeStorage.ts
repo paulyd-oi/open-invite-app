@@ -1,15 +1,17 @@
 /**
  * customThemeStorage — Persistence layer for user-created custom themes.
  *
- * Uses react-native-mmkv for synchronous JSON storage.
- * Phase 5A scaffold: exports save/load/delete but does NOT wire them
- * into the UI. Phase 5D will integrate.
+ * Uses AsyncStorage (already installed, old-arch compatible) with a
+ * synchronous in-memory cache so existing call-sites stay unchanged.
+ * The cache is hydrated once via hydrateCustomThemeCache() which must
+ * be called early in the app lifecycle (e.g. root layout useEffect).
+ * Writes update the cache immediately and persist to AsyncStorage
+ * in the background.
  */
 
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ThemeVisualStack } from "@/lib/eventThemes";
 
-const storage = new MMKV({ id: "custom-themes" });
 const STORAGE_KEY = "open_invite_custom_themes";
 
 export interface CustomTheme {
@@ -20,31 +22,53 @@ export interface CustomTheme {
   updatedAt: string; // ISO
 }
 
-export function loadCustomThemes(): CustomTheme[] {
-  const raw = storage.getString(STORAGE_KEY);
-  if (!raw) return [];
+// ─── In-memory cache (sync reads, async persistence) ──
+
+let _cache: CustomTheme[] = [];
+let _hydrated = false;
+
+/**
+ * Call once at app startup (root layout) to populate the cache from disk.
+ * Safe to call multiple times — only the first call reads from AsyncStorage.
+ */
+export async function hydrateCustomThemeCache(): Promise<void> {
+  if (_hydrated) return;
   try {
-    return JSON.parse(raw) as CustomTheme[];
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      _cache = JSON.parse(raw) as CustomTheme[];
+    }
   } catch {
-    return [];
+    _cache = [];
   }
+  _hydrated = true;
+}
+
+function persist(): void {
+  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(_cache)).catch(() => {});
+}
+
+// ─── Public API (synchronous, identical signatures to previous MMKV impl) ──
+
+export function loadCustomThemes(): CustomTheme[] {
+  return _cache;
 }
 
 export function saveCustomTheme(theme: CustomTheme): void {
-  const existing = loadCustomThemes();
-  const idx = existing.findIndex((t) => t.id === theme.id);
+  const idx = _cache.findIndex((t) => t.id === theme.id);
   if (idx >= 0) {
-    existing[idx] = theme;
+    _cache[idx] = theme;
   } else {
-    existing.push(theme);
+    _cache.push(theme);
   }
-  storage.set(STORAGE_KEY, JSON.stringify(existing));
+  // Replace cache reference so React state updates detect the change
+  _cache = [..._cache];
+  persist();
 }
 
 export function deleteCustomTheme(id: string): void {
-  const existing = loadCustomThemes();
-  const filtered = existing.filter((t) => t.id !== id);
-  storage.set(STORAGE_KEY, JSON.stringify(filtered));
+  _cache = _cache.filter((t) => t.id !== id);
+  persist();
 }
 
 export const MAX_CUSTOM_THEMES = 10;
