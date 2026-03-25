@@ -520,9 +520,15 @@ export default function CreateEventScreen() {
   const glassBorder = themed
     ? (isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.10)")
     : colors.border;
-  const glassText = themed ? "#FFFFFF" : colors.text;
-  const glassSecondary = themed ? "rgba(255,255,255,0.6)" : colors.textSecondary;
-  const glassTertiary = themed ? "rgba(255,255,255,0.4)" : colors.textTertiary;
+  const glassText = themed
+    ? (isDark ? "#FFFFFF" : "rgba(0,0,0,0.85)")
+    : colors.text;
+  const glassSecondary = themed
+    ? (isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.50)")
+    : colors.textSecondary;
+  const glassTertiary = themed
+    ? (isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.36)")
+    : colors.textTertiary;
 
   // Bottom dock sheet state
   const [activeDockMode, setActiveDockMode] = useState<DockMode | null>(null);
