@@ -14,7 +14,6 @@ import type { CustomTheme } from "@/lib/customThemeStorage";
 
 interface CreatePreviewHeroProps {
   title: string;
-  emoji: string;
   selectedThemeId: ThemeId | null;
   previewTheme: { visualStack?: ThemeVisualStack };
   selectedCustomTheme: CustomTheme | null;
@@ -33,7 +32,6 @@ interface CreatePreviewHeroProps {
  */
 export function CreatePreviewHero({
   title,
-  emoji,
   selectedThemeId,
   previewTheme,
   selectedCustomTheme,
@@ -186,7 +184,6 @@ export function CreatePreviewHero({
             </Text>
           </View>
         )}
-        <Text style={{ fontSize: 28, marginBottom: 2 }}>{emoji}</Text>
         <Text
           style={{
             fontSize: 20,

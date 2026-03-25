@@ -85,7 +85,6 @@ import {
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
-import EmojiPicker from "rn-emoji-keyboard";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
 
@@ -423,7 +422,7 @@ export default function CreateEventScreen() {
   const [showLocationSearch, setShowLocationSearch] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
-  const [emoji, setEmoji] = useState(templateEmoji ?? "📅");
+  const emoji = templateEmoji ?? "📅";
   const [startDate, setStartDate] = useState(getInitialDate);
   const [endDate, setEndDate] = useState(() => {
     const start = getInitialDate();
@@ -470,7 +469,6 @@ export default function CreateEventScreen() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sendNotification, setSendNotification] = useState(true);
   const isPrivateCircleEvent = true; // Circle events are always private
   const circleEventMode = "open_invite" as const; // Circle events are always open invite
@@ -1381,7 +1379,6 @@ export default function CreateEventScreen() {
           {/* ── Live Preview Hero ── */}
           <CreatePreviewHero
             title={title}
-            emoji={emoji}
             selectedThemeId={selectedThemeId}
             previewTheme={previewTheme}
             selectedCustomTheme={selectedCustomTheme}
@@ -1414,24 +1411,8 @@ export default function CreateEventScreen() {
           )}
 
           <View className="px-4">
-          {/* Emoji Picker — tap to open rn-emoji-keyboard */}
-          <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Pressable
-              onPress={() => setShowEmojiPicker(true)}
-              className="rounded-2xl p-3 mb-3"
-              style={{ backgroundColor: glassSurface, borderWidth: 0.5, borderColor: glassBorder }}
-            >
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themed ? "rgba(255,255,255,0.10)" : (isDark ? "#2C2C2E" : "#FFF7ED") }}>
-                  <Text className="text-xl">{emoji}</Text>
-                </View>
-                <Text style={{ color: glassTertiary, fontSize: 13 }}>Tap to change icon</Text>
-              </View>
-            </Pressable>
-          </Animated.View>
-
           {/* Cover Photo — compact idle, full preview when selected */}
-          <Animated.View entering={FadeInDown.delay(25).springify()}>
+          <Animated.View entering={FadeInDown.delay(0).springify()}>
             {bannerLocalUri ? (
               <View className="rounded-2xl mb-3 overflow-hidden" style={{ borderWidth: 0.5, borderColor: glassBorder }}>
                 <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 11 }} />
@@ -1479,7 +1460,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Title */}
-          <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <Animated.View entering={FadeInDown.delay(25).springify()}>
             <TextInput
               testID="create-input-title"
               value={title}
@@ -1492,7 +1473,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Description */}
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
+          <Animated.View entering={FadeInDown.delay(50).springify()}>
             <TextInput
               testID="create-input-description"
               value={description}
@@ -1507,7 +1488,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Location with Search */}
-          <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <Animated.View entering={FadeInDown.delay(75).springify()}>
             <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">Location</Text>
 
             {/* Selected Place Display */}
@@ -1620,7 +1601,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Date & Time */}
-          <Animated.View entering={FadeInDown.delay(125).springify()}>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
             <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">When</Text>
             <View
               style={{
@@ -1689,7 +1670,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Find Best Time — routes to Who's Free SSOT */}
-          <Animated.View entering={FadeInDown.delay(150).springify()}>
+          <Animated.View entering={FadeInDown.delay(125).springify()}>
             <View className="mb-4">
               <Pressable
                 onPress={() => {
@@ -1726,7 +1707,7 @@ export default function CreateEventScreen() {
           {/* Advanced settings moved to Settings sheet — see SettingsSheetContent */}
 
           {/* Create Button */}
-          <Animated.View entering={FadeInDown.delay(175).springify()}>
+          <Animated.View entering={FadeInDown.delay(150).springify()}>
             <Button
               testID="create-submit-event"
               variant="primary"
@@ -2039,15 +2020,6 @@ export default function CreateEventScreen() {
           position="bottom"
         />
       )}
-      <EmojiPicker
-        open={showEmojiPicker}
-        onClose={() => setShowEmojiPicker(false)}
-        onEmojiSelected={(emojiObject) => {
-          setEmoji(emojiObject.emoji);
-          Haptics.selectionAsync();
-          setShowEmojiPicker(false);
-        }}
-      />
     </Animated.View>
   );
 }
