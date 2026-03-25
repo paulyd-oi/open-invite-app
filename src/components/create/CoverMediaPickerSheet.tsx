@@ -359,8 +359,12 @@ export function CoverMediaPickerSheet({
 
   const handleUploadPress = useCallback(() => {
     Haptics.selectionAsync();
-    onPickLocalImage();
+    // Close sheet first, then open picker after a brief delay so the
+    // Modal dismissal doesn't block the system image picker presentation.
     onClose();
+    setTimeout(() => {
+      onPickLocalImage();
+    }, 400);
   }, [onPickLocalImage, onClose]);
 
   const renderItem = useCallback(

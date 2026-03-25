@@ -16,7 +16,7 @@ export const COVER_CATEGORIES: CoverCategory[] = [
 // ─── Featured covers (V1 — Unsplash direct URLs) ───
 
 export const FEATURED_COVERS: CoverMediaItem[] = [
-  // Trending
+  // ── Trending (4) ──
   {
     id: "f-1",
     type: "image",
@@ -35,7 +35,25 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "trending",
     tags: ["concert", "crowd", "neon", "trending"],
   },
-  // Birthday
+  {
+    id: "f-17",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&q=60",
+    source: "featured",
+    category: "trending",
+    tags: ["festival", "stage", "crowd", "trending"],
+  },
+  {
+    id: "f-18",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&q=60",
+    source: "featured",
+    category: "trending",
+    tags: ["concert", "lights", "music", "trending"],
+  },
+  // ── Birthday (4) ──
   {
     id: "f-3",
     type: "image",
@@ -54,7 +72,25 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "birthday",
     tags: ["birthday", "cake", "candles", "celebration"],
   },
-  // Elegant
+  {
+    id: "f-19",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1558636508-e0db3814bd1d?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1558636508-e0db3814bd1d?w=400&q=60",
+    source: "featured",
+    category: "birthday",
+    tags: ["birthday", "cupcakes", "sprinkles", "celebration"],
+  },
+  {
+    id: "f-20",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400&q=60",
+    source: "featured",
+    category: "birthday",
+    tags: ["birthday", "confetti", "streamers", "colorful"],
+  },
+  // ── Elegant (4) ──
   {
     id: "f-5",
     type: "image",
@@ -73,7 +109,25 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "elegant",
     tags: ["elegant", "table", "candles", "dinner"],
   },
-  // Minimal
+  {
+    id: "f-21",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1510076857177-7470076d4098?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1510076857177-7470076d4098?w=400&q=60",
+    source: "featured",
+    category: "elegant",
+    tags: ["elegant", "chandelier", "ballroom", "luxury"],
+  },
+  {
+    id: "f-22",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&q=60",
+    source: "featured",
+    category: "elegant",
+    tags: ["elegant", "flowers", "table", "reception"],
+  },
+  // ── Minimal (4) ──
   {
     id: "f-7",
     type: "image",
@@ -92,7 +146,25 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "minimal",
     tags: ["minimal", "abstract", "waves", "pink"],
   },
-  // Dinner
+  {
+    id: "f-23",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&q=60",
+    source: "featured",
+    category: "minimal",
+    tags: ["minimal", "gradient", "mesh", "colorful"],
+  },
+  {
+    id: "f-24",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=400&q=60",
+    source: "featured",
+    category: "minimal",
+    tags: ["minimal", "paint", "abstract", "blue"],
+  },
+  // ── Dinner (4) ──
   {
     id: "f-9",
     type: "image",
@@ -111,7 +183,25 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "dinner",
     tags: ["dinner", "restaurant", "interior", "ambient"],
   },
-  // Party
+  {
+    id: "f-25",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=60",
+    source: "featured",
+    category: "dinner",
+    tags: ["dinner", "bar", "restaurant", "cozy"],
+  },
+  {
+    id: "f-26",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1544025162-d76694265947?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=60",
+    source: "featured",
+    category: "dinner",
+    tags: ["dinner", "steak", "food", "grill"],
+  },
+  // ── Party (4) ──
   {
     id: "f-11",
     type: "image",
@@ -139,7 +229,16 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     category: "party",
     tags: ["party", "dance", "crowd", "nightclub"],
   },
-  // Outdoors
+  {
+    id: "f-27",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1528495612343-9ca9f4a4de28?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1528495612343-9ca9f4a4de28?w=400&q=60",
+    source: "featured",
+    category: "party",
+    tags: ["party", "drinks", "cocktail", "bar"],
+  },
+  // ── Outdoors (4) ──
   {
     id: "f-14",
     type: "image",
@@ -166,6 +265,15 @@ export const FEATURED_COVERS: CoverMediaItem[] = [
     source: "featured",
     category: "outdoors",
     tags: ["outdoors", "food", "picnic", "brunch"],
+  },
+  {
+    id: "f-28",
+    type: "image",
+    url: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=1280&q=80",
+    thumbnailUrl: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&q=60",
+    source: "featured",
+    category: "outdoors",
+    tags: ["outdoors", "hiking", "mountain", "adventure"],
   },
 ];
 
