@@ -40,6 +40,8 @@ import { CreateBottomDock, type DockMode } from "@/components/create/CreateBotto
 import { ThemeSwatchRail } from "@/components/create/ThemeSwatchRail";
 import { EffectSwatchRail } from "@/components/create/EffectSwatchRail";
 import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
+import { CoverMediaPickerSheet } from "@/components/create/CoverMediaPickerSheet";
+import type { CoverMediaItem } from "@/components/create/coverMedia.types";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -528,6 +530,8 @@ export default function CreateEventScreen() {
   const [bannerLocalUri, setBannerLocalUri] = useState<string | null>(null);
   const [bannerUpload, setBannerUpload] = useState<{ url: string; publicId: string } | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [selectedCoverItem, setSelectedCoverItem] = useState<CoverMediaItem | null>(null);
 
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -1111,7 +1115,17 @@ export default function CreateEventScreen() {
   const handleRemoveBanner = () => {
     setBannerLocalUri(null);
     setBannerUpload(null);
+    setSelectedCoverItem(null);
   };
+
+  /** Handle cover selection from the media picker sheet. */
+  const handleCoverSelect = useCallback((item: CoverMediaItem) => {
+    setSelectedCoverItem(item);
+    // Use the full-res URL as the banner — no upload needed for featured/gif items
+    setBannerLocalUri(item.url);
+    setBannerUpload({ url: item.url, publicId: "" });
+    setUploadingBanner(false);
+  }, []);
 
   // Dock mode handler — toggles sheets
   const handleDockMode = useCallback((mode: DockMode) => {
@@ -1374,6 +1388,8 @@ export default function CreateEventScreen() {
             glassText={glassText}
             glassSecondary={glassSecondary}
             themed={themed}
+            coverImageUrl={selectedCoverItem?.url ?? bannerLocalUri}
+            onPressCover={() => setShowCoverPicker(true)}
           />
 
           {isSmartMode && (
@@ -1878,6 +1894,15 @@ export default function CreateEventScreen() {
           colors={colors}
         />
       </BottomSheet>
+
+      {/* ── Cover Media Picker Sheet ── */}
+      <CoverMediaPickerSheet
+        visible={showCoverPicker}
+        onClose={() => setShowCoverPicker(false)}
+        onSelectCover={handleCoverSelect}
+        onPickLocalImage={handlePickBanner}
+        selectedCoverId={selectedCoverItem?.id}
+      />
 
       {/* BottomNavigation removed — editor uses its own dock */}
 

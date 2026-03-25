@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
@@ -20,6 +21,10 @@ interface CreatePreviewHeroProps {
   glassText: string;
   glassSecondary: string;
   themed: boolean;
+  /** Cover image URL to display over the visual stack. */
+  coverImageUrl?: string | null;
+  /** Called when user taps the hero to open the cover picker. */
+  onPressCover?: () => void;
 }
 
 /**
@@ -35,12 +40,17 @@ export function CreatePreviewHero({
   glassText,
   glassSecondary,
   themed,
+  coverImageUrl,
+  onPressCover,
 }: CreatePreviewHeroProps) {
   const hasVisuals = !!selectedThemeId || !!selectedCustomTheme;
   const hasTitle = !!title.trim();
 
+  const hasCover = !!coverImageUrl;
+
   return (
-    <View
+    <Pressable
+      onPress={onPressCover}
       style={{
         height: 220,
         overflow: "hidden",
@@ -64,6 +74,19 @@ export function CreatePreviewHero({
       {/* Themed base fill */}
       {hasVisuals && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.3)" }} />
+      )}
+
+      {/* Cover image — overlays everything when set */}
+      {hasCover && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+          <ExpoImage
+            source={{ uri: coverImageUrl! }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={300}
+          />
+        </View>
       )}
 
       {/* ── Visual stack layers ── */}
@@ -153,7 +176,7 @@ export function CreatePreviewHero({
           paddingBottom: 18,
         }}
       >
-        {!hasVisuals && !hasTitle && (
+        {!hasVisuals && !hasTitle && !hasCover && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center" }}>
             <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.06)", justifyContent: "center", alignItems: "center", marginBottom: 8 }}>
               <Text style={{ fontSize: 22 }}>✨</Text>
@@ -178,6 +201,6 @@ export function CreatePreviewHero({
           {hasTitle ? title : "Your Event Title"}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
