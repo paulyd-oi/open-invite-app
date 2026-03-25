@@ -455,7 +455,7 @@ export const EFFECT_CONFIGS = {
       "rgba(220, 38, 38, 1)",   // crimson
       "rgba(136, 19, 55, 1)",   // burgundy
     ],
-    shape: "circle",
+    shapes: ["leaf", "circle"],
     minRotationSpeed: 0.3,
     maxRotationSpeed: 1.0,
   },
@@ -775,6 +775,109 @@ export const EFFECT_CONFIGS = {
     maxRotationSpeed: 0,
     pulseRange: [0.5, 1.0],
     pulsePeriodRange: [3, 7],
+  },
+  // ── Art-direction pass: semantic gap fills ──
+  heart_float: {
+    particleCount: 10,
+    minSize: 5,
+    maxSize: 10,
+    minOpacity: 0.2,
+    maxOpacity: 0.5,
+    minSpeed: 8,
+    maxSpeed: 16,
+    swayAmplitude: 20,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 8,
+    direction: -1,
+    blurSigma: 2.0,
+    colors: [
+      "rgba(212, 175, 55, 1)",   // gold
+      "rgba(190, 18, 60, 1)",    // deep rose
+      "rgba(220, 38, 38, 0.7)",  // soft crimson
+    ],
+    shapes: ["heart"],
+    minRotationSpeed: 0.2,
+    maxRotationSpeed: 0.6,
+    pulseRange: [0.8, 1.1],
+    pulsePeriodRange: [3, 6],
+  },
+  stadium_glitter: {
+    particleCount: 22,
+    minSize: 2,
+    maxSize: 4,
+    minOpacity: 0.0,
+    maxOpacity: 0.75,
+    minSpeed: 0,
+    maxSpeed: 0,
+    swayAmplitude: 0,
+    minSwayPeriod: 1,
+    maxSwayPeriod: 2,
+    direction: 1,
+    blurSigma: 0.6,
+    colors: [
+      "rgba(255, 255, 255, 1)",  // flash white
+      "rgba(67, 160, 71, 1)",    // stadium green
+      "rgba(255, 215, 0, 1)",    // gold
+    ],
+    shapes: ["star", "circle"],
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    staticPosition: true,
+    pulseRange: [0.0, 1.0],
+    pulsePeriodRange: [0.6, 1.8],
+  },
+  nye_burst: {
+    particleCount: 28,
+    minSize: 2,
+    maxSize: 5,
+    minOpacity: 0.5,
+    maxOpacity: 0.95,
+    minSpeed: 70,
+    maxSpeed: 130,
+    swayAmplitude: 45,
+    minSwayPeriod: 1.2,
+    maxSwayPeriod: 2.5,
+    direction: -1,
+    blurSigma: 1.0,
+    colors: [
+      "rgba(255, 215, 0, 1)",    // gold
+      "rgba(255, 215, 0, 1)",    // gold (weighted)
+      "rgba(255, 255, 255, 1)",  // white
+      "rgba(255, 183, 77, 1)",   // champagne
+    ],
+    shapes: ["star", "circle"],
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.2, 1.0],
+    pulsePeriodRange: [1.0, 2.5],
+    shaderPreset: "shimmer",
+    shaderOpacity: 0.10,
+  },
+  pool_shimmer: {
+    particleCount: 18,
+    minSize: 5,
+    maxSize: 16,
+    minOpacity: 0.10,
+    maxOpacity: 0.25,
+    minSpeed: 6,
+    maxSpeed: 14,
+    swayAmplitude: 22,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 9,
+    direction: -1,
+    blurSigma: 3.5,
+    colors: [
+      "rgba(6, 182, 212, 1)",    // cyan
+      "rgba(147, 197, 253, 1)",  // light blue
+      "rgba(255, 255, 255, 0.8)", // white shimmer
+    ],
+    shape: "circle",
+    minRotationSpeed: 0,
+    maxRotationSpeed: 0,
+    pulseRange: [0.6, 1.1],
+    pulsePeriodRange: [3, 6],
+    shaderPreset: "aurora",
+    shaderOpacity: 0.10,
   },
 } as const satisfies Record<string, EffectConfig>;
 
