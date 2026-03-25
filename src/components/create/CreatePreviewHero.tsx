@@ -5,9 +5,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
-import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
-import { BuilderEffectPreview } from "@/components/BuilderEffectPreview";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
+import { MotifOverlay } from "@/components/create/MotifOverlay";
 import { THEME_BACKGROUNDS, THEME_VIDEOS } from "@/lib/eventThemes";
 import type { ThemeId, ThemeVisualStack } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
@@ -22,6 +21,8 @@ interface CreatePreviewHeroProps {
   themed: boolean;
   /** Cover image URL to display over the visual stack. */
   coverImageUrl?: string | null;
+  /** Selected motif effect overlay (independent of theme). */
+  selectedEffectId?: string | null;
 }
 
 /**
@@ -37,6 +38,7 @@ export function CreatePreviewHero({
   glassSecondary,
   themed,
   coverImageUrl,
+  selectedEffectId,
 }: CreatePreviewHeroProps) {
   const hasVisuals = !!selectedThemeId || !!selectedCustomTheme;
   const hasTitle = !!title.trim();
@@ -126,18 +128,10 @@ export function CreatePreviewHero({
         </View>
       )}
 
-      {/* Particles */}
-      {selectedThemeId && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }} pointerEvents="none">
-          <ThemeEffectLayer themeId={selectedThemeId} />
-        </View>
-      )}
-      {selectedCustomTheme && (selectedCustomTheme.visualStack?.particles || selectedCustomTheme.visualStack?.shader) && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }} pointerEvents="none">
-          <BuilderEffectPreview
-            particles={selectedCustomTheme.visualStack.particles}
-            shader={selectedCustomTheme.visualStack.shader}
-          />
+      {/* Motif overlay — full intensity in hero */}
+      {selectedEffectId && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <MotifOverlay presetId={selectedEffectId} intensity={1.0} />
         </View>
       )}
 

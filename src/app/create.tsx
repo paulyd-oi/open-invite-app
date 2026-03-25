@@ -11,6 +11,7 @@ import {
   Alert,
   Share,
   Modal,
+  StyleSheet,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,6 +40,7 @@ import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
 import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
 import { ThemeSwatchRail } from "@/components/create/ThemeSwatchRail";
 import { EffectSwatchRail } from "@/components/create/EffectSwatchRail";
+import { MotifOverlay } from "@/components/create/MotifOverlay";
 import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
 import { CoverMediaPickerSheet } from "@/components/create/CoverMediaPickerSheet";
 import type { CoverMediaItem } from "@/components/create/coverMedia.types";
@@ -529,6 +531,9 @@ export default function CreateEventScreen() {
   const glassTertiary = themed
     ? (isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.36)")
     : colors.textTertiary;
+
+  // Effect overlay state (independent of theme)
+  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
 
   // Bottom dock sheet state
   const [activeDockMode, setActiveDockMode] = useState<DockMode | null>(null);
@@ -1191,11 +1196,9 @@ export default function CreateEventScreen() {
     }
   }, [router]);
 
-  // Effect selection from effect swatch rail
-  const handleEffectSelect = useCallback((_effectKey: string | null) => {
-    // Effect selection updates the theme's particle preset at runtime.
-    // For V1 this is view-only — the effect preview comes from the selected theme.
-    // Future: allow overriding the effect independently of the theme.
+  // Effect selection — independent motif overlay layer
+  const handleEffectSelect = useCallback((effectKey: string | null) => {
+    setSelectedEffectId(effectKey);
   }, []);
 
   const handleCreate = () => {
@@ -1420,6 +1423,7 @@ export default function CreateEventScreen() {
             glassSecondary={glassSecondary}
             themed={themed}
             coverImageUrl={selectedCoverItem?.url ?? bannerLocalUri}
+            selectedEffectId={selectedEffectId}
           />
 
           {isSmartMode && (
@@ -1795,6 +1799,13 @@ export default function CreateEventScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* ── Page-wide motif overlay ── */}
+      {selectedEffectId && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <MotifOverlay presetId={selectedEffectId} intensity={0.35} />
+        </View>
+      )}
+
       {/* ── Bottom Editing Dock ── */}
       <CreateBottomDock
         activeMode={activeDockMode}
@@ -1841,7 +1852,7 @@ export default function CreateEventScreen() {
         heightPct={0.5}
       >
         <EffectSwatchRail
-          selectedThemeId={selectedThemeId}
+          selectedEffectId={selectedEffectId}
           glassText={glassText}
           glassSecondary={glassSecondary}
           glassTertiary={glassTertiary}
