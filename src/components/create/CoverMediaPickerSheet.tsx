@@ -21,7 +21,7 @@ import * as Haptics from "expo-haptics";
 import BottomSheet from "@/components/BottomSheet";
 import { Search, Upload, X, ImagePlus } from "@/ui/icons";
 import { COVER_CATEGORIES, FEATURED_COVERS } from "./coverMedia.data";
-import { searchTenorGifs, fetchTenorFeatured } from "./tenorApi";
+import { searchGifs, fetchFeaturedGifs } from "./klipyApi";
 import type { CoverMediaItem } from "./coverMedia.types";
 
 /* ------------------------------------------------------------------ */
@@ -262,7 +262,7 @@ export function CoverMediaPickerSheet({
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Tenor GIF state
+  // Klipy GIF state
   const [gifResults, setGifResults] = useState<CoverMediaItem[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -286,7 +286,7 @@ export function CoverMediaPickerSheet({
     if (searchQuery.trim()) return; // search handles its own fetch
     let cancelled = false;
     setGifLoading(true);
-    fetchTenorFeatured().then((results) => {
+    fetchFeaturedGifs().then((results) => {
       if (!cancelled) {
         setGifResults(results);
         setGifLoading(false);
@@ -304,7 +304,7 @@ export function CoverMediaPickerSheet({
     if (!q) {
       // Revert to trending
       setGifLoading(true);
-      fetchTenorFeatured().then((results) => {
+      fetchFeaturedGifs().then((results) => {
         setGifResults(results);
         setGifLoading(false);
       });
@@ -313,7 +313,7 @@ export function CoverMediaPickerSheet({
 
     setGifLoading(true);
     debounceRef.current = setTimeout(() => {
-      searchTenorGifs(q).then((results) => {
+      searchGifs(q).then((results) => {
         setGifResults(results);
         setGifLoading(false);
       });

@@ -1,10 +1,11 @@
 /**
- * Tenor GIF Search API v2 — client-side integration for V1.
+ * Klipy GIF Search API — Tenor v2-compatible client-side integration.
  *
- * Free tier, no backend proxy needed. Returns CoverMediaItem[] for
- * direct use in the cover media picker grid.
+ * Klipy is a drop-in replacement for Tenor v2 (same endpoint structure).
+ * Returns CoverMediaItem[] for direct use in the cover media picker grid.
  *
- * Docs: https://developers.google.com/tenor/guides/quickstart
+ * Docs: https://docs.klipy.com
+ * Key management: https://partner.klipy.com/api-keys
  */
 import type { CoverMediaItem } from "./coverMedia.types";
 
@@ -12,37 +13,37 @@ import type { CoverMediaItem } from "./coverMedia.types";
 /*  Config                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Tenor API v2 key (free tier, client-side OK for dev). */
-const TENOR_API_KEY = "AIzaSyBqRNueRYdE7KMqPKR0cfw1JJ4MRAT3xS8";
-const TENOR_BASE = "https://tenor.googleapis.com/v2";
-const TENOR_CLIENT_KEY = "open_invite_app";
+/** Klipy API key (Tenor v2-compatible). Obtain from partner.klipy.com. */
+const KLIPY_API_KEY = "Cl5FaE1P5l7YqEjgDHbCPrsDZctuWke0zcEjCGjuQxBYDlOK02Hqtv9LTPqcDx1m";
+const KLIPY_BASE = "https://api.klipy.com/v2";
+const KLIPY_CLIENT_KEY = "open_invite_app";
 const RESULT_LIMIT = 20;
 
 /* ------------------------------------------------------------------ */
-/*  Response types (subset of Tenor v2 response)                       */
+/*  Response types (Tenor v2-compatible response subset)               */
 /* ------------------------------------------------------------------ */
 
-interface TenorMediaFormat {
+interface KlipyMediaFormat {
   url: string;
   dims: [number, number];
   size: number;
 }
 
-interface TenorResult {
+interface KlipyResult {
   id: string;
   title: string;
   media_formats: {
-    gif?: TenorMediaFormat;
-    tinygif?: TenorMediaFormat;
-    nanogif?: TenorMediaFormat;
-    mediumgif?: TenorMediaFormat;
+    gif?: KlipyMediaFormat;
+    tinygif?: KlipyMediaFormat;
+    nanogif?: KlipyMediaFormat;
+    mediumgif?: KlipyMediaFormat;
   };
   content_description: string;
   tags: string[];
 }
 
-interface TenorSearchResponse {
-  results: TenorResult[];
+interface KlipySearchResponse {
+  results: KlipyResult[];
   next: string;
 }
 
@@ -50,7 +51,7 @@ interface TenorSearchResponse {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function mapTenorResult(result: TenorResult): CoverMediaItem | null {
+function mapKlipyResult(result: KlipyResult): CoverMediaItem | null {
   const fullUrl =
     result.media_formats.mediumgif?.url ??
     result.media_formats.gif?.url;
@@ -61,7 +62,7 @@ function mapTenorResult(result: TenorResult): CoverMediaItem | null {
   if (!fullUrl || !thumbUrl) return null;
 
   return {
-    id: `tenor-${result.id}`,
+    id: `klipy-${result.id}`,
     type: "gif",
     url: fullUrl,
     thumbnailUrl: thumbUrl,
@@ -71,11 +72,10 @@ function mapTenorResult(result: TenorResult): CoverMediaItem | null {
 }
 
 function buildUrl(endpoint: string, params: Record<string, string>): string {
-  const url = new URL(`${TENOR_BASE}/${endpoint}`);
-  url.searchParams.set("key", TENOR_API_KEY);
-  url.searchParams.set("client_key", TENOR_CLIENT_KEY);
+  const url = new URL(`${KLIPY_BASE}/${endpoint}`);
+  url.searchParams.set("key", KLIPY_API_KEY);
+  url.searchParams.set("client_key", KLIPY_CLIENT_KEY);
   url.searchParams.set("limit", String(RESULT_LIMIT));
-  // Request only the formats we use to reduce payload size
   url.searchParams.set("media_filter", "gif,mediumgif,tinygif,nanogif");
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
@@ -84,11 +84,10 @@ function buildUrl(endpoint: string, params: Record<string, string>): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Fallback GIFs (used when Tenor API is unavailable)                 */
+/*  Fallback GIFs (used when Klipy API is unavailable)                 */
 /* ------------------------------------------------------------------ */
 
 // Verified Giphy CDN URLs — no API key required for direct media access.
-// Full: /giphy.gif, Thumbnail: /200w.gif
 const FALLBACK_GIFS: CoverMediaItem[] = [
   { id: "fb-1", type: "gif", url: "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif", thumbnailUrl: "https://media.giphy.com/media/26BRBKqUiq586bRVm/200w.gif", source: "gif", tags: ["confetti", "celebration"] },
   { id: "fb-2", type: "gif", url: "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", thumbnailUrl: "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/200w.gif", source: "gif", tags: ["party", "dance"] },
@@ -108,16 +107,16 @@ const FALLBACK_GIFS: CoverMediaItem[] = [
 /*  Public API                                                         */
 /* ------------------------------------------------------------------ */
 
-/** Search Tenor for GIFs matching a query string. Falls back to curated set on error. */
-export async function searchTenorGifs(query: string): Promise<CoverMediaItem[]> {
-  if (!query.trim()) return fetchTenorFeatured();
+/** Search Klipy for GIFs matching a query string. Falls back to curated set on error. */
+export async function searchGifs(query: string): Promise<CoverMediaItem[]> {
+  if (!query.trim()) return fetchFeaturedGifs();
 
   try {
     const res = await fetch(buildUrl("search", { q: query.trim() }));
     if (!res.ok) return FALLBACK_GIFS;
-    const data: TenorSearchResponse = await res.json();
+    const data: KlipySearchResponse = await res.json();
     const results = data.results
-      .map(mapTenorResult)
+      .map(mapKlipyResult)
       .filter((item): item is CoverMediaItem => item !== null);
     return results.length > 0 ? results : FALLBACK_GIFS;
   } catch {
@@ -125,14 +124,14 @@ export async function searchTenorGifs(query: string): Promise<CoverMediaItem[]> 
   }
 }
 
-/** Fetch Tenor featured/trending GIFs (default state). Falls back to curated set on error. */
-export async function fetchTenorFeatured(): Promise<CoverMediaItem[]> {
+/** Fetch Klipy featured/trending GIFs (default state). Falls back to curated set on error. */
+export async function fetchFeaturedGifs(): Promise<CoverMediaItem[]> {
   try {
     const res = await fetch(buildUrl("featured", {}));
     if (!res.ok) return FALLBACK_GIFS;
-    const data: TenorSearchResponse = await res.json();
+    const data: KlipySearchResponse = await res.json();
     const results = data.results
-      .map(mapTenorResult)
+      .map(mapKlipyResult)
       .filter((item): item is CoverMediaItem => item !== null);
     return results.length > 0 ? results : FALLBACK_GIFS;
   } catch {

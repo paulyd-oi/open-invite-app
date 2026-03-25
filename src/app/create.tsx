@@ -529,6 +529,8 @@ export default function CreateEventScreen() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [selectedCoverItem, setSelectedCoverItem] = useState<CoverMediaItem | null>(null);
+  // Session-scoped user uploads for the My Uploads tab
+  const [coverUploads, setCoverUploads] = useState<CoverMediaItem[]>([]);
 
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -1090,17 +1092,40 @@ export default function CreateEventScreen() {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const uri = result.assets[0].uri;
+      // Build a CoverMediaItem for the My Uploads grid
+      const uploadItem: CoverMediaItem = {
+        id: `upload-${Date.now()}`,
+        type: "image",
+        url: uri,
+        thumbnailUrl: uri,
+        source: "upload",
+      };
+      setCoverUploads((prev) => [uploadItem, ...prev]);
+      setSelectedCoverItem(uploadItem);
       setBannerLocalUri(uri);
       setBannerUpload(null);
       setUploadingBanner(true);
       try {
         const upload = await uploadByKind(uri, "event_cover");
         setBannerUpload({ url: upload.url, publicId: upload.publicId ?? "" });
+        // Update the upload item's URL to the Cloudinary URL
+        const cloudinaryItem: CoverMediaItem = {
+          ...uploadItem,
+          url: upload.url,
+          thumbnailUrl: uri, // keep local URI for fast thumbnail
+        };
+        setCoverUploads((prev) =>
+          prev.map((item) => (item.id === uploadItem.id ? cloudinaryItem : item)),
+        );
+        setSelectedCoverItem(cloudinaryItem);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (e: any) {
         if (__DEV__) devError("[CREATE_BANNER_UPLOAD]", e);
         safeToast.error("Upload failed", "Please try again.");
         setBannerLocalUri(null);
+        // Remove from uploads on failure
+        setCoverUploads((prev) => prev.filter((item) => item.id !== uploadItem.id));
+        setSelectedCoverItem(null);
       } finally {
         setUploadingBanner(false);
       }
@@ -1886,6 +1911,7 @@ export default function CreateEventScreen() {
         onSelectCover={handleCoverSelect}
         onPickLocalImage={handlePickBanner}
         selectedCoverId={selectedCoverItem?.id}
+        userUploads={coverUploads}
       />
 
       {/* BottomNavigation removed — editor uses its own dock */}
