@@ -10,6 +10,7 @@ interface CreateBottomDockProps {
   activeMode: DockMode | null;
   onModeChange: (mode: DockMode) => void;
   themed: boolean;
+  isDark: boolean;
   glassText: string;
   glassTertiary: string;
   themeColor: string;
@@ -25,6 +26,7 @@ export function CreateBottomDock({
   activeMode,
   onModeChange,
   themed,
+  isDark,
   glassText,
   glassTertiary,
   themeColor,
@@ -58,22 +60,23 @@ export function CreateBottomDock({
           flexDirection: "row",
           justifyContent: "space-around",
           alignItems: "center",
-          backgroundColor: themed ? "rgba(0,0,0,0.5)" : "rgba(30,30,30,0.85)",
-          borderRadius: 22,
+          backgroundColor: isDark ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
+          borderRadius: 28,
           paddingVertical: 6,
           paddingHorizontal: 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.25,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowOpacity: isDark ? 0.35 : 0.12,
+          shadowRadius: 16,
+          elevation: 16,
           borderWidth: 0.5,
-          borderColor: "rgba(255,255,255,0.08)",
+          borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
         }}
       >
         {DOCK_ITEMS.map(({ mode, label, Icon }) => {
           const isActive = activeMode === mode;
-          const color = isActive ? themeColor : "rgba(255,255,255,0.5)";
+          const inactiveColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)";
+          const color = isActive ? themeColor : inactiveColor;
 
           return (
             <Pressable
@@ -87,7 +90,7 @@ export function CreateBottomDock({
                 paddingHorizontal: 14,
                 paddingVertical: 5,
                 borderRadius: 16,
-                backgroundColor: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                backgroundColor: isActive ? (themeColor + "18") : "transparent",
               }}
             >
               <Icon size={18} color={color} />

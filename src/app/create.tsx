@@ -514,8 +514,12 @@ export default function CreateEventScreen() {
 
   // Glass treatment for form fields when theme is active
   const themed = hasTheme;
-  const glassSurface = themed ? "rgba(255,255,255,0.10)" : colors.surface;
-  const glassBorder = themed ? "rgba(255,255,255,0.15)" : colors.border;
+  const glassSurface = themed
+    ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.70)")
+    : colors.surface;
+  const glassBorder = themed
+    ? (isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.10)")
+    : colors.border;
   const glassText = themed ? "#FFFFFF" : colors.text;
   const glassSecondary = themed ? "rgba(255,255,255,0.6)" : colors.textSecondary;
   const glassTertiary = themed ? "rgba(255,255,255,0.4)" : colors.textTertiary;
@@ -1790,6 +1794,7 @@ export default function CreateEventScreen() {
         activeMode={activeDockMode}
         onModeChange={handleDockMode}
         themed={themed}
+        isDark={isDark}
         glassText={glassText}
         glassTertiary={glassTertiary}
         themeColor={themeColor}
