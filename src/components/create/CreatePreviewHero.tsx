@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
@@ -23,7 +24,7 @@ interface CreatePreviewHeroProps {
 
 /**
  * Live preview hero — shows the selected theme's visual stack with event
- * title overlaid. Fixed 250px for V1 (may become dynamic for cover photos).
+ * title overlaid. Fixed 220px for V1 (may become dynamic for cover photos).
  */
 export function CreatePreviewHero({
   title,
@@ -36,27 +37,44 @@ export function CreatePreviewHero({
   themed,
 }: CreatePreviewHeroProps) {
   const hasVisuals = !!selectedThemeId || !!selectedCustomTheme;
+  const hasTitle = !!title.trim();
 
   return (
     <View
       style={{
-        height: 250,
+        height: 220,
         overflow: "hidden",
         marginHorizontal: 16,
         borderRadius: 20,
         marginBottom: 16,
-        backgroundColor: themed ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.04)",
       }}
     >
+      {/* Default background — subtle gradient when no theme selected */}
+      {!hasVisuals && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+          <LinearGradient
+            colors={["rgba(25,25,30,0.95)", "rgba(40,40,50,0.85)", "rgba(25,25,30,0.95)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+
+      {/* Themed base fill */}
+      {hasVisuals && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.3)" }} />
+      )}
+
       {/* ── Visual stack layers ── */}
       {/* Animated gradient */}
       {selectedThemeId && previewTheme.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }} pointerEvents="none">
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
           <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
         </View>
       )}
       {selectedCustomTheme?.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }} pointerEvents="none">
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
           <AnimatedGradientLayer config={selectedCustomTheme.visualStack.gradient} />
         </View>
       )}
@@ -118,42 +136,46 @@ export function CreatePreviewHero({
         </View>
       )}
 
+      {/* Bottom fade for text readability */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 100 }} pointerEvents="none">
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.6)"]}
+          style={{ flex: 1 }}
+        />
+      </View>
+
       {/* ── Title overlay ── */}
       <View
         style={{
           flex: 1,
           justifyContent: "flex-end",
-          padding: 20,
+          paddingHorizontal: 20,
+          paddingBottom: 18,
         }}
       >
-        {!hasVisuals && !title.trim() && (
-          <Text
-            style={{
-              fontSize: 14,
-              color: glassSecondary,
-              textAlign: "center",
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              textAlignVertical: "center",
-              lineHeight: 250,
-            }}
-          >
-            Choose a theme to preview
-          </Text>
+        {!hasVisuals && !hasTitle && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center" }}>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.06)", justifyContent: "center", alignItems: "center", marginBottom: 8 }}>
+              <Text style={{ fontSize: 22 }}>✨</Text>
+            </View>
+            <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: "500" }}>
+              Pick a theme to preview your invite
+            </Text>
+          </View>
         )}
-        <Text style={{ fontSize: 32, marginBottom: 4 }}>{emoji}</Text>
+        <Text style={{ fontSize: 28, marginBottom: 2 }}>{emoji}</Text>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: "700",
-            color: themed ? "#FFFFFF" : glassText,
+            color: "#FFFFFF",
+            textShadowColor: "rgba(0,0,0,0.4)",
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 4,
           }}
           numberOfLines={2}
         >
-          {title.trim() || "Event Title"}
+          {hasTitle ? title : "Your Event Title"}
         </Text>
       </View>
     </View>

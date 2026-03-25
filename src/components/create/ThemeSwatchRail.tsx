@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Lock, Sparkles, Crown, Pencil, Trash2 } from "@/ui/icons";
 import { EVENT_THEMES, isPremiumTheme, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
 import { MAX_CUSTOM_THEMES, type CustomTheme } from "@/lib/customThemeStorage";
@@ -21,34 +22,33 @@ interface ThemeSwatchRailProps {
   onOpenThemeBuilder: (editId?: string) => void;
 }
 
-/** Mini gradient swatch — renders 2-3 color bands from the theme's gradient. */
+/** Bump rgba alpha to 0.9 for swatch readability. */
+function bumpAlpha(c: string): string {
+  const match = c.match(/rgba?\(([^)]+)\)/);
+  if (match) {
+    const parts = match[1].split(",").map((s) => s.trim());
+    if (parts.length >= 3) {
+      return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, 0.9)`;
+    }
+  }
+  return c;
+}
+
+/** Mini gradient swatch — smooth LinearGradient fill inside a circle. */
 function GradientSwatch({
   colors,
-  size = 44,
+  size = 42,
   selected,
   accentColor,
   locked,
-  opacity = 1,
 }: {
   colors: string[];
   size?: number;
   selected: boolean;
   accentColor: string;
   locked?: boolean;
-  opacity?: number;
 }) {
-  // Extract just the color values, strip alpha for swatch visibility
-  const swatchColors = colors.slice(0, 4).map((c) => {
-    // Bump up alpha for swatch readability — most theme gradients are low opacity
-    const match = c.match(/rgba?\(([^)]+)\)/);
-    if (match) {
-      const parts = match[1].split(",").map((s) => s.trim());
-      if (parts.length >= 3) {
-        return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, 0.9)`;
-      }
-    }
-    return c;
-  });
+  const swatchColors = colors.slice(0, 4).map(bumpAlpha);
 
   return (
     <View
@@ -58,15 +58,16 @@ function GradientSwatch({
         borderRadius: size / 2,
         overflow: "hidden",
         borderWidth: selected ? 2.5 : 1,
-        borderColor: selected ? accentColor : "rgba(255,255,255,0.12)",
-        opacity: locked ? 0.5 : opacity,
+        borderColor: selected ? accentColor : "rgba(255,255,255,0.10)",
+        opacity: locked ? 0.45 : 1,
       }}
     >
-      <View style={{ flex: 1, flexDirection: "row" }}>
-        {swatchColors.map((color, i) => (
-          <View key={i} style={{ flex: 1, backgroundColor: color }} />
-        ))}
-      </View>
+      <LinearGradient
+        colors={swatchColors as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1 }}
+      />
       {locked && (
         <View
           style={{
@@ -77,7 +78,7 @@ function GradientSwatch({
             bottom: 0,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.3)",
+            backgroundColor: "rgba(0,0,0,0.35)",
           }}
         >
           <Lock size={10} color="rgba(255,255,255,0.8)" />
@@ -87,11 +88,11 @@ function GradientSwatch({
   );
 }
 
-/** Fallback swatch using backBgDark + backAccent when no gradient. */
+/** Fallback swatch using backBgDark → backAccent smooth gradient. */
 function SolidSwatch({
   bgColor,
   accentColor,
-  size = 44,
+  size = 42,
   selected,
   locked,
 }: {
@@ -109,14 +110,16 @@ function SolidSwatch({
         borderRadius: size / 2,
         overflow: "hidden",
         borderWidth: selected ? 2.5 : 1,
-        borderColor: selected ? accentColor : "rgba(255,255,255,0.12)",
-        opacity: locked ? 0.5 : 1,
+        borderColor: selected ? accentColor : "rgba(255,255,255,0.10)",
+        opacity: locked ? 0.45 : 1,
       }}
     >
-      <View style={{ flex: 1, flexDirection: "row" }}>
-        <View style={{ flex: 1, backgroundColor: bgColor }} />
-        <View style={{ flex: 1, backgroundColor: accentColor }} />
-      </View>
+      <LinearGradient
+        colors={[bgColor, accentColor]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1 }}
+      />
       {locked && (
         <View
           style={{
@@ -127,7 +130,7 @@ function SolidSwatch({
             bottom: 0,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.3)",
+            backgroundColor: "rgba(0,0,0,0.35)",
           }}
         >
           <Lock size={10} color="rgba(255,255,255,0.8)" />

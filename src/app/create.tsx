@@ -1329,7 +1329,9 @@ export default function CreateEventScreen() {
   }
 
   // [CREATE_CTA_RENDER] DEV-only: confirm CTA is reachable
-  const computedPaddingBottom = 140 + insets.bottom; // Extra room for dock
+  // Dock sits at ~56pt above safe-area bottom; give scroll enough room to
+  // clear the dock so the Create button is fully reachable.
+  const computedPaddingBottom = 100 + insets.bottom;
   if (__DEV__) {
     devLog('[CREATE_CTA_RENDER]', {
       disabled: createMutation.isPending,
@@ -1395,28 +1397,27 @@ export default function CreateEventScreen() {
             </View>
           )}
 
-          <View className="px-5">
+          <View className="px-4">
           {/* Emoji Picker — tap to open rn-emoji-keyboard */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
             <Pressable
               onPress={() => setShowEmojiPicker(true)}
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}
+              className="rounded-2xl p-3 mb-3"
+              style={{ backgroundColor: glassSurface, borderWidth: 0.5, borderColor: glassBorder }}
             >
               <View className="flex-row items-center">
-                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themed ? "rgba(255,255,255,0.12)" : (isDark ? "#2C2C2E" : "#FFF7ED") }}>
-                  <Text className="text-2xl">{emoji}</Text>
+                <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themed ? "rgba(255,255,255,0.10)" : (isDark ? "#2C2C2E" : "#FFF7ED") }}>
+                  <Text className="text-xl">{emoji}</Text>
                 </View>
-                <Text style={{ color: glassSecondary, fontSize: 15 }}>Tap to change icon</Text>
+                <Text style={{ color: glassTertiary, fontSize: 13 }}>Tap to change icon</Text>
               </View>
             </Pressable>
           </Animated.View>
 
           {/* Cover Photo — compact idle, full preview when selected */}
-          <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <Animated.View entering={FadeInDown.delay(25).springify()}>
             {bannerLocalUri ? (
-              <View className="rounded-xl mb-4 overflow-hidden" style={{ borderWidth: 1, borderColor: glassBorder }}>
+              <View className="rounded-2xl mb-3 overflow-hidden" style={{ borderWidth: 0.5, borderColor: glassBorder }}>
                 <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 11 }} />
                 {uploadingBanner && (
                   <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", borderRadius: 11 }}>
@@ -1462,22 +1463,20 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Title */}
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Title *</Text>
+          <Animated.View entering={FadeInDown.delay(50).springify()}>
             <TextInput
               testID="create-input-title"
               value={title}
               onChangeText={setTitle}
-              placeholder="What are you doing?"
+              placeholder="Event title"
               placeholderTextColor={glassTertiary}
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder, color: glassText }}
+              className="rounded-2xl p-3.5 mb-3"
+              style={{ backgroundColor: glassSurface, borderWidth: 0.5, borderColor: glassBorder, color: glassText, fontSize: 16, fontWeight: "600" }}
             />
           </Animated.View>
 
           {/* Description */}
-          <Animated.View entering={FadeInDown.delay(100).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Description</Text>
+          <Animated.View entering={FadeInDown.delay(75).springify()}>
             <TextInput
               testID="create-input-description"
               value={description}
@@ -1486,14 +1485,14 @@ export default function CreateEventScreen() {
               placeholderTextColor={glassTertiary}
               multiline
               numberOfLines={3}
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder, color: glassText, minHeight: 80, textAlignVertical: "top" }}
+              className="rounded-2xl p-3.5 mb-3"
+              style={{ backgroundColor: glassSurface, borderWidth: 0.5, borderColor: glassBorder, color: glassText, minHeight: 72, textAlignVertical: "top", fontSize: 14 }}
             />
           </Animated.View>
 
           {/* Location with Search */}
-          <Animated.View entering={FadeInDown.delay(150).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Location</Text>
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">Location</Text>
 
             {/* Selected Place Display */}
             {selectedPlace && !showLocationSearch ? (
@@ -1605,8 +1604,8 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Date & Time */}
-          <Animated.View entering={FadeInDown.delay(200).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">When</Text>
+          <Animated.View entering={FadeInDown.delay(125).springify()}>
+            <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">When</Text>
             <View
               style={{
                 borderColor: isSmartMode ? themeColor : "transparent",
@@ -1674,8 +1673,7 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Find Best Time — routes to Who's Free SSOT */}
-          <Animated.View entering={FadeInDown.delay(245).springify()}>
-            <Text style={{ color: glassSecondary }} className="text-sm font-medium mb-2">Need Help Picking a Time?</Text>
+          <Animated.View entering={FadeInDown.delay(150).springify()}>
             <View className="mb-4">
               <Pressable
                 onPress={() => {
@@ -1712,7 +1710,7 @@ export default function CreateEventScreen() {
           {/* Advanced settings moved to Settings sheet — see SettingsSheetContent */}
 
           {/* Create Button */}
-          <Animated.View entering={FadeInDown.delay(300).springify()}>
+          <Animated.View entering={FadeInDown.delay(175).springify()}>
             <Button
               testID="create-submit-event"
               variant="primary"
@@ -1881,7 +1879,7 @@ export default function CreateEventScreen() {
         />
       </BottomSheet>
 
-      <BottomNavigation />
+      {/* BottomNavigation removed — editor uses its own dock */}
 
       {/* Paywall Modal */}
       <PaywallModal

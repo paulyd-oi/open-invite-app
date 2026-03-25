@@ -49,9 +49,8 @@ export function CreateBottomDock({
         position: "absolute",
         left: 0,
         right: 0,
-        bottom: 56 + insets.bottom, // sits above BottomNavigation
-        paddingHorizontal: 24,
-        paddingVertical: 8,
+        bottom: insets.bottom + 8,
+        paddingHorizontal: 40,
       }}
     >
       <View
@@ -59,23 +58,22 @@ export function CreateBottomDock({
           flexDirection: "row",
           justifyContent: "space-around",
           alignItems: "center",
-          backgroundColor: themed ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.92)",
-          borderRadius: 28,
-          paddingVertical: 8,
-          paddingHorizontal: 12,
-          // Subtle shadow
+          backgroundColor: themed ? "rgba(0,0,0,0.5)" : "rgba(30,30,30,0.85)",
+          borderRadius: 22,
+          paddingVertical: 6,
+          paddingHorizontal: 8,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: themed ? 0.3 : 0.1,
-          shadowRadius: 8,
-          elevation: 6,
-          borderWidth: 1,
-          borderColor: themed ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 12,
+          elevation: 8,
+          borderWidth: 0.5,
+          borderColor: "rgba(255,255,255,0.08)",
         }}
       >
         {DOCK_ITEMS.map(({ mode, label, Icon }) => {
           const isActive = activeMode === mode;
-          const color = isActive ? themeColor : (themed ? glassTertiary : "#9CA3AF");
+          const color = isActive ? themeColor : "rgba(255,255,255,0.5)";
 
           return (
             <Pressable
@@ -86,21 +84,20 @@ export function CreateBottomDock({
               }}
               style={{
                 alignItems: "center",
-                paddingHorizontal: 16,
-                paddingVertical: 6,
-                borderRadius: 20,
-                backgroundColor: isActive
-                  ? (themed ? "rgba(255,255,255,0.12)" : `${themeColor}12`)
-                  : "transparent",
+                paddingHorizontal: 14,
+                paddingVertical: 5,
+                borderRadius: 16,
+                backgroundColor: isActive ? "rgba(255,255,255,0.12)" : "transparent",
               }}
             >
-              <Icon size={20} color={color} />
+              <Icon size={18} color={color} />
               <Text
                 style={{
-                  fontSize: 10,
-                  fontWeight: isActive ? "600" : "500",
+                  fontSize: 9,
+                  fontWeight: isActive ? "700" : "500",
                   color,
-                  marginTop: 2,
+                  marginTop: 1,
+                  letterSpacing: 0.2,
                 }}
               >
                 {label}

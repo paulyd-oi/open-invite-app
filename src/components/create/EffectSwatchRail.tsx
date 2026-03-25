@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { EFFECT_CONFIGS } from "@/components/ThemeEffectLayer";
 import { EVENT_THEMES, type ThemeId } from "@/lib/eventThemes";
 import * as Haptics from "expo-haptics";
@@ -14,12 +15,12 @@ interface EffectSwatchRailProps {
   onSelectEffect: (effectKey: string | null) => void;
 }
 
-/** Small circle showing the effect's first 2 colors. */
+/** Smooth gradient circle for an effect preset. */
 function EffectSwatch({
   colors,
   selected,
   accentColor,
-  size = 40,
+  size = 38,
 }: {
   colors: string[];
   selected: boolean;
@@ -35,14 +36,15 @@ function EffectSwatch({
         borderRadius: size / 2,
         overflow: "hidden",
         borderWidth: selected ? 2.5 : 1,
-        borderColor: selected ? accentColor : "rgba(255,255,255,0.12)",
+        borderColor: selected ? accentColor : "rgba(255,255,255,0.10)",
       }}
     >
-      <View style={{ flex: 1, flexDirection: "row" }}>
-        {displayColors.map((color, i) => (
-          <View key={i} style={{ flex: 1, backgroundColor: color }} />
-        ))}
-      </View>
+      <LinearGradient
+        colors={displayColors as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1 }}
+      />
     </View>
   );
 }
@@ -77,7 +79,7 @@ export function EffectSwatchRail({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
     >
-      {/* Header with selected effect name */}
+      {/* Header — selected effect name shown here only */}
       <Text style={{ fontSize: 15, fontWeight: "600", color: glassText, marginBottom: 4 }}>
         {selectedLabel ?? "Choose an effect"}
       </Text>
@@ -89,46 +91,45 @@ export function EffectSwatchRail({
       )}
 
       {/* "None" option */}
-      <View style={{ marginBottom: 16 }}>
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            onSelectEffect(null);
-          }}
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          onSelectEffect(null);
+        }}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingVertical: 6,
+          paddingHorizontal: 10,
+          borderRadius: 10,
+          backgroundColor: !currentEffect
+            ? "rgba(255,255,255,0.08)"
+            : "transparent",
+          marginBottom: 14,
+        }}
+      >
+        <View
           style={{
-            flexDirection: "row",
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            borderWidth: !currentEffect ? 2.5 : 1,
+            borderColor: !currentEffect ? themeColor : "rgba(255,255,255,0.10)",
             alignItems: "center",
-            gap: 10,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 12,
-            backgroundColor: !currentEffect
-              ? (isDark ? "rgba(255,255,255,0.08)" : `${themeColor}10`)
-              : "transparent",
+            justifyContent: "center",
+            backgroundColor: "rgba(255,255,255,0.04)",
           }}
         >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              borderWidth: !currentEffect ? 2.5 : 1,
-              borderColor: !currentEffect ? themeColor : "rgba(255,255,255,0.12)",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-            }}
-          >
-            <Text style={{ fontSize: 16, color: glassTertiary }}>∅</Text>
-          </View>
-          <Text style={{ fontSize: 13, fontWeight: "500", color: !currentEffect ? themeColor : glassSecondary }}>
-            No Effect
-          </Text>
-        </Pressable>
-      </View>
+          <Text style={{ fontSize: 14, color: glassTertiary }}>∅</Text>
+        </View>
+        <Text style={{ fontSize: 12, fontWeight: "500", color: !currentEffect ? themeColor : glassSecondary }}>
+          None
+        </Text>
+      </Pressable>
 
-      {/* Effect grid — wrapped rows of swatches with labels */}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+      {/* Effect grid — swatches only, no per-swatch labels */}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {effectKeys.map((key) => {
           const config = EFFECT_CONFIGS[key];
           const isSelected = currentEffect === key;
@@ -140,28 +141,12 @@ export function EffectSwatchRail({
                 Haptics.selectionAsync();
                 onSelectEffect(key);
               }}
-              style={{
-                alignItems: "center",
-                width: 64,
-              }}
             >
               <EffectSwatch
                 colors={config.colors}
                 selected={isSelected}
                 accentColor={themeColor}
               />
-              <Text
-                style={{
-                  fontSize: 9,
-                  fontWeight: isSelected ? "600" : "400",
-                  color: isSelected ? themeColor : glassTertiary,
-                  textAlign: "center",
-                  marginTop: 4,
-                }}
-                numberOfLines={1}
-              >
-                {formatEffectName(key)}
-              </Text>
             </Pressable>
           );
         })}
