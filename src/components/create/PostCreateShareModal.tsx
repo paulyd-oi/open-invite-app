@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Modal, Share } from "react-native";
-import { Share2 } from "@/ui/icons";
+import { Share2, Check } from "@/ui/icons";
 import { devError } from "@/lib/devLog";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
@@ -92,7 +92,9 @@ export function PostCreateShareModal({
 
           {/* Success header */}
           <View style={{ alignItems: "center", marginBottom: 20 }}>
-            <Text style={{ fontSize: 28, marginBottom: 4 }}>{createdEvent?.emoji || "🎉"}</Text>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${themeColor}20`, alignItems: "center", justifyContent: "center", marginBottom: 4 }}>
+              <Check size={26} color={themeColor} />
+            </View>
             <Text style={{ fontSize: 20, fontWeight: "700", color: glassText, textAlign: "center" }}>
               Your event is live!
             </Text>

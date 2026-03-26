@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Star, Sparkles, NotebookPen, Check } from "@/ui/icons";
+import { X, Star, Sparkles, NotebookPen, Check, Calendar } from "@/ui/icons";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -257,7 +257,7 @@ export function EventSummaryModal({
                 className="w-12 h-12 rounded-xl items-center justify-center mr-3"
                 style={{ backgroundColor: isDark ? "#3C3C3E" : "#FFF7ED" }}
               >
-                <Text className="text-2xl">{eventEmoji}</Text>
+                <Calendar size={22} color={isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.35)"} />
               </View>
               <View className="flex-1">
                 <Text

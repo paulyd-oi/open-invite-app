@@ -24,7 +24,7 @@ import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { safeToast } from "@/lib/safeToast";
 import { EmptyState } from "@/components/EmptyState";
-import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { Image as ExpoImage } from "expo-image";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { QuickEventButton } from "@/components/QuickEventButton";
 import { SocialProof } from "@/components/SocialProof";
@@ -322,19 +322,21 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           ...(isDark ? { elevation: 1 } : TILE_SHADOW),
         }}
       >
-        {/* [P1_SOCIAL_CARD_CLEAN] Banner overlay removed — image shown via EventPhotoEmoji thumbnail only */}
-
         <View className="flex-row items-center">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: isOwn ? `${themeColor}20` : colors.surfaceElevated, overflow: 'hidden' }}
           >
-            <EventPhotoEmoji
-              photoUrl={displayEvent.visibility !== "private" && !displayEvent.isBusy ? displayEvent.eventPhotoUrl : undefined}
-              emoji={displayEvent.emoji}
-              emojiClassName="text-2xl"
-            />
+            {displayEvent.visibility !== "private" && !displayEvent.isBusy && displayEvent.eventPhotoUrl ? (
+              <ExpoImage
+                source={{ uri: displayEvent.eventPhotoUrl }}
+                style={{ width: 56, height: 56, borderRadius: 12 }}
+                transition={200}
+              />
+            ) : (
+              <Calendar size={24} color={themeColor} />
+            )}
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">

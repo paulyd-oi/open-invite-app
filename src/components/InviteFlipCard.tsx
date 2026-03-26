@@ -266,28 +266,7 @@ export function InviteFlipCard({
                     </View>
                   )}
 
-                  {/* ── Top-right: emoji badge ── */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 16,
-                      right: editButton ? 52 : 16,
-                      borderRadius: 14,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <BlurView
-                      intensity={30}
-                      tint="dark"
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        backgroundColor: `${backAccent}30`,
-                      }}
-                    >
-                      <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                    </BlurView>
-                  </View>
+                  {/* Top-right badge removed — emoji placeholders replaced by theme treatment */}
 
                   </View>
 
@@ -431,7 +410,7 @@ export function InviteFlipCard({
                       paddingBottom: 24,
                     }}
                   >
-                    {/* ── Poster: theme label + emoji + title + details ── */}
+                    {/* ── Poster: theme label + title + details ── */}
 
                     {/* Theme label pill */}
                     {ct.vibeLabel && ct.label !== "Classic" && (
@@ -455,7 +434,7 @@ export function InviteFlipCard({
                       </View>
                     )}
 
-                    <Text style={{ fontSize: 56, marginBottom: 14 }}>{emoji}</Text>
+                    <Calendar size={40} color={`${backAccent}50`} style={{ marginBottom: 14 }} />
 
                     <Text
                       style={{
@@ -617,7 +596,7 @@ export function InviteFlipCard({
               />
 
               <View style={{ flex: 1, padding: 24, paddingTop: 20 }}>
-                {/* Section label + emoji */}
+                {/* Section label */}
                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
                   <Text
                     style={{
@@ -630,7 +609,7 @@ export function InviteFlipCard({
                   >
                     The Details
                   </Text>
-                  <Text style={{ fontSize: 16, marginLeft: 8 }}>{emoji}</Text>
+                  <Calendar size={14} color={backAccent} style={{ marginLeft: 8 }} />
                 </View>
 
                 {/* Host — prominent */}

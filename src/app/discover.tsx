@@ -666,7 +666,7 @@ export default function DiscoverScreen() {
                                 : isDark ? "#2C2C2E" : "#FFF7ED",
                             }}
                           >
-                            <Text style={{ fontSize: 52 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
+                            <Calendar size={48} color={isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.12)"} />
                           </View>
                         )}
 
@@ -732,7 +732,7 @@ export default function DiscoverScreen() {
                             }}
                             numberOfLines={2}
                           >
-                            {event.emoji} {event.title}
+                            {event.title}
                           </Text>
                           <Pressable
                             testID="discover-card-save"
@@ -1033,11 +1033,15 @@ export default function DiscoverScreen() {
                                 marginRight: 12,
                               }}
                             >
-                              <EventPhotoEmoji
-                                photoUrl={event.visibility !== "private" ? event.eventPhotoUrl : undefined}
-                                emoji={event.emoji || "\uD83D\uDCC5"}
-                                emojiClassName="text-xl"
-                              />
+                              {event.visibility !== "private" && event.eventPhotoUrl ? (
+                                <ExpoImage
+                                  source={{ uri: event.eventPhotoUrl }}
+                                  style={{ width: 48, height: 48, borderRadius: RADIUS.md }}
+                                  transition={200}
+                                />
+                              ) : (
+                                <Calendar size={22} color={themeColor} />
+                              )}
                             </View>
 
                             <View style={{ flex: 1, marginRight: 8 }}>
