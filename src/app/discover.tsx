@@ -670,34 +670,11 @@ export default function DiscoverScreen() {
                           </View>
                         )}
 
-                        {/* Category pill — image top-left */}
-                        {cardTheme && cardTheme.label !== "Classic" && (
-                          <View style={{
-                            position: "absolute",
-                            top: 12,
-                            left: 12,
-                            backgroundColor: "rgba(0,0,0,0.5)",
-                            paddingHorizontal: 10,
-                            paddingVertical: 4,
-                            borderRadius: 8,
-                          }}>
-                            <Text style={{
-                              fontSize: 10,
-                              fontWeight: "800",
-                              color: "#FFFFFF",
-                              letterSpacing: 0.8,
-                              textTransform: "uppercase",
-                            }}>
-                              {cardTheme.label}
-                            </Text>
-                          </View>
-                        )}
-
-                        {/* Urgency chip — image top-left (below category if present) */}
+                        {/* Urgency chip — image top-left */}
                         {urgency.label ? (
                           <View style={{
                             position: "absolute",
-                            top: cardTheme && cardTheme.label !== "Classic" ? 42 : 12,
+                            top: 12,
                             left: 12,
                             backgroundColor: urgency.tone === "soon"
                               ? STATUS.soon.bgSoft

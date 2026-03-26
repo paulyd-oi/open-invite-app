@@ -279,28 +279,6 @@ export function InviteFlipCard({
                       paddingBottom: 18,
                     }}
                   >
-                    {/* Theme label pill — bridge between photo and plaque */}
-                    {ct.label !== "Classic" && (
-                      <View style={{
-                        backgroundColor: `${backAccent}18`,
-                        paddingHorizontal: 10,
-                        paddingVertical: 3,
-                        borderRadius: 8,
-                        alignSelf: "flex-start",
-                        marginBottom: 10,
-                      }}>
-                        <Text style={{
-                          fontSize: 10,
-                          fontWeight: "800",
-                          color: backAccent,
-                          letterSpacing: 1.2,
-                          textTransform: "uppercase",
-                        }}>
-                          {ct.label}
-                        </Text>
-                      </View>
-                    )}
-
                     {/* Title */}
                     <Text
                       style={{
@@ -410,29 +388,7 @@ export function InviteFlipCard({
                       paddingBottom: 24,
                     }}
                   >
-                    {/* ── Poster: theme label + title + details ── */}
-
-                    {/* Theme label pill */}
-                    {ct.vibeLabel && ct.label !== "Classic" && (
-                      <View style={{
-                        backgroundColor: `${backAccent}18`,
-                        paddingHorizontal: 10,
-                        paddingVertical: 3,
-                        borderRadius: 8,
-                        alignSelf: "flex-start",
-                        marginBottom: 16,
-                      }}>
-                        <Text style={{
-                          fontSize: 10,
-                          fontWeight: "800",
-                          color: backAccent,
-                          letterSpacing: 1.2,
-                          textTransform: "uppercase",
-                        }}>
-                          {ct.label}
-                        </Text>
-                      </View>
-                    )}
+                    {/* ── Poster: title + details ── */}
 
                     <Calendar size={40} color={`${backAccent}50`} style={{ marginBottom: 14 }} />
 
