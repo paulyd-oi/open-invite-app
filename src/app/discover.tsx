@@ -54,6 +54,16 @@ import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
 import type { GetEventsResponse, GetFriendsHostedFeedResponse } from "@/shared/contracts";
+import {
+  trackFriendsLensViewed,
+  trackFriendsLensEmptyViewed,
+  trackFriendsLensEventOpened,
+  trackFriendsLensJoinTapped,
+  trackFriendsLensJoinSucceeded,
+  trackFriendsLensJoinFailed,
+  trackFriendsLensEmptyCtaTapped,
+  trackFriendsLensLoaded,
+} from "@/analytics/analyticsEventsSSOT";
 
 // ── Urgency helper — derives a human-readable time label from startTime ──
 function getUrgencyLabel(startTime: string): { label: string; tone: "soon" | "warm" | null } {
@@ -256,8 +266,11 @@ export default function DiscoverScreen() {
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "friends_join");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Joined!", "You're going to this event");
+      trackFriendsLensJoinSucceeded({ eventId });
     },
-    onError: (err: any) => {
+    onError: (err: any, eventId) => {
+      const errorType = err?.status === 409 ? "full" : (err?.status ? `http_${err.status}` : "network");
+      trackFriendsLensJoinFailed({ eventId, error_type: errorType });
       if (err?.status === 409) {
         safeToast.warning("Full", "This event is already full");
       } else {
@@ -405,6 +418,16 @@ export default function DiscoverScreen() {
     });
   }
 
+  // [FRIENDS_FEED_V1] Analytics: track initial load and empty state (once per lens activation)
+  const didTrackFriendsLoad = useRef(false);
+  useEffect(() => {
+    if (lens !== "friends" || loadingFriendsFeed || !friendsFeedData || didTrackFriendsLoad.current) return;
+    didTrackFriendsLoad.current = true;
+    const count = friendsFeedData.events.length;
+    trackFriendsLensLoaded({ item_count: count });
+    if (count === 0) trackFriendsLensEmptyViewed();
+  }, [lens, loadingFriendsFeed, friendsFeedData]);
+
   const handleEventPress = (eventId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/event/${eventId}` as any);
@@ -508,6 +531,7 @@ export default function DiscoverScreen() {
                         if (lens !== opt.key) {
                           setLens(opt.key);
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          if (opt.key === "friends") trackFriendsLensViewed();
                           if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length });
                         }
                       }}
@@ -945,6 +969,7 @@ export default function DiscoverScreen() {
             </View>
           ) : (friendsFeedData?.events ?? []).length === 0 ? (
             /* ═══ Friends Empty State ═══ */
+            /* ═══ Friends Empty State ═══ */
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
               <View style={{
                 width: 56, height: 56, borderRadius: 28,
@@ -962,6 +987,7 @@ export default function DiscoverScreen() {
               </Text>
               <Pressable
                 onPress={() => {
+                  trackFriendsLensEmptyCtaTapped();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/friends" as any);
                 }}
@@ -1012,7 +1038,7 @@ export default function DiscoverScreen() {
                   return (
                     <React.Fragment key={event.id}>
                       {showHeader && (
-                        <Animated.View entering={FadeInDown.delay(idx * 30).duration(200)} style={{ marginTop: idx > 0 ? 14 : 0, marginBottom: 8 }}>
+                        <Animated.View entering={FadeInDown.delay(Math.min(idx * 30, 300)).duration(200)} style={{ marginTop: idx > 0 ? 14 : 0, marginBottom: 8 }}>
                           <Text style={{
                             fontSize: 13,
                             fontWeight: "700",
@@ -1025,12 +1051,15 @@ export default function DiscoverScreen() {
                         </Animated.View>
                       )}
                       <Animated.View
-                        entering={FadeInDown.delay(idx * 30).duration(240)}
+                        entering={FadeInDown.delay(Math.min(idx * 30, 300)).duration(240)}
                         style={{ marginBottom: 10 }}
                       >
                         <Pressable
                           testID="friends-feed-card"
-                          onPress={() => handleEventPress(event.id)}
+                          onPress={() => {
+                            trackFriendsLensEventOpened({ eventId: event.id });
+                            handleEventPress(event.id);
+                          }}
                           style={({ pressed }) => ({
                             backgroundColor: colors.surface,
                             borderColor: isToday ? STATUS.soon.fg + "30" : colors.borderSubtle,
@@ -1100,6 +1129,7 @@ export default function DiscoverScreen() {
                                 <Pressable
                                   testID="friends-feed-join"
                                   onPress={() => {
+                                    trackFriendsLensJoinTapped({ eventId: event.id });
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                     joinMutation.mutate(event.id);
                                   }}

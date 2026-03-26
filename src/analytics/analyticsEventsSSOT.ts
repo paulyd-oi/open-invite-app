@@ -81,6 +81,16 @@ export const AnalyticsEvent = {
   // Activation audit — empty state CTAs
   SOCIAL_EMPTY_CTA_TAP: "social_empty_cta_tap",
 
+  // Friends lens — Discover browse loop telemetry
+  FRIENDS_LENS_VIEWED: "friends_lens_viewed",
+  FRIENDS_LENS_EMPTY_VIEWED: "friends_lens_empty_viewed",
+  FRIENDS_LENS_EVENT_OPENED: "friends_lens_event_opened",
+  FRIENDS_LENS_JOIN_TAPPED: "friends_lens_join_tapped",
+  FRIENDS_LENS_JOIN_SUCCEEDED: "friends_lens_join_succeeded",
+  FRIENDS_LENS_JOIN_FAILED: "friends_lens_join_failed",
+  FRIENDS_LENS_EMPTY_CTA_TAPPED: "friends_lens_empty_cta_tapped",
+  FRIENDS_LENS_LOADED: "friends_lens_loaded",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -707,5 +717,60 @@ export function trackSocialEmptyCtaTap(props: {
   source: "social_empty";
 }): void {
   track(AnalyticsEvent.SOCIAL_EMPTY_CTA_TAP, props);
+}
+
+// ---------------------------------------------------------------------------
+// Friends lens — Discover browse loop telemetry
+// ---------------------------------------------------------------------------
+
+/** friends_lens_viewed — fires when user switches to the Friends tab. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensViewed(): void {
+  track(AnalyticsEvent.FRIENDS_LENS_VIEWED);
+}
+
+/** friends_lens_empty_viewed — fires when Friends tab renders empty state. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensEmptyViewed(): void {
+  track(AnalyticsEvent.FRIENDS_LENS_EMPTY_VIEWED);
+}
+
+/** friends_lens_event_opened — fires when user taps a card in Friends lens. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensEventOpened(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.FRIENDS_LENS_EVENT_OPENED, props);
+}
+
+/** friends_lens_join_tapped — fires when user taps Join in Friends lens. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensJoinTapped(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.FRIENDS_LENS_JOIN_TAPPED, props);
+}
+
+/** friends_lens_join_succeeded — fires after successful join from Friends lens. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensJoinSucceeded(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.FRIENDS_LENS_JOIN_SUCCEEDED, props);
+}
+
+/** friends_lens_join_failed — fires on join failure from Friends lens. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensJoinFailed(props: {
+  eventId: string;
+  error_type: string;
+}): void {
+  track(AnalyticsEvent.FRIENDS_LENS_JOIN_FAILED, props);
+}
+
+/** friends_lens_empty_cta_tapped — fires when user taps "Find Friends" in empty state. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensEmptyCtaTapped(): void {
+  track(AnalyticsEvent.FRIENDS_LENS_EMPTY_CTA_TAPPED);
+}
+
+/** friends_lens_loaded — fires on initial data load with item count. No PII. [FRIENDS_FEED_V1] */
+export function trackFriendsLensLoaded(props: {
+  item_count: number;
+}): void {
+  track(AnalyticsEvent.FRIENDS_LENS_LOADED, props);
 }
 
