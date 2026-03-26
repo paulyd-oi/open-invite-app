@@ -100,6 +100,7 @@ export default function CreateEventScreen() {
     return evening;
   };
 
+  const [chromeHeight, setChromeHeight] = useState(0);
   const [title, setTitle] = useState(templateTitle ?? "");
   const [description, setDescription] = useState("");
   const emoji = templateEmoji ?? "📅";
@@ -523,23 +524,13 @@ export default function CreateEventScreen() {
   // ── Render ──
   return (
     <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
-      <CreateEditorHeader
-        onCancel={() => router.back()}
-        onSave={handleCreate}
-        isPending={createMutation.isPending}
-        themed={themed}
-        glassText={glassText}
-        glassSecondary={glassSecondary}
-        themeColor={themeColor}
-      />
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: computedPaddingBottom }}
+          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: computedPaddingBottom }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -671,6 +662,18 @@ export default function CreateEventScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Floating BlurView header chrome ── */}
+      <CreateEditorHeader
+        onCancel={() => router.back()}
+        onSave={handleCreate}
+        isPending={createMutation.isPending}
+        themed={themed}
+        glassText={glassText}
+        glassSecondary={glassSecondary}
+        themeColor={themeColor}
+        onLayout={(h) => { if (h > 0 && h !== chromeHeight) setChromeHeight(h); }}
+      />
 
       {/* ── Page-wide motif overlay ── */}
       {selectedEffectId && (
