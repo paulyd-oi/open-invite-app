@@ -19,10 +19,41 @@ import {
 import { Image as ExpoImage } from "expo-image";
 import * as Haptics from "expo-haptics";
 import BottomSheet from "@/components/BottomSheet";
+import { useTheme } from "@/lib/ThemeContext";
 import { Search, Upload, X, ImagePlus } from "@/ui/icons";
 import { COVER_CATEGORIES, FEATURED_COVERS } from "./coverMedia.data";
 import { searchGifs, fetchFeaturedGifs } from "./klipyApi";
 import type { CoverMediaItem } from "./coverMedia.types";
+
+/* ------------------------------------------------------------------ */
+/*  Theme-aware palette                                                */
+/* ------------------------------------------------------------------ */
+
+function sheetPalette(isDark: boolean) {
+  return {
+    text:           isDark ? "#FFFFFF"                 : "rgba(0,0,0,0.85)",
+    textMuted:      isDark ? "rgba(255,255,255,0.5)"  : "rgba(0,0,0,0.45)",
+    textFaint:      isDark ? "rgba(255,255,255,0.4)"  : "rgba(0,0,0,0.35)",
+    textDimmer:     isDark ? "rgba(255,255,255,0.3)"  : "rgba(0,0,0,0.25)",
+    icon:           isDark ? "rgba(255,255,255,0.35)"  : "rgba(0,0,0,0.35)",
+    iconMuted:      isDark ? "rgba(255,255,255,0.5)"  : "rgba(0,0,0,0.45)",
+    iconFaint:      isDark ? "rgba(255,255,255,0.4)"  : "rgba(0,0,0,0.35)",
+    iconDim:        isDark ? "rgba(255,255,255,0.3)"  : "rgba(0,0,0,0.25)",
+    searchBg:       isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+    searchBorder:   isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    chipBg:         isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+    chipBgActive:   isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.10)",
+    chipBorder:     isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    chipBorderAct:  isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.20)",
+    tabUnderline:   isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    tabUnderlineAct:isDark ? "#FFFFFF"                 : "rgba(0,0,0,0.85)",
+    selectedBorder: isDark ? "#FFFFFF"                 : "#000000",
+    uploadBg:       isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)",
+    uploadBorder:   isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)",
+    uploadFooterBg: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    emptyBg:        isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -57,6 +88,8 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_GAP = 8;
 const GRID_PADDING = 16;
 const COLUMN_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP) / 2;
+/** Match the hero preview aspect ratio: (screenWidth − 32) / 220 */
+const HERO_ASPECT = (SCREEN_WIDTH - 32) / 220;
 
 /* ------------------------------------------------------------------ */
 /*  Sub-components                                                     */
@@ -66,9 +99,11 @@ const COLUMN_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP) / 2;
 function TabBar({
   activeTab,
   onSelect,
+  p,
 }: {
   activeTab: TabId;
   onSelect: (tab: TabId) => void;
+  p: ReturnType<typeof sheetPalette>;
 }) {
   return (
     <View style={{ flexDirection: "row", paddingHorizontal: 16, marginBottom: 12 }}>
@@ -86,14 +121,14 @@ function TabBar({
               alignItems: "center",
               paddingVertical: 8,
               borderBottomWidth: 2,
-              borderBottomColor: active ? "#FFFFFF" : "rgba(255,255,255,0.08)",
+              borderBottomColor: active ? p.tabUnderlineAct : p.tabUnderline,
             }}
           >
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: active ? "700" : "500",
-                color: active ? "#FFFFFF" : "rgba(255,255,255,0.4)",
+                color: active ? p.text : p.textFaint,
               }}
             >
               {tab.label}
@@ -109,9 +144,11 @@ function TabBar({
 function CategoryChipRail({
   activeCategory,
   onSelect,
+  p,
 }: {
   activeCategory: string;
   onSelect: (id: string) => void;
+  p: ReturnType<typeof sheetPalette>;
 }) {
   return (
     <ScrollView
@@ -134,16 +171,16 @@ function CategoryChipRail({
               paddingHorizontal: 14,
               paddingVertical: 6,
               borderRadius: 16,
-              backgroundColor: active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+              backgroundColor: active ? p.chipBgActive : p.chipBg,
               borderWidth: 1,
-              borderColor: active ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.08)",
+              borderColor: active ? p.chipBorderAct : p.chipBorder,
             }}
           >
             <Text
               style={{
                 fontSize: 12,
                 fontWeight: active ? "600" : "500",
-                color: active ? "#FFFFFF" : "rgba(255,255,255,0.5)",
+                color: active ? p.text : p.textMuted,
               }}
             >
               {cat.label}
@@ -161,21 +198,23 @@ function CoverThumbnail({
   item,
   selected,
   onPress,
+  selectedBorder,
 }: {
   item: CoverMediaItem;
   selected: boolean;
   onPress: () => void;
+  selectedBorder: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       style={{
         width: COLUMN_WIDTH,
-        aspectRatio: 4 / 3,
+        aspectRatio: HERO_ASPECT,
         borderRadius: 12,
         overflow: "hidden",
         borderWidth: selected ? 2.5 : 0,
-        borderColor: selected ? "#FFFFFF" : "transparent",
+        borderColor: selected ? selectedBorder : "transparent",
       }}
     >
       <ExpoImage
@@ -205,7 +244,7 @@ function CoverThumbnail({
 }
 
 /** Empty state for My Uploads tab. */
-function UploadsEmptyState({ onUpload }: { onUpload: () => void }) {
+function UploadsEmptyState({ onUpload, p }: { onUpload: () => void; p: ReturnType<typeof sheetPalette> }) {
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
       <View
@@ -213,18 +252,18 @@ function UploadsEmptyState({ onUpload }: { onUpload: () => void }) {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: "rgba(255,255,255,0.06)",
+          backgroundColor: p.emptyBg,
           alignItems: "center",
           justifyContent: "center",
           marginBottom: 12,
         }}
       >
-        <ImagePlus size={24} color="rgba(255,255,255,0.3)" />
+        <ImagePlus size={24} color={p.iconDim} />
       </View>
-      <Text style={{ fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+      <Text style={{ fontSize: 14, fontWeight: "600", color: p.textMuted, marginBottom: 4 }}>
         No uploads yet
       </Text>
-      <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16 }}>
+      <Text style={{ fontSize: 12, color: p.textDimmer, marginBottom: 16 }}>
         Add your own cover photos
       </Text>
       <Pressable
@@ -236,11 +275,11 @@ function UploadsEmptyState({ onUpload }: { onUpload: () => void }) {
           paddingHorizontal: 16,
           paddingVertical: 10,
           borderRadius: 12,
-          backgroundColor: "rgba(255,255,255,0.10)",
+          backgroundColor: p.uploadBg,
         }}
       >
-        <Upload size={14} color="#FFFFFF" />
-        <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Upload image</Text>
+        <Upload size={14} color={p.text} />
+        <Text style={{ fontSize: 13, fontWeight: "600", color: p.text }}>Upload image</Text>
       </Pressable>
     </View>
   );
@@ -258,6 +297,8 @@ export function CoverMediaPickerSheet({
   selectedCoverId,
   userUploads = [],
 }: CoverMediaPickerSheetProps) {
+  const { isDark } = useTheme();
+  const p = sheetPalette(isDark);
   const [activeTab, setActiveTab] = useState<TabId>("featured");
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -382,9 +423,10 @@ export function CoverMediaPickerSheet({
         item={item}
         selected={selectedCoverId === item.id}
         onPress={() => handleSelectItem(item)}
+        selectedBorder={p.selectedBorder}
       />
     ),
-    [selectedCoverId, handleSelectItem],
+    [selectedCoverId, handleSelectItem, p.selectedBorder],
   );
 
   const keyExtractor = useCallback((item: CoverMediaItem) => item.id, []);
@@ -410,22 +452,22 @@ export function CoverMediaPickerSheet({
           paddingHorizontal: 12,
           height: 38,
           borderRadius: 12,
-          backgroundColor: "rgba(255,255,255,0.06)",
+          backgroundColor: p.searchBg,
           borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.08)",
+          borderColor: p.searchBorder,
         }}
       >
-        <Search size={16} color="rgba(255,255,255,0.35)" />
+        <Search size={16} color={p.icon} />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search covers..."
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={p.textDimmer}
           style={{
             flex: 1,
             marginLeft: 8,
             fontSize: 14,
-            color: "#FFFFFF",
+            color: p.text,
           }}
           returnKeyType="search"
           autoCapitalize="none"
@@ -433,26 +475,26 @@ export function CoverMediaPickerSheet({
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
-            <X size={14} color="rgba(255,255,255,0.4)" />
+            <X size={14} color={p.iconFaint} />
           </Pressable>
         )}
       </View>
 
       {/* Tab bar */}
-      <TabBar activeTab={activeTab} onSelect={setActiveTab} />
+      <TabBar activeTab={activeTab} onSelect={setActiveTab} p={p} />
 
       {/* Category chips — only on Featured tab */}
       {activeTab === "featured" && (
-        <CategoryChipRail activeCategory={activeCategory} onSelect={setActiveCategory} />
+        <CategoryChipRail activeCategory={activeCategory} onSelect={setActiveCategory} p={p} />
       )}
 
       {/* Content */}
       {activeTab === "uploads" && userUploads.length === 0 ? (
-        <UploadsEmptyState onUpload={handleUploadPress} />
+        <UploadsEmptyState onUpload={handleUploadPress} p={p} />
       ) : activeTab === "gifs" && gifLoading && gifResults.length === 0 ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
-          <ActivityIndicator color="rgba(255,255,255,0.5)" />
-          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>Loading GIFs…</Text>
+          <ActivityIndicator color={p.textMuted} />
+          <Text style={{ fontSize: 12, color: p.textDimmer, marginTop: 8 }}>Loading GIFs…</Text>
         </View>
       ) : (
         <FlatList
@@ -465,7 +507,7 @@ export function CoverMediaPickerSheet({
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={{ alignItems: "center", paddingVertical: 40 }}>
-              <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+              <Text style={{ fontSize: 13, color: p.textFaint }}>
                 No results found
               </Text>
             </View>
@@ -484,13 +526,13 @@ export function CoverMediaPickerSheet({
                   marginTop: 4,
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.10)",
+                  borderColor: p.uploadBorder,
                   borderStyle: "dashed",
-                  backgroundColor: "rgba(255,255,255,0.03)",
+                  backgroundColor: p.uploadFooterBg,
                 }}
               >
-                <Upload size={14} color="rgba(255,255,255,0.5)" />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.5)" }}>
+                <Upload size={14} color={p.iconMuted} />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: p.textMuted }}>
                   Upload your own image
                 </Text>
               </Pressable>
