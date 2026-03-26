@@ -313,6 +313,7 @@ export default function CircleScreen() {
   const [showTryAnother, setShowTryAnother] = useState(!!draftVariants);
 
   // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
+  const [chromeHeight, setChromeHeight] = useState(0);
   const [showCalendar, setShowCalendar] = useState(true);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
@@ -1767,14 +1768,22 @@ export default function CircleScreen() {
   const currentUserId = session!.user?.id;
 
   return (
-    <SafeAreaView className="flex-1" edges={["top", "bottom"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
+      {/* Floating BlurView header chrome */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
       <BlurView
         intensity={88}
         tint={isDark ? "dark" : "light"}
-        style={{ overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
+        style={{ paddingTop: insets.top, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
       >
       <View
         className="flex-row items-center px-4 py-3"
@@ -1867,10 +1876,11 @@ export default function CircleScreen() {
         </View>
       </View>
       </BlurView>
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={{ flex: 1, paddingTop: chromeHeight }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         {/* Calendar Toggle */}
