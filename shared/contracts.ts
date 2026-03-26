@@ -161,6 +161,8 @@ export const getEventsFeedResponseSchema = z.object({
 export type GetEventsFeedResponse = z.infer<typeof getEventsFeedResponseSchema>;
 
 // GET /api/events/friends-hosted-feed - Friends' hosted events (browse loop V1)
+// Note: `user` field on each event is the host (SSOT convention across all event endpoints).
+// viewerRsvpStatus uses the standard RSVP enum: going | interested | maybe | not_going | null.
 export const getFriendsHostedFeedResponseSchema = z.object({
   events: z.array(eventSchema.extend({
     isJoinable: z.boolean(),
