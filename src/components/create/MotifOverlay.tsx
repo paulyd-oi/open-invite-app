@@ -5,7 +5,7 @@
  * using the existing Skia Canvas + Reanimated particle engine.
  *
  * Hero zone (top ~220px): full intensity.
- * Body zone: reduced opacity (30-40%) for readability.
+ * Body zone: reduced opacity (~50%) for readability.
  *
  * Each preset has distinct shape language — visually distinguishable at a glance.
  */
@@ -81,21 +81,21 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     label: "Hearts",
     swatchIcon: "💕",
     particleCount: 6,
-    minSize: 14,
-    maxSize: 24,
-    minOpacity: 0.20,
-    maxOpacity: 0.45,
+    minSize: 18,
+    maxSize: 32,
+    minOpacity: 0.30,
+    maxOpacity: 0.55,
     minSpeed: 6,
     maxSpeed: 14,
     swayAmplitude: 20,
     minSwayPeriod: 4,
     maxSwayPeriod: 8,
     direction: -1,
-    blurSigma: 1.5,
+    blurSigma: 1.2,
     colors: [
-      "rgba(236, 72, 153, 0.8)",
-      "rgba(239, 68, 68, 0.8)",
-      "rgba(251, 207, 232, 0.8)",
+      "rgba(236, 72, 153, 0.9)",
+      "rgba(239, 68, 68, 0.9)",
+      "rgba(251, 207, 232, 0.9)",
     ],
     shapes: ["heart"],
     minRotationSpeed: 0.2,
@@ -184,41 +184,41 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     particleCount: 6,
     minSize: 16,
     maxSize: 36,
-    minOpacity: 0.12,
-    maxOpacity: 0.28,
+    minOpacity: 0.18,
+    maxOpacity: 0.35,
     minSpeed: 5,
     maxSpeed: 12,
     swayAmplitude: 20,
     minSwayPeriod: 4,
     maxSwayPeriod: 9,
     direction: -1,
-    blurSigma: 3.0,
+    blurSigma: 2.5,
     colors: [
-      "rgba(255, 255, 255, 0.8)",
-      "rgba(186, 230, 253, 0.8)",
-      "rgba(147, 197, 253, 0.8)",
+      "rgba(255, 255, 255, 1)",
+      "rgba(220, 240, 255, 1)",
+      "rgba(200, 225, 255, 1)",
     ],
     shape: "circle",
   },
   sparkle: {
     label: "Sparkle",
     swatchIcon: "✨",
-    particleCount: 10,
-    minSize: 6,
-    maxSize: 14,
-    minOpacity: 0.0,
-    maxOpacity: 0.65,
+    particleCount: 12,
+    minSize: 8,
+    maxSize: 16,
+    minOpacity: 0.15,
+    maxOpacity: 0.80,
     minSpeed: 0,
     maxSpeed: 0,
     swayAmplitude: 0,
     minSwayPeriod: 1,
     maxSwayPeriod: 2,
     direction: 1,
-    blurSigma: 1.0,
+    blurSigma: 0.8,
     colors: [
-      "rgba(255, 215, 0, 1)",
+      "rgba(255, 223, 0, 1)",
       "rgba(255, 255, 255, 1)",
-      "rgba(192, 192, 192, 1)",
+      "rgba(255, 245, 200, 1)",
     ],
     shapes: ["star"],
     staticPosition: true,
@@ -228,22 +228,22 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
   football: {
     label: "Football",
     swatchIcon: "🏈",
-    particleCount: 4,
+    particleCount: 5,
     minSize: 18,
     maxSize: 32,
-    minOpacity: 0.18,
-    maxOpacity: 0.35,
+    minOpacity: 0.28,
+    maxOpacity: 0.50,
     minSpeed: 4,
     maxSpeed: 10,
     swayAmplitude: 25,
     minSwayPeriod: 5,
     maxSwayPeriod: 10,
     direction: 1,
-    blurSigma: 1.5,
+    blurSigma: 1.0,
     colors: [
-      "rgba(139, 69, 19, 0.8)",
-      "rgba(160, 82, 45, 0.8)",
-      "rgba(101, 67, 33, 0.8)",
+      "rgba(160, 82, 45, 1)",
+      "rgba(184, 115, 51, 1)",
+      "rgba(139, 90, 43, 1)",
     ],
     shapes: ["football"],
     minRotationSpeed: 0.3,
@@ -283,7 +283,7 @@ export type MotifPresetId = keyof typeof MOTIF_PRESETS;
 
 interface MotifOverlayProps {
   presetId: string | null;
-  /** Opacity multiplier — 1.0 for hero, 0.35 for body */
+  /** Opacity multiplier — 1.0 for hero, 0.50 for body */
   intensity?: number;
 }
 
