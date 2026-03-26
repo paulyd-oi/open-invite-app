@@ -102,6 +102,7 @@ export const eventKeys = {
   calendar: () => ["events", "calendar"] as const,
   calendarRange: (start: string, end: string) => ["events", "calendar", start, end] as const, // Calendar date range query
   attending: () => ["events", "attending"] as const,
+  friendsHostedFeed: () => ["events", "friends-hosted-feed"] as const,
 } as const;
 
 // ============================================================================
@@ -149,6 +150,7 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
+    eventKeys.friendsHostedFeed(), // [FRIENDS_FEED_V1] Friends browse loop
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),
@@ -169,6 +171,7 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
+    eventKeys.friendsHostedFeed(), // [FRIENDS_FEED_V1] Friends browse loop
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),

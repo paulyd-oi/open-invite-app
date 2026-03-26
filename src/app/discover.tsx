@@ -53,7 +53,7 @@ import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
-import type { GetEventsResponse } from "@/shared/contracts";
+import type { GetEventsResponse, GetFriendsHostedFeedResponse } from "@/shared/contracts";
 
 // ── Urgency helper — derives a human-readable time label from startTime ──
 function getUrgencyLabel(startTime: string): { label: string; tone: "soon" | "warm" | null } {
@@ -95,6 +95,21 @@ function getSavedTimeGroup(startTime: string): string {
   return "Later";
 }
 
+/** Day group label for Friends feed — Today/Tomorrow/weekday name */
+function getFriendsFeedDayGroup(startTime: string): string {
+  const now = new Date();
+  const start = new Date(startTime);
+  if (start.getTime() < now.getTime()) return "";
+
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  if (start <= todayEnd) return "Today";
+
+  const tomorrowEnd = new Date(todayEnd); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  if (start <= tomorrowEnd) return "Tomorrow";
+
+  return start.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+}
+
 interface PopularEvent {
   id: string;
   title: string;
@@ -130,10 +145,11 @@ interface PopularEvent {
   }>;
 }
 
-type Lens = "ideas" | "events" | "saved";
+type Lens = "ideas" | "events" | "friends" | "saved";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "ideas", label: "Ideas" },
   { key: "events", label: "Events" },
+  { key: "friends", label: "Friends" },
   { key: "saved", label: "Saved" },
 ];
 
@@ -219,6 +235,36 @@ export default function DiscoverScreen() {
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+  });
+
+  // [FRIENDS_FEED_V1] Friends-hosted events feed
+  const { data: friendsFeedData, isLoading: loadingFriendsFeed, isFetching: fetchingFriendsFeed, refetch: refetchFriendsFeed, isError: friendsFeedError } = useQuery({
+    queryKey: eventKeys.friendsHostedFeed(),
+    queryFn: () => api.get<GetFriendsHostedFeedResponse>("/api/events/friends-hosted-feed?days=14"),
+    enabled: isAuthedForNetwork(bootStatus, session) && lens === "friends",
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev: GetFriendsHostedFeedResponse | undefined) => prev,
+  });
+
+  // [FRIENDS_FEED_V1] One-tap Join mutation
+  const joinMutation = useMutation({
+    mutationFn: (eventId: string) =>
+      postIdempotent(`/api/events/${eventId}/rsvp`, { status: "going" }),
+    onSuccess: (_data, eventId) => {
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "friends_join");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Joined!", "You're going to this event");
+    },
+    onError: (err: any) => {
+      if (err?.status === 409) {
+        safeToast.warning("Full", "This event is already full");
+      } else {
+        safeToast.error("Couldn't join", "Please try again");
+      }
+      if (__DEV__) devLog("[FRIENDS_JOIN_ERR]", err);
+    },
   });
 
   const isLoading = loadingFeed || loadingMyEvents;
@@ -882,6 +928,213 @@ export default function DiscoverScreen() {
                 );
               }}
             />
+          )}
+        </View>
+      ) : lens === "friends" ? (
+        /* ═══ Friends Feed ═══ */
+        <View style={{ flex: 1 }}>
+          {loadingFriendsFeed && !friendsFeedData ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="small" color={themeColor} />
+            </View>
+          ) : friendsFeedError && !friendsFeedData ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
+                Couldn't load friends' events. Pull to retry.
+              </Text>
+            </View>
+          ) : (friendsFeedData?.events ?? []).length === 0 ? (
+            /* ═══ Friends Empty State ═══ */
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
+              <View style={{
+                width: 56, height: 56, borderRadius: 28,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                marginBottom: 16,
+              }}>
+                <Users size={24} color={themeColor} />
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                No friend events yet
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 24 }}>
+                When your friends create events,{"\n"}they'll show up here.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/friends" as any);
+                }}
+                style={{
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: themeColor,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>
+                  Find Friends
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            /* ═══ Friends Feed — Day-Grouped List ═══ */
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={fetchingFriendsFeed && !!friendsFeedData}
+                  onRefresh={() => refetchFriendsFeed()}
+                  tintColor={themeColor}
+                  progressViewOffset={chromeHeight}
+                />
+              }
+            >
+              {(() => {
+                const events = friendsFeedData?.events ?? [];
+                let lastGroup = "";
+                let itemIndex = 0;
+                return events.map((event) => {
+                  const group = getFriendsFeedDayGroup(event.startTime);
+                  const showHeader = group !== lastGroup;
+                  lastGroup = group;
+                  const idx = itemIndex++;
+                  const isToday = group === "Today";
+                  const isTomorrow = group === "Tomorrow";
+                  const timeStr = new Date(event.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+                  const hostName = event.user?.name?.split(" ")[0] ?? "Friend";
+                  const rsvp = event.viewerRsvpStatus;
+                  const alreadyGoing = rsvp === "going";
+                  const canJoin = event.isJoinable && !alreadyGoing && !joinMutation.isPending;
+
+                  return (
+                    <React.Fragment key={event.id}>
+                      {showHeader && (
+                        <Animated.View entering={FadeInDown.delay(idx * 30).duration(200)} style={{ marginTop: idx > 0 ? 14 : 0, marginBottom: 8 }}>
+                          <Text style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: (isToday || isTomorrow) ? STATUS.soon.fg : colors.textSecondary,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                          }}>
+                            {group}
+                          </Text>
+                        </Animated.View>
+                      )}
+                      <Animated.View
+                        entering={FadeInDown.delay(idx * 30).duration(240)}
+                        style={{ marginBottom: 10 }}
+                      >
+                        <Pressable
+                          testID="friends-feed-card"
+                          onPress={() => handleEventPress(event.id)}
+                          style={({ pressed }) => ({
+                            backgroundColor: colors.surface,
+                            borderColor: isToday ? STATUS.soon.fg + "30" : colors.borderSubtle,
+                            borderWidth: 1,
+                            borderRadius: RADIUS.lg,
+                            padding: 14,
+                            opacity: pressed ? 0.85 : 1,
+                            ...tileShadow,
+                          })}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            {/* Host avatar */}
+                            <View style={{ marginRight: 12 }}>
+                              <EntityAvatar
+                                photoUrl={event.user?.image}
+                                initials={hostName[0]}
+                                size={44}
+                                backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
+                                foregroundColor={themeColor}
+                                fallbackIcon="person-outline"
+                              />
+                            </View>
+
+                            {/* Event info */}
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                              <Text
+                                style={{ fontWeight: "600", fontSize: 15, color: colors.text }}
+                                numberOfLines={1}
+                              >
+                                {event.title}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 2 }} numberOfLines={1}>
+                                {hostName}'s event
+                              </Text>
+                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3, gap: 4 }}>
+                                <Clock size={12} color={colors.textTertiary} />
+                                <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                  {isToday ? timeStr : isTomorrow ? timeStr : `${new Date(event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}, ${timeStr}`}
+                                </Text>
+                              </View>
+                              {event.location && (
+                                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 4 }}>
+                                  <MapPin size={12} color={colors.textTertiary} />
+                                  <Text style={{ fontSize: 12, color: colors.textTertiary }} numberOfLines={1}>
+                                    {event.location}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+
+                            {/* Right: Join button or status */}
+                            <View style={{ alignItems: "center", gap: 4 }}>
+                              {alreadyGoing ? (
+                                <View style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  backgroundColor: STATUS.going.bgSoft,
+                                  paddingHorizontal: 10,
+                                  paddingVertical: 6,
+                                  borderRadius: 8,
+                                  gap: 4,
+                                }}>
+                                  <Check size={14} color={STATUS.going.fg} />
+                                  <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.going.fg }}>Going</Text>
+                                </View>
+                              ) : canJoin ? (
+                                <Pressable
+                                  testID="friends-feed-join"
+                                  onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    joinMutation.mutate(event.id);
+                                  }}
+                                  style={{
+                                    backgroundColor: themeColor,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 7,
+                                    borderRadius: 8,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Join</Text>
+                                </Pressable>
+                              ) : rsvp ? (
+                                <View style={{
+                                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                                  paddingHorizontal: 10,
+                                  paddingVertical: 6,
+                                  borderRadius: 8,
+                                }}>
+                                  <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textSecondary, textTransform: "capitalize" }}>
+                                    {rsvp.replace("_", " ")}
+                                  </Text>
+                                </View>
+                              ) : (
+                                <ChevronRight size={18} color={colors.textTertiary} />
+                              )}
+                            </View>
+                          </View>
+                        </Pressable>
+                      </Animated.View>
+                    </React.Fragment>
+                  );
+                });
+              })()}
+            </ScrollView>
           )}
         </View>
       ) : (
