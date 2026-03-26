@@ -1,9 +1,7 @@
 /**
  * Theme Builder — Full-screen custom theme composer with live preview.
  *
- * Phase 5A: gradient/color picker, name input, live preview scaffold.
- * Phase 5B: shader, particle, and filter pickers with live preview.
- * Phase 5C+D: background image picker, save/load persistence.
+ * Sections: Gradient Colors, Shader Background, Animation Speed, Save.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -12,8 +10,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
-  Image,
   useWindowDimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
@@ -29,10 +25,7 @@ import Animated, {
 import Slider from "@react-native-community/slider";
 
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
-import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import { BuilderEffectPreview } from "@/components/BuilderEffectPreview";
-import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
-import { THEME_BACKGROUNDS } from "@/lib/eventThemes";
 import { useThemeBuilderStore } from "@/lib/themeBuilderStore";
 import { saveCustomTheme, loadCustomThemes, MAX_CUSTOM_THEMES } from "@/lib/customThemeStorage";
 import { useTheme } from "@/lib/ThemeContext";
@@ -51,57 +44,12 @@ const MIN_GRADIENT_COLORS = 2;
 
 // ─── Picker option data ──
 
-const PARTICLE_OPTIONS: { key: string; label: string; color: string }[] = [
-  { key: "", label: "None", color: "transparent" },
-  { key: "ambient_dust", label: "Ambient Dust", color: "#FFD49C" },
-  { key: "snowfall", label: "Snowfall", color: "#E6F0FF" },
-  { key: "coastal_haze", label: "Coastal Haze", color: "#14B8A6" },
-  { key: "arcade_sparkle", label: "Arcade Sparkle", color: "#8B5CF6" },
-  { key: "confetti_rain", label: "Confetti Rain", color: "#EF4444" },
-  { key: "falling_leaves", label: "Falling Leaves", color: "#D97706" },
-  { key: "firework_burst", label: "Fireworks", color: "#FFD700" },
-  { key: "glitter_shimmer", label: "Glitter", color: "#C0C0C0" },
-  { key: "disco_pulse", label: "Disco Pulse", color: "#8B5CF6" },
-  { key: "cherry_blossom", label: "Cherry Blossom", color: "#F4A3BC" },
-  { key: "rose_petals", label: "Rose Petals", color: "#BE123C" },
-  { key: "floating_hearts", label: "Floating Hearts", color: "#EC4899" },
-  { key: "rising_bubbles", label: "Rising Bubbles", color: "#93C5FD" },
-  { key: "light_rays", label: "Light Rays", color: "#FFD700" },
-  { key: "dandelion_seeds", label: "Dandelion Seeds", color: "#FFFDF0" },
-  { key: "butterfly_flutter", label: "Butterflies", color: "#C084FC" },
-  { key: "easter_confetti", label: "Easter Confetti", color: "#F4A3BC" },
-  { key: "graduation_toss", label: "Graduation", color: "#1E3A8A" },
-  { key: "fireflies", label: "Fireflies", color: "#FBBF24" },
-  { key: "tropical_drift", label: "Tropical Drift", color: "#FB7185" },
-  { key: "patriot_stars", label: "Patriot Stars", color: "#B22234" },
-  { key: "golden_sparkle", label: "Golden Sparkle", color: "#D4AF37" },
-  { key: "candlelight", label: "Candlelight", color: "#FFB74D" },
-  { key: "projector_dust", label: "Projector Dust", color: "#C8C8D2" },
-];
-
 const SHADER_OPTIONS: { key: string; label: string; color: string }[] = [
   { key: "", label: "None", color: "transparent" },
   { key: "aurora", label: "Aurora", color: "#1A9968" },
   { key: "shimmer", label: "Shimmer", color: "#FFF3CC" },
   { key: "plasma", label: "Plasma", color: "#CC3380" },
   { key: "bokeh", label: "Bokeh", color: "#FFD999" },
-];
-
-const FILTER_OPTIONS: { key: string; label: string; color: string }[] = [
-  { key: "", label: "None", color: "transparent" },
-  { key: "film_grain", label: "Film Grain", color: "#D2B48C" },
-  { key: "vignette", label: "Vignette", color: "#333333" },
-  { key: "noise", label: "Noise", color: "#808080" },
-  { key: "color_shift", label: "Color Shift", color: "#FF9966" },
-];
-
-const IMAGE_OPTIONS: { key: string; label: string }[] = [
-  { key: "", label: "None" },
-  { key: "movie_night_bg", label: "Movie Night" },
-  { key: "cozy_night_bg", label: "Cozy Night" },
-  { key: "date_night_bg", label: "Date Night" },
-  { key: "party_night_bg", label: "Party Night" },
-  { key: "awards_night_bg", label: "Awards Night" },
 ];
 
 function generateId(): string {
@@ -124,14 +72,9 @@ export default function ThemeBuilderScreen() {
   const [saving, setSaving] = useState(false);
 
   // ─── Store ──
-  const name = useThemeBuilderStore((s) => s.name);
   const visualStack = useThemeBuilderStore((s) => s.visualStack);
-  const setName = useThemeBuilderStore((s) => s.setName);
   const setGradient = useThemeBuilderStore((s) => s.setGradient);
   const setShader = useThemeBuilderStore((s) => s.setShader);
-  const setParticles = useThemeBuilderStore((s) => s.setParticles);
-  const setFilter = useThemeBuilderStore((s) => s.setFilter);
-  const setImage = useThemeBuilderStore((s) => s.setImage);
   const hydrate = useThemeBuilderStore((s) => s.hydrate);
   const reset = useThemeBuilderStore((s) => s.reset);
 
@@ -147,11 +90,7 @@ export default function ThemeBuilderScreen() {
 
   const gradientColors = visualStack.gradient?.colors ?? [];
   const gradientSpeed = visualStack.gradient?.speed ?? 3;
-  const selectedParticles = visualStack.particles ?? "";
   const selectedShader = visualStack.shader ?? "";
-  const selectedFilter = visualStack.filter ?? "";
-  const selectedImageKey = visualStack.image?.source ?? "";
-  const imageOpacity = visualStack.image?.opacity ?? 0.2;
 
   // ─── Handlers ──
 
@@ -195,14 +134,6 @@ export default function ThemeBuilderScreen() {
     [gradientColors, setGradient],
   );
 
-  const handleSelectParticles = useCallback(
-    (key: string) => {
-      Haptics.selectionAsync();
-      setParticles(key || null);
-    },
-    [setParticles],
-  );
-
   const handleSelectShader = useCallback(
     (key: string) => {
       Haptics.selectionAsync();
@@ -211,65 +142,38 @@ export default function ThemeBuilderScreen() {
     [setShader],
   );
 
-  const handleSelectFilter = useCallback(
-    (key: string) => {
-      Haptics.selectionAsync();
-      setFilter((key || null) as any);
-    },
-    [setFilter],
-  );
-
-  const handleSelectImage = useCallback(
-    (key: string) => {
-      Haptics.selectionAsync();
-      if (!key) {
-        setImage(null);
-      } else {
-        setImage({ source: key, opacity: imageOpacity });
-      }
-    },
-    [setImage, imageOpacity],
-  );
-
-  const handleImageOpacityChange = useCallback(
-    (value: number) => {
-      if (!selectedImageKey) return;
-      setImage({ source: selectedImageKey, opacity: value });
-    },
-    [setImage, selectedImageKey],
-  );
-
   const handleSave = useCallback(() => {
     setSaveError("");
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setSaveError("Please enter a theme name");
-      return;
-    }
     if (gradientColors.length < MIN_GRADIENT_COLORS) {
       setSaveError("Select at least 2 gradient colors");
       return;
     }
 
+    const themes = loadCustomThemes();
+
     // Theme cap: block new themes (edits are always allowed)
-    if (!isEditMode) {
-      const count = loadCustomThemes().length;
-      if (count >= MAX_CUSTOM_THEMES) {
-        setSaveError(`You can save up to ${MAX_CUSTOM_THEMES} themes. Delete one to make room.`);
-        return;
-      }
+    if (!isEditMode && themes.length >= MAX_CUSTOM_THEMES) {
+      setSaveError(`You can save up to ${MAX_CUSTOM_THEMES} themes. Delete one to make room.`);
+      return;
+    }
+
+    // Auto-generate name (preserve existing name when editing)
+    let themeName: string;
+    if (isEditMode && editId) {
+      const existing = themes.find((t) => t.id === editId);
+      themeName = existing?.name || `Custom Theme ${themes.length + 1}`;
+    } else {
+      themeName = `Custom Theme ${themes.length + 1}`;
     }
 
     setSaving(true);
     const now = new Date().toISOString();
 
     if (isEditMode && editId) {
-      // Update existing theme — preserve original createdAt
-      const themes = loadCustomThemes();
       const existing = themes.find((t) => t.id === editId);
       saveCustomTheme({
         id: editId,
-        name: trimmed,
+        name: themeName,
         visualStack,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
@@ -277,7 +181,7 @@ export default function ThemeBuilderScreen() {
     } else {
       saveCustomTheme({
         id: generateId(),
-        name: trimmed,
+        name: themeName,
         visualStack,
         createdAt: now,
         updatedAt: now,
@@ -288,7 +192,7 @@ export default function ThemeBuilderScreen() {
     setSaving(false);
     reset();
     router.back();
-  }, [name, gradientColors, visualStack, reset, router, isEditMode, editId]);
+  }, [gradientColors, visualStack, reset, router, isEditMode, editId]);
 
   const sliderValue = 0.5 + ((gradientSpeed - 1) / 5) * 1.5;
 
@@ -301,34 +205,18 @@ export default function ThemeBuilderScreen() {
 
   const panelHeight = screenH * 0.62;
 
-  // Resolved image source for preview
-  const resolvedImageSource = selectedImageKey ? THEME_BACKGROUNDS[selectedImageKey] : null;
-
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       {/* ─── Live Preview Background ─── */}
       {/* Layer order: gradient → image → effects → filter */}
-      {visualStack.gradient && (
+      {visualStack.gradient && visualStack.gradient.colors.length >= 2 && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }} pointerEvents="none">
           <AnimatedGradientLayer config={visualStack.gradient} />
         </View>
       )}
-      {resolvedImageSource && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <BackgroundImageLayer source={resolvedImageSource} opacity={imageOpacity} />
-        </View>
-      )}
-      {(selectedParticles || selectedShader) && (
+      {selectedShader && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45 }} pointerEvents="none">
-          <BuilderEffectPreview
-            particles={selectedParticles || undefined}
-            shader={selectedShader || undefined}
-          />
-        </View>
-      )}
-      {selectedFilter && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeFilterLayer filter={selectedFilter as any} />
+          <BuilderEffectPreview shader={selectedShader || undefined} />
         </View>
       )}
 
@@ -395,36 +283,8 @@ export default function ThemeBuilderScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* ─── Name Section ─── */}
-              <Animated.View entering={FadeInDown.delay(50).duration(300)}>
-                <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
-                  NAME
-                </Text>
-                <TextInput
-                  value={name}
-                  onChangeText={(t) => { setSaveError(""); setName(t); }}
-                  placeholder="My Custom Theme"
-                  placeholderTextColor={glassTertiary}
-                  maxLength={30}
-                  style={{
-                    color: glassText,
-                    fontSize: 16,
-                    fontWeight: "500",
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: glassBorder,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                  }}
-                />
-                <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 4, textAlign: "right" }}>
-                  {name.length}/30
-                </Text>
-              </Animated.View>
-
               {/* ─── Colors Section ─── */}
-              <Animated.View entering={FadeInDown.delay(100).duration(300)} style={{ marginTop: 16 }}>
+              <Animated.View entering={FadeInDown.delay(50).duration(300)}>
                 <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
                   GRADIENT COLORS
                 </Text>
@@ -516,55 +376,8 @@ export default function ThemeBuilderScreen() {
                 </View>
               </Animated.View>
 
-              {/* ─── Particle Effects Section ─── */}
-              <Animated.View entering={FadeInDown.delay(200).duration(300)} style={{ marginTop: 20 }}>
-                <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
-                  PARTICLE EFFECT
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingRight: 8 }}
-                  style={{ flexGrow: 0 }}
-                >
-                  {PARTICLE_OPTIONS.map((opt) => {
-                    const active = selectedParticles === opt.key;
-                    return (
-                      <Pressable
-                        key={opt.key || "_none"}
-                        onPress={() => handleSelectParticles(opt.key)}
-                        style={{
-                          flexDirection: "row", alignItems: "center",
-                          paddingHorizontal: 12, paddingVertical: 8,
-                          borderRadius: 20,
-                          borderWidth: active ? 1.5 : 1,
-                          borderColor: active ? "#FFFFFF" : glassBorder,
-                          backgroundColor: active
-                            ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)")
-                            : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"),
-                        }}
-                      >
-                        {opt.color !== "transparent" && (
-                          <View style={{
-                            width: 14, height: 14, borderRadius: 7,
-                            backgroundColor: opt.color, marginRight: 6,
-                            borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
-                          }} />
-                        )}
-                        <Text style={{
-                          color: active ? glassText : glassSecondary,
-                          fontSize: 12, fontWeight: active ? "600" : "400",
-                        }}>
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </Animated.View>
-
               {/* ─── Shader Section ─── */}
-              <Animated.View entering={FadeInDown.delay(250).duration(300)} style={{ marginTop: 20 }}>
+              <Animated.View entering={FadeInDown.delay(150).duration(300)} style={{ marginTop: 20 }}>
                 <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
                   SHADER BACKGROUND
                 </Text>
@@ -605,117 +418,8 @@ export default function ThemeBuilderScreen() {
                 </View>
               </Animated.View>
 
-              {/* ─── Filter Section ─── */}
-              <Animated.View entering={FadeInDown.delay(300).duration(300)} style={{ marginTop: 20 }}>
-                <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
-                  IMAGE FILTER
-                </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                  {FILTER_OPTIONS.map((opt) => {
-                    const active = selectedFilter === opt.key;
-                    return (
-                      <Pressable
-                        key={opt.key || "_none"}
-                        onPress={() => handleSelectFilter(opt.key)}
-                        style={{
-                          flexDirection: "row", alignItems: "center",
-                          paddingHorizontal: 14, paddingVertical: 8,
-                          borderRadius: 20,
-                          borderWidth: active ? 1.5 : 1,
-                          borderColor: active ? "#FFFFFF" : glassBorder,
-                          backgroundColor: active
-                            ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)")
-                            : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"),
-                        }}
-                      >
-                        {opt.color !== "transparent" && (
-                          <View style={{
-                            width: 14, height: 14, borderRadius: 7,
-                            backgroundColor: opt.color, marginRight: 6,
-                            borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
-                          }} />
-                        )}
-                        <Text style={{
-                          color: active ? glassText : glassSecondary,
-                          fontSize: 12, fontWeight: active ? "600" : "400",
-                        }}>
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </Animated.View>
-
-              {/* ─── Background Image Section ─── */}
-              <Animated.View entering={FadeInDown.delay(350).duration(300)} style={{ marginTop: 20 }}>
-                <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6, letterSpacing: 0.3 }}>
-                  BACKGROUND
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 10, paddingRight: 8 }}
-                  style={{ flexGrow: 0 }}
-                >
-                  {IMAGE_OPTIONS.map((opt) => {
-                    const active = selectedImageKey === opt.key;
-                    const source = opt.key ? THEME_BACKGROUNDS[opt.key] : null;
-                    return (
-                      <Pressable
-                        key={opt.key || "_none"}
-                        onPress={() => handleSelectImage(opt.key)}
-                        style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 12,
-                          borderWidth: active ? 2 : 1,
-                          borderColor: active ? "#FFFFFF" : glassBorder,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                          overflow: "hidden",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        {source ? (
-                          <Image
-                            source={source}
-                            style={{ width: 64, height: 64, borderRadius: 12 }}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "500" }}>None</Text>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Image opacity slider — only visible when an image is selected */}
-                {selectedImageKey !== "" && (
-                  <View style={{ marginTop: 10 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                      <Text style={{ color: glassTertiary, fontSize: 11 }}>Faint</Text>
-                      <View style={{ flex: 1 }}>
-                        <Slider
-                          minimumValue={0.05}
-                          maximumValue={0.5}
-                          step={0.05}
-                          value={imageOpacity}
-                          onValueChange={handleImageOpacityChange}
-                          minimumTrackTintColor={isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)"}
-                          maximumTrackTintColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}
-                          thumbTintColor="#FFFFFF"
-                        />
-                      </View>
-                      <Text style={{ color: glassTertiary, fontSize: 11 }}>Bold</Text>
-                    </View>
-                  </View>
-                )}
-              </Animated.View>
-
               {/* ─── Save Button ─── */}
-              <Animated.View entering={FadeInDown.delay(400).duration(300)} style={{ marginTop: 24 }}>
+              <Animated.View entering={FadeInDown.delay(250).duration(300)} style={{ marginTop: 24 }}>
                 {saveError !== "" && (
                   <Text style={{ color: "#EF4444", fontSize: 12, marginBottom: 8, textAlign: "center" }}>
                     {saveError}

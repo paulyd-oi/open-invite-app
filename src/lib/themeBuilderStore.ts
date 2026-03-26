@@ -22,7 +22,7 @@ interface ThemeBuilderState {
 }
 
 const DEFAULT_VISUAL_STACK: ThemeVisualStack = {
-  gradient: { colors: ["#1a1a2e", "#16213e"], speed: 3 },
+  gradient: { colors: [], speed: 3 },
 };
 
 export const useThemeBuilderStore = create<ThemeBuilderState>((set) => ({

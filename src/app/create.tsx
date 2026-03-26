@@ -395,11 +395,15 @@ export default function CreateEventScreen() {
 
   const handleOpenThemeBuilder = useCallback((editId?: string) => {
     Haptics.selectionAsync();
-    if (editId) {
-      router.push({ pathname: "/theme-builder", params: { editId } });
-    } else {
-      router.push("/theme-builder");
-    }
+    // Dismiss the theme sheet first, then navigate after it animates out
+    setActiveDockMode(null);
+    setTimeout(() => {
+      if (editId) {
+        router.push({ pathname: "/theme-builder", params: { editId } });
+      } else {
+        router.push("/theme-builder");
+      }
+    }, 350);
   }, [router]);
 
   const handleEffectSelect = useCallback((effectKey: string | null) => {
