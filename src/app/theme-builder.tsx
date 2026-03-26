@@ -17,10 +17,14 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronLeft } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   FadeInDown,
   FadeInUp,
-  SlideInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
 } from "react-native-reanimated";
 import Slider from "@react-native-community/slider";
 
@@ -204,11 +208,53 @@ export default function ThemeBuilderScreen() {
   const glassTertiary = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.3)";
 
   const panelHeight = screenH * 0.62;
+  const COLLAPSED_HEIGHT = 100;
+  const maxTranslateY = panelHeight - COLLAPSED_HEIGHT;
+
+  // ─── Panel drag gesture (swipe down to peek at create page) ──
+  const translateY = useSharedValue(0);
+  const panContext = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      "worklet";
+      panContext.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      "worklet";
+      translateY.value = Math.max(0, Math.min(panContext.value + e.translationY, maxTranslateY));
+    })
+    .onEnd((e) => {
+      "worklet";
+      const shouldCollapse =
+        e.velocityY > 500 ||
+        (translateY.value > maxTranslateY * 0.4 && e.velocityY > -500);
+      translateY.value = withSpring(
+        shouldCollapse ? maxTranslateY : 0,
+        { damping: 20, stiffness: 200 },
+      );
+    });
+
+  const panelAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const scrimAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateY.value, [0, maxTranslateY], [0.85, 0.15]),
+  }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#000" }}>
+    <View style={{ flex: 1, backgroundColor: "transparent" }}>
+      {/* ─── Scrim — dims create page underneath ─── */}
+      <Animated.View
+        style={[
+          { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#000" },
+          scrimAnimatedStyle,
+        ]}
+        pointerEvents="none"
+      />
+
       {/* ─── Live Preview Background ─── */}
-      {/* Layer order: gradient → image → effects → filter */}
       {visualStack.gradient && visualStack.gradient.colors.length >= 2 && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }} pointerEvents="none">
           <AnimatedGradientLayer config={visualStack.gradient} />
@@ -244,19 +290,21 @@ export default function ThemeBuilderScreen() {
         </Animated.View>
       </SafeAreaView>
 
-      {/* ─── Glass Builder Panel ─── */}
+      {/* ─── Glass Builder Panel (draggable) ─── */}
       <Animated.View
-        entering={SlideInDown.springify().damping(18)}
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: panelHeight,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          overflow: "hidden",
-        }}
+        style={[
+          {
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: panelHeight,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            overflow: "hidden",
+          },
+          panelAnimatedStyle,
+        ]}
       >
         <BlurView
           intensity={80}
@@ -273,10 +321,12 @@ export default function ThemeBuilderScreen() {
               borderColor: glassBorder,
             }}
           >
-            {/* Drag indicator */}
-            <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
-              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: glassTertiary }} />
-            </View>
+            {/* Drag handle — swipe down to peek at create page */}
+            <GestureDetector gesture={panGesture}>
+              <Animated.View style={{ alignItems: "center", paddingTop: 14, paddingBottom: 14 }}>
+                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: glassTertiary }} />
+              </Animated.View>
+            </GestureDetector>
 
             <ScrollView
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}

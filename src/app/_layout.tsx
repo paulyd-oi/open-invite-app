@@ -1149,9 +1149,10 @@ function RootLayoutNav() {
         <Stack.Screen
           name="theme-builder"
           options={{
-            presentation: 'card',
+            presentation: 'transparentModal',
             headerShown: false,
             animation: 'slide_from_bottom',
+            gestureEnabled: false,
           }}
         />
       </Stack>
