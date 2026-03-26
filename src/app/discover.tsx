@@ -14,7 +14,7 @@ import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
   MapPin,
@@ -46,6 +46,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
+import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { Button } from "@/ui/Button";
@@ -247,16 +248,54 @@ export default function DiscoverScreen() {
     refetchOnWindowFocus: false,
   });
 
-  // [FRIENDS_FEED_V1] Friends-hosted events feed
-  const { data: friendsFeedData, isLoading: loadingFriendsFeed, isFetching: fetchingFriendsFeed, refetch: refetchFriendsFeed, isError: friendsFeedError } = useQuery({
+  // [FRIENDS_FEED_V1] Friends-hosted events feed with pagination
+  const FRIENDS_PAGE_SIZE = 20;
+  const {
+    data: friendsFeedPages,
+    isLoading: loadingFriendsFeed,
+    isFetching: fetchingFriendsFeed,
+    refetch: refetchFriendsFeed,
+    isError: friendsFeedError,
+    fetchNextPage: fetchNextFriendsPage,
+    hasNextPage: hasNextFriendsPage,
+    isFetchingNextPage: isFetchingNextFriendsPage,
+  } = useInfiniteQuery({
     queryKey: eventKeys.friendsHostedFeed(),
-    queryFn: () => api.get<GetFriendsHostedFeedResponse>("/api/events/friends-hosted-feed?days=14"),
+    queryFn: async ({ pageParam }) => {
+      const url = pageParam
+        ? `/api/events/friends-hosted-feed?days=14&limit=${FRIENDS_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
+        : `/api/events/friends-hosted-feed?days=14&limit=${FRIENDS_PAGE_SIZE}`;
+      return api.get<GetFriendsHostedFeedResponse>(url);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthedForNetwork(bootStatus, session) && lens === "friends",
     staleTime: 30_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    placeholderData: (prev: GetFriendsHostedFeedResponse | undefined) => prev,
+    placeholderData: (prev: InfiniteData<GetFriendsHostedFeedResponse, string | null> | undefined) => prev,
   });
+
+  // Flatten paginated friends feed
+  const friendsFeedData = useMemo(() => {
+    if (!friendsFeedPages?.pages) return undefined;
+    const allEvents = friendsFeedPages.pages.flatMap(page => page.events);
+    return { events: allEvents, nextCursor: friendsFeedPages.pages[friendsFeedPages.pages.length - 1]?.nextCursor ?? null };
+  }, [friendsFeedPages]);
+
+  // Scroll-triggered pagination for friends feed
+  const lastFriendsEndReachedRef = useRef(0);
+  const handleFriendsScroll = useCallback((e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    if (distanceFromBottom > layoutMeasurement.height * 0.5) return;
+    if (!hasNextFriendsPage || isFetchingNextFriendsPage) return;
+    const now = Date.now();
+    if (now - lastFriendsEndReachedRef.current < DEFAULT_ENDREACHED_DEBOUNCE_MS) return;
+    lastFriendsEndReachedRef.current = now;
+    if (__DEV__) devLog('[FRIENDS_FEED_ENDREACHED]', { hasNextFriendsPage, isFetchingNextFriendsPage });
+    fetchNextFriendsPage();
+  }, [hasNextFriendsPage, isFetchingNextFriendsPage, fetchNextFriendsPage]);
 
   // [FRIENDS_FEED_V1] One-tap Join mutation
   const joinMutation = useMutation({
@@ -701,7 +740,7 @@ export default function DiscoverScreen() {
                 const plaqueBg = isDark ? cardTheme.backBgDark : cardTheme.backBgLight;
 
                 return (
-                  <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 18 }}>
+                  <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).duration(220)} style={{ marginBottom: 18 }}>
                     <Pressable
                       testID="discover-card-open"
                       onPress={() => handleEventPress(event.id)}
@@ -1009,9 +1048,11 @@ export default function DiscoverScreen() {
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: 100 }}
               showsVerticalScrollIndicator={false}
+              onScroll={handleFriendsScroll}
+              scrollEventThrottle={200}
               refreshControl={
                 <RefreshControl
-                  refreshing={fetchingFriendsFeed && !!friendsFeedData}
+                  refreshing={fetchingFriendsFeed && !isFetchingNextFriendsPage && !!friendsFeedData}
                   onRefresh={() => refetchFriendsFeed()}
                   tintColor={themeColor}
                   progressViewOffset={chromeHeight}
@@ -1164,6 +1205,28 @@ export default function DiscoverScreen() {
                   );
                 });
               })()}
+              {/* Pagination: load more / loading indicator */}
+              {hasNextFriendsPage && (
+                <View style={{ alignItems: "center", paddingVertical: 16 }}>
+                  {isFetchingNextFriendsPage ? (
+                    <ActivityIndicator size="small" color={themeColor} />
+                  ) : (
+                    <Pressable
+                      onPress={() => fetchNextFriendsPage()}
+                      style={{
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary }}>
+                        Load more
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
             </ScrollView>
           )}
         </View>
@@ -1251,7 +1314,7 @@ export default function DiscoverScreen() {
                   return (
                     <React.Fragment key={event.id}>
                       {showHeader && (
-                        <Animated.View entering={FadeInDown.delay(idx * 40).duration(200)} style={{ marginTop: idx > 0 ? 10 : 0, marginBottom: 8 }}>
+                        <Animated.View entering={FadeInDown.delay(Math.min(idx * 40, 300)).duration(200)} style={{ marginTop: idx > 0 ? 10 : 0, marginBottom: 8 }}>
                           <Text style={{
                             fontSize: 13,
                             fontWeight: "700",
@@ -1264,7 +1327,7 @@ export default function DiscoverScreen() {
                         </Animated.View>
                       )}
                       <Animated.View
-                        entering={FadeInDown.delay(idx * 40).duration(240)}
+                        entering={FadeInDown.delay(Math.min(idx * 40, 300)).duration(240)}
                         style={{ marginBottom: 10 }}
                       >
                         <Pressable
