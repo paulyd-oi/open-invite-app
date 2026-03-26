@@ -1,7 +1,6 @@
 /**
- * Klipy GIF Search API — Tenor v2-compatible client-side integration.
+ * Klipy GIF Search API — client-side integration.
  *
- * Klipy is a drop-in replacement for Tenor v2 (same endpoint structure).
  * Returns CoverMediaItem[] for direct use in the cover media picker grid.
  *
  * Docs: https://docs.klipy.com
@@ -13,14 +12,14 @@ import type { CoverMediaItem } from "./coverMedia.types";
 /*  Config                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Klipy API key (Tenor v2-compatible). Obtain from partner.klipy.com. */
+/** Klipy API key. Obtain from partner.klipy.com. */
 const KLIPY_API_KEY = "Cl5FaE1P5l7YqEjgDHbCPrsDZctuWke0zcEjCGjuQxBYDlOK02Hqtv9LTPqcDx1m";
 const KLIPY_BASE = "https://api.klipy.com/v2";
 const KLIPY_CLIENT_KEY = "open_invite_app";
 const RESULT_LIMIT = 20;
 
 /* ------------------------------------------------------------------ */
-/*  Response types (Tenor v2-compatible response subset)               */
+/*  Response types                                                     */
 /* ------------------------------------------------------------------ */
 
 interface KlipyMediaFormat {
