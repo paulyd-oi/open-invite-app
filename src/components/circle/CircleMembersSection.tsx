@@ -644,7 +644,7 @@ function MiniCalendar({
   };
 
   return (
-    <View className="rounded-xl mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 10 }}>
+    <View className="rounded-xl mb-3" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)", borderWidth: 1, borderColor: colors.border, padding: 10 }}>
       {/* Header */}
       <View className="flex-row items-center justify-between mb-1">
         <View className="flex-row items-center">

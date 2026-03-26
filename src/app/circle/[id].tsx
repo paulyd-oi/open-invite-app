@@ -62,6 +62,7 @@ import {
   Lock,
   type LucideIcon,
 } from "@/ui/icons";
+import { BlurView } from "expo-blur";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import { UserListRow } from "@/components/UserListRow";
@@ -1770,9 +1771,13 @@ export default function CircleScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
+      <BlurView
+        intensity={88}
+        tint={isDark ? "dark" : "light"}
+        style={{ overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
+      >
       <View
-        className="flex-row items-center px-4 py-3 border-b"
-        style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+        className="flex-row items-center px-4 py-3"
       >
         <Pressable
           onPress={() => router.back()}
@@ -1861,6 +1866,7 @@ export default function CircleScreen() {
           </Text>
         </View>
       </View>
+      </BlurView>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
