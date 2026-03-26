@@ -160,6 +160,15 @@ export const getEventsFeedResponseSchema = z.object({
 });
 export type GetEventsFeedResponse = z.infer<typeof getEventsFeedResponseSchema>;
 
+// GET /api/events/friends-hosted-feed - Friends' hosted events (browse loop V1)
+export const getFriendsHostedFeedResponseSchema = z.object({
+  events: z.array(eventSchema.extend({
+    isJoinable: z.boolean(),
+  })),
+  nextCursor: z.string().nullable(),
+});
+export type GetFriendsHostedFeedResponse = z.infer<typeof getFriendsHostedFeedResponseSchema>;
+
 // GET /api/events/calendar-events - Get events for calendar view (created + going)
 // Query params: start (ISO date), end (ISO date)
 export const getCalendarEventsResponseSchema = z.object({
