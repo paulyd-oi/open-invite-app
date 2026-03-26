@@ -21,6 +21,7 @@ import { CreateFormFields } from "@/components/create/CreateFormFields";
 import { CreateLocationSection } from "@/components/create/CreateLocationSection";
 import { CreateDateTimeSection } from "@/components/create/CreateDateTimeSection";
 import { CreateSheets } from "@/components/create/CreateSheets";
+import { EffectTray } from "@/components/create/EffectTray";
 import { safeParseDate, normalizeLocationString } from "@/components/create/placeSearch";
 import * as Haptics from "expo-haptics";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
@@ -693,6 +694,19 @@ export default function CreateEventScreen() {
         themeColor={themeColor}
       />
 
+      {/* ── Effect Tray (inline, not Modal) ── */}
+      <EffectTray
+        visible={activeDockMode === "effect"}
+        selectedEffectId={selectedEffectId}
+        themeColor={themeColor}
+        isDark={isDark}
+        glassText={glassText}
+        glassSecondary={glassSecondary}
+        glassTertiary={glassTertiary}
+        onSelectEffect={handleEffectSelect}
+        onClose={() => setActiveDockMode(null)}
+      />
+
       <CreateSheets
         activeDockMode={activeDockMode}
         onCloseDock={() => setActiveDockMode(null)}
@@ -709,9 +723,6 @@ export default function CreateEventScreen() {
         onDeleteCustomTheme={handleDeleteCustomTheme}
         onOpenPaywall={() => { setPaywallContext("PREMIUM_THEME"); setShowPaywallModal(true); }}
         onOpenThemeBuilder={handleOpenThemeBuilder}
-        selectedEffectId={selectedEffectId}
-        themeColor={themeColor}
-        onSelectEffect={handleEffectSelect}
         settingsProps={{
           isCircleEvent,
           frequency,
@@ -780,6 +791,7 @@ export default function CreateEventScreen() {
         onCloseShareModal={() => { setCreatePromptChoice("none"); router.back(); }}
         shareModalBg={colors.background}
         shareModalBorder={colors.border}
+        themeColor={themeColor}
       />
 
       {/* Onboarding Guide Overlay */}

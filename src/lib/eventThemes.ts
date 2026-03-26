@@ -78,6 +78,7 @@ export interface ThemeVisualStack {
   };
   shader?: "aurora" | "shimmer" | "plasma" | "bokeh";
   particles?: string;    // effectPreset name from EFFECT_CONFIGS
+  lottie?: string;       // key into LOTTIE_EFFECTS registry (rendered via LottieView)
   image?: {
     source: string;         // key into THEME_BACKGROUNDS registry
     opacity?: number;       // 0-1, default 0.25
@@ -129,6 +130,42 @@ export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
 
 export const THEME_VIDEOS: Record<string, number> = {
   pool_party_loop: require("../../assets/theme-videos/pool_party_loop.mp4"),
+};
+
+// ─── Lottie Effect Registry ─────────────────────────────
+// Keys match visualStack.lottie values. Each entry contains
+// the animation source + rendering config for LottieView overlay.
+
+import type { AnimationObject } from "lottie-react-native";
+
+export interface LottieEffectEntry {
+  source: AnimationObject;         // require("./animation.json")
+  speed?: number;                  // playback speed (default: 1)
+  opacity?: number;                // overlay opacity (default: 0.6)
+  resizeMode?: "cover" | "contain" | "center"; // default: "cover"
+}
+
+export const LOTTIE_EFFECTS: Record<string, LottieEffectEntry> = {
+  confetti_scene: {
+    source: require("../../assets/effects/lottie/confetti_burst.json") as AnimationObject,
+    speed: 0.8,
+    opacity: 0.5,
+  },
+  hearts_scene: {
+    source: require("../../assets/effects/lottie/rising_hearts.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.45,
+  },
+  fireworks_scene: {
+    source: require("../../assets/effects/lottie/fireworks_display.json") as AnimationObject,
+    speed: 1.0,
+    opacity: 0.55,
+  },
+  balloons_scene: {
+    source: require("../../assets/effects/lottie/balloons_rising.json") as AnimationObject,
+    speed: 0.7,
+    opacity: 0.5,
+  },
 };
 /* eslint-enable @typescript-eslint/no-var-requires */
 
@@ -293,7 +330,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255,107,74,0.24)",
     pageTintLight: "rgba(255,107,74,0.12)",
     chipAccent: "#FF6B4A",
-    visualStack: { gradient: { colors: ["rgba(40,18,14,0.3)", "rgba(236,72,153,0.15)", "rgba(249,115,22,0.12)", "rgba(40,18,14,0.3)"], speed: 3 }, particles: "party_confetti", image: { source: "birthday_bash_bg", opacity: 0.25 } },
+    visualStack: { gradient: { colors: ["rgba(40,18,14,0.3)", "rgba(236,72,153,0.15)", "rgba(249,115,22,0.12)", "rgba(40,18,14,0.3)"], speed: 3 }, particles: "party_confetti", lottie: "confetti_scene", image: { source: "birthday_bash_bg", opacity: 0.25 } },
   },
   party_night: {
     label: "Party Night",
@@ -345,7 +382,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255, 215, 0, 0.20)",
     pageTintLight: "rgba(255, 215, 0, 0.10)",
     chipAccent: "#FFD700",
-    visualStack: { gradient: { colors: ["rgba(10,14,42,0.3)", "rgba(255,215,0,0.12)", "rgba(239,68,68,0.08)", "rgba(10,14,42,0.3)"], speed: 3 }, particles: "firework_burst", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.2 } },
+    visualStack: { gradient: { colors: ["rgba(10,14,42,0.3)", "rgba(255,215,0,0.12)", "rgba(239,68,68,0.08)", "rgba(10,14,42,0.3)"], speed: 3 }, particles: "firework_burst", lottie: "fireworks_scene", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.2 } },
   },
   valentines: {
     label: "Valentine's",
@@ -358,7 +395,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(236, 72, 153, 0.22)",
     pageTintLight: "rgba(236, 72, 153, 0.12)",
     chipAccent: "#EC4899",
-    visualStack: { gradient: { colors: ["rgba(42,10,30,0.3)", "rgba(236,72,153,0.16)", "rgba(190,18,60,0.10)", "rgba(42,10,30,0.3)"], speed: 3 }, particles: "floating_hearts", shader: "bokeh", filter: "vignette", image: { source: "valentines_bg", opacity: 0.2 } },
+    visualStack: { gradient: { colors: ["rgba(42,10,30,0.3)", "rgba(236,72,153,0.16)", "rgba(190,18,60,0.10)", "rgba(42,10,30,0.3)"], speed: 3 }, particles: "floating_hearts", lottie: "hearts_scene", shader: "bokeh", filter: "vignette", image: { source: "valentines_bg", opacity: 0.2 } },
   },
   garden_party: {
     label: "Garden Party",

@@ -20,14 +20,16 @@
  */
 
 import React, { memo, useMemo } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   useDerivedValue,
   useSharedValue,
   useFrameCallback,
   useReducedMotion,
 } from "react-native-reanimated";
-import { resolveEventTheme } from "@/lib/eventThemes";
+import LottieView from "lottie-react-native";
+import { resolveEventTheme, LOTTIE_EFFECTS } from "@/lib/eventThemes";
+import type { LottieEffectEntry } from "@/lib/eventThemes";
 
 // ─── Safe Skia import (fail-safe if native binary unavailable) ──
 export let Canvas: any = null;
@@ -39,6 +41,8 @@ let Rect: any = null;
 let Path: any = null;
 let Shader: any = null;
 let SkiaNamespace: any = null;
+let SkiaImageComp: any = null;
+export let useSkiaImage: ((source: any, onError?: any) => any) | null = null;
 export let _skiaAvailable = false;
 try {
   const Skia = require("@shopify/react-native-skia");
@@ -51,6 +55,8 @@ try {
   Path = Skia.Path;
   Shader = Skia.Shader;
   SkiaNamespace = Skia.Skia;
+  SkiaImageComp = Skia.Image;
+  useSkiaImage = Skia.useImage;
   _skiaAvailable = !!(Canvas && Circle && Group && BlurMask);
 } catch {
   // Skia native module not available — particles will not render
@@ -1228,6 +1234,258 @@ export const ParticleField = memo(function ParticleField({
   );
 });
 
+// ─── Sprite overlay types ────────────────────────────────────
+
+export interface SpriteOverlayConfig {
+  /** Sprite image sources (require() values) — max 5 variants */
+  sprites: (number | null)[];
+  /** Probability weights per sprite (default: equal weight) */
+  spriteWeights?: number[];
+  particleCount: number;
+  /** Render size range in points */
+  minSize: number;
+  maxSize: number;
+  minOpacity: number;
+  maxOpacity: number;
+  /** Pixels per second — vertical drift speed range */
+  minSpeed: number;
+  maxSpeed: number;
+  /** Horizontal sway amplitude in points */
+  swayAmplitude: number;
+  minSwayPeriod: number;
+  maxSwayPeriod: number;
+  /** +1 = fall down, -1 = rise up */
+  direction: 1 | -1;
+  minRotationSpeed?: number;
+  maxRotationSpeed?: number;
+  pulseRange?: [number, number];
+  pulsePeriodRange?: [number, number];
+  staticPosition?: boolean;
+}
+
+// ─── Sprite seed (position + which sprite variant) ──────────
+
+interface SpriteSeed {
+  x: number;
+  y: number;
+  size: number;
+  opacity: number;
+  speed: number;
+  swayAmplitude: number;
+  swayPeriod: number;
+  swayOffset: number;
+  spriteIndex: number;
+  pulseAmp: number;
+  pulsePeriod: number;
+  pulsePhase: number;
+  rotation: number;
+  rotationSpeed: number;
+}
+
+function seedSprites(config: SpriteOverlayConfig, spriteCount: number, width: number, height: number): SpriteSeed[] {
+  const seeds: SpriteSeed[] = [];
+  if (spriteCount === 0) return seeds;
+  const hasPulse = !!(config.pulseRange && config.pulsePeriodRange);
+
+  // Build weighted distribution for sprite selection
+  const weights = config.spriteWeights ?? Array(spriteCount).fill(1);
+  const totalWeight = weights.slice(0, spriteCount).reduce((a, b) => a + b, 0);
+  const pickSprite = (): number => {
+    let r = Math.random() * totalWeight;
+    for (let i = 0; i < spriteCount; i++) {
+      r -= (weights[i] ?? 1);
+      if (r <= 0) return i;
+    }
+    return 0;
+  };
+
+  for (let i = 0; i < config.particleCount; i++) {
+    const rng = Math.random;
+    const baseOpacity = config.minOpacity + rng() * (config.maxOpacity - config.minOpacity);
+    let pulseAmp = 0;
+    let pulsePeriod = 1;
+    if (hasPulse) {
+      const [pMin, pMax] = config.pulseRange!;
+      pulseAmp = baseOpacity * (pMax - pMin) / 2;
+      const [tMin, tMax] = config.pulsePeriodRange!;
+      pulsePeriod = tMin + rng() * (tMax - tMin);
+    }
+    const rotSpeed = (config.minRotationSpeed ?? 0) + rng() * ((config.maxRotationSpeed ?? 0) - (config.minRotationSpeed ?? 0));
+
+    seeds.push({
+      x: rng() * width,
+      y: rng() * height,
+      size: config.minSize + rng() * (config.maxSize - config.minSize),
+      opacity: baseOpacity,
+      speed: config.minSpeed + rng() * (config.maxSpeed - config.minSpeed),
+      swayAmplitude: (0.4 + rng() * 0.6) * config.swayAmplitude,
+      swayPeriod: config.minSwayPeriod + rng() * (config.maxSwayPeriod - config.minSwayPeriod),
+      swayOffset: rng() * Math.PI * 2,
+      spriteIndex: pickSprite(),
+      pulseAmp,
+      pulsePeriod,
+      pulsePhase: rng() * Math.PI * 2,
+      rotation: rng() * Math.PI * 2,
+      rotationSpeed: (rng() > 0.5 ? 1 : -1) * rotSpeed,
+    });
+  }
+  return seeds;
+}
+
+// ─── Single animated sprite ─────────────────────────────────
+
+const SkiaSprite = memo(function SkiaSprite({
+  index,
+  seed,
+  sprites,
+  elapsed,
+  image,
+}: {
+  index: number;
+  seed: SpriteSeed;
+  sprites: { value: SpriteSeed[] };
+  elapsed: { value: number };
+  image: any; // SkImage
+}) {
+  const cx = useDerivedValue(() => {
+    const s = sprites.value[index];
+    if (!s) return 0;
+    const sway = Math.sin(
+      elapsed.value * (Math.PI * 2 / s.swayPeriod) + s.swayOffset
+    ) * s.swayAmplitude;
+    return s.x + sway;
+  });
+
+  const cy = useDerivedValue(() => {
+    return sprites.value[index]?.y ?? 0;
+  });
+
+  const opacity = useDerivedValue(() => {
+    const s = sprites.value[index];
+    if (!s || s.pulseAmp === 0) return seed.opacity;
+    const pulse = Math.sin(
+      elapsed.value * (Math.PI * 2 / s.pulsePeriod) + s.pulsePhase
+    );
+    return Math.max(0, s.opacity + pulse * s.pulseAmp);
+  });
+
+  const rotation = useDerivedValue(() => {
+    return sprites.value[index]?.rotation ?? 0;
+  });
+
+  const transform = useDerivedValue(() => [
+    { translateX: cx.value },
+    { translateY: cy.value },
+    { rotate: rotation.value },
+    { translateX: -seed.size / 2 },
+    { translateY: -seed.size / 2 },
+  ]);
+
+  if (!image || !SkiaImageComp) return null;
+
+  return (
+    <Group transform={transform} opacity={opacity}>
+      <SkiaImageComp
+        image={image}
+        x={0}
+        y={0}
+        width={seed.size}
+        height={seed.size}
+        fit="contain"
+      />
+    </Group>
+  );
+});
+
+// ─── Animated sprite field ──────────────────────────────────
+// Loads sprite images via Skia useImage, then animates them with
+// the same physics system as ParticleField (position, sway, rotation).
+// Max 5 sprite variants per effect (hooks called unconditionally).
+
+const MAX_SPRITE_VARIANTS = 5;
+
+export const SpriteField = memo(function SpriteField({
+  config,
+  width,
+  height,
+}: {
+  config: SpriteOverlayConfig;
+  width: number;
+  height: number;
+}) {
+  // Load up to MAX_SPRITE_VARIANTS images (unconditional hook calls)
+  const img0 = useSkiaImage!(config.sprites[0] ?? null);
+  const img1 = useSkiaImage!(config.sprites[1] ?? null);
+  const img2 = useSkiaImage!(config.sprites[2] ?? null);
+  const img3 = useSkiaImage!(config.sprites[3] ?? null);
+  const img4 = useSkiaImage!(config.sprites[4] ?? null);
+
+  const loadedImages = useMemo(() => {
+    const all = [img0, img1, img2, img3, img4];
+    // Only include images that have both a source and loaded successfully
+    return all.map((img, i) => (config.sprites[i] != null ? img : null));
+  }, [img0, img1, img2, img3, img4, config.sprites]);
+
+  const availableCount = useMemo(
+    () => loadedImages.filter(Boolean).length,
+    [loadedImages],
+  );
+
+  const initialSeeds = useMemo(
+    () => seedSprites(config, config.sprites.filter(Boolean).length, width, height),
+    [config, width, height],
+  );
+
+  const spritesShared = useSharedValue(initialSeeds);
+  const elapsed = useSharedValue(0);
+
+  useFrameCallback((frameInfo) => {
+    "worklet";
+    const dt = (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+    elapsed.value += dt;
+
+    const updated = spritesShared.value.map((s) => {
+      let newY = s.y;
+
+      if (!config.staticPosition) {
+        newY = s.y + s.speed * config.direction * dt;
+
+        if (config.direction === 1 && newY > height + s.size) {
+          newY = -s.size;
+        } else if (config.direction === -1 && newY < -s.size) {
+          newY = height + s.size;
+        }
+      }
+
+      return { ...s, y: newY, rotation: s.rotation + s.rotationSpeed * dt };
+    });
+
+    spritesShared.value = updated;
+  });
+
+  // Don't render until at least one sprite is loaded
+  if (availableCount === 0) return null;
+
+  return (
+    <Group>
+      {initialSeeds.map((seed, i) => {
+        const img = loadedImages[seed.spriteIndex];
+        if (!img) return null;
+        return (
+          <SkiaSprite
+            key={i}
+            index={i}
+            seed={seed}
+            sprites={spritesShared}
+            elapsed={elapsed}
+            image={img}
+          />
+        );
+      })}
+    </Group>
+  );
+});
+
 // ─── Color wash field (for disco_pulse-style effects) ────────
 
 /** Parse "rgba(r,g,b,a)" to [r,g,b] — called once at mount, not in worklet */
@@ -1361,31 +1619,55 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
     ? EFFECT_CONFIGS[presetId]
     : null;
 
+  // Resolve Lottie overlay from theme's visualStack
+  const lottieKey = theme.visualStack?.lottie;
+  const lottieEffect: LottieEffectEntry | null =
+    lottieKey && lottieKey in LOTTIE_EFFECTS ? LOTTIE_EFFECTS[lottieKey] : null;
 
-  if (!_skiaAvailable || !config || reducedMotion) return null;
+  if (reducedMotion) return null;
 
-  const isColorWash = (config as EffectConfig).colorWash === true;
-  const shaderPreset = (config as EffectConfig).shaderPreset;
-  const shaderOpacity = (config as EffectConfig).shaderOpacity ?? 0.15;
+  // If no Skia particles and no Lottie, nothing to render
+  if (!lottieEffect && (!_skiaAvailable || !config)) return null;
+
+  const isColorWash = config ? (config as EffectConfig).colorWash === true : false;
+  const shaderPreset = config ? (config as EffectConfig).shaderPreset : undefined;
+  const shaderOpacity = config ? ((config as EffectConfig).shaderOpacity ?? 0.15) : 0.15;
 
   return (
-    <SkiaErrorBoundary>
-      <Canvas style={styles.container} pointerEvents="none">
-        {shaderPreset && (
-          <ShaderBackgroundField
-            shaderPreset={shaderPreset}
-            shaderOpacity={shaderOpacity}
-            width={width}
-            height={height}
-          />
-        )}
-        {isColorWash ? (
-          <ColorWashField config={config} width={width} height={height} />
-        ) : (
-          <ParticleField config={config} width={width} height={height} />
-        )}
-      </Canvas>
-    </SkiaErrorBoundary>
+    <View style={styles.container} pointerEvents="none">
+      {/* Skia particle/shader layer */}
+      {_skiaAvailable && config && (
+        <SkiaErrorBoundary>
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            {shaderPreset && (
+              <ShaderBackgroundField
+                shaderPreset={shaderPreset}
+                shaderOpacity={shaderOpacity}
+                width={width}
+                height={height}
+              />
+            )}
+            {isColorWash ? (
+              <ColorWashField config={config} width={width} height={height} />
+            ) : (
+              <ParticleField config={config} width={width} height={height} />
+            )}
+          </Canvas>
+        </SkiaErrorBoundary>
+      )}
+
+      {/* Lottie overlay layer (renders on top of particles) */}
+      {lottieEffect && (
+        <LottieView
+          source={lottieEffect.source}
+          autoPlay
+          loop
+          speed={lottieEffect.speed ?? 1}
+          resizeMode={lottieEffect.resizeMode ?? "cover"}
+          style={[StyleSheet.absoluteFill, { opacity: lottieEffect.opacity ?? 0.6 }]}
+        />
+      )}
+    </View>
   );
 });
 

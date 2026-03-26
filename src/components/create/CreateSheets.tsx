@@ -1,7 +1,6 @@
 import React from "react";
 import BottomSheet from "@/components/BottomSheet";
 import { ThemeSwatchRail } from "@/components/create/ThemeSwatchRail";
-import { EffectSwatchRail } from "@/components/create/EffectSwatchRail";
 import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
 import { CoverMediaPickerSheet } from "@/components/create/CoverMediaPickerSheet";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -34,11 +33,6 @@ interface CreateSheetsProps {
   onOpenPaywall: () => void;
   onOpenThemeBuilder: (editId?: string) => void;
 
-  // Effect sheet
-  selectedEffectId: string | null;
-  themeColor: string;
-  onSelectEffect: (key: string | null) => void;
-
   // Settings sheet
   settingsProps: React.ComponentProps<typeof SettingsSheetContent>;
 
@@ -66,6 +60,7 @@ interface CreateSheetsProps {
   onCloseShareModal: () => void;
   shareModalBg: string;
   shareModalBorder: string;
+  themeColor: string;
 }
 
 export function CreateSheets({
@@ -84,9 +79,6 @@ export function CreateSheets({
   onDeleteCustomTheme,
   onOpenPaywall,
   onOpenThemeBuilder,
-  selectedEffectId,
-  themeColor,
-  onSelectEffect,
   settingsProps,
   showCoverPicker,
   onCloseCoverPicker,
@@ -105,6 +97,7 @@ export function CreateSheets({
   onCloseShareModal,
   shareModalBg,
   shareModalBorder,
+  themeColor,
 }: CreateSheetsProps) {
   return (
     <>
@@ -129,24 +122,6 @@ export function CreateSheets({
           onDeleteCustomTheme={onDeleteCustomTheme}
           onOpenPaywall={onOpenPaywall}
           onOpenThemeBuilder={onOpenThemeBuilder}
-        />
-      </BottomSheet>
-
-      {/* ── Effect Sheet ── */}
-      <BottomSheet
-        visible={activeDockMode === "effect"}
-        onClose={onCloseDock}
-        title="Effect"
-        heightPct={0.5}
-      >
-        <EffectSwatchRail
-          selectedEffectId={selectedEffectId}
-          glassText={glassText}
-          glassSecondary={glassSecondary}
-          glassTertiary={glassTertiary}
-          themeColor={themeColor}
-          isDark={isDark}
-          onSelectEffect={onSelectEffect}
         />
       </BottomSheet>
 
