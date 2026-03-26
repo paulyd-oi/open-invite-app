@@ -247,11 +247,11 @@ cat /home/user/workspace/backend/server.log
 
 ### Paywall Context Debugging
 ```typescript
-// Check all 10 contexts are covered
+// Check all 9 contexts are covered
 const PAYWALL_CONTEXTS: PaywallContext[] = [
-  "ACTIVE_EVENTS_LIMIT", "RECURRING_EVENTS", "WHOS_FREE_HORIZON",
+  "RECURRING_EVENTS", "WHOS_FREE_HORIZON",
   "UPCOMING_BIRTHDAYS_HORIZON", "CIRCLES_LIMIT", "CIRCLE_MEMBERS_LIMIT",
-  "INSIGHTS_LOCKED", "HISTORY_LIMIT", "ACHIEVEMENTS_LOCKED", "PRIORITY_SYNC_LOCKED"
+  "INSIGHTS_LOCKED", "HISTORY_LIMIT", "PRIORITY_SYNC_LOCKED", "PREMIUM_THEME"
 ];
 ```
 

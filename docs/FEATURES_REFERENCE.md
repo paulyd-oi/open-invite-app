@@ -41,7 +41,7 @@
 ### FREE TIER Limits
 | Feature | Limit |
 |---------|-------|
-| Active events | 3 max |
+| Active events | Unlimited |
 | "Who's Free?" | 7 days ahead |
 | Friend notes | 5 max |
 | Circles | 2 max |
@@ -200,9 +200,9 @@ App supports offline usage with automatic sync:
 ### PaywallContext Coverage
 ```typescript
 const PAYWALL_CONTEXTS: PaywallContext[] = [
-  "ACTIVE_EVENTS_LIMIT", "RECURRING_EVENTS", "WHOS_FREE_HORIZON",
+  "RECURRING_EVENTS", "WHOS_FREE_HORIZON",
   "UPCOMING_BIRTHDAYS_HORIZON", "CIRCLES_LIMIT", "CIRCLE_MEMBERS_LIMIT",
-  "INSIGHTS_LOCKED", "HISTORY_LIMIT", "ACHIEVEMENTS_LOCKED", "PRIORITY_SYNC_LOCKED"
+  "INSIGHTS_LOCKED", "HISTORY_LIMIT", "PRIORITY_SYNC_LOCKED", "PREMIUM_THEME"
 ];
 ```
 

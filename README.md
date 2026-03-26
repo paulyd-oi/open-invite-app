@@ -664,7 +664,7 @@ The app uses a freemium model where participation is always free, but power feat
 
 **Free Tier:**
 - Join unlimited events (participation is always free)
-- Create up to 3 active events
+- Create unlimited events
 - 2 circles max with 15 members each
 - 7-day Who's Free horizon
 - 30-day event history
@@ -679,17 +679,16 @@ The app uses a freemium model where participation is always free, but power feat
 - Circle insights and analytics
 - Priority sync
 
-**Paywall Triggers (10 contexts):**
-1. `ACTIVE_EVENTS_LIMIT` - When at 3 active events
-2. `RECURRING_EVENTS` - When selecting weekly/monthly frequency
-3. `WHOS_FREE_HORIZON` - When viewing dates >7 days ahead
-4. `UPCOMING_BIRTHDAYS_HORIZON` - When viewing birthdays >7 days ahead
-5. `CIRCLES_LIMIT` - When creating 3rd circle
-6. `CIRCLE_MEMBERS_LIMIT` - When adding 16th member
-7. `INSIGHTS_LOCKED` - When accessing analytics
-8. `HISTORY_LIMIT` - When viewing events >30 days old
-9. `ACHIEVEMENTS_LOCKED` - When accessing full achievements
-10. `PRIORITY_SYNC_LOCKED` - When accessing priority sync
+**Paywall Triggers (9 contexts):**
+1. `RECURRING_EVENTS` - When selecting weekly/monthly frequency
+2. `WHOS_FREE_HORIZON` - When viewing dates >7 days ahead
+3. `UPCOMING_BIRTHDAYS_HORIZON` - When viewing birthdays >7 days ahead
+4. `CIRCLES_LIMIT` - When creating 3rd circle
+5. `CIRCLE_MEMBERS_LIMIT` - When adding 16th member
+6. `INSIGHTS_LOCKED` - When accessing analytics
+7. `HISTORY_LIMIT` - When viewing events >30 days old
+8. `PRIORITY_SYNC_LOCKED` - When accessing priority sync
+9. `PREMIUM_THEME` - When selecting a premium event theme
 
 **Key Files:**
 - `src/lib/entitlements.ts` - Frontend entitlements logic
@@ -1037,7 +1036,6 @@ Each paywall context has specific copy and triggers:
 
 | Context | Trigger | CTA |
 |---------|---------|-----|
-| `ACTIVE_EVENTS_LIMIT` | Create event when at 3 max | Upgrade to Pro |
 | `RECURRING_EVENTS` | Select weekly/monthly frequency | Upgrade to Pro |
 | `WHOS_FREE_HORIZON` | Select date beyond 7 days | Unlock Pro |
 | `UPCOMING_BIRTHDAYS_HORIZON` | View birthdays beyond 7 days | Unlock Pro |
@@ -1045,8 +1043,8 @@ Each paywall context has specific copy and triggers:
 | `CIRCLE_MEMBERS_LIMIT` | Add member when at 15 max | Upgrade to Pro |
 | `INSIGHTS_LOCKED` | Access insights/analytics | Unlock Pro |
 | `HISTORY_LIMIT` | View history beyond 30 days | Unlock Pro |
-| `ACHIEVEMENTS_LOCKED` | Access full achievements | Unlock Pro |
 | `PRIORITY_SYNC_LOCKED` | Enable priority sync | Unlock Pro |
+| `PREMIUM_THEME` | Select a premium event theme | Unlock Pro |
 
 ### Session Paywall Guard
 Prevents over-monetization with session-based tracking:
