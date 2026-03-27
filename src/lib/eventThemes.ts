@@ -157,7 +157,7 @@ export const LOTTIE_EFFECTS: Record<string, LottieEffectEntry> = {
     opacity: 0.45,
   },
   fireworks_scene: {
-    source: require("../../assets/effects/lottie/fireworks_display.json") as AnimationObject,
+    source: require("../../assets/effects/lottie/fireworks_burst.json") as AnimationObject,
     speed: 1.0,
     opacity: 0.55,
   },
