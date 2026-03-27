@@ -22,34 +22,26 @@ interface ThemeSwatchRailProps {
   onOpenThemeBuilder: (editId?: string) => void;
 }
 
-/** Bump rgba alpha to 0.9 for swatch readability. */
-function bumpAlpha(c: string): string {
-  const match = c.match(/rgba?\(([^)]+)\)/);
-  if (match) {
-    const parts = match[1].split(",").map((s) => s.trim());
-    if (parts.length >= 3) {
-      return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, 0.9)`;
-    }
-  }
-  return c;
-}
-
-/** Mini gradient swatch — smooth LinearGradient fill inside a circle. */
-function GradientSwatch({
-  colors,
+/**
+ * Truthful theme swatch — shows what the create page actually looks like:
+ * solid backBgDark fill with a subtle accent inner ring from backAccent.
+ * No more misleading bumpAlpha() gradients.
+ */
+function ThemeSwatch({
+  bgColor,
+  accentColor,
+  emoji,
   size = 42,
   selected,
-  accentColor,
   locked,
 }: {
-  colors: string[];
+  bgColor: string;
+  accentColor: string;
+  emoji: string;
   size?: number;
   selected: boolean;
-  accentColor: string;
   locked?: boolean;
 }) {
-  const swatchColors = colors.slice(0, 4).map(bumpAlpha);
-
   return (
     <View
       style={{
@@ -62,12 +54,23 @@ function GradientSwatch({
         opacity: locked ? 0.45 : 1,
       }}
     >
-      <LinearGradient
-        colors={swatchColors as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
-      />
+      {/* Solid background matching actual create page backBg */}
+      <View style={{ flex: 1, backgroundColor: bgColor, alignItems: "center", justifyContent: "center" }}>
+        {/* Subtle accent glow ring at edge */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: size / 2,
+            borderWidth: 3,
+            borderColor: accentColor + "30",
+          }}
+        />
+        <Text style={{ fontSize: size * 0.38 }}>{emoji}</Text>
+      </View>
       {locked && (
         <View
           style={{
@@ -88,19 +91,17 @@ function GradientSwatch({
   );
 }
 
-/** Fallback swatch using backBgDark → backAccent smooth gradient. */
-function SolidSwatch({
-  bgColor,
-  accentColor,
+/** Custom theme swatch — uses gradient since custom themes define their own visualStack. */
+function CustomThemeSwatch({
+  colors,
   size = 42,
   selected,
-  locked,
+  accentColor,
 }: {
-  bgColor: string;
-  accentColor: string;
+  colors: string[];
   size?: number;
   selected: boolean;
-  locked?: boolean;
+  accentColor: string;
 }) {
   return (
     <View
@@ -111,31 +112,14 @@ function SolidSwatch({
         overflow: "hidden",
         borderWidth: selected ? 2.5 : 1,
         borderColor: selected ? accentColor : "rgba(255,255,255,0.10)",
-        opacity: locked ? 0.45 : 1,
       }}
     >
       <LinearGradient
-        colors={[bgColor, accentColor]}
+        colors={colors.slice(0, 4) as [string, string, ...string[]]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ flex: 1 }}
       />
-      {locked && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.35)",
-          }}
-        >
-          <Lock size={10} color="rgba(255,255,255,0.8)" />
-        </View>
-      )}
     </View>
   );
 }
@@ -213,7 +197,7 @@ export function ThemeSwatchRail({
                           onSelectCustomTheme(isSelected ? null : ct);
                         }}
                       >
-                        <GradientSwatch
+                        <CustomThemeSwatch
                           colors={gradColors}
                           selected={isSelected}
                           accentColor={gradColors[0] ?? "#8B5CF6"}
@@ -287,7 +271,6 @@ export function ThemeSwatchRail({
                   const selected = selectedThemeId === tid;
                   const premium = isPremiumTheme(tid);
                   const locked = premium && !userIsPro;
-                  const gradColors = t.visualStack?.gradient?.colors;
 
                   return (
                     <Pressable
@@ -301,21 +284,13 @@ export function ThemeSwatchRail({
                         onSelectTheme(selected ? null : tid);
                       }}
                     >
-                      {gradColors ? (
-                        <GradientSwatch
-                          colors={gradColors}
-                          selected={selected}
-                          accentColor={t.backAccent}
-                          locked={locked}
-                        />
-                      ) : (
-                        <SolidSwatch
-                          bgColor={t.backBgDark}
-                          accentColor={t.backAccent}
-                          selected={selected}
-                          locked={locked}
-                        />
-                      )}
+                      <ThemeSwatch
+                        bgColor={t.backBgDark}
+                        accentColor={t.backAccent}
+                        emoji={t.swatch}
+                        selected={selected}
+                        locked={locked}
+                      />
                     </Pressable>
                   );
                 })}

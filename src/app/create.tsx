@@ -4,14 +4,15 @@ import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-n
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import { trackEventCreated } from "@/lib/rateApp";
 import { resolveEventTheme, type ThemeId } from "@/lib/eventThemes";
-import { loadCustomThemes, deleteCustomTheme, type CustomTheme } from "@/lib/customThemeStorage";
+import type { CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { CreateEditorHeader } from "@/components/create/CreateEditorHeader";
 import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
 import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
@@ -22,6 +23,7 @@ import { CreateLocationSection } from "@/components/create/CreateLocationSection
 import { CreateDateTimeSection } from "@/components/create/CreateDateTimeSection";
 import { CreateSheets } from "@/components/create/CreateSheets";
 import { EffectTray } from "@/components/create/EffectTray";
+import { ThemeTray } from "@/components/create/ThemeTray";
 import { safeParseDate, normalizeLocationString } from "@/components/create/placeSearch";
 import * as Haptics from "expo-haptics";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
@@ -147,14 +149,7 @@ export default function CreateEventScreen() {
   // Event Themes V1 state
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
 
-  // Custom themes — loaded from MMKV, refreshed on focus
-  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
   const [selectedCustomTheme, setSelectedCustomTheme] = useState<CustomTheme | null>(null);
-  useFocusEffect(
-    useCallback(() => {
-      setCustomThemes(loadCustomThemes());
-    }, []),
-  );
 
   // Live theme preview
   const previewTheme = resolveEventTheme(selectedThemeId);
@@ -167,6 +162,11 @@ export default function CreateEventScreen() {
   const previewBgStyle = useAnimatedStyle(() => ({
     backgroundColor: withTiming(previewBg, { duration: 350 }),
   }), [previewBg]);
+
+  // Active gradient config for the page-level visual background
+  const activeGradient = selectedThemeId
+    ? previewTheme.visualStack?.gradient ?? null
+    : selectedCustomTheme?.visualStack?.gradient ?? null;
 
   // Glass treatment for form fields when theme is active
   const themed = hasTheme;
@@ -388,25 +388,6 @@ export default function CreateEventScreen() {
     if (ct) setSelectedThemeId(null);
   }, []);
 
-  const handleDeleteCustomTheme = useCallback((id: string) => {
-    deleteCustomTheme(id);
-    if (selectedCustomTheme?.id === id) setSelectedCustomTheme(null);
-    setCustomThemes(loadCustomThemes());
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [selectedCustomTheme]);
-
-  const handleOpenThemeBuilder = useCallback((editId?: string) => {
-    Haptics.selectionAsync();
-    // Dismiss the theme sheet first, then navigate after it animates out
-    setActiveDockMode(null);
-    setTimeout(() => {
-      if (editId) {
-        router.push({ pathname: "/theme-builder", params: { editId } });
-      } else {
-        router.push("/theme-builder");
-      }
-    }, 350);
-  }, [router]);
 
   const handleEffectSelect = useCallback((effectKey: string | null) => {
     setSelectedEffectId(effectKey);
@@ -525,6 +506,13 @@ export default function CreateEventScreen() {
   // ── Render ──
   return (
     <Animated.View testID="create-screen" className="flex-1" style={[{ flex: 1 }, previewBgStyle]}>
+      {/* ── Page-level themed gradient background ── */}
+      {activeGradient && activeGradient.colors.length >= 2 && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <AnimatedGradientLayer config={activeGradient} />
+        </View>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -544,7 +532,6 @@ export default function CreateEventScreen() {
             glassSecondary={glassSecondary}
             themed={themed}
             coverImageUrl={coverMedia.selectedCoverItem?.url ?? coverMedia.bannerLocalUri}
-            selectedEffectId={selectedEffectId}
           />
 
           {isSmartMode && (
@@ -679,7 +666,7 @@ export default function CreateEventScreen() {
       {/* ── Page-wide motif overlay ── */}
       {selectedEffectId && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <MotifOverlay presetId={selectedEffectId} intensity={0.50} />
+          <MotifOverlay presetId={selectedEffectId} intensity={0.70} />
         </View>
       )}
 
@@ -707,22 +694,26 @@ export default function CreateEventScreen() {
         onClose={() => setActiveDockMode(null)}
       />
 
-      <CreateSheets
-        activeDockMode={activeDockMode}
-        onCloseDock={() => setActiveDockMode(null)}
+      {/* ── Theme Tray (inline, not Modal) ── */}
+      <ThemeTray
+        visible={activeDockMode === "theme"}
         selectedThemeId={selectedThemeId}
         selectedCustomTheme={selectedCustomTheme}
-        customThemes={customThemes}
         userIsPro={userIsPro}
         isDark={isDark}
+        themeColor={themeColor}
         glassText={glassText}
         glassSecondary={glassSecondary}
         glassTertiary={glassTertiary}
         onSelectTheme={handleThemeSelect}
         onSelectCustomTheme={handleCustomThemeSelect}
-        onDeleteCustomTheme={handleDeleteCustomTheme}
-        onOpenPaywall={() => { setPaywallContext("PREMIUM_THEME"); setShowPaywallModal(true); }}
-        onOpenThemeBuilder={handleOpenThemeBuilder}
+        onOpenPaywall={(source) => { setPaywallContext("PREMIUM_THEME"); setShowPaywallModal(true); }}
+        onClose={() => setActiveDockMode(null)}
+      />
+
+      <CreateSheets
+        activeDockMode={activeDockMode}
+        onCloseDock={() => setActiveDockMode(null)}
         settingsProps={{
           isCircleEvent,
           frequency,
@@ -791,6 +782,8 @@ export default function CreateEventScreen() {
         onCloseShareModal={() => { setCreatePromptChoice("none"); router.back(); }}
         shareModalBg={colors.background}
         shareModalBorder={colors.border}
+        glassText={glassText}
+        glassSecondary={glassSecondary}
         themeColor={themeColor}
       />
 

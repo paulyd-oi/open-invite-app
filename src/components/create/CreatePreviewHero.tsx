@@ -6,7 +6,6 @@ import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
-import { MotifOverlay } from "@/components/create/MotifOverlay";
 import { THEME_BACKGROUNDS, THEME_VIDEOS } from "@/lib/eventThemes";
 import type { ThemeId, ThemeVisualStack } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
@@ -21,8 +20,6 @@ interface CreatePreviewHeroProps {
   themed: boolean;
   /** Cover image URL to display over the visual stack. */
   coverImageUrl?: string | null;
-  /** Selected motif effect overlay (independent of theme). */
-  selectedEffectId?: string | null;
 }
 
 /**
@@ -38,7 +35,6 @@ export function CreatePreviewHero({
   glassSecondary,
   themed,
   coverImageUrl,
-  selectedEffectId,
 }: CreatePreviewHeroProps) {
   const hasVisuals = !!selectedThemeId || !!selectedCustomTheme;
   const hasTitle = !!title.trim();
@@ -53,6 +49,7 @@ export function CreatePreviewHero({
         marginHorizontal: 16,
         borderRadius: 20,
         marginBottom: 16,
+        backgroundColor: "#0A0A12",
       }}
     >
       {/* Default background — subtle gradient when no theme selected */}
@@ -128,12 +125,7 @@ export function CreatePreviewHero({
         </View>
       )}
 
-      {/* Motif overlay — full intensity in hero */}
-      {selectedEffectId && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <MotifOverlay presetId={selectedEffectId} intensity={1.0} />
-        </View>
-      )}
+      {/* Motif overlay — handled page-wide in create.tsx, not hero-scoped */}
 
       {/* Filter overlay */}
       {selectedThemeId && previewTheme.visualStack?.filter && (
