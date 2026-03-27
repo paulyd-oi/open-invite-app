@@ -36,15 +36,15 @@ import {
   GestureDetector,
 } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronUp, ChevronDown } from "@/ui/icons";
+import { ChevronDown } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { MOTIF_PRESETS, MOTIF_CATEGORIES } from "./MotifOverlay";
 
 // ─── Constants ───────────────────────────────────────────────
 
-const TRAY_HEIGHT = 148;
+const TRAY_HEIGHT = 106;
 const LIBRARY_HEIGHT_PCT = 0.46;
-const SWATCH_SIZE = 40;
+const SWATCH_SIZE = 42;
 const SWATCH_GAP = 10;
 const BORDER_RADIUS = 22;
 const TIMING_CONFIG = { duration: 280, easing: Easing.out(Easing.cubic) };
@@ -63,31 +63,6 @@ const ALL_EFFECT_IDS: string[] = (() => {
   }
   return ids;
 })();
-
-/** One-line descriptors for tray selected summary */
-const EFFECT_DESCRIPTORS: Record<string, string> = {
-  petals: "gentle petal drift",
-  hearts: "floating hearts",
-  confetti: "colorful celebration",
-  sparkle: "soft premium shimmer",
-  snowfall: "gentle snowfall",
-  leaves: "autumn leaf drift",
-  bubbles: "rising bubble float",
-  football: "game day vibes",
-  basketball: "court-side energy",
-  baseball: "diamond dust",
-  soccer: "pitch-side spirit",
-  stars: "twinkling starfield",
-  balloons: "playful floating overlay",
-  fireworks: "celebratory burst",
-  graduation: "cap toss celebration",
-  house_party: "party vibes",
-  halloween: "spooky ambience",
-  scene_confetti: "premium confetti burst",
-  scene_hearts: "premium rising hearts",
-  scene_fireworks: "premium fireworks display",
-  scene_balloons: "premium balloon float",
-};
 
 // ─── Props ───────────────────────────────────────────────────
 
@@ -182,8 +157,6 @@ export const EffectTray = memo(function EffectTray({
 
   if (!visible) return null;
 
-  const selectedPreset = selectedEffectId ? MOTIF_PRESETS[selectedEffectId] : null;
-
   // Dock layout: pill (~41px) at bottom: insets.bottom + 8.
   // Tray floats 15px above dock top. Backdrop stops above dock so the
   // dock's own toggle button remains tappable.
@@ -263,14 +236,10 @@ export const EffectTray = memo(function EffectTray({
         ) : (
           <TrayContent
             selectedEffectId={selectedEffectId}
-            selectedPreset={selectedPreset}
             themeColor={themeColor}
             isDark={isDark}
-            glassText={glassText}
-            glassSecondary={glassSecondary}
             glassTertiary={glassTertiary}
             onSelectEffect={handleSelect}
-            onExpand={expand}
           />
         )}
       </Animated.View>
@@ -283,86 +252,21 @@ export const EffectTray = memo(function EffectTray({
 
 interface TrayContentProps {
   selectedEffectId: string | null;
-  selectedPreset: (typeof MOTIF_PRESETS)[string] | null;
   themeColor: string;
   isDark: boolean;
-  glassText: string;
-  glassSecondary: string;
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
-  onExpand: () => void;
 }
 
 function TrayContent({
   selectedEffectId,
-  selectedPreset,
   themeColor,
   isDark,
-  glassText,
-  glassSecondary,
   glassTertiary,
   onSelectEffect,
-  onExpand,
 }: TrayContentProps) {
   return (
     <View style={styles.trayBody}>
-      {/* Row 1: Selected effect summary */}
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryLeft}>
-          {/* Selected swatch thumbnail */}
-          <View
-            style={[
-              styles.summarySwatchCircle,
-              {
-                borderColor: selectedEffectId ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"),
-                backgroundColor: selectedEffectId
-                  ? (themeColor + "14")
-                  : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
-              },
-            ]}
-          >
-            {selectedPreset ? (
-              "swatchImage" in selectedPreset && selectedPreset.swatchImage != null ? (
-                <Image
-                  source={selectedPreset.swatchImage}
-                  style={{ width: 24, height: 24, borderRadius: 12 }}
-                  contentFit="cover"
-                />
-              ) : (
-                <Text style={{ fontSize: 15 }}>{selectedPreset.swatchIcon}</Text>
-              )
-            ) : (
-              <Text style={{ fontSize: 12, color: glassTertiary }}>∅</Text>
-            )}
-          </View>
-          {/* Name + descriptor */}
-          <View style={{ flexShrink: 1 }}>
-            <Text
-              style={{ fontSize: 14, fontWeight: "600", color: glassText }}
-              numberOfLines={1}
-            >
-              {selectedPreset?.label ?? "None"}
-            </Text>
-            {selectedEffectId && (
-              <Text
-                style={{ fontSize: 11, color: glassSecondary, marginTop: 1 }}
-                numberOfLines={1}
-              >
-                {EFFECT_DESCRIPTORS[selectedEffectId] ?? "effect overlay"}
-              </Text>
-            )}
-          </View>
-        </View>
-        {/* Browse all link */}
-        <Pressable onPress={onExpand} hitSlop={8} style={styles.browseBtn}>
-          <Text style={{ fontSize: 12, fontWeight: "500", color: themeColor }}>
-            Browse
-          </Text>
-          <ChevronUp size={12} color={themeColor} />
-        </Pressable>
-      </View>
-
-      {/* Row 2: Horizontal swatch rail */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -648,27 +552,6 @@ const styles = StyleSheet.create({
   trayBody: {
     flex: 1,
     paddingHorizontal: 14,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  summaryLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexShrink: 1,
-  },
-  summarySwatchCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
   },
   browseBtn: {
     flexDirection: "row",
