@@ -105,7 +105,7 @@ export interface MotifCategory {
 export const MOTIF_CATEGORIES: readonly MotifCategory[] = [
   { label: "Featured", ids: ["confetti", "sparkle", "petals", "hearts"] },
   { label: "Celebration", ids: ["balloons", "fireworks", "graduation", "house_party"] },
-  { label: "Scenes", ids: ["scene_confetti", "scene_hearts", "scene_fireworks", "scene_balloons"] },
+  { label: "Scenes", ids: ["scene_confetti", "scene_hearts", "scene_balloons"] },
   { label: "Sports", ids: ["football", "basketball", "baseball", "soccer"] },
   { label: "Seasonal", ids: ["snowfall", "leaves", "bubbles", "halloween"] },
   { label: "Romance", ids: ["petals", "hearts", "stars"] },
@@ -342,7 +342,7 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     swatchIcon: "🎈",
     swatchImage: require("../../../assets/effects/swatches/balloons.png"),
     effectClass: "lottie_overlay",
-    lottieSource: require("../../../assets/effects/lottie/balloons_float.json") as AnimationObject,
+    lottieSource: require("../../../assets/effects/lottie/balloons_rising.json") as AnimationObject,
     speed: 0.7,
     opacity: 0.65,
   },
@@ -358,19 +358,56 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     label: "Graduation",
     swatchIcon: "🎓",
     swatchImage: require("../../../assets/effects/swatches/graduation.png"),
-    effectClass: "lottie_overlay",
-    lottieSource: require("../../../assets/effects/lottie/graduation_toss.json") as AnimationObject,
-    speed: 0.8,
-    opacity: 0.7,
+    particleCount: 10,
+    minSize: 6,
+    maxSize: 14,
+    minOpacity: 0.45,
+    maxOpacity: 0.80,
+    minSpeed: 15,
+    maxSpeed: 30,
+    swayAmplitude: 28,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 5,
+    direction: 1,
+    blurSigma: 0.5,
+    colors: [
+      "rgba(30, 58, 138, 1)",     // dark navy
+      "rgba(250, 204, 21, 1)",    // gold
+      "rgba(255, 255, 255, 0.9)", // white
+      "rgba(59, 130, 246, 1)",    // royal blue
+    ],
+    shapes: ["rect", "star", "circle"],
+    minRotationSpeed: 1.2,
+    maxRotationSpeed: 3.5,
+    rectAspect: 0.4,
   },
   house_party: {
     label: "House Party",
     swatchIcon: "🏠",
     swatchImage: require("../../../assets/effects/swatches/house_party.png"),
-    effectClass: "lottie_overlay",
-    lottieSource: require("../../../assets/effects/lottie/house_party_confetti.json") as AnimationObject,
-    speed: 1.0,
-    opacity: 0.7,
+    particleCount: 11,
+    minSize: 5,
+    maxSize: 13,
+    minOpacity: 0.50,
+    maxOpacity: 0.85,
+    minSpeed: 20,
+    maxSpeed: 38,
+    swayAmplitude: 32,
+    minSwayPeriod: 2,
+    maxSwayPeriod: 4,
+    direction: 1,
+    blurSigma: 0.5,
+    colors: [
+      "rgba(236, 72, 153, 1)",    // pink
+      "rgba(250, 204, 21, 1)",    // gold
+      "rgba(168, 85, 247, 1)",    // purple
+      "rgba(34, 211, 238, 1)",    // cyan
+      "rgba(249, 115, 22, 1)",    // orange
+    ],
+    shapes: ["rect", "circle", "star"],
+    minRotationSpeed: 1.8,
+    maxRotationSpeed: 4.5,
+    rectAspect: 0.35,
   },
 
   // ── Sports ──
@@ -463,14 +500,6 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     lottieSource: require("../../../assets/effects/lottie/rising_hearts.json") as AnimationObject,
     speed: 0.6,
     opacity: 0.55,
-  },
-  scene_fireworks: {
-    label: "Fireworks Scene",
-    swatchIcon: "🎇",
-    effectClass: "lottie_overlay",
-    lottieSource: require("../../../assets/effects/lottie/fireworks_burst.json") as AnimationObject,
-    speed: 1.0,
-    opacity: 0.75,
   },
   scene_balloons: {
     label: "Balloons Scene",
