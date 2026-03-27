@@ -49,6 +49,9 @@ interface MotifPickerFields {
   label: string;
 }
 
+/** Motion mode for particle direction behavior */
+export type MotionMode = "falling" | "rising" | "floating" | "swirl";
+
 /** Particle-based effect config (Skia path drawing) */
 interface ParticleMotifConfig extends MotifPickerFields {
   effectClass?: "particle"; // default when absent
@@ -73,6 +76,8 @@ interface ParticleMotifConfig extends MotifPickerFields {
   pulseRange?: [number, number];
   pulsePeriodRange?: [number, number];
   staticPosition?: boolean;
+  /** Motion mode — controls how particles move. Default: inferred from direction field */
+  motionMode?: MotionMode;
 }
 
 /** Sprite overlay effect config (Skia image drawing) */

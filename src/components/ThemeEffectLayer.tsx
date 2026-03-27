@@ -199,6 +199,9 @@ interface EffectConfig {
   rectAspect?: number;
   /** If true, particles don't move vertically — static with fade only */
   staticPosition?: boolean;
+  /** Motion mode — "floating" = random drift, "swirl" = circular paths.
+   *  Default: inferred from direction (1 = "falling", -1 = "rising") */
+  motionMode?: "falling" | "rising" | "floating" | "swirl";
   /** If true, render as full-screen color wash instead of particles */
   colorWash?: boolean;
   /** Color wash: hue cycle speed in degrees/sec */
@@ -975,6 +978,22 @@ interface ParticleSeed {
   width: number;
   /** Height for rect particles */
   height: number;
+  // ── Floating mode: per-particle random drift direction ──
+  /** Horizontal drift speed (px/s) — signed, used by "floating" mode */
+  driftDx: number;
+  /** Vertical drift speed (px/s) — signed, used by "floating" mode */
+  driftDy: number;
+  // ── Swirl mode: per-particle orbital params ──
+  /** Orbit center X */
+  swirlCx: number;
+  /** Orbit center Y */
+  swirlCy: number;
+  /** Orbit radius */
+  swirlRadius: number;
+  /** Radians per second — angular speed around orbit center */
+  swirlAngularSpeed: number;
+  /** Starting angle offset (radians) */
+  swirlAngle: number;
 }
 
 // ─── SVG path generators (centered at 0,0, scaled to radius) ─
@@ -1056,12 +1075,29 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
       ? pathForShape(shapeType, radius)
       : undefined;
 
+    const speed = config.minSpeed + r() * (config.maxSpeed - config.minSpeed);
+    const px = r() * width;
+    const py = r() * height;
+
+    // Floating: random drift direction at ~40% of configured speed
+    const driftAngle = r() * Math.PI * 2;
+    const driftMag = speed * 0.4;
+    const driftDx = Math.cos(driftAngle) * driftMag;
+    const driftDy = Math.sin(driftAngle) * driftMag;
+
+    // Swirl: orbit around a random center point
+    const swirlCx = r() * width;
+    const swirlCy = r() * height;
+    const swirlRadius = 40 + r() * 80; // 40-120 pt radius
+    const swirlAngularSpeed = (0.3 + r() * 0.7) * (r() > 0.5 ? 1 : -1); // rad/s
+    const swirlAngle = r() * Math.PI * 2;
+
     particles.push({
-      x: r() * width,
-      y: r() * height,
+      x: px,
+      y: py,
       radius,
       opacity: baseOpacity,
-      speed: config.minSpeed + r() * (config.maxSpeed - config.minSpeed),
+      speed,
       swayAmplitude: (0.4 + r() * 0.6) * config.swayAmplitude,
       swayPeriod: config.minSwayPeriod + r() * (config.maxSwayPeriod - config.minSwayPeriod),
       swayOffset: r() * Math.PI * 2,
@@ -1075,6 +1111,13 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
       pathData,
       width: shapeType === "rect" ? radius * 2 * aspect : radius * 2,
       height: radius * 2,
+      driftDx,
+      driftDy,
+      swirlCx,
+      swirlCy,
+      swirlRadius,
+      swirlAngularSpeed,
+      swirlAngle,
     });
   }
   return particles;
@@ -1193,26 +1236,49 @@ export const ParticleField = memo(function ParticleField({
   const particles = useSharedValue(initialSeeds);
   const elapsed = useSharedValue(0);
 
+  // Resolve motion mode once (not per frame)
+  const mode: "falling" | "rising" | "floating" | "swirl" =
+    config.motionMode ?? (config.direction === -1 ? "rising" : "falling");
+
   useFrameCallback((frameInfo) => {
     "worklet";
     const dt = (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
     elapsed.value += dt;
+    const t = elapsed.value;
 
     const updated = particles.value.map((p) => {
+      let newX = p.x;
       let newY = p.y;
 
       if (!config.staticPosition) {
-        newY = p.y + p.speed * config.direction * dt;
+        if (mode === "floating") {
+          // Gentle random drift — each particle has its own dx/dy
+          newX = p.x + p.driftDx * dt;
+          newY = p.y + p.driftDy * dt;
 
-        // Respawn at opposite edge when leaving bounds
-        if (config.direction === 1 && newY > height + p.radius * 2) {
-          newY = -p.radius * 2;
-        } else if (config.direction === -1 && newY < -p.radius * 2) {
-          newY = height + p.radius * 2;
+          // Wrap around all edges
+          if (newX > width + p.radius * 2) newX = -p.radius * 2;
+          else if (newX < -p.radius * 2) newX = width + p.radius * 2;
+          if (newY > height + p.radius * 2) newY = -p.radius * 2;
+          else if (newY < -p.radius * 2) newY = height + p.radius * 2;
+        } else if (mode === "swirl") {
+          // Circular orbit around per-particle center
+          const angle = p.swirlAngle + t * p.swirlAngularSpeed;
+          newX = p.swirlCx + Math.cos(angle) * p.swirlRadius;
+          newY = p.swirlCy + Math.sin(angle) * p.swirlRadius;
+        } else {
+          // Falling (direction=1) or Rising (direction=-1)
+          newY = p.y + p.speed * config.direction * dt;
+
+          if (config.direction === 1 && newY > height + p.radius * 2) {
+            newY = -p.radius * 2;
+          } else if (config.direction === -1 && newY < -p.radius * 2) {
+            newY = height + p.radius * 2;
+          }
         }
       }
 
-      return { ...p, y: newY, rotation: p.rotation + p.rotationSpeed * dt };
+      return { ...p, x: newX, y: newY, rotation: p.rotation + p.rotationSpeed * dt };
     });
 
     particles.value = updated;

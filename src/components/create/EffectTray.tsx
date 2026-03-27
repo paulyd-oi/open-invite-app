@@ -44,7 +44,7 @@ import {
   MOTIF_CATEGORIES,
   CUSTOM_EFFECT_ID,
 } from "./MotifOverlay";
-import type { ParticleMotifConfig } from "./MotifOverlay";
+import type { ParticleMotifConfig, MotionMode } from "./MotifOverlay";
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -96,11 +96,11 @@ const SHAPE_OPTIONS: { key: string; label: string; shapes: ParticleMotifConfig["
   { key: "confetti", label: "Confetti", shapes: ["rect", "circle", "star"] },
 ];
 
-const DIRECTION_OPTIONS: { key: string; label: string; dir: 1 | -1; sway: number }[] = [
-  { key: "falling", label: "Falling", dir: 1, sway: 25 },
-  { key: "rising", label: "Rising", dir: -1, sway: 20 },
-  { key: "floating", label: "Floating", dir: 1, sway: 45 },
-  { key: "swirl", label: "Swirl", dir: 1, sway: 60 },
+const DIRECTION_OPTIONS: { key: string; label: string; dir: 1 | -1; sway: number; mode: MotionMode }[] = [
+  { key: "falling", label: "Falling", dir: 1, sway: 25, mode: "falling" },
+  { key: "rising", label: "Rising", dir: -1, sway: 20, mode: "rising" },
+  { key: "floating", label: "Floating", dir: 1, sway: 15, mode: "floating" },
+  { key: "swirl", label: "Swirl", dir: 1, sway: 10, mode: "swirl" },
 ];
 
 const MAX_EFFECT_COLORS = 5;
@@ -576,6 +576,7 @@ function CreateTab({
       minSwayPeriod: 2,
       maxSwayPeriod: 6,
       direction: dir.dir,
+      motionMode: dir.mode,
       blurSigma: 0.5,
       colors: c.map((hex) => {
         const r = parseInt(hex.slice(1, 3), 16);
