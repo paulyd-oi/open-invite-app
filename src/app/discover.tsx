@@ -106,19 +106,24 @@ function getSavedTimeGroup(startTime: string): string {
   return "Later";
 }
 
-/** Day group label for Friends feed — Today/Tomorrow/weekday name */
-function getFriendsFeedDayGroup(startTime: string): string {
+/** Browse-feed bucket for Friends — Today / This Week / Coming Up */
+function getFriendsFeedBucket(startTime: string): string {
   const now = new Date();
   const start = new Date(startTime);
-  if (start.getTime() < now.getTime()) return "";
+  if (start.getTime() < now.getTime()) return ""; // past — filter out
 
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   if (start <= todayEnd) return "Today";
 
-  const tomorrowEnd = new Date(todayEnd); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-  if (start <= tomorrowEnd) return "Tomorrow";
+  // "This Week" = through end of Sunday of the current week
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+  const weekEnd = new Date(now);
+  weekEnd.setDate(weekEnd.getDate() + daysUntilSunday);
+  weekEnd.setHours(23, 59, 59, 999);
+  if (start <= weekEnd) return "This Week";
 
-  return start.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  return "Coming Up";
 }
 
 interface PopularEvent {
@@ -263,8 +268,8 @@ export default function DiscoverScreen() {
     queryKey: eventKeys.friendsHostedFeed(),
     queryFn: async ({ pageParam }) => {
       const url = pageParam
-        ? `/api/events/friends-hosted-feed?days=14&limit=${FRIENDS_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
-        : `/api/events/friends-hosted-feed?days=14&limit=${FRIENDS_PAGE_SIZE}`;
+        ? `/api/events/friends-hosted-feed?days=30&limit=${FRIENDS_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
+        : `/api/events/friends-hosted-feed?days=30&limit=${FRIENDS_PAGE_SIZE}`;
       return api.get<GetFriendsHostedFeedResponse>(url);
     },
     initialPageParam: null as string | null,
@@ -1008,8 +1013,18 @@ export default function DiscoverScreen() {
             </View>
           ) : (friendsFeedData?.events ?? []).length === 0 ? (
             /* ═══ Friends Empty State ═══ */
-            /* ═══ Friends Empty State ═══ */
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={fetchingFriendsFeed && !!friendsFeedData}
+                  onRefresh={() => refetchFriendsFeed()}
+                  tintColor={themeColor}
+                  progressViewOffset={chromeHeight}
+                />
+              }
+            >
               <View style={{
                 width: 56, height: 56, borderRadius: 28,
                 alignItems: "center", justifyContent: "center",
@@ -1019,10 +1034,10 @@ export default function DiscoverScreen() {
                 <Users size={24} color={themeColor} />
               </View>
               <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                No friend events yet
+                Nothing coming up
               </Text>
               <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 24 }}>
-                When your friends create events,{"\n"}they'll show up here.
+                No upcoming plans from your friends right now.{"\n"}Check back soon or find more friends to follow.
               </Text>
               <Pressable
                 onPress={() => {
@@ -1041,9 +1056,9 @@ export default function DiscoverScreen() {
                   Find Friends
                 </Text>
               </Pressable>
-            </View>
+            </ScrollView>
           ) : (
-            /* ═══ Friends Feed — Day-Grouped List ═══ */
+            /* ═══ Friends Feed — Bucketed Browse (Today / This Week / Coming Up) ═══ */
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: 100 }}
@@ -1061,16 +1076,17 @@ export default function DiscoverScreen() {
             >
               {(() => {
                 const events = friendsFeedData?.events ?? [];
-                let lastGroup = "";
+                let lastBucket = "";
                 let itemIndex = 0;
                 return events.map((event) => {
-                  const group = getFriendsFeedDayGroup(event.startTime);
-                  const showHeader = group !== lastGroup;
-                  lastGroup = group;
+                  const bucket = getFriendsFeedBucket(event.startTime);
+                  if (!bucket) return null; // past event — skip
+                  const showHeader = bucket !== lastBucket;
+                  lastBucket = bucket;
                   const idx = itemIndex++;
-                  const isToday = group === "Today";
-                  const isTomorrow = group === "Tomorrow";
+                  const isToday = bucket === "Today";
                   const timeStr = new Date(event.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+                  const dateStr = new Date(event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
                   const hostName = event.user?.name?.split(" ")[0] ?? "Friend";
                   const rsvp = event.viewerRsvpStatus;
                   const alreadyGoing = rsvp === "going";
@@ -1083,11 +1099,11 @@ export default function DiscoverScreen() {
                           <Text style={{
                             fontSize: 13,
                             fontWeight: "700",
-                            color: (isToday || isTomorrow) ? STATUS.soon.fg : colors.textSecondary,
+                            color: isToday ? STATUS.soon.fg : colors.textSecondary,
                             textTransform: "uppercase",
                             letterSpacing: 0.5,
                           }}>
-                            {group}
+                            {bucket}
                           </Text>
                         </Animated.View>
                       )}
@@ -1138,7 +1154,7 @@ export default function DiscoverScreen() {
                               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3, gap: 4 }}>
                                 <Clock size={12} color={colors.textTertiary} />
                                 <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                                  {isToday ? timeStr : isTomorrow ? timeStr : `${new Date(event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}, ${timeStr}`}
+                                  {isToday ? timeStr : `${dateStr}, ${timeStr}`}
                                 </Text>
                               </View>
                               {event.location && (
