@@ -64,12 +64,7 @@ export function CreatePreviewHero({
         </View>
       )}
 
-      {/* Themed base fill */}
-      {hasVisuals && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.3)" }} />
-      )}
-
-      {/* Cover image — overlays everything when set */}
+      {/* Cover image — renders directly on the opaque base */}
       {hasCover && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
           <ExpoImage
@@ -82,67 +77,76 @@ export function CreatePreviewHero({
         </View>
       )}
 
-      {/* ── Visual stack layers ── */}
-      {/* Animated gradient */}
-      {selectedThemeId && previewTheme.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
-          <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
-        </View>
-      )}
-      {selectedCustomTheme?.visualStack?.gradient && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
-          <AnimatedGradientLayer config={selectedCustomTheme.visualStack.gradient} />
-        </View>
-      )}
+      {/* ── Visual stack layers — only when NO cover photo ── */}
+      {!hasCover && (
+        <>
+          {/* Themed base fill */}
+          {hasVisuals && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.3)" }} />
+          )}
 
-      {/* Static background image */}
-      {selectedThemeId && previewTheme.visualStack?.image && THEME_BACKGROUNDS[previewTheme.visualStack.image.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <BackgroundImageLayer
-            source={THEME_BACKGROUNDS[previewTheme.visualStack.image.source]}
-            opacity={previewTheme.visualStack.image.opacity}
-          />
-        </View>
-      )}
-      {selectedCustomTheme?.visualStack?.image && THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <BackgroundImageLayer
-            source={THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source]}
-            opacity={selectedCustomTheme.visualStack.image.opacity}
-          />
-        </View>
-      )}
+          {/* Animated gradient */}
+          {selectedThemeId && previewTheme.visualStack?.gradient && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
+              <AnimatedGradientLayer config={previewTheme.visualStack.gradient} />
+            </View>
+          )}
+          {selectedCustomTheme?.visualStack?.gradient && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }} pointerEvents="none">
+              <AnimatedGradientLayer config={selectedCustomTheme.visualStack.gradient} />
+            </View>
+          )}
 
-      {/* Looping video */}
-      {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeVideoLayer
-            source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
-            poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
-            opacity={previewTheme.visualStack.video.opacity}
-            isActive={true}
-          />
-        </View>
+          {/* Static background image */}
+          {selectedThemeId && previewTheme.visualStack?.image && THEME_BACKGROUNDS[previewTheme.visualStack.image.source] && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+              <BackgroundImageLayer
+                source={THEME_BACKGROUNDS[previewTheme.visualStack.image.source]}
+                opacity={previewTheme.visualStack.image.opacity}
+              />
+            </View>
+          )}
+          {selectedCustomTheme?.visualStack?.image && THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source] && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+              <BackgroundImageLayer
+                source={THEME_BACKGROUNDS[selectedCustomTheme.visualStack.image.source]}
+                opacity={selectedCustomTheme.visualStack.image.opacity}
+              />
+            </View>
+          )}
+
+          {/* Looping video */}
+          {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+              <ThemeVideoLayer
+                source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
+                poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
+                opacity={previewTheme.visualStack.video.opacity}
+                isActive={true}
+              />
+            </View>
+          )}
+
+          {/* Filter overlay */}
+          {selectedThemeId && previewTheme.visualStack?.filter && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+              <ThemeFilterLayer filter={previewTheme.visualStack.filter} />
+            </View>
+          )}
+          {selectedCustomTheme?.visualStack?.filter && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+              <ThemeFilterLayer filter={selectedCustomTheme.visualStack.filter} />
+            </View>
+          )}
+        </>
       )}
 
       {/* Motif overlay — handled page-wide in create.tsx, not hero-scoped */}
 
-      {/* Filter overlay */}
-      {selectedThemeId && previewTheme.visualStack?.filter && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeFilterLayer filter={previewTheme.visualStack.filter} />
-        </View>
-      )}
-      {selectedCustomTheme?.visualStack?.filter && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeFilterLayer filter={selectedCustomTheme.visualStack.filter} />
-        </View>
-      )}
-
-      {/* Bottom fade for text readability */}
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 100 }} pointerEvents="none">
+      {/* Bottom scrim for title readability */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: hasCover ? 88 : 100 }} pointerEvents="none">
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.6)"]}
+          colors={["transparent", hasCover ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.6)"]}
           style={{ flex: 1 }}
         />
       </View>
