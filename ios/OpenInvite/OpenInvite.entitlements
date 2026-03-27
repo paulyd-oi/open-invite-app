@@ -8,5 +8,10 @@
     <array>
       <string>Default</string>
     </array>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+      <string>applinks:openinvite.cloud</string>
+      <string>applinks:www.openinvite.cloud</string>
+    </array>
   </dict>
 </plist>

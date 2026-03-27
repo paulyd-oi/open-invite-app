@@ -16,6 +16,10 @@
       "buildNumber": "264",
       "usesAppleSignIn": true,
       "jsEngine": "hermes",
+      "associatedDomains": [
+        "applinks:openinvite.cloud",
+        "applinks:www.openinvite.cloud"
+      ],
       "infoPlist": {
         "UISupportsDocumentBrowser": false,
         "LSSupportsOpeningDocumentsInPlace": false,
@@ -63,7 +67,26 @@
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.vibecode.openinvite.x0qi5wk"
+      "package": "com.vibecode.openinvite.x0qi5wk",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.openinvite.cloud",
+              "pathPrefix": "/event"
+            },
+            {
+              "scheme": "https",
+              "host": "openinvite.cloud",
+              "pathPrefix": "/event"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",

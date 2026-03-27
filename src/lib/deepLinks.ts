@@ -270,9 +270,17 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
       const tokenMatch = url.match(/[?&]token=([^&]+)/);
       return { type: 'verify-email', token: tokenMatch?.[1] || undefined };
     }
-    
+
     if (url.includes('/share/event/')) {
       const match = url.match(/\/share\/event\/([a-zA-Z0-9_-]+)/);
+      if (match?.[1]) {
+        return { type: 'event', id: match[1] };
+      }
+    }
+
+    // Handle web event page universal links: https://(www.)openinvite.cloud/event/:id
+    if (url.includes('openinvite.cloud/event/')) {
+      const match = url.match(/openinvite\.cloud\/event\/([a-zA-Z0-9_-]+)/);
       if (match?.[1]) {
         return { type: 'event', id: match[1] };
       }
@@ -299,6 +307,11 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
  */
 export async function handleDeepLink(url: string): Promise<boolean> {
   const parsed = parseDeepLink(url);
+
+  // [UNIVERSAL_LINK_PROOF] Always log deep link arrival for debugging link association
+  const isUniversal = url.startsWith('https://');
+  const isScheme = url.startsWith(`${SCHEME}://`);
+  devLog(`[DEEP_LINK] url=${url} parsed=${parsed ? parsed.type : 'null'} source=${isUniversal ? 'universal' : isScheme ? 'scheme' : 'other'}`);
 
   if (!parsed) {
     if (__DEV__) {
