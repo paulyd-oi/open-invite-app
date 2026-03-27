@@ -188,6 +188,7 @@ export default function CreateEventScreen() {
 
   // Effect overlay state (independent of theme)
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+  const [customEffectConfig, setCustomEffectConfig] = useState<import("@/components/create/MotifOverlay").ParticleMotifConfig | null>(null);
 
   // Bottom dock sheet state
   const [activeDockMode, setActiveDockMode] = useState<DockMode | null>(null);
@@ -391,6 +392,13 @@ export default function CreateEventScreen() {
 
   const handleEffectSelect = useCallback((effectKey: string | null) => {
     setSelectedEffectId(effectKey);
+    // Clear custom config when switching to a preset
+    if (effectKey !== "__custom__") setCustomEffectConfig(null);
+  }, []);
+
+  const handleCustomEffectConfig = useCallback((config: import("@/components/create/MotifOverlay").ParticleMotifConfig | null) => {
+    setCustomEffectConfig(config);
+    setSelectedEffectId(config ? "__custom__" : null);
   }, []);
 
   const handleCreate = () => {
@@ -666,7 +674,7 @@ export default function CreateEventScreen() {
       {/* ── Page-wide motif overlay ── */}
       {selectedEffectId && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <MotifOverlay presetId={selectedEffectId} intensity={0.70} />
+          <MotifOverlay presetId={selectedEffectId} customConfig={customEffectConfig} intensity={0.70} />
         </View>
       )}
 
@@ -691,6 +699,7 @@ export default function CreateEventScreen() {
         glassSecondary={glassSecondary}
         glassTertiary={glassTertiary}
         onSelectEffect={handleEffectSelect}
+        onCustomEffect={handleCustomEffectConfig}
         onClose={() => setActiveDockMode(null)}
       />
 

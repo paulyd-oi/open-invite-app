@@ -1,11 +1,11 @@
 /**
  * EffectTray — Two-stage effect picker for the create page.
  *
- * State B (tray): Compact floating panel (~144px) with selected summary +
- *   horizontal swatch rail. Keeps the live preview visible.
+ * Compact: Drag handle + horizontal circle swatch rail of quick-start presets.
  *
- * State C (library): Expanded panel (~45% screen) with categorized grid,
- *   labels, and full browsing. Triggered by drag-up or "Browse all".
+ * Expanded: Dual-pane "Effect Studio" with two tabs:
+ *   - Create: Live Skia particle editor (colors, shape, density, size, speed, direction)
+ *   - Animated: Verified Lottie animation presets
  *
  * Material: BlurView frosted glass, soft shadow, rounded corners.
  * All layers use pointerEvents="box-none" so nothing blocks form inputs.
@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
+import Slider from "@react-native-community/slider";
 import Animated, {
   Easing,
   FadeInDown,
@@ -36,14 +37,19 @@ import {
   GestureDetector,
 } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown } from "@/ui/icons";
+import { ChevronDown, X } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
-import { MOTIF_PRESETS, MOTIF_CATEGORIES } from "./MotifOverlay";
+import {
+  MOTIF_PRESETS,
+  MOTIF_CATEGORIES,
+  CUSTOM_EFFECT_ID,
+} from "./MotifOverlay";
+import type { ParticleMotifConfig } from "./MotifOverlay";
 
 // ─── Constants ───────────────────────────────────────────────
 
 const TRAY_HEIGHT = 106;
-const LIBRARY_HEIGHT_PCT = 0.46;
+const LIBRARY_HEIGHT_PCT = 0.52;
 const SWATCH_SIZE = 42;
 const SWATCH_GAP = 10;
 const BORDER_RADIUS = 22;
@@ -64,6 +70,41 @@ const ALL_EFFECT_IDS: string[] = (() => {
   return ids;
 })();
 
+// ─── Verified Lottie presets for the Animated tab ────────────
+
+const ANIMATED_PRESETS: { id: string; label: string; emoji: string }[] = [
+  { id: "scene_confetti", label: "Confetti", emoji: "🎊" },
+  { id: "scene_hearts", label: "Hearts", emoji: "💕" },
+  { id: "scene_balloons", label: "Balloons", emoji: "🎈" },
+  { id: "fireworks", label: "Fireworks", emoji: "🎆" },
+];
+
+// ─── Create tab constants ────────────────────────────────────
+
+const PARTICLE_COLORS = [
+  "#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#EC4899",
+  "#F97316", "#8B5CF6", "#14B8A6", "#FFFFFF", "#FFD700",
+  "#FF6B4A", "#06B6D4", "#A855F7", "#D97706", "#BE123C",
+] as const;
+
+const SHAPE_OPTIONS: { key: string; label: string; shapes: ParticleMotifConfig["shapes"] }[] = [
+  { key: "circle", label: "Circle", shapes: ["circle"] },
+  { key: "square", label: "Square", shapes: ["rect"] },
+  { key: "star", label: "Star", shapes: ["star"] },
+  { key: "heart", label: "Heart", shapes: ["heart"] },
+  { key: "mixed", label: "Mixed", shapes: ["circle", "rect", "star"] },
+  { key: "confetti", label: "Confetti", shapes: ["rect", "circle", "star"] },
+];
+
+const DIRECTION_OPTIONS: { key: string; label: string; dir: 1 | -1; sway: number }[] = [
+  { key: "falling", label: "Falling", dir: 1, sway: 25 },
+  { key: "rising", label: "Rising", dir: -1, sway: 20 },
+  { key: "floating", label: "Floating", dir: 1, sway: 45 },
+  { key: "swirl", label: "Swirl", dir: 1, sway: 60 },
+];
+
+const MAX_EFFECT_COLORS = 5;
+
 // ─── Props ───────────────────────────────────────────────────
 
 interface EffectTrayProps {
@@ -75,6 +116,7 @@ interface EffectTrayProps {
   glassSecondary: string;
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
+  onCustomEffect: (config: ParticleMotifConfig | null) => void;
   /** Dismiss the tray (called on outside-tap) */
   onClose: () => void;
 }
@@ -90,6 +132,7 @@ export const EffectTray = memo(function EffectTray({
   glassSecondary,
   glassTertiary,
   onSelectEffect,
+  onCustomEffect,
   onClose,
 }: EffectTrayProps) {
   const insets = useSafeAreaInsets();
@@ -132,7 +175,6 @@ export const EffectTray = memo(function EffectTray({
     })
     .onEnd((e) => {
       const midpoint = (TRAY_HEIGHT + libraryHeight) / 2;
-      // Snap based on velocity or position
       if (e.velocityY < -300 || (e.velocityY >= -300 && animHeight.value > midpoint)) {
         animHeight.value = withTiming(libraryHeight, TIMING_CONFIG);
         runOnJS(setExpanded)(true);
@@ -149,7 +191,6 @@ export const EffectTray = memo(function EffectTray({
   // Reset expanded state when tray is hidden
   const prevVisible = useRef(visible);
   if (!visible && prevVisible.current) {
-    // Was just hidden — reset expanded state for next open
     if (expanded) setExpanded(false);
     animHeight.value = TRAY_HEIGHT;
   }
@@ -157,15 +198,11 @@ export const EffectTray = memo(function EffectTray({
 
   if (!visible) return null;
 
-  // Dock layout: pill (~41px) at bottom: insets.bottom + 8.
-  // Tray floats 15px above dock top. Backdrop stops above dock so the
-  // dock's own toggle button remains tappable.
   const trayBottom = insets.bottom + 64;
   const backdropBottom = insets.bottom + 56;
 
   return (
     <>
-      {/* Transparent backdrop — tap outside tray to dismiss */}
       <Pressable
         style={[styles.backdrop, { bottom: backdropBottom }]}
         onPress={onClose}
@@ -190,7 +227,6 @@ export const EffectTray = memo(function EffectTray({
           tint={isDark ? "dark" : "light"}
           style={StyleSheet.absoluteFill}
         />
-        {/* Material surface overlay */}
         <View
           style={[
             StyleSheet.absoluteFill,
@@ -223,7 +259,7 @@ export const EffectTray = memo(function EffectTray({
 
         {/* ── Content ── */}
         {expanded ? (
-          <EffectLibrary
+          <EffectStudio
             selectedEffectId={selectedEffectId}
             themeColor={themeColor}
             isDark={isDark}
@@ -231,6 +267,7 @@ export const EffectTray = memo(function EffectTray({
             glassSecondary={glassSecondary}
             glassTertiary={glassTertiary}
             onSelectEffect={handleSelect}
+            onCustomEffect={onCustomEffect}
             onCollapse={collapse}
           />
         ) : (
@@ -273,7 +310,6 @@ function TrayContent({
         contentContainerStyle={styles.compactRailContent}
         style={styles.compactRail}
       >
-        {/* "None" swatch */}
         <CompactSwatch
           effectId={null}
           isSelected={!selectedEffectId}
@@ -282,7 +318,6 @@ function TrayContent({
           glassTertiary={glassTertiary}
           onSelect={onSelectEffect}
         />
-        {/* All effects */}
         {ALL_EFFECT_IDS.map((id) => (
           <CompactSwatch
             key={id}
@@ -299,7 +334,7 @@ function TrayContent({
   );
 }
 
-// ─── Compact Swatch (no label) ──────────────────────────────
+// ─── Compact Swatch ─────────────────────────────────────────
 
 interface CompactSwatchProps {
   effectId: string | null;
@@ -354,9 +389,11 @@ function CompactSwatch({
   );
 }
 
-// ─── Library Content (Expanded Mode) ────────────────────────
+// ─── Effect Studio (Expanded Mode) ──────────────────────────
 
-interface EffectLibraryProps {
+type StudioTab = "create" | "animated";
+
+interface EffectStudioProps {
   selectedEffectId: string | null;
   themeColor: string;
   isDark: boolean;
@@ -364,10 +401,11 @@ interface EffectLibraryProps {
   glassSecondary: string;
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
+  onCustomEffect: (config: ParticleMotifConfig | null) => void;
   onCollapse: () => void;
 }
 
-function EffectLibrary({
+function EffectStudio({
   selectedEffectId,
   themeColor,
   isDark,
@@ -375,131 +413,564 @@ function EffectLibrary({
   glassSecondary,
   glassTertiary,
   onSelectEffect,
+  onCustomEffect,
   onCollapse,
-}: EffectLibraryProps) {
+}: EffectStudioProps) {
+  const [activeTab, setActiveTab] = useState<StudioTab>("create");
+  const glassBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+
   return (
-    <View style={styles.libraryBody}>
+    <View style={styles.studioBody}>
       {/* Header row */}
-      <View style={styles.libraryHeader}>
-        <Text style={{ fontSize: 15, fontWeight: "600", color: glassText }}>
-          Effects
-        </Text>
-        <Pressable onPress={onCollapse} hitSlop={8} style={styles.browseBtn}>
-          <Text style={{ fontSize: 12, fontWeight: "500", color: themeColor }}>
-            Collapse
-          </Text>
+      <View style={styles.studioHeader}>
+        <View style={styles.tabRow}>
+          <TabButton
+            label="Create"
+            active={activeTab === "create"}
+            themeColor={themeColor}
+            isDark={isDark}
+            glassSecondary={glassSecondary}
+            glassBorder={glassBorder}
+            onPress={() => setActiveTab("create")}
+          />
+          <TabButton
+            label="Animated"
+            active={activeTab === "animated"}
+            themeColor={themeColor}
+            isDark={isDark}
+            glassSecondary={glassSecondary}
+            glassBorder={glassBorder}
+            onPress={() => setActiveTab("animated")}
+          />
+        </View>
+        <Pressable onPress={onCollapse} hitSlop={8} style={styles.collapseBtn}>
           <ChevronDown size={12} color={themeColor} />
         </Pressable>
       </View>
 
-      {/* Scrollable categorized grid */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}
+      {activeTab === "create" ? (
+        <CreateTab
+          isDark={isDark}
+          themeColor={themeColor}
+          glassText={glassText}
+          glassSecondary={glassSecondary}
+          glassTertiary={glassTertiary}
+          glassBorder={glassBorder}
+          onCustomEffect={onCustomEffect}
+        />
+      ) : (
+        <AnimatedTab
+          selectedEffectId={selectedEffectId}
+          themeColor={themeColor}
+          isDark={isDark}
+          glassSecondary={glassSecondary}
+          glassTertiary={glassTertiary}
+          onSelectEffect={onSelectEffect}
+        />
+      )}
+    </View>
+  );
+}
+
+// ─── Tab Button ─────────────────────────────────────────────
+
+function TabButton({
+  label,
+  active,
+  themeColor,
+  isDark,
+  glassSecondary,
+  glassBorder,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  themeColor: string;
+  isDark: boolean;
+  glassSecondary: string;
+  glassBorder: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: active ? 1.5 : 1,
+        borderColor: active ? themeColor : glassBorder,
+        backgroundColor: active
+          ? (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)")
+          : "transparent",
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: active ? "700" : "500",
+          color: active ? themeColor : glassSecondary,
+        }}
       >
-        {/* "None" option */}
-        <Pressable
-          onPress={() => onSelectEffect(null)}
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ─── Create Tab (Live Skia Particle Editor) ─────────────────
+
+interface CreateTabProps {
+  isDark: boolean;
+  themeColor: string;
+  glassText: string;
+  glassSecondary: string;
+  glassTertiary: string;
+  glassBorder: string;
+  onCustomEffect: (config: ParticleMotifConfig | null) => void;
+}
+
+function CreateTab({
+  isDark,
+  themeColor,
+  glassText,
+  glassSecondary,
+  glassTertiary,
+  glassBorder,
+  onCustomEffect,
+}: CreateTabProps) {
+  // Editor state
+  const [colors, setColors] = useState<string[]>(["#EF4444", "#3B82F6"]);
+  const [shapeKey, setShapeKey] = useState("confetti");
+  const [density, setDensity] = useState(0.35); // 0-1 maps to 4-30 particles
+  const [size, setSize] = useState(0.4);         // 0-1 maps to minSize 3-12, maxSize 8-28
+  const [speed, setSpeed] = useState(0.4);       // 0-1 maps to minSpeed 5-40, maxSpeed 12-70
+  const [dirKey, setDirKey] = useState("falling");
+
+  const pushConfig = useCallback((
+    c: string[], sk: string, d: number, sz: number, sp: number, dk: string,
+  ) => {
+    if (c.length === 0) {
+      onCustomEffect(null);
+      return;
+    }
+    const shape = SHAPE_OPTIONS.find((s) => s.key === sk) ?? SHAPE_OPTIONS[0];
+    const dir = DIRECTION_OPTIONS.find((o) => o.key === dk) ?? DIRECTION_OPTIONS[0];
+    const particleCount = Math.round(4 + d * 26);
+    const minSize = Math.round(3 + sz * 9);
+    const maxSize = Math.round(8 + sz * 20);
+    const minSpeed = Math.round(5 + sp * 35);
+    const maxSpeed = Math.round(12 + sp * 58);
+
+    const config: ParticleMotifConfig = {
+      label: "Custom",
+      swatchIcon: "✨",
+      particleCount,
+      minSize,
+      maxSize,
+      minOpacity: 0.4,
+      maxOpacity: 0.85,
+      minSpeed,
+      maxSpeed,
+      swayAmplitude: dir.sway,
+      minSwayPeriod: 2,
+      maxSwayPeriod: 6,
+      direction: dir.dir,
+      blurSigma: 0.5,
+      colors: c.map((hex) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 1)`;
+      }),
+      shapes: shape.shapes,
+      minRotationSpeed: 1.0,
+      maxRotationSpeed: 3.5,
+      rectAspect: 0.4,
+    };
+    onCustomEffect(config);
+  }, [onCustomEffect]);
+
+  // Push initial config on mount
+  const mountedRef = useRef(false);
+  if (!mountedRef.current) {
+    mountedRef.current = true;
+    // Defer to avoid calling setState during render
+    setTimeout(() => pushConfig(colors, shapeKey, density, size, speed, dirKey), 0);
+  }
+
+  const handleToggleColor = useCallback((color: string) => {
+    Haptics.selectionAsync();
+    setColors((prev) => {
+      const idx = prev.indexOf(color);
+      let next: string[];
+      if (idx >= 0) {
+        next = prev.filter((_, i) => i !== idx);
+      } else {
+        if (prev.length >= MAX_EFFECT_COLORS) return prev;
+        next = [...prev, color];
+      }
+      pushConfig(next, shapeKey, density, size, speed, dirKey);
+      return next;
+    });
+  }, [shapeKey, density, size, speed, dirKey, pushConfig]);
+
+  const handleRemoveColor = useCallback((idx: number) => {
+    Haptics.selectionAsync();
+    setColors((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      pushConfig(next, shapeKey, density, size, speed, dirKey);
+      return next;
+    });
+  }, [shapeKey, density, size, speed, dirKey, pushConfig]);
+
+  const handleResetColors = useCallback(() => {
+    Haptics.selectionAsync();
+    setColors([]);
+    onCustomEffect(null);
+  }, [onCustomEffect]);
+
+  const handleShapeChange = useCallback((key: string) => {
+    Haptics.selectionAsync();
+    setShapeKey(key);
+    pushConfig(colors, key, density, size, speed, dirKey);
+  }, [colors, density, size, speed, dirKey, pushConfig]);
+
+  const handleDensityChange = useCallback((val: number) => {
+    setDensity(val);
+    pushConfig(colors, shapeKey, val, size, speed, dirKey);
+  }, [colors, shapeKey, size, speed, dirKey, pushConfig]);
+
+  const handleSizeChange = useCallback((val: number) => {
+    setSize(val);
+    pushConfig(colors, shapeKey, density, val, speed, dirKey);
+  }, [colors, shapeKey, density, speed, dirKey, pushConfig]);
+
+  const handleSpeedChange = useCallback((val: number) => {
+    setSpeed(val);
+    pushConfig(colors, shapeKey, density, size, val, dirKey);
+  }, [colors, shapeKey, density, size, dirKey, pushConfig]);
+
+  const handleDirChange = useCallback((key: string) => {
+    Haptics.selectionAsync();
+    setDirKey(key);
+    pushConfig(colors, shapeKey, density, size, speed, key);
+  }, [colors, shapeKey, density, size, speed, pushConfig]);
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+    >
+      {/* ── Colors ── */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4 }}>
+          COLORS
+        </Text>
+        <Pressable onPress={handleResetColors} hitSlop={8}>
+          <Text style={{ color: glassTertiary, fontSize: 10, fontWeight: "500" }}>
+            Reset
+          </Text>
+        </Pressable>
+      </View>
+
+      {colors.length === 0 && (
+        <Text style={{ color: glassTertiary, fontSize: 11, fontStyle: "italic", marginBottom: 8 }}>
+          Tap colors to start
+        </Text>
+      )}
+      {colors.length > 0 && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+          {colors.map((c, i) => (
+            <View
+              key={`${c}-${i}`}
+              style={{
+                flexDirection: "row", alignItems: "center",
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                borderRadius: 14, paddingLeft: 3, paddingRight: 6, paddingVertical: 2,
+              }}
+            >
+              <View style={{
+                width: 16, height: 16, borderRadius: 8,
+                backgroundColor: c, marginRight: 4,
+                borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+              }} />
+              <Text style={{ color: glassSecondary, fontSize: 9, fontWeight: "500", fontFamily: "monospace" }}>
+                {c}
+              </Text>
+              <Pressable onPress={() => handleRemoveColor(i)} style={{ marginLeft: 3, padding: 2 }}>
+                <X size={9} color={glassTertiary} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
+        {PARTICLE_COLORS.map((color) => {
+          const selected = colors.includes(color);
+          const disabled = !selected && colors.length >= MAX_EFFECT_COLORS;
+          return (
+            <Pressable
+              key={color}
+              onPress={() => handleToggleColor(color)}
+              style={{
+                width: 30, height: 30, borderRadius: 8,
+                backgroundColor: color,
+                borderWidth: selected ? 2.5 : 1,
+                borderColor: selected ? "#FFFFFF" : "rgba(255,255,255,0.12)",
+                opacity: disabled ? 0.35 : 1,
+                justifyContent: "center", alignItems: "center",
+              }}
+            >
+              {selected && (
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* ── Shape ── */}
+      <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4, marginBottom: 6 }}>
+        SHAPE
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+        {SHAPE_OPTIONS.map((opt) => {
+          const active = shapeKey === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => handleShapeChange(opt.key)}
+              style={{
+                paddingHorizontal: 12, paddingVertical: 5,
+                borderRadius: 14,
+                borderWidth: active ? 1.5 : 1,
+                borderColor: active ? themeColor : glassBorder,
+                backgroundColor: active
+                  ? (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)")
+                  : "transparent",
+              }}
+            >
+              <Text style={{
+                fontSize: 11, fontWeight: active ? "600" : "400",
+                color: active ? themeColor : glassSecondary,
+              }}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* ── Density ── */}
+      <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4, marginBottom: 4 }}>
+        DENSITY
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Sparse</Text>
+        <View style={{ flex: 1 }}>
+          <Slider
+            minimumValue={0}
+            maximumValue={1}
+            step={0.05}
+            value={density}
+            onValueChange={handleDensityChange}
+            minimumTrackTintColor={isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)"}
+            maximumTrackTintColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}
+            thumbTintColor="#FFFFFF"
+          />
+        </View>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Dense</Text>
+      </View>
+
+      {/* ── Size ── */}
+      <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4, marginBottom: 4 }}>
+        SIZE
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Small</Text>
+        <View style={{ flex: 1 }}>
+          <Slider
+            minimumValue={0}
+            maximumValue={1}
+            step={0.05}
+            value={size}
+            onValueChange={handleSizeChange}
+            minimumTrackTintColor={isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)"}
+            maximumTrackTintColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}
+            thumbTintColor="#FFFFFF"
+          />
+        </View>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Large</Text>
+      </View>
+
+      {/* ── Speed ── */}
+      <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4, marginBottom: 4 }}>
+        SPEED
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Slow</Text>
+        <View style={{ flex: 1 }}>
+          <Slider
+            minimumValue={0}
+            maximumValue={1}
+            step={0.05}
+            value={speed}
+            onValueChange={handleSpeedChange}
+            minimumTrackTintColor={isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)"}
+            maximumTrackTintColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}
+            thumbTintColor="#FFFFFF"
+          />
+        </View>
+        <Text style={{ color: glassTertiary, fontSize: 9 }}>Fast</Text>
+      </View>
+
+      {/* ── Direction ── */}
+      <Text style={{ color: glassSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.4, marginBottom: 6 }}>
+        DIRECTION
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {DIRECTION_OPTIONS.map((opt) => {
+          const active = dirKey === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => handleDirChange(opt.key)}
+              style={{
+                paddingHorizontal: 12, paddingVertical: 5,
+                borderRadius: 14,
+                borderWidth: active ? 1.5 : 1,
+                borderColor: active ? themeColor : glassBorder,
+                backgroundColor: active
+                  ? (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)")
+                  : "transparent",
+              }}
+            >
+              <Text style={{
+                fontSize: 11, fontWeight: active ? "600" : "400",
+                color: active ? themeColor : glassSecondary,
+              }}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── Animated Tab (Verified Lottie Presets) ─────────────────
+
+interface AnimatedTabProps {
+  selectedEffectId: string | null;
+  themeColor: string;
+  isDark: boolean;
+  glassSecondary: string;
+  glassTertiary: string;
+  onSelectEffect: (key: string | null) => void;
+}
+
+function AnimatedTab({
+  selectedEffectId,
+  themeColor,
+  isDark,
+  glassSecondary,
+  glassTertiary,
+  onSelectEffect,
+}: AnimatedTabProps) {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+    >
+      {/* "None" option */}
+      <Pressable
+        onPress={() => onSelectEffect(null)}
+        style={[
+          styles.noneRow,
+          !selectedEffectId && {
+            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+          },
+        ]}
+      >
+        <View
           style={[
-            styles.noneRow,
-            !selectedEffectId && {
-              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            styles.libSwatchCircle,
+            {
+              borderWidth: !selectedEffectId ? 2 : 0.5,
+              borderColor: !selectedEffectId ? themeColor : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"),
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
             },
           ]}
         >
-          <View
-            style={[
-              styles.libSwatchCircle,
-              {
-                borderWidth: !selectedEffectId ? 2 : 0.5,
-                borderColor: !selectedEffectId ? themeColor : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"),
-                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 14, color: glassTertiary }}>∅</Text>
-          </View>
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: !selectedEffectId ? "600" : "400",
-              color: !selectedEffectId ? themeColor : glassSecondary,
-            }}
-          >
-            None
-          </Text>
-        </Pressable>
+          <Text style={{ fontSize: 14, color: glassTertiary }}>∅</Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: !selectedEffectId ? "600" : "400",
+            color: !selectedEffectId ? themeColor : glassSecondary,
+          }}
+        >
+          None
+        </Text>
+      </Pressable>
 
-        {/* Categories */}
-        {MOTIF_CATEGORIES.map((category) => {
-          const validIds = category.ids.filter((id) => id in MOTIF_PRESETS);
-          if (validIds.length === 0) return null;
-
+      {/* Lottie presets grid */}
+      <View style={styles.libGrid}>
+        {ANIMATED_PRESETS.map(({ id, label, emoji }) => {
+          const isSelected = selectedEffectId === id;
           return (
-            <View key={category.label} style={styles.libCategory}>
-              <Text
+            <Pressable
+              key={id}
+              onPress={() => onSelectEffect(id)}
+              style={styles.libSwatchItem}
+            >
+              <View
                 style={[
-                  styles.libCategoryLabel,
-                  { color: glassSecondary },
+                  styles.libSwatchCircle,
+                  {
+                    borderWidth: isSelected ? 2.5 : 0.5,
+                    borderColor: isSelected ? themeColor : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"),
+                    backgroundColor: isSelected
+                      ? (themeColor + "18")
+                      : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
+                  },
                 ]}
               >
-                {category.label}
-              </Text>
-              <View style={styles.libGrid}>
-                {validIds.map((key) => {
-                  const preset = MOTIF_PRESETS[key];
-                  if (!preset) return null;
-                  const isSelected = selectedEffectId === key;
-
-                  return (
-                    <Pressable
-                      key={key}
-                      onPress={() => onSelectEffect(key)}
-                      style={styles.libSwatchItem}
-                    >
-                      <View
-                        style={[
-                          styles.libSwatchCircle,
-                          {
-                            borderWidth: isSelected ? 2.5 : 0.5,
-                            borderColor: isSelected ? themeColor : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"),
-                            backgroundColor: isSelected
-                              ? (themeColor + "18")
-                              : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
-                          },
-                        ]}
-                      >
-                        {"swatchImage" in preset && preset.swatchImage != null ? (
-                          <Image
-                            source={preset.swatchImage}
-                            style={{ width: 32, height: 32, borderRadius: 16 }}
-                            contentFit="cover"
-                          />
-                        ) : (
-                          <Text style={{ fontSize: 18 }}>{preset.swatchIcon}</Text>
-                        )}
-                      </View>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: isSelected ? "600" : "400",
-                          color: isSelected ? themeColor : glassSecondary,
-                          marginTop: 3,
-                          textAlign: "center",
-                        }}
-                      >
-                        {preset.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                <Text style={{ fontSize: 18 }}>{emoji}</Text>
               </View>
-            </View>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 10,
+                  fontWeight: isSelected ? "600" : "400",
+                  color: isSelected ? themeColor : glassSecondary,
+                  marginTop: 3,
+                  textAlign: "center",
+                }}
+              >
+                {label}
+              </Text>
+            </Pressable>
           );
         })}
-      </ScrollView>
-    </View>
+      </View>
+
+      <Text
+        style={{
+          color: glassTertiary,
+          fontSize: 10,
+          fontStyle: "italic",
+          textAlign: "center",
+          marginTop: 16,
+        }}
+      >
+        More coming soon
+      </Text>
+    </ScrollView>
   );
 }
 
@@ -511,7 +982,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    // bottom set dynamically to clear the dock
   },
   outerContainer: {
     position: "absolute",
@@ -522,7 +992,6 @@ const styles = StyleSheet.create({
   trayShell: {
     borderRadius: BORDER_RADIUS,
     overflow: "hidden",
-    // Soft shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
@@ -553,13 +1022,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 14,
   },
-  browseBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
 
   // Compact rail
   compactRail: {
@@ -578,17 +1040,26 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  // Library
-  libraryBody: {
+  // Studio (expanded)
+  studioBody: {
     flex: 1,
   },
-  libraryHeader: {
+  studioHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     marginBottom: 10,
   },
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  collapseBtn: {
+    padding: 6,
+  },
+
+  // Shared library styles (Animated tab)
   noneRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -597,16 +1068,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 10,
     marginBottom: 12,
-  },
-  libCategory: {
-    marginBottom: 14,
-  },
-  libCategoryLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 6,
   },
   libGrid: {
     flexDirection: "row",

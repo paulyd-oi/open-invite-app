@@ -96,6 +96,8 @@ interface LottieMotifConfig extends MotifPickerFields {
 
 type MotifConfig = ParticleMotifConfig | SpriteMotifConfig | LottieMotifConfig;
 
+export type { ParticleMotifConfig, LottieMotifConfig, MotifConfig };
+
 // ─── Picker categories (used by EffectTray) ─────────────────
 export interface MotifCategory {
   label: string;
@@ -104,12 +106,15 @@ export interface MotifCategory {
 
 export const MOTIF_CATEGORIES: readonly MotifCategory[] = [
   { label: "Featured", ids: ["confetti", "sparkle", "petals", "hearts"] },
-  { label: "Celebration", ids: ["balloons", "fireworks", "graduation", "house_party"] },
+  { label: "Celebration", ids: ["balloons", "fireworks"] },
   { label: "Scenes", ids: ["scene_confetti", "scene_hearts", "scene_balloons"] },
   { label: "Sports", ids: ["football", "basketball", "baseball", "soccer"] },
   { label: "Seasonal", ids: ["snowfall", "leaves", "bubbles", "halloween"] },
   { label: "Romance", ids: ["petals", "hearts", "stars"] },
 ] as const;
+
+/** Sentinel ID for live custom particle configs from the Effect Studio */
+export const CUSTOM_EFFECT_ID = "__custom__";
 
 export const MOTIF_PRESETS: Record<string, MotifConfig> = {
   // ── Featured ──
@@ -354,61 +359,6 @@ export const MOTIF_PRESETS: Record<string, MotifConfig> = {
     speed: 1.0,
     opacity: 0.75,
   },
-  graduation: {
-    label: "Graduation",
-    swatchIcon: "🎓",
-    swatchImage: require("../../../assets/effects/swatches/graduation.png"),
-    particleCount: 10,
-    minSize: 6,
-    maxSize: 14,
-    minOpacity: 0.45,
-    maxOpacity: 0.80,
-    minSpeed: 15,
-    maxSpeed: 30,
-    swayAmplitude: 28,
-    minSwayPeriod: 2,
-    maxSwayPeriod: 5,
-    direction: 1,
-    blurSigma: 0.5,
-    colors: [
-      "rgba(30, 58, 138, 1)",     // dark navy
-      "rgba(250, 204, 21, 1)",    // gold
-      "rgba(255, 255, 255, 0.9)", // white
-      "rgba(59, 130, 246, 1)",    // royal blue
-    ],
-    shapes: ["rect", "star", "circle"],
-    minRotationSpeed: 1.2,
-    maxRotationSpeed: 3.5,
-    rectAspect: 0.4,
-  },
-  house_party: {
-    label: "House Party",
-    swatchIcon: "🏠",
-    swatchImage: require("../../../assets/effects/swatches/house_party.png"),
-    particleCount: 11,
-    minSize: 5,
-    maxSize: 13,
-    minOpacity: 0.50,
-    maxOpacity: 0.85,
-    minSpeed: 20,
-    maxSpeed: 38,
-    swayAmplitude: 32,
-    minSwayPeriod: 2,
-    maxSwayPeriod: 4,
-    direction: 1,
-    blurSigma: 0.5,
-    colors: [
-      "rgba(236, 72, 153, 1)",    // pink
-      "rgba(250, 204, 21, 1)",    // gold
-      "rgba(168, 85, 247, 1)",    // purple
-      "rgba(34, 211, 238, 1)",    // cyan
-      "rgba(249, 115, 22, 1)",    // orange
-    ],
-    shapes: ["rect", "circle", "star"],
-    minRotationSpeed: 1.8,
-    maxRotationSpeed: 4.5,
-    rectAspect: 0.35,
-  },
 
   // ── Sports ──
   basketball: {
@@ -576,12 +526,15 @@ function isLottieConfig(config: MotifConfig): config is LottieMotifConfig {
 
 interface MotifOverlayProps {
   presetId: string | null;
+  /** Raw custom particle config — used when presetId is "__custom__" */
+  customConfig?: ParticleMotifConfig | null;
   /** Opacity multiplier — 1.0 for hero, 0.50 for body */
   intensity?: number;
 }
 
 export const MotifOverlay = memo(function MotifOverlay({
   presetId,
+  customConfig,
   intensity = 1.0,
 }: MotifOverlayProps) {
   const reducedMotion = useReducedMotion();
@@ -589,7 +542,10 @@ export const MotifOverlay = memo(function MotifOverlay({
 
   if (!presetId || reducedMotion) return null;
 
-  const rawConfig = MOTIF_PRESETS[presetId];
+  const rawConfig =
+    presetId === CUSTOM_EFFECT_ID && customConfig
+      ? customConfig
+      : MOTIF_PRESETS[presetId];
   if (!rawConfig) return null;
 
   // Lottie effects render via native LottieView — no Skia dependency
