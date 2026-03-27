@@ -16,24 +16,36 @@
  * Each preset has distinct shape language — visually distinguishable at a glance.
  */
 
-import React, { memo } from "react";
+import React, { memo, useEffect, useRef, useCallback } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
+import Animated, {
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+  Easing,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import LottieView, { type AnimationObject } from "lottie-react-native";
 import {
   Canvas,
   _skiaAvailable,
   ParticleField,
-  SpriteField,
   SkiaErrorBoundary,
 } from "@/components/ThemeEffectLayer";
-import type { SpriteOverlayConfig } from "@/components/ThemeEffectLayer";
 
 // ─── Rendering ceilings ─────────────────────────────────────
 /** Max particle radius in points — clamps all presets at seed time */
 const MAX_MOTIF_RADIUS = 28;
 /** Max particle count per preset — prevents density overload */
 const MAX_MOTIF_COUNT = 14;
+
+// ─── Lottie play/cooldown timing ────────────────────────────
+/** How long a Lottie effect plays before cooling down (ms) */
+const LOTTIE_PLAY_MS = 10_000;
+/** Cooldown period between plays (ms) */
+const LOTTIE_COOLDOWN_MS = 20_000;
+/** Fade in/out transition duration (ms) */
+const LOTTIE_FADE_MS = 1_000;
 
 // ─── Motif preset configs ────────────────────────────────────
 // Art direction: fewer motifs, larger size, slower motion, softer opacity.
@@ -80,12 +92,6 @@ interface ParticleMotifConfig extends MotifPickerFields {
   motionMode?: MotionMode;
 }
 
-/** Sprite overlay effect config (Skia image drawing) */
-interface SpriteMotifConfig extends MotifPickerFields {
-  effectClass: "sprite_overlay";
-  spriteConfig: SpriteOverlayConfig;
-}
-
 /** Lottie overlay effect config (pre-authored animation) */
 interface LottieMotifConfig extends MotifPickerFields {
   effectClass: "lottie_overlay";
@@ -99,7 +105,7 @@ interface LottieMotifConfig extends MotifPickerFields {
   resizeMode?: "cover" | "contain" | "center";
 }
 
-type MotifConfig = ParticleMotifConfig | SpriteMotifConfig | LottieMotifConfig;
+type MotifConfig = ParticleMotifConfig | LottieMotifConfig;
 
 export type { ParticleMotifConfig, LottieMotifConfig, MotifConfig };
 
@@ -507,25 +513,79 @@ function clampParticleConfig(config: ParticleMotifConfig): ParticleMotifConfig {
   };
 }
 
-function clampSpriteConfig(config: SpriteMotifConfig): SpriteMotifConfig {
-  return {
-    ...config,
-    spriteConfig: {
-      ...config.spriteConfig,
-      particleCount: Math.min(config.spriteConfig.particleCount, MAX_MOTIF_COUNT),
-    },
-  };
-}
-
-/** Type guard for sprite_overlay configs */
-function isSpriteConfig(config: MotifConfig): config is SpriteMotifConfig {
-  return config.effectClass === "sprite_overlay";
-}
-
 /** Type guard for lottie_overlay configs */
 function isLottieConfig(config: MotifConfig): config is LottieMotifConfig {
   return config.effectClass === "lottie_overlay";
 }
+
+// ─── Cycling Lottie (10s play → 20s cooldown → repeat) ──────
+
+/**
+ * Plays a Lottie animation in a 10s-on / 20s-off cycle with 1s fade
+ * transitions. The animation loops continuously during the play window,
+ * then fades to transparent during cooldown.
+ */
+const CyclingLottie = memo(function CyclingLottie({
+  config,
+}: {
+  config: LottieMotifConfig;
+}) {
+  const lottieRef = useRef<LottieView>(null);
+  const fadeOpacity = useSharedValue(1);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startCycle = useCallback(() => {
+    // Phase 1: Fade in and play
+    fadeOpacity.value = withTiming(1, {
+      duration: LOTTIE_FADE_MS,
+      easing: Easing.out(Easing.ease),
+    });
+    lottieRef.current?.play();
+
+    // Phase 2: After play duration, fade out
+    timerRef.current = setTimeout(() => {
+      fadeOpacity.value = withTiming(0, {
+        duration: LOTTIE_FADE_MS,
+        easing: Easing.in(Easing.ease),
+      });
+
+      // Phase 3: After fade-out, pause and wait for cooldown
+      timerRef.current = setTimeout(() => {
+        lottieRef.current?.pause();
+
+        // Phase 4: After cooldown, restart cycle
+        timerRef.current = setTimeout(() => {
+          startCycle();
+        }, LOTTIE_COOLDOWN_MS);
+      }, LOTTIE_FADE_MS);
+    }, LOTTIE_PLAY_MS);
+  }, [fadeOpacity]);
+
+  useEffect(() => {
+    startCycle();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [startCycle]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeOpacity.value * (config.opacity ?? 0.6),
+  }));
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+      <LottieView
+        ref={lottieRef}
+        source={config.lottieSource}
+        autoPlay
+        loop
+        speed={config.speed ?? 1}
+        resizeMode={config.resizeMode ?? "cover"}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
+  );
+});
 
 // ─── Component ──────────────────────────────────────────────
 
@@ -553,46 +613,29 @@ export const MotifOverlay = memo(function MotifOverlay({
       : MOTIF_PRESETS[presetId];
   if (!rawConfig) return null;
 
-  // Lottie effects render via native LottieView — no Skia dependency
+  // Lottie effects render via native LottieView with play/cooldown cycling
   if (isLottieConfig(rawConfig)) {
     return (
       <View style={[styles.container, { opacity: intensity }]} pointerEvents="none">
-        <LottieView
-          source={rawConfig.lottieSource}
-          autoPlay
-          loop
-          speed={rawConfig.speed ?? 1}
-          resizeMode={rawConfig.resizeMode ?? "cover"}
-          style={[StyleSheet.absoluteFill, { opacity: rawConfig.opacity ?? 0.6 }]}
-        />
+        <CyclingLottie config={rawConfig} />
         <View style={styles.safeZoneTop} />
         <View style={styles.safeZoneBottom} />
       </View>
     );
   }
 
-  // Particle and sprite effects require Skia
+  // Particle effects require Skia
   if (!_skiaAvailable) return null;
-
-  const isSprite = isSpriteConfig(rawConfig);
 
   return (
     <SkiaErrorBoundary>
       <View style={[styles.container, { opacity: intensity }]} pointerEvents="none">
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {isSprite ? (
-            <SpriteField
-              config={clampSpriteConfig(rawConfig).spriteConfig}
-              width={width}
-              height={height}
-            />
-          ) : (
-            <ParticleField
-              config={clampParticleConfig(rawConfig)}
-              width={width}
-              height={height}
-            />
-          )}
+          <ParticleField
+            config={clampParticleConfig(rawConfig)}
+            width={width}
+            height={height}
+          />
         </Canvas>
         {/* Content-safe zone: darken top/bottom edges so motifs don't
             obscure title text or bottom dock controls. */}
