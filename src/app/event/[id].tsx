@@ -98,6 +98,7 @@ import { PhotoUploadSheet } from "@/components/event/PhotoUploadSheet";
 import { AttendeesSheet } from "@/components/event/AttendeesSheet";
 import { EventActionsSheet } from "@/components/event/EventActionsSheet";
 import { HostToolsRow } from "@/components/event/HostToolsRow";
+import { PostCreateNudge } from "@/components/event/PostCreateNudge";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2770,95 +2771,30 @@ export default function EventDetailScreen() {
 
         {/* ═══ POST-CREATE INVITE ACTIONS ═══ */}
         {showCreateNudge && isMyEvent && (
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4 }}>
-            <View style={{
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              borderRadius: RADIUS.xl,
-              backgroundColor: isDark ? `${themeColor}18` : `${themeColor}10`,
-              borderWidth: 0.5,
-              borderColor: isDark ? `${themeColor}30` : `${themeColor}20`,
-            }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Invite people to get responses</Text>
-                </View>
-                <Pressable
-                  onPress={() => setShowCreateNudge(false)}
-                  style={{ padding: 6 }}
-                  hitSlop={8}
-                >
-                  <X size={14} color={colors.textTertiary} />
-                </Pressable>
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {/* Copy Link */}
-                <Pressable
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    const link = getEventUniversalLink(event.id);
-                    await Clipboard.setStringAsync(link);
-                    safeToast.success("Link copied");
-                  }}
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    borderRadius: RADIUS.lg,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <Copy size={14} color={colors.text} />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Copy Link</Text>
-                </Pressable>
-                {/* SMS */}
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
-                    Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
-                  }}
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    borderRadius: RADIUS.lg,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <MessageCircle size={14} color={colors.text} />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Text</Text>
-                </Pressable>
-                {/* Share Sheet */}
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    shareEvent({ ...event, location: locationDisplay ?? null });
-                  }}
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    borderRadius: RADIUS.lg,
-                    backgroundColor: themeColor,
-                  }}
-                >
-                  <Share2 size={14} color="#FFFFFF" />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>More</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
+          <PostCreateNudge
+            isDark={isDark}
+            themeColor={themeColor}
+            colors={colors}
+            onDismiss={() => setShowCreateNudge(false)}
+            onCopyLink={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+              const link = getEventUniversalLink(event.id);
+              await Clipboard.setStringAsync(link);
+              safeToast.success("Link copied");
+            }}
+            onSendSms={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+              const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
+              Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
+            }}
+            onShareSheet={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+              shareEvent({ ...event, location: locationDisplay ?? null });
+            }}
+          />
         )}
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
