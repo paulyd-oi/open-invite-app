@@ -92,6 +92,7 @@ import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
 import { ReportModal } from "@/components/event/ReportModal";
+import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -4554,94 +4555,19 @@ export default function EventDetailScreen() {
         </Animated.View>
       )}
 
-      {/* Calendar Sync Modal */}
-      <Modal
+      <CalendarSyncModal
         visible={showSyncModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSyncModal(false)}
-      >
-        <Pressable
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowSyncModal(false)}
-        >
-          <Pressable onPress={() => {}} className="mx-4 mb-8">
-            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface }}>
-              {/* Header */}
-              <View className="px-5 py-4 border-b" style={{ borderColor: colors.border }}>
-                <Text className="text-lg font-bold text-center" style={{ color: colors.text }}>
-                  Sync to Calendar
-                </Text>
-                <Text className="text-sm text-center mt-1" style={{ color: colors.textSecondary }}>
-                  Choose where to add this event
-                </Text>
-              </View>
-
-              {/* Google Calendar Option */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setShowSyncModal(false);
-                  openGoogleCalendar({ ...event, location: locationDisplay ?? null });
-                }}
-                className="flex-row items-center px-5 py-4 border-b"
-                style={{ borderColor: colors.border }}
-              >
-                <View className="w-12 h-12 rounded-xl items-center justify-center" style={{ backgroundColor: "#4285F4" + "15" }}>
-                  <Text className="text-2xl">📅</Text>
-                </View>
-                <View className="flex-1 ml-4">
-                  <Text className="font-semibold text-base" style={{ color: colors.text }}>
-                    Google Calendar
-                  </Text>
-                  <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                    Opens in browser to add event
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={colors.textTertiary} />
-              </Pressable>
-
-              {/* Apple Calendar Option */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setShowSyncModal(false);
-                  addToDeviceCalendar({ ...event, location: locationDisplay ?? null }, safeToast);
-                }}
-                className="flex-row items-center px-5 py-4"
-              >
-                <View className="w-12 h-12 rounded-xl items-center justify-center" style={{ backgroundColor: "#FF3B30" + "15" }}>
-                  <Text className="text-2xl">🗓️</Text>
-                </View>
-                <View className="flex-1 ml-4">
-                  <Text className="font-semibold text-base" style={{ color: colors.text }}>
-                    Apple Calendar
-                  </Text>
-                  <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                    Adds event directly to calendar
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={colors.textTertiary} />
-              </Pressable>
-            </View>
-
-            {/* Cancel Button */}
-            <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowSyncModal(false);
-              }}
-              className="rounded-2xl items-center py-4 mt-2"
-              style={{ backgroundColor: colors.surface }}
-            >
-              <Text className="font-semibold text-base" style={{ color: colors.text }}>
-                Cancel
-              </Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        colors={colors}
+        onClose={() => setShowSyncModal(false)}
+        onGoogleCalendar={() => {
+          setShowSyncModal(false);
+          openGoogleCalendar({ ...event, location: locationDisplay ?? null });
+        }}
+        onAppleCalendar={() => {
+          setShowSyncModal(false);
+          addToDeviceCalendar({ ...event, location: locationDisplay ?? null }, safeToast);
+        }}
+      />
 
       {/* Event Summary Modal */}
       <EventSummaryModal
