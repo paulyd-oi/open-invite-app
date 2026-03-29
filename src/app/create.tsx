@@ -197,9 +197,7 @@ export default function CreateEventScreen() {
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
-  type CreatePromptChoice = "share_event" | "post_value_invite" | "notification" | "none";
-  const [createPromptChoice, setCreatePromptChoice] = useState<CreatePromptChoice>("none");
-  const [createdEvent, setCreatedEvent] = useState<{ id: string; title: string; emoji: string; startTime: string; endTime?: string | null; location?: string | null; description?: string | null } | null>(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   // ── Entitlements ──
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
@@ -338,7 +336,7 @@ export default function CreateEventScreen() {
       }
 
       if (notifEligible) {
-        setCreatePromptChoice("notification");
+        setShowNotificationPrompt(true);
       } else {
         router.back();
       }
@@ -791,17 +789,9 @@ export default function CreateEventScreen() {
         showPaywallModal={showPaywallModal}
         paywallContext={paywallContext}
         onClosePaywall={() => setShowPaywallModal(false)}
-        showNotificationPrompt={createPromptChoice === "notification"}
-        onCloseNotificationPrompt={() => { setCreatePromptChoice("none"); router.back(); }}
+        showNotificationPrompt={showNotificationPrompt}
+        onCloseNotificationPrompt={() => { setShowNotificationPrompt(false); router.back(); }}
         notificationUserId={session?.user?.id}
-        showShareModal={createPromptChoice === "share_event"}
-        createdEvent={createdEvent}
-        onCloseShareModal={() => { setCreatePromptChoice("none"); router.back(); }}
-        shareModalBg={colors.background}
-        shareModalBorder={colors.border}
-        glassText={glassText}
-        glassSecondary={glassSecondary}
-        themeColor={themeColor}
       />
 
       {/* Onboarding Guide Overlay */}

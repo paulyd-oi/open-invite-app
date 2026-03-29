@@ -4,7 +4,6 @@ import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
 import { CoverMediaPickerSheet } from "@/components/create/CoverMediaPickerSheet";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
-import { PostCreateShareModal } from "@/components/create/PostCreateShareModal";
 import type { DockMode } from "@/components/create/CreateBottomDock";
 import type { PaywallContext } from "@/lib/entitlements";
 import type { CoverMediaItem } from "@/components/create/coverMedia.types";
@@ -35,15 +34,6 @@ interface CreateSheetsProps {
   onCloseNotificationPrompt: () => void;
   notificationUserId: string | undefined;
 
-  // Post-create share modal
-  showShareModal: boolean;
-  createdEvent: React.ComponentProps<typeof PostCreateShareModal>["createdEvent"];
-  onCloseShareModal: () => void;
-  shareModalBg: string;
-  shareModalBorder: string;
-  glassText: string;
-  glassSecondary: string;
-  themeColor: string;
 }
 
 export function CreateSheets({
@@ -62,14 +52,6 @@ export function CreateSheets({
   showNotificationPrompt,
   onCloseNotificationPrompt,
   notificationUserId,
-  showShareModal,
-  createdEvent,
-  onCloseShareModal,
-  shareModalBg,
-  shareModalBorder,
-  glassText,
-  glassSecondary,
-  themeColor,
 }: CreateSheetsProps) {
   return (
     <>
@@ -107,17 +89,6 @@ export function CreateSheets({
         userId={notificationUserId}
       />
 
-      {/* [GROWTH_V1] Post-create event share prompt */}
-      <PostCreateShareModal
-        visible={showShareModal}
-        createdEvent={createdEvent}
-        onClose={onCloseShareModal}
-        backgroundColor={shareModalBg}
-        borderColor={shareModalBorder}
-        glassText={glassText}
-        glassSecondary={glassSecondary}
-        themeColor={themeColor}
-      />
     </>
   );
 }

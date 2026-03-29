@@ -36,7 +36,7 @@ create.tsx
 ├── CreateBottomDock (theme / effect / settings buttons)
 ├── ThemeTray (catalog + custom theme studio)
 ├── EffectTray (presets + custom particle editor)
-└── CreateSheets (settings, cover picker, paywall, notification, share)
+└── CreateSheets (settings, cover picker, paywall, notification)
 ```
 
 ---
@@ -88,7 +88,6 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 | `CreateSheets.tsx` | All bottom sheets manager |
 | `SettingsSheetContent.tsx` | Visibility, frequency, capacity, etc. |
 | `CoverMediaPickerSheet.tsx` | Cover photo picker |
-| `PostCreateShareModal.tsx` | Post-success share modal |
 
 ---
 

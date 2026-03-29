@@ -41,6 +41,7 @@
 - Invalidates on settle: `feed`, `feedPaginated`, `myEvents`, `calendar`, `attending`
 - Statuses: `going`, `interested`, `not_going`, `maybe`, `invited`, `null`
 - Side effect: Auto-starts Live Activity on "going" (iOS)
+- Pre-auth RSVP: if unauthenticated user taps Going/Interested, intent is stored via `setPendingRsvpIntent()` (SecureStore, 7-day expiry), a "Sign up to confirm your RSVP" toast fires, then redirects to `/welcome`. After auth, `useRsvpIntentClaim` in `_layout.tsx` auto-applies the RSVP.
 - Post-RSVP prompt arbitration: PostValueInvite > FirstRsvpNudge > NotificationPrePrompt
 - NotificationPrePrompt only fires if user has NOT created any events (targets social-only users)
 
