@@ -101,6 +101,7 @@ import { HostToolsRow } from "@/components/event/HostToolsRow";
 import { PostCreateNudge } from "@/components/event/PostCreateNudge";
 import { BusyBlockGate } from "@/components/event/BusyBlockGate";
 import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate";
+import { StickyRsvpBar } from "@/components/event/StickyRsvpBar";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -4189,129 +4190,18 @@ export default function EventDetailScreen() {
 
       {/* [GROWTH_STICKY_RSVP] Floating bottom RSVP bar for guests */}
       {showStickyRsvp && (
-        <Animated.View
-          entering={FadeInDown.duration(300).springify()}
-          style={{
-            position: "absolute",
-            bottom: 0,
-            ...(screenWidth >= 768
-              ? {
-                  left: Math.max(16, (screenWidth - 600) / 2),
-                  right: Math.max(16, (screenWidth - 600) / 2),
-                  borderRadius: 20,
-                  paddingBottom: insets.bottom + 12,
-                }
-              : {
-                  left: 0,
-                  right: 0,
-                  paddingBottom: insets.bottom + 8,
-                  borderTopWidth: StyleSheet.hairlineWidth,
-                  borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                }),
-            paddingTop: 10,
-            paddingHorizontal: 16,
-            backgroundColor: isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)",
-          }}
-        >
-          {effectiveGoingCount > 0 && (
-            <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textTertiary, textAlign: "center", marginBottom: 6 }}>
-              {effectiveGoingCount} going
-            </Text>
-          )}
-          {eventMeta.isFull ? (
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 16,
-            }}>
-              <View style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 12,
-                borderRadius: 999,
-                backgroundColor: "#E5E7EB",
-                opacity: 0.6,
-              }}>
-                <Users size={16} color={colors.textTertiary} />
-                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
-              </View>
-              <Pressable
-                onPress={() => handleRsvp("interested")}
-                disabled={rsvpMutation.isPending}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 12,
-                  paddingHorizontal: 20,
-                  borderRadius: 999,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
-                }}
-              >
-                <Heart size={16} color={colors.text} />
-                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>
-                  {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              opacity: rsvpMutation.isPending ? 0.6 : 1,
-            }}>
-              <Pressable
-                onPress={() => handleRsvp("going")}
-                disabled={rsvpMutation.isPending}
-                style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 13,
-                  borderRadius: 999,
-                  backgroundColor: "#22C55E",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 4,
-                }}
-              >
-                {rsvpMutation.isPending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Check size={16} color="#FFFFFF" />
-                    <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>I'm In</Text>
-                  </>
-                )}
-              </Pressable>
-              <Pressable
-                onPress={() => handleRsvp("interested")}
-                disabled={rsvpMutation.isPending}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 13,
-                  paddingHorizontal: 20,
-                  borderRadius: 999,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
-                }}
-              >
-                <Heart size={16} color={colors.text} />
-                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>
-                  {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </Animated.View>
+        <StickyRsvpBar
+          effectiveGoingCount={effectiveGoingCount}
+          isFull={eventMeta.isFull}
+          myRsvpStatus={myRsvpStatus}
+          isPending={rsvpMutation.isPending}
+          isDark={isDark}
+          screenWidth={screenWidth}
+          bottomInset={insets.bottom}
+          colors={colors}
+          onRsvpGoing={() => handleRsvp("going")}
+          onRsvpInterested={() => handleRsvp("interested")}
+        />
       )}
 
       <CalendarSyncModal
