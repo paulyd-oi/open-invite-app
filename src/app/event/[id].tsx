@@ -18,7 +18,7 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { getDiscussionPrompts, inferEventTags } from "@/lib/discussionPromptSSOT";
@@ -469,6 +469,9 @@ export default function EventDetailScreen() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
+  // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
+  const pageViewFired = useRef(false);
+
   // ── Shared photo-picker logic (used by nudge CTA + bottom sheet) ──
   const launchEventPhotoPicker = useCallback(async () => {
     if (uploadingPhoto || pickerLaunching.current) return;
@@ -513,6 +516,13 @@ export default function EventDetailScreen() {
   const heroTitleTranslateY = useRef(new RNAnimated.Value(6)).current;
   const editScale = useRef(new RNAnimated.Value(1)).current;
   const heroLoadedUrl = useRef<string | null>(null);
+
+  // [GROWTH_FUNNEL] Track page view — once per mount
+  useEffect(() => {
+    if (!id || pageViewFired.current) return;
+    pageViewFired.current = true;
+    trackEventPageViewed({ eventId: id, from: from ?? null });
+  }, [id]);
 
   // Check photo nudge dismiss state
   useEffect(() => {
@@ -1384,6 +1394,8 @@ export default function EventDetailScreen() {
       }
       // [P0_ANALYTICS_EVENT] event_rsvp
       trackEventRsvp({ rsvpStatus: status, sourceScreen: "event_detail" });
+      // [GROWTH_FUNNEL] rsvp_success
+      trackRsvpSuccess({ eventId: id ?? "unknown" });
       // [P0_POSTHOG_VALUE] rsvp_completed — canonical retention event
       trackRsvpCompleted({
         eventId: id ?? "unknown",
@@ -1617,6 +1629,9 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
+    // [GROWTH_FUNNEL] Track every RSVP attempt
+    if (id) trackRsvpAttempt({ eventId: id, isAuthenticated: bootStatus === 'authed' });
+
     // [P0_RSVP] Guard: prevent rapid-tap race conditions
     if (rsvpMutation.isPending) {
       if (__DEV__) {
@@ -1647,6 +1662,7 @@ export default function EventDetailScreen() {
         setPendingRsvpIntent({ eventId: id, status: status as PendingRsvpStatus });
         if (__DEV__) devLog('[P0_RSVP] stored pending intent pre-auth', { eventId: id, status });
       }
+      if (id) trackRsvpRedirectToAuth({ eventId: id });
       safeToast.info("Sign up to confirm your RSVP");
       router.replace('/welcome');
       return;
@@ -2756,6 +2772,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackShareTriggered({ eventId: event.id, method: "copy" });
                     const link = getEventUniversalLink(event.id);
                     await Clipboard.setStringAsync(link);
                     safeToast.success("Link copied");
@@ -2777,6 +2794,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackShareTriggered({ eventId: event.id, method: "sms" });
                     const link = getEventUniversalLink(event.id);
                     const body = `${event.emoji ?? "📅"} ${event.title} — you in?\n\n${link}`;
                     Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
@@ -2798,6 +2816,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackShareTriggered({ eventId: event.id, method: "native" });
                     shareEvent({ ...event, location: locationDisplay ?? null });
                   }}
                   style={{

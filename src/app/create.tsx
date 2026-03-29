@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated } from "@/analytics/analyticsEventsSSOT";
+import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated, trackCreateCompleted } from "@/analytics/analyticsEventsSSOT";
 import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -305,6 +305,8 @@ export default function CreateEventScreen() {
         hasGuests: 0,
         ts: new Date().toISOString(),
       });
+      // [GROWTH_FUNNEL] create_completed
+      trackCreateCompleted({ eventId: response?.event?.id ?? "unknown" });
       markGuidanceComplete("create_invite");
       if (onboardingGuide.shouldShowStep("create_event")) {
         onboardingGuide.completeStep("create_event");

@@ -91,6 +91,14 @@ export const AnalyticsEvent = {
   FRIENDS_LENS_EMPTY_CTA_TAPPED: "friends_lens_empty_cta_tapped",
   FRIENDS_LENS_LOADED: "friends_lens_loaded",
 
+  // Growth funnel — core page/action tracking
+  EVENT_PAGE_VIEWED: "event_page_viewed",
+  RSVP_ATTEMPT: "rsvp_attempt",
+  RSVP_REDIRECT_TO_AUTH: "rsvp_redirect_to_auth",
+  RSVP_SUCCESS: "rsvp_success",
+  SHARE_TRIGGERED: "share_triggered",
+  CREATE_COMPLETED: "create_completed",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -772,5 +780,54 @@ export function trackFriendsLensLoaded(props: {
   item_count: number;
 }): void {
   track(AnalyticsEvent.FRIENDS_LENS_LOADED, props);
+}
+
+// ---------------------------------------------------------------------------
+// Growth funnel — core page/action tracking
+// ---------------------------------------------------------------------------
+
+/** event_page_viewed — fires once per mount. No PII. [GROWTH_FUNNEL] */
+export function trackEventPageViewed(props: {
+  eventId: string;
+  from: string | null;
+}): void {
+  track(AnalyticsEvent.EVENT_PAGE_VIEWED, props);
+}
+
+/** rsvp_attempt — fires on RSVP button press, before any logic. No PII. [GROWTH_FUNNEL] */
+export function trackRsvpAttempt(props: {
+  eventId: string;
+  isAuthenticated: boolean;
+}): void {
+  track(AnalyticsEvent.RSVP_ATTEMPT, props);
+}
+
+/** rsvp_redirect_to_auth — fires when unauthenticated user is redirected. No PII. [GROWTH_FUNNEL] */
+export function trackRsvpRedirectToAuth(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.RSVP_REDIRECT_TO_AUTH, props);
+}
+
+/** rsvp_success — fires on successful RSVP mutation. No PII. [GROWTH_FUNNEL] */
+export function trackRsvpSuccess(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.RSVP_SUCCESS, props);
+}
+
+/** share_triggered — fires before share action executes. No PII. [GROWTH_FUNNEL] */
+export function trackShareTriggered(props: {
+  eventId: string;
+  method: "native" | "sms" | "copy";
+}): void {
+  track(AnalyticsEvent.SHARE_TRIGGERED, props);
+}
+
+/** create_completed — fires after successful event creation. No PII. [GROWTH_FUNNEL] */
+export function trackCreateCompleted(props: {
+  eventId: string;
+}): void {
+  track(AnalyticsEvent.CREATE_COMPLETED, props);
 }
 
