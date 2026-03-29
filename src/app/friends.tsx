@@ -1374,6 +1374,17 @@ export default function FriendsScreen() {
                     />
                   )}
                   {friendsTab === 2 && (
+                    <>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push("/find-friends" as any);
+                      }}
+                      className="mr-2 px-3 py-1.5 rounded-full"
+                      style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
+                    >
+                      <Text style={{ color: colors.text }} className="text-xs font-semibold">Find</Text>
+                    </Pressable>
                     <Button
                       testID="friends-invite-open"
                       variant="primary"
@@ -1385,6 +1396,7 @@ export default function FriendsScreen() {
                         router.push("/add-friends" as any);
                       }}
                     />
+                    </>
                   )}
                 </View>
               }
