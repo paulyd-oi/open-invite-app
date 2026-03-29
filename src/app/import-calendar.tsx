@@ -118,7 +118,8 @@ const VISIBILITY_OPTIONS: Array<{
 
 export default function ImportCalendarScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ returnTo?: string; eventId?: string }>();
+  const params = useLocalSearchParams<{ returnTo?: string; eventId?: string; mode?: string }>();
+  const isResyncMode = params.mode === "resync";
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -184,6 +185,63 @@ export default function ImportCalendarScreen() {
   useEffect(() => {
     checkPermissionAndLoad();
   }, []);
+
+  // [CALENDAR_RESYNC] Auto-load and filter events when in resync mode
+  const resyncInitRef = useRef(false);
+  useEffect(() => {
+    if (!isResyncMode || resyncInitRef.current) return;
+    if (!permissionResult?.granted) return;
+    resyncInitRef.current = true;
+
+    const autoLoadResync = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const deviceCalendars = await getDeviceCalendars();
+        const writableIds = deviceCalendars
+          .filter((c) => c.allowsModifications || c.isPrimary)
+          .map((c) => c.id);
+        if (writableIds.length === 0) {
+          setIsLoadingEvents(false);
+          return;
+        }
+
+        // Select all writable calendars automatically
+        setCalendars(deviceCalendars);
+        setSelectedCalendars(new Set(writableIds));
+
+        const now = new Date();
+        const thirtyDaysOut = new Date();
+        thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+        const deviceEvents = await getDeviceEvents(writableIds, now, thirtyDaysOut);
+
+        // Filter out OID-marked events (exported from Open Invite)
+        const externalEvents = deviceEvents.filter(
+          (event) => !isOpenInviteExportedEvent(event.notes)
+        );
+
+        // Filter to only not-yet-imported events
+        const importedIds = new Set(
+          (importedEventsData?.events ?? [])
+            .filter((e) => e.deviceCalendarId)
+            .map((e) => e.deviceCalendarId!)
+        );
+        const newEvents = externalEvents.filter((e) => !importedIds.has(e.id));
+
+        newEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+        setEvents(newEvents);
+        setSelectedEvents(new Set(newEvents.map((e) => e.id)));
+        setShowEvents(true);
+        setSyncResult(null);
+      } catch (error) {
+        devError("[CALENDAR_RESYNC] auto-load failed:", error);
+      } finally {
+        setIsLoadingEvents(false);
+      }
+    };
+
+    autoLoadResync();
+  }, [isResyncMode, permissionResult?.granted, importedEventsData]);
 
   // AppState listener: re-check permission when app comes to foreground
   useEffect(() => {
@@ -499,10 +557,10 @@ export default function ImportCalendarScreen() {
         </Pressable>
         <View className="flex-1">
           <Text className="text-xl font-bold" style={{ color: colors.text }}>
-            Calendar Sync (Optional)
+            {isResyncMode ? "New Calendar Events" : "Calendar Sync (Optional)"}
           </Text>
           <Text className="text-sm" style={{ color: colors.textSecondary }}>
-            One-time import from your device
+            {isResyncMode ? "Found events not yet in Open Invite" : "One-time import from your device"}
           </Text>
         </View>
       </View>
@@ -653,8 +711,8 @@ export default function ImportCalendarScreen() {
               </Pressable>
             </Animated.View>
 
-            {/* Calendar Selection */}
-            <Animated.View entering={FadeInDown.delay(50).springify()}>
+            {/* Calendar Selection — hidden in resync mode (auto-selected) */}
+            {!isResyncMode && <Animated.View entering={FadeInDown.delay(50).springify()}>
               <Text
                 className="text-sm font-medium mb-2 ml-2"
                 style={{ color: colors.textSecondary }}
@@ -713,10 +771,10 @@ export default function ImportCalendarScreen() {
                   ))
                 )}
               </View>
-            </Animated.View>
+            </Animated.View>}
 
-            {/* Load Events Button */}
-            <Animated.View entering={FadeInDown.delay(100).springify()} className="mt-4">
+            {/* Load Events Button — hidden in resync mode (auto-loaded) */}
+            {!isResyncMode && <Animated.View entering={FadeInDown.delay(100).springify()} className="mt-4">
               <Button
                 variant="primary"
                 label="Load Events"
@@ -726,7 +784,17 @@ export default function ImportCalendarScreen() {
                 leftIcon={!isLoadingEvents ? <RefreshCw size={18} color="#fff" /> : undefined}
                 style={{ width: "100%", borderRadius: 12 }}
               />
-            </Animated.View>
+            </Animated.View>}
+
+            {/* Resync loading indicator */}
+            {isResyncMode && isLoadingEvents && (
+              <View className="mt-6 items-center py-8">
+                <ActivityIndicator size="large" color={themeColor} />
+                <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
+                  Scanning your calendar...
+                </Text>
+              </View>
+            )}
 
             {/* Events List */}
             {showEvents && (
@@ -755,7 +823,9 @@ export default function ImportCalendarScreen() {
                       className="mt-3 text-center"
                       style={{ color: colors.textSecondary }}
                     >
-                      No events found in the next 30 days
+                      {isResyncMode
+                        ? "Your calendar is up to date"
+                        : "No events found in the next 30 days"}
                     </Text>
                   </View>
                 ) : (
@@ -878,7 +948,9 @@ export default function ImportCalendarScreen() {
                   className="text-xs leading-5 text-center"
                   style={{ color: colors.textSecondary }}
                 >
-                  This is a one-time import. Imported events become Open Invite events and will be visible to friends based on your visibility settings. Automatic background sync is coming soon!
+                  {isResyncMode
+                    ? "These are new events from your device calendar. Select which ones to add to Open Invite."
+                    : "This is a one-time import. Imported events become Open Invite events and will be visible to friends based on your visibility settings. Automatic background sync is coming soon!"}
                 </Text>
               </View>
             </Animated.View>

@@ -59,7 +59,13 @@ import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette"
 import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
-import { checkCalendarPermission } from "@/lib/calendarSync";
+import {
+  checkCalendarPermission,
+  getDeviceCalendars,
+  getDeviceEvents,
+  hasCalendarPermissions,
+  isOpenInviteExportedEvent,
+} from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
 import { Button } from "@/ui/Button";
@@ -1895,6 +1901,63 @@ export default function CalendarScreen() {
     refetchFns: [refetchCalendarEvents, refetchBirthdays],
   });
 
+  // [CALENDAR_RESYNC] Check device calendar for new events on pull-to-refresh
+  const resyncInFlightRef = useRef(false);
+  const checkDeviceCalendarForNewEvents = useCallback(async () => {
+    if (resyncInFlightRef.current) return;
+    resyncInFlightRef.current = true;
+    try {
+      const hasPermission = await hasCalendarPermissions();
+      if (!hasPermission) return;
+
+      const calendars = await getDeviceCalendars();
+      const writableIds = calendars.filter((c) => c.allowsModifications).map((c) => c.id);
+      if (writableIds.length === 0) return;
+
+      const now = new Date();
+      const thirtyDaysOut = new Date();
+      thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+      const deviceEvents = await getDeviceEvents(writableIds, now, thirtyDaysOut);
+
+      // Filter out events exported from Open Invite (OID marker)
+      const externalEvents = deviceEvents.filter((e) => !isOpenInviteExportedEvent(e.notes));
+      if (externalEvents.length === 0) return;
+
+      // Fetch already-imported events from backend
+      let importedDeviceIds = new Set<string>();
+      try {
+        const imported = await api.get<{ events: Array<{ deviceCalendarId: string | null }> }>("/api/events/imported");
+        importedDeviceIds = new Set(
+          imported.events.filter((e) => e.deviceCalendarId).map((e) => e.deviceCalendarId!)
+        );
+      } catch {
+        // If fetch fails, skip resync silently
+        return;
+      }
+
+      // Diff: only events not already imported
+      const newEvents = externalEvents.filter((e) => !importedDeviceIds.has(e.id));
+      if (newEvents.length === 0) {
+        if (__DEV__) devLog("[CALENDAR_RESYNC]", "no new device events found");
+        return;
+      }
+
+      if (__DEV__) devLog("[CALENDAR_RESYNC]", `found ${newEvents.length} new device events, navigating to import`);
+      router.push("/import-calendar?mode=resync" as any);
+    } catch (error) {
+      if (__DEV__) devError("[CALENDAR_RESYNC]", "failed:", error);
+    } finally {
+      resyncInFlightRef.current = false;
+    }
+  }, [router]);
+
+  // Wrap pull-to-refresh: normal refresh + async device calendar check
+  const handleCalendarRefresh = useCallback(() => {
+    onCalendarManualRefresh();
+    // Fire device calendar diff in background (non-blocking)
+    checkDeviceCalendarForNewEvents();
+  }, [onCalendarManualRefresh, checkDeviceCalendarForNewEvents]);
+
   // Convert birthdays to pseudo-events for the calendar
   const birthdayEvents = useMemo(() => {
     return friendBirthdays.map((bday): Event & { isAttending?: boolean; isBirthday?: boolean; isOwnBirthday?: boolean } => {
@@ -2460,7 +2523,7 @@ export default function CalendarScreen() {
           refreshControl={
             <RefreshControl
               refreshing={calendarIsRefreshing}
-              onRefresh={onCalendarManualRefresh}
+              onRefresh={handleCalendarRefresh}
               tintColor={themeColor}
               progressViewOffset={chromeHeight}
             />
