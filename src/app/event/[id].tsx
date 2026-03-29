@@ -104,6 +104,7 @@ import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate"
 import { StickyRsvpBar } from "@/components/event/StickyRsvpBar";
 import { HostReflectionCard } from "@/components/event/HostReflectionCard";
 import { MemoriesRow } from "@/components/event/MemoriesRow";
+import { EventSettingsAccordion } from "@/components/event/EventSettingsAccordion";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -3859,173 +3860,39 @@ export default function EventDetailScreen() {
         </View>{/* close Discussion card */}
 
         {/* ═══ [EVENT_LIVE_UI] Collapsed Event Settings ═══ */}
-        <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginHorizontal: 16, marginBottom: 12 }}>
-          <View className="rounded-2xl" style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
-            <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSettingsExpanded((prev) => !prev);
-              }}
-              className="flex-row items-center justify-between p-4"
-            >
-              <View className="flex-row items-center">
-                <Settings size={18} color={colors.textSecondary} />
-                <Text className="ml-2 font-semibold text-sm" style={{ color: colors.text }}>
-                  Event settings
-                </Text>
-              </View>
-              {settingsExpanded ? (
-                <ChevronUp size={18} color={colors.textTertiary} />
-              ) : (
-                <ChevronDown size={18} color={colors.textTertiary} />
-              )}
-            </Pressable>
-
-            {settingsExpanded && (
-              <View className="px-4 pb-4">
-                {/* Sync to Calendar Button / Synced Badge */}
-                <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                  {isCheckingSync ? (
-                    <View className="flex-row items-center justify-center">
-                      <ActivityIndicator size="small" color={colors.textTertiary} />
-                    </View>
-                  ) : isSynced ? (
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center">
-                        <View
-                          className="w-8 h-8 rounded-full items-center justify-center mr-2"
-                          style={{ backgroundColor: "#22C55E20" }}
-                        >
-                          <CalendarCheck size={16} color="#22C55E" />
-                        </View>
-                        <View>
-                          <Text className="font-semibold text-sm" style={{ color: "#22C55E" }}>
-                            Synced to Calendar
-                          </Text>
-                          <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                            Tap to update
-                          </Text>
-                        </View>
-                      </View>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        label="Update"
-                        onPress={handleSyncToCalendar}
-                        disabled={isSyncing}
-                        loading={isSyncing}
-                        leftIcon={!isSyncing ? <RefreshCw size={14} color={themeColor} /> : undefined}
-                      />
-                    </View>
-                  ) : (
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center flex-1">
-                        <Calendar size={18} color={themeColor} />
-                        <View className="ml-2">
-                          <Text className="font-semibold text-sm" style={{ color: colors.text }}>
-                            Sync to Calendar
-                          </Text>
-                          <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                            Add to your device calendar
-                          </Text>
-                        </View>
-                      </View>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        label="Sync"
-                        onPress={handleSyncToCalendar}
-                        disabled={isSyncing}
-                        loading={isSyncing}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* More Options Button - Opens modal for Google Calendar etc. */}
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setShowSyncModal(true);
-                  }}
-                  className="flex-row items-center justify-center py-2"
-                >
-                  <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                    More calendar options
-                  </Text>
-                  <ChevronRight size={14} color={colors.textTertiary} />
-                </Pressable>
-
-                {/* Event Reminders */}
-                <EventReminderPicker
-                  eventId={event.id}
-                  eventTitle={event.title}
-                  eventEmoji={event.emoji}
-                  eventTime={startDate}
-                  selectedReminders={selectedReminders}
-                  onRemindersChange={setSelectedReminders}
-                  isAttending={myRsvpStatus === "going" || myRsvpStatus === "interested"}
-                  isMuted={isEventMuted}
-                />
-
-                {/* Mute Event Notifications */}
-                <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center flex-1 mr-3">
-                      <Bell size={18} color={isEventMuted ? colors.textTertiary : themeColor} />
-                      <View className="ml-3">
-                        <Text className="font-semibold text-sm" style={{ color: colors.text }}>
-                          Mute this event
-                        </Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                          Stops push notifications for this event.{"\n"}Activity will still show updates.
-                        </Text>
-                      </View>
-                    </View>
-                    <Switch
-                      value={isEventMuted}
-                      onValueChange={(value) => muteMutation.mutate(value)}
-                      disabled={isLoadingMute || muteMutation.isPending}
-                      trackColor={{ false: isDark ? "#3C3C3E" : "#E5E7EB", true: themeColor + "80" }}
-                      thumbColor={isEventMuted ? themeColor : isDark ? "#6B6B6B" : "#f4f3f4"}
-                    />
-                  </View>
-                </View>
-
-                {/* Post-event reflection toggle (host only) */}
-                {isMyEvent && !event.isBusy && (() => {
-                  const reflectionEnabled = event.reflectionEnabled === true;
-                  if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "toggle_render", { raw: event.reflectionEnabled, resolved: reflectionEnabled, eventId: id });
-                  return (
-                    <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center flex-1 mr-3">
-                          <NotebookPen size={18} color={colors.textSecondary} />
-                          <View className="ml-3">
-                            <Text className="font-semibold text-sm" style={{ color: colors.text }}>
-                              Post-event reflection
-                            </Text>
-                            <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                              Get a reminder to rate and reflect after it ends
-                            </Text>
-                          </View>
-                        </View>
-                        <Switch
-                          testID="event-detail-settings-reflection"
-                          value={reflectionEnabled}
-                          onValueChange={(value) => toggleReflectionMutation.mutate(value)}
-                          trackColor={{ false: isDark ? "#3C3C3E" : "#E5E7EB", true: themeColor + "80" }}
-                          thumbColor={reflectionEnabled ? themeColor : isDark ? "#6B6B6B" : "#f4f3f4"}
-                          disabled={toggleReflectionMutation.isPending}
-                        />
-                      </View>
-                    </View>
-                  );
-                })()}
-              </View>
-            )}
-          </View>
-        </Animated.View>
+        <EventSettingsAccordion
+          expanded={settingsExpanded}
+          isDark={isDark}
+          themeColor={themeColor}
+          colors={colors}
+          isCheckingSync={isCheckingSync}
+          isSynced={isSynced}
+          isSyncing={isSyncing}
+          onSyncToCalendar={handleSyncToCalendar}
+          onOpenSyncModal={() => {
+            Haptics.selectionAsync();
+            setShowSyncModal(true);
+          }}
+          eventId={event.id}
+          eventTitle={event.title}
+          eventEmoji={event.emoji}
+          eventTime={startDate}
+          selectedReminders={selectedReminders}
+          onRemindersChange={setSelectedReminders}
+          isAttending={myRsvpStatus === "going" || myRsvpStatus === "interested"}
+          isEventMuted={isEventMuted}
+          isLoadingMute={isLoadingMute}
+          isMutePending={muteMutation.isPending}
+          onToggleMute={(value) => muteMutation.mutate(value)}
+          showReflectionToggle={isMyEvent && !event.isBusy}
+          reflectionEnabled={event.reflectionEnabled === true}
+          isReflectionPending={toggleReflectionMutation.isPending}
+          onToggleReflection={(value) => toggleReflectionMutation.mutate(value)}
+          onToggleExpanded={() => {
+            Haptics.selectionAsync();
+            setSettingsExpanded((prev) => !prev);
+          }}
+        />
 
         {/* ═══ [EVENT_LIVE_UI] Host Reflection (post-event) ═══ */}
         {isMyEvent && !event.isBusy && (() => {
