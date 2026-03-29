@@ -91,6 +91,9 @@ docs/              Architecture, debugging, features
 **Rule:** User-selected effects override theme particles. Theme gradient, video,
 styling, and filters are NOT suppressed — only the particle layer is exclusive.
 
+**Create preview follows the same rule:** effectId → MotifOverlay; else theme →
+ThemeEffectLayer; else no particles. Preview matches event page behavior.
+
 ### Key Files
 - `src/lib/eventThemes.ts` -- theme catalog, resolver, token types
 - `src/components/ThemeEffectLayer.tsx` -- Skia particle/lottie engine

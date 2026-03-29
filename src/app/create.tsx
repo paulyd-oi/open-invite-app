@@ -13,6 +13,7 @@ import { resolveEventTheme, type ThemeId } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
+import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { CreateEditorHeader } from "@/components/create/CreateEditorHeader";
 import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
 import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
@@ -679,12 +680,14 @@ export default function CreateEventScreen() {
         onLayout={(h) => { if (h > 0 && h !== chromeHeight) setChromeHeight(h); }}
       />
 
-      {/* ── Page-wide motif overlay ── */}
-      {selectedEffectId && (
+      {/* ── Particle layer — exclusive: effect overrides theme particles ── */}
+      {selectedEffectId ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <MotifOverlay presetId={selectedEffectId} customConfig={customEffectConfig} intensity={0.70} />
         </View>
-      )}
+      ) : hasTheme ? (
+        <ThemeEffectLayer themeId={selectedThemeId} overrideVisualStack={selectedCustomTheme?.visualStack} />
+      ) : null}
 
       {/* ── Bottom Editing Dock ── */}
       <CreateBottomDock
