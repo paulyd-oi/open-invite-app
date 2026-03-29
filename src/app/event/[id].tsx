@@ -95,6 +95,7 @@ import { ReportModal } from "@/components/event/ReportModal";
 import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
 import { ColorPickerSheet } from "@/components/event/ColorPickerSheet";
 import { PhotoUploadSheet } from "@/components/event/PhotoUploadSheet";
+import { AttendeesSheet } from "@/components/event/AttendeesSheet";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -4947,116 +4948,27 @@ export default function EventDetailScreen() {
         }}
       />
 
-      {/* Attendees Modal - P0: View all attendees (uses shared BottomSheet) */}
-      <BottomSheet
+      <AttendeesSheet
         visible={showAttendeesModal}
+        isLoading={isLoadingAttendees}
+        hasError={!!attendeesError}
+        isPrivacyDenied={attendeesPrivacyDenied}
+        attendees={attendeesList}
+        effectiveGoingCount={effectiveGoingCount}
+        hostUserId={event?.user?.id}
+        isDark={isDark}
+        themeColor={themeColor}
+        colors={colors}
         onClose={() => {
           setShowAttendeesModal(false);
           if (__DEV__) devLog('[P1_WHO_COMING_SHEET]', 'close', { eventId: id });
         }}
-        heightPct={0.65}
-        backdropOpacity={0.5}
-      >
-        {/* Custom title row — uses effectiveGoingCount (SSOT) */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <UserCheck size={20} color="#22C55E" />
-            <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
-              Who's Coming
-            </Text>
-            <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.md, marginLeft: 8 }}>
-              <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>
-                {effectiveGoingCount}
-              </Text>
-            </View>
-          </View>
-          <Pressable
-            onPress={() => setShowAttendeesModal(false)}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={18} color={colors.textSecondary} />
-          </Pressable>
-        </View>
-
-        {/* Attendees List - P0: guarded for loading / empty / list */}
-        <KeyboardAwareScrollView
-          style={{ flex: 1, paddingHorizontal: 20 }}
-          contentContainerStyle={{ paddingBottom: 36 }}
-        >
-                {isLoadingAttendees ? (
-                  <View style={{ alignItems: "center", paddingVertical: 40 }}>
-                    <ActivityIndicator size="large" color={themeColor} />
-                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading attendees…</Text>
-                  </View>
-                ) : attendeesError && !attendeesPrivacyDenied && attendeesList.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                    <AlertTriangle size={32} color={colors.textTertiary} />
-                    <Text style={{ marginTop: 12, fontSize: 15, fontWeight: "600", color: colors.text, textAlign: "center" }}>
-                      Couldn’t load guest list
-                    </Text>
-                    <Text style={{ marginTop: 4, fontSize: 13, color: colors.textSecondary, textAlign: "center" }}>
-                      Something went wrong — tap to try again
-                    </Text>
-                    <Pressable
-                      onPress={() => attendeesQuery.refetch()}
-                      style={{
-                        marginTop: 16,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: themeColor,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        borderRadius: 20,
-                        gap: 6,
-                      }}
-                    >
-                      <RefreshCw size={14} color="#FFFFFF" />
-                      <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 14 }}>Retry</Text>
-                    </Pressable>
-                  </View>
-                ) : attendeesList.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                    <Users size={32} color={colors.textTertiary} />
-                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
-                      No attendees yet
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                {__DEV__ && attendeesList.length > 0 && once('P0_USERROW_SHEET_SOT_event') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'event_attendees_sheet', showChevron: false, usesPressedState: true, rowsSampled: attendeesList.length })}
-                {attendeesList.map((attendee) => (
-                  <View
-                    key={attendee.id}
-                    style={{
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
-                    }}
-                  >
-                    <UserListRow
-                      handle={null}
-                      displayName={attendee.name ?? "Guest"}
-                      bio={null}
-                      avatarUri={attendee.imageUrl}
-                      badgeText={(attendee.isHost || attendee.id === event?.user?.id) ? "Host" : null}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setShowAttendeesModal(false);
-                        router.push(`/user/${attendee.id}` as any);
-                      }}
-                    />
-                  </View>
-                ))}
-                  </>
-                )}
-              </KeyboardAwareScrollView>
-      </BottomSheet>
+        onRetry={() => attendeesQuery.refetch()}
+        onPressAttendee={(userId) => {
+          setShowAttendeesModal(false);
+          router.push(`/user/${userId}` as any);
+        }}
+      />
 
       <ColorPickerSheet
         visible={showColorPicker}
