@@ -111,6 +111,7 @@ import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } fr
 import { PostValueInvitePrompt, canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
+import { setPendingRsvpIntent, type PendingRsvpStatus } from "@/lib/pendingRsvp";
 // MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
@@ -1640,13 +1641,14 @@ export default function EventDetailScreen() {
     if (isBusyBlock) {
       return;
     }
-    // Guard: only allow RSVP when authenticated
+    // Guard: capture RSVP intent and redirect to auth if not authenticated
     if (bootStatus !== 'authed') {
-      if (bootStatus === 'onboarding') {
-        router.replace('/welcome');
-      } else {
-        router.replace('/welcome');
+      if (id && (status === 'going' || status === 'interested')) {
+        setPendingRsvpIntent({ eventId: id, status: status as PendingRsvpStatus });
+        if (__DEV__) devLog('[P0_RSVP] stored pending intent pre-auth', { eventId: id, status });
       }
+      safeToast.info("Sign up to confirm your RSVP");
+      router.replace('/welcome');
       return;
     }
     // Guard: require email verification
@@ -2725,12 +2727,10 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* ═══ POST-CREATE SHARE NUDGE ═══ */}
+        {/* ═══ POST-CREATE INVITE ACTIONS ═══ */}
         {showCreateNudge && isMyEvent && (
           <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4 }}>
             <View style={{
-              flexDirection: "row",
-              alignItems: "center",
               paddingVertical: 14,
               paddingHorizontal: 16,
               borderRadius: RADIUS.xl,
@@ -2738,35 +2738,82 @@ export default function EventDetailScreen() {
               borderWidth: 0.5,
               borderColor: isDark ? `${themeColor}30` : `${themeColor}20`,
             }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Share it to get responses</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Invite people to get responses</Text>
+                </View>
+                <Pressable
+                  onPress={() => setShowCreateNudge(false)}
+                  style={{ padding: 6 }}
+                  hitSlop={8}
+                >
+                  <X size={14} color={colors.textTertiary} />
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  shareEvent({ ...event, location: locationDisplay ?? null });
-                  setShowCreateNudge(false);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  borderRadius: RADIUS.lg,
-                  backgroundColor: themeColor,
-                }}
-              >
-                <Share2 size={14} color="#FFFFFF" />
-                <Text style={{ fontSize: 14, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowCreateNudge(false)}
-                style={{ padding: 6, marginLeft: 4 }}
-                hitSlop={8}
-              >
-                <X size={14} color={colors.textTertiary} />
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {/* Copy Link */}
+                <Pressable
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const link = getEventUniversalLink(event.id);
+                    await Clipboard.setStringAsync(link);
+                    safeToast.success("Link copied");
+                  }}
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    borderRadius: RADIUS.lg,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <Copy size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Copy Link</Text>
+                </Pressable>
+                {/* SMS */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const link = getEventUniversalLink(event.id);
+                    const body = `${event.emoji ?? "📅"} ${event.title} — you in?\n\n${link}`;
+                    Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
+                  }}
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    borderRadius: RADIUS.lg,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <MessageCircle size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Text</Text>
+                </Pressable>
+                {/* Share Sheet */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    shareEvent({ ...event, location: locationDisplay ?? null });
+                  }}
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    borderRadius: RADIUS.lg,
+                    backgroundColor: themeColor,
+                  }}
+                >
+                  <Share2 size={14} color="#FFFFFF" />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>More</Text>
+                </Pressable>
+              </View>
             </View>
           </Animated.View>
         )}
