@@ -100,6 +100,7 @@ import { EventActionsSheet } from "@/components/event/EventActionsSheet";
 import { HostToolsRow } from "@/components/event/HostToolsRow";
 import { PostCreateNudge } from "@/components/event/PostCreateNudge";
 import { BusyBlockGate } from "@/components/event/BusyBlockGate";
+import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2123,122 +2124,21 @@ export default function EventDetailScreen() {
       };
 
       return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-          <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
-          <View className="flex-1 items-center justify-center px-6">
-            {/* Locked-state card */}
-            <View
-              className="w-full rounded-2xl items-center px-6 py-8"
-              style={{
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-                ...(Platform.OS === "ios" ? {
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.08,
-                  shadowRadius: 8,
-                } : { elevation: 2 }),
-              }}
-            >
-              {/* Tappable host avatar — SSOT via EntityAvatar */}
-              {hasHostId ? (
-                <Pressable onPress={goToHostProfile}>
-                  {(() => {
-                    if (__DEV__) {
-                      devLog('[P0_MEDIA_IDENTITY]', {
-                        surface: 'EventHero',
-                        usedPrimitive: 'EntityAvatar',
-                        hasPhotoUrl: !!fb.hostImage,
-                      });
-                    }
-                    return null;
-                  })()}
-                  <View style={{ marginBottom: 16, borderWidth: 2, borderColor: colors.separator, borderRadius: 40, overflow: 'hidden' }}>
-                    <EntityAvatar
-                      photoUrl={fb.hostImage}
-                      initials={fb.hostFirst ? fb.hostFirst.charAt(0).toUpperCase() : undefined}
-                      size={80}
-                      borderRadius={40}
-                      backgroundColor={colors.background}
-                      foregroundColor={colors.textSecondary}
-                      fallbackIcon="person-outline"
-                    />
-                  </View>
-                </Pressable>
-              ) : (
-                <View
-                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                  style={{ backgroundColor: colors.background }}
-                >
-                  <Lock size={28} color={colors.textSecondary} />
-                </View>
-              )}
-
-              {/* Line 1: tertiary hosted-by attribution */}
-              <Text
-                className="text-sm text-center"
-                style={{ color: colors.textSecondary, marginBottom: 6 }}
-              >
-                {`Event hosted by ${fb.hostDisplayName}`}
-              </Text>
-
-              {/* Line 2: headline */}
-              <Text
-                className="text-xl font-semibold text-center"
-                style={{ color: colors.text, marginBottom: 8 }}
-              >
-                {fb.denyReason === "circle_only" ? "Circle-only event" : "Event details hidden"}
-              </Text>
-
-              {/* Line 3: body */}
-              <Text
-                className="text-center"
-                style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 28 }}
-              >
-                {fb.denyReason === "circle_only"
-                  ? "Join the circle to view this event."
-                  : `Connect with ${fb.hostFirst} to see this event.`}
-              </Text>
-
-              {/* CTA: View Circle (preferred for circle_only) → View profile → fallback */}
-              {fb.denyReason === "circle_only" && fb.circleId ? (
-                <View className="w-full" style={{ gap: 10 }}>
-                  <Button
-                    variant="primary"
-                    label="View Circle"
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/circle/${fb.circleId}` as any);
-                    }}
-                  />
-                  {hasHostId && (
-                    <Button
-                      variant="secondary"
-                      label="View host profile"
-                      onPress={goToHostProfile}
-                    />
-                  )}
-                </View>
-              ) : hasHostId ? (
-                <View className="w-full">
-                  <Button
-                    variant="primary"
-                    label={fb.denyReason === "circle_only" ? "View host profile" : "View profile"}
-                    onPress={goToHostProfile}
-                  />
-                </View>
-              ) : (
-                <Text
-                  className="text-sm text-center"
-                  style={{ color: colors.textTertiary }}
-                >
-                  Profile unavailable right now.
-                </Text>
-              )}
-            </View>
-          </View>
-        </SafeAreaView>
+        <PrivacyRestrictedGate
+          hasHostId={hasHostId}
+          hostImage={fb.hostImage}
+          hostFirst={fb.hostFirst}
+          hostDisplayName={fb.hostDisplayName}
+          denyReason={fb.denyReason}
+          circleId={fb.circleId}
+          isDark={isDark}
+          colors={colors}
+          onGoToHostProfile={goToHostProfile}
+          onViewCircle={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/circle/${fb.circleId}` as any);
+          }}
+        />
       );
     }
 
