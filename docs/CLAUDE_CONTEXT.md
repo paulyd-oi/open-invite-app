@@ -81,11 +81,15 @@ docs/              Architecture, debugging, features
 1. SafeAreaView background (canvasColor from pageTheme)
 2. AnimatedGradientLayer (if visualStack.gradient)
 3. ThemeVideoLayer (if visualStack.video)
-4. ThemeEffectLayer (theme-bundled particles/lottie from visualStack)
-5. MotifOverlay (event-level effectId, independent overlay)
-6. ThemeFilterLayer (if visualStack.filter)
-7. Content (scrollable card)
+4. Particle layer (EXCLUSIVE — one or the other, never both):
+   - IF effectId exists: MotifOverlay (user-selected effect)
+   - ELSE: ThemeEffectLayer (theme-bundled particles/lottie)
+5. ThemeFilterLayer (if visualStack.filter)
+6. Content (scrollable card)
 ```
+
+**Rule:** User-selected effects override theme particles. Theme gradient, video,
+styling, and filters are NOT suppressed — only the particle layer is exclusive.
 
 ### Key Files
 - `src/lib/eventThemes.ts` -- theme catalog, resolver, token types

@@ -2479,10 +2479,9 @@ export default function EventDetailScreen() {
         </View>
       )}
 
-      {/* Full-page particle effect — behind all content */}
-      <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
-      {/* Event-level effect overlay — persisted independently of theme */}
-      {event.effectId && (
+      {/* Particle layer — effectId overrides theme particles to avoid double-rendering.
+           Theme gradient/video/filter still render normally; only particles are suppressed. */}
+      {event.effectId ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <MotifOverlay
             presetId={event.effectId}
@@ -2490,6 +2489,8 @@ export default function EventDetailScreen() {
             intensity={0.70}
           />
         </View>
+      ) : (
+        <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
       )}
       {/* Atmospheric filter overlay — after particles, before content */}
       {pageTheme.visualStack?.filter && (
