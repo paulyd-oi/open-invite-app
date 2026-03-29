@@ -11,6 +11,7 @@ import {
   Share,
   Switch,
   Dimensions,
+  StyleSheet,
   Animated as RNAnimated,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
@@ -136,10 +137,11 @@ import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
-import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS } from "@/lib/eventThemes";
+import { resolveEventTheme, buildCustomThemeTokens, THEME_VIDEOS, THEME_BACKGROUNDS } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
+import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2446,13 +2448,22 @@ export default function EventDetailScreen() {
   });
 
   // Themed canvas — theme owns the page background behind the card
-  const pageTheme = resolveEventTheme(event.themeId);
+  const pageTheme = event.customThemeData
+    ? buildCustomThemeTokens(event.customThemeData)
+    : resolveEventTheme(event.themeId);
   const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={["bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
+
+      {/* Animated gradient background (custom themes + catalog themes with gradient) */}
+      {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
+        </View>
+      )}
 
       {/* Looping video background — behind particles and content */}
       {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
@@ -2467,7 +2478,7 @@ export default function EventDetailScreen() {
       )}
 
       {/* Full-page particle effect — behind all content */}
-      <ThemeEffectLayer themeId={event.themeId} />
+      <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
       {/* Atmospheric filter overlay — after particles, before content */}
       {pageTheme.visualStack?.filter && (
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />

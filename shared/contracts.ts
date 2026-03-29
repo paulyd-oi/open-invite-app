@@ -68,6 +68,7 @@ export const eventSchema = z.object({
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
   // Event Themes V1
   themeId: z.string().nullable().optional(),
+  customThemeData: z.any().nullable().optional(),
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -216,6 +217,7 @@ export const createEventRequestSchema = z.object({
   eventPhotoPublicId: z.string().optional(),
   // Event Themes V1
   themeId: z.string().nullable().optional(),
+  customThemeData: z.any().nullable().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

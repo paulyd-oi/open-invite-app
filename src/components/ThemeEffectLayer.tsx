@@ -1415,22 +1415,25 @@ export class SkiaErrorBoundary extends React.Component<
 
 interface ThemeEffectLayerProps {
   themeId: string | null | undefined;
+  overrideVisualStack?: import("@/lib/eventThemes").ThemeVisualStack;
 }
 
 export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
+  overrideVisualStack,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
 
   const theme = resolveEventTheme(themeId);
-  const presetId = theme.visualStack?.particles as EffectPresetId | undefined;
+  const vs = overrideVisualStack ?? theme.visualStack;
+  const presetId = vs?.particles as EffectPresetId | undefined;
   const config = presetId && presetId in EFFECT_CONFIGS
     ? EFFECT_CONFIGS[presetId]
     : null;
 
   // Resolve Lottie overlay from theme's visualStack
-  const lottieKey = theme.visualStack?.lottie;
+  const lottieKey = vs?.lottie;
   const lottieEffect: LottieEffectEntry | null =
     lottieKey && lottieKey in LOTTIE_EFFECTS ? LOTTIE_EFFECTS[lottieKey] : null;
 

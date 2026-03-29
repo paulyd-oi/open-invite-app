@@ -1606,7 +1606,7 @@ export default function SocialScreen() {
     <AuthProvider state="authed">
       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
-      <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+      <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
 
       {/* ═══ Floating translucent top chrome ═══ */}
       <View

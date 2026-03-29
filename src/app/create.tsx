@@ -337,15 +337,10 @@ export default function CreateEventScreen() {
         notifEligible = false;
       }
 
-      let chosen: CreatePromptChoice = "none";
       if (evt?.id) {
-        chosen = "share_event";
+        router.replace(`/event/${evt.id}` as any);
       } else if (notifEligible) {
-        chosen = "notification";
-      }
-
-      if (chosen !== "none") {
-        setCreatePromptChoice(chosen);
+        setCreatePromptChoice("notification");
       } else {
         router.back();
       }
@@ -474,7 +469,11 @@ export default function CreateEventScreen() {
         eventPhotoUrl: coverMedia.bannerUpload.url,
         eventPhotoPublicId: coverMedia.bannerUpload.publicId,
       } : {}),
-      ...(selectedThemeId ? { themeId: selectedThemeId } : selectedCustomTheme ? { themeId: "neutral" as ThemeId } : {}),
+      ...(selectedThemeId
+        ? { themeId: selectedThemeId }
+        : selectedCustomTheme
+          ? { themeId: "custom" as any, customThemeData: { visualStack: selectedCustomTheme.visualStack, name: selectedCustomTheme.name } }
+          : {}),
     };
     createMutation.mutate(createPayload);
   };

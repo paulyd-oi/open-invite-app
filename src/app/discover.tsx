@@ -424,7 +424,7 @@ export default function DiscoverScreen() {
 
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       <Stack.Screen options={{ headerShown: false }} />
 

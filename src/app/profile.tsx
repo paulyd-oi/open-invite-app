@@ -506,7 +506,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={[]}>
 
       {/* ═══ Floating translucent top chrome ═══ */}
       <View

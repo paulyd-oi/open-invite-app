@@ -676,3 +676,25 @@ export function resolveEventTheme(themeId: string | null | undefined): EventThem
   }
   return EVENT_THEMES.neutral;
 }
+
+/**
+ * Build theme tokens from custom theme data stored on the event.
+ * Used when event.customThemeData is present (user-created themes).
+ */
+export function buildCustomThemeTokens(customThemeData: { visualStack?: ThemeVisualStack; name?: string }): EventThemeTokens {
+  const gradient = customThemeData.visualStack?.gradient;
+  const accent = gradient?.colors?.[0] ?? "#8E8E93";
+  return {
+    label: customThemeData.name ?? "Custom",
+    swatch: "🎨",
+    gradientTint: accent,
+    vibeLabel: "You're Invited",
+    backAccent: accent,
+    backBgDark: "#0A0A18",
+    backBgLight: "#F8F8FC",
+    pageTintDark: "transparent",
+    pageTintLight: "transparent",
+    chipAccent: accent,
+    visualStack: customThemeData.visualStack,
+  };
+}

@@ -103,6 +103,7 @@ export default function EditEventScreen() {
   // Event Themes V1
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
   const [originalThemeId, setOriginalThemeId] = useState<ThemeId | null>(null);
+  const [existingCustomThemeData, setExistingCustomThemeData] = useState<any>(null);
   const premiumStatus = usePremiumStatusContract();
   const { isPro: userIsPro } = premiumStatus;
   const { openPaywall } = useSubscription();
@@ -161,6 +162,10 @@ export default function EditEventScreen() {
       if (isValidThemeId(evtThemeId)) {
         setSelectedThemeId(evtThemeId);
         setOriginalThemeId(evtThemeId);
+      }
+      // Preserve custom theme data for round-trip
+      if ((event as any).customThemeData) {
+        setExistingCustomThemeData((event as any).customThemeData);
       }
       setIsLoaded(true);
     }
@@ -286,7 +291,8 @@ export default function EditEventScreen() {
         })),
       } : { bringListEnabled: false }),
       // Event Themes V1
-      themeId: selectedThemeId ?? null,
+      themeId: selectedThemeId ?? (existingCustomThemeData ? "custom" : null),
+      customThemeData: selectedThemeId ? null : existingCustomThemeData,
     });
   };
 
