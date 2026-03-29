@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, Keyboard } from "react-native";
+import { View, Text, Pressable, Keyboard, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Palette, Sparkles, Settings } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
@@ -32,6 +32,8 @@ export function CreateBottomDock({
   themeColor,
 }: CreateBottomDockProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -49,10 +51,13 @@ export function CreateBottomDock({
     <View
       style={{
         position: "absolute",
-        left: 0,
-        right: 0,
+        ...(isWide
+          ? {
+              left: Math.max(40, (screenWidth - 400) / 2),
+              right: Math.max(40, (screenWidth - 400) / 2),
+            }
+          : { left: 0, right: 0, paddingHorizontal: 40 }),
         bottom: insets.bottom + 8,
-        paddingHorizontal: 40,
       }}
     >
       <View

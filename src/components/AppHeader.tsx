@@ -9,7 +9,7 @@
  *   • calendar  → same top title row + bottom slot for month controls
  */
 import React, { useEffect, useRef } from "react";
-import { View, Text } from "react-native";
+import { View, Text, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog } from "@/lib/devLog";
@@ -55,6 +55,8 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const effectivePaddingTop = includeSafeAreaTop ? insets.top + HEADER_PT : HEADER_PT;
 
   // DEV-only render proof logs (once per mount)
@@ -78,54 +80,56 @@ export function AppHeader({
         paddingBottom: HEADER_PB,
       }}
     >
-      {/* ── Title row ── */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          minHeight: HEADER_MIN_H,
-        }}
-      >
-        {/* Left cluster: title + optional inline element (HelpSheet, etc.) */}
-        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
-          {titleContent ?? (
-            <Text
-              className="font-sora-bold"
-              style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}
-            >
-              {title}
-            </Text>
-          )}
-          {left}
-        </View>
-
-        {/* Right cluster — stable minWidth prevents title shift across tabs */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", minWidth: RIGHT_SLOT_MIN_W }}>
-          {right}
-        </View>
-      </View>
-
-      {/* ── Subtitle ── */}
-      {subtitle ? (
-        <Text
+      <View style={isWide ? { maxWidth: 600, alignSelf: "center" as const, width: "100%" } : undefined}>
+        {/* ── Title row ── */}
+        <View
           style={{
-            color: colors.textSecondary,
-            fontSize: 12,
-            fontWeight: "400",
-            letterSpacing: 0.6,
-            marginTop: 1,
-            marginBottom: 2,
-            opacity: 0.72,
-            textTransform: "lowercase",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            minHeight: HEADER_MIN_H,
           }}
         >
-          {subtitle}
-        </Text>
-      ) : null}
+          {/* Left cluster: title + optional inline element (HelpSheet, etc.) */}
+          <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
+            {titleContent ?? (
+              <Text
+                className="font-sora-bold"
+                style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}
+              >
+                {title}
+              </Text>
+            )}
+            {left}
+          </View>
 
-      {/* ── Bottom slot (calendar variant, etc.) ── */}
-      {bottom}
+          {/* Right cluster — stable minWidth prevents title shift across tabs */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", minWidth: RIGHT_SLOT_MIN_W }}>
+            {right}
+          </View>
+        </View>
+
+        {/* ── Subtitle ── */}
+        {subtitle ? (
+          <Text
+            style={{
+              color: colors.textSecondary,
+              fontSize: 12,
+              fontWeight: "400",
+              letterSpacing: 0.6,
+              marginTop: 1,
+              marginBottom: 2,
+              opacity: 0.72,
+              textTransform: "lowercase",
+            }}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+
+        {/* ── Bottom slot (calendar variant, etc.) ── */}
+        {bottom}
+      </View>
     </View>
   );
 }

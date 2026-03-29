@@ -18,6 +18,7 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -113,6 +114,8 @@ export const ThemeTray = memo(function ThemeTray({
   onClose,
 }: ThemeTrayProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const screenH = Dimensions.get("window").height;
   const studioHeight = Math.round(screenH * STUDIO_HEIGHT_PCT);
 
@@ -185,7 +188,14 @@ export const ThemeTray = memo(function ThemeTray({
       <Animated.View
         entering={FadeInDown.duration(220)}
         exiting={FadeOutDown.duration(180)}
-        style={[styles.outerContainer, { bottom: trayBottom }]}
+        style={[
+          styles.outerContainer,
+          { bottom: trayBottom },
+          isWide && {
+            left: Math.max(12, (screenWidth - 540) / 2),
+            right: Math.max(12, (screenWidth - 540) / 2),
+          },
+        ]}
       >
         <Animated.View
           style={[

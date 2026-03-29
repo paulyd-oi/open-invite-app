@@ -225,14 +225,14 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/components/create/ThemeTray.tsx` |
 | **Component** | `ThemeTray` (named export) |
-| **Container style** | `styles.outerContainer` (lines 658–663): `position: "absolute", left: 12, right: 12, zIndex: 50` |
-| **Bottom offset** | `trayBottom = insets.bottom + 64` (line 175) |
+| **Container style** | `styles.outerContainer` (lines 668–673): `position: "absolute", left: 12, right: 12, zIndex: 50`. Wide override at lines 194–197. |
+| **Bottom offset** | `trayBottom = insets.bottom + 64` (line 178) |
 | **Compact height** | `TRAY_HEIGHT = 106` (line 53) |
-| **Expanded height** | `Math.round(screenH * STUDIO_HEIGHT_PCT)` where `STUDIO_HEIGHT_PCT = 0.54` (lines 54, 117) |
+| **Expanded height** | `Math.round(screenH * STUDIO_HEIGHT_PCT)` where `STUDIO_HEIGHT_PCT = 0.54` (lines 54, 119) |
 | **Border radius** | `BORDER_RADIUS = 22` (line 58) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `trayBottom` calculation (line 175) |
-| **Responsive logic** | Height is percentage-based (`0.54 * screenH`). No width logic. |
+| **Max width** | 540px on wide layouts (lines 194–197) |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `trayBottom` calculation (line 178) |
+| **Responsive logic** | Height: percentage-based (`0.54 * screenH`). Width: `screenWidth >= 768` → centered at 540px via symmetric `left/right` (lines 118, 194–197). Uses `useWindowDimensions()` |
 | **Consumers** | `src/app/create.tsx`, `src/app/event/edit/[id].tsx` |
 
 ### 4. EffectTray
@@ -241,14 +241,14 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/components/create/EffectTray.tsx` |
 | **Component** | `EffectTray` (named export) |
-| **Container style** | `styles.outerContainer` (lines 987–991): `position: "absolute", left: 12, right: 12, zIndex: 50` |
-| **Bottom offset** | `trayBottom = insets.bottom + 64` (line 201) |
+| **Container style** | `styles.outerContainer` (lines 997–1001): `position: "absolute", left: 12, right: 12, zIndex: 50`. Wide override at lines 219–222. |
+| **Bottom offset** | `trayBottom = insets.bottom + 64` (line 204) |
 | **Compact height** | `TRAY_HEIGHT = 106` (line 51) |
-| **Expanded height** | `Math.round(screenH * LIBRARY_HEIGHT_PCT)` where `LIBRARY_HEIGHT_PCT = 0.52` (lines 52, 140) |
+| **Expanded height** | `Math.round(screenH * LIBRARY_HEIGHT_PCT)` where `LIBRARY_HEIGHT_PCT = 0.52` (lines 52, 143) |
 | **Border radius** | `BORDER_RADIUS = 22` (line 55) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `trayBottom` calculation (line 201) |
-| **Responsive logic** | Height is percentage-based (`0.52 * screenH`). No width logic. |
+| **Max width** | 540px on wide layouts (lines 219–222) |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `trayBottom` calculation (line 204) |
+| **Responsive logic** | Height: percentage-based (`0.52 * screenH`). Width: `screenWidth >= 768` → centered at 540px via symmetric `left/right` (lines 141, 219–222). Uses `useWindowDimensions()` |
 | **Consumers** | `src/app/create.tsx`, `src/app/event/edit/[id].tsx` |
 
 ### 5. CreateBottomDock
@@ -257,13 +257,13 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/components/create/CreateBottomDock.tsx` |
 | **Component** | `CreateBottomDock` (named export) |
-| **Container lines** | 49–112 (outer `<View position="absolute">`) |
-| **Position** | `position: "absolute", left: 0, right: 0, bottom: insets.bottom + 8` (lines 51–54) |
-| **Padding** | `paddingHorizontal: 40` (line 55) |
-| **Inner pill** | `borderRadius: 28, paddingVertical: 6, paddingHorizontal: 8` (lines 64–65) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `bottom` offset (line 34, 54) |
-| **Responsive logic** | None. Hides on keyboard visible (lines 37–46). |
+| **Container lines** | 50–120 (outer `<View position="absolute">`) |
+| **Position** | Compact: `left: 0, right: 0, paddingHorizontal: 40`. Wide (≥768): centered via symmetric `left/right = Math.max(40, (screenWidth - 400) / 2)` (lines 54–59) |
+| **Bottom offset** | `bottom: insets.bottom + 8` (line 60) |
+| **Inner pill** | `borderRadius: 28, paddingVertical: 6, paddingHorizontal: 8` (lines 70–71) |
+| **Max width** | 400px on wide layouts (lines 54–59) |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.bottom` in `bottom` offset (line 34, 60) |
+| **Responsive logic** | `screenWidth >= 768` → centered 400px dock (lines 36, 54–59). Hides on keyboard visible (lines 39–48). Uses `useWindowDimensions()` |
 | **Consumers** | `src/app/create.tsx` |
 
 ### 6. AppHeader (Tab Screens)
@@ -272,14 +272,14 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/components/AppHeader.tsx` |
 | **Component** | `AppHeader` (named export) |
-| **Container lines** | 73–131 (outer `<View>`) |
-| **Padding** | `paddingHorizontal: HEADER_PX (20), paddingTop: HEADER_PT (8) or insets.top + 8, paddingBottom: HEADER_PB (16)` (lines 18–20, 58, 76–78) |
-| **Title row** | `minHeight: HEADER_MIN_H (44)`, `flexDirection: "row", justifyContent: "space-between"` (lines 83–87) |
-| **Right slot** | `minWidth: RIGHT_SLOT_MIN_W (48)` (line 25, 104) |
+| **Container lines** | 76–134 (outer `<View>`) |
+| **Padding** | `paddingHorizontal: HEADER_PX (20), paddingTop: HEADER_PT (8) or insets.top + 8, paddingBottom: HEADER_PB (16)` (lines 18–20, 60, 78–80) |
+| **Title row** | `minHeight: HEADER_MIN_H (44)`, `flexDirection: "row", justifyContent: "space-between"` (lines 86–90) |
+| **Right slot** | `minWidth: RIGHT_SLOT_MIN_W (48)` (line 25, 107) |
 | **Title size** | `HEADER_TITLE_SIZE = 28` (line 23) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.top` applied when `includeSafeAreaTop=true` (lines 57–58) |
-| **Responsive logic** | None |
+| **Max width** | 600px on wide layouts — inner content wrapper at line 83 |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.top` applied when `includeSafeAreaTop=true` (lines 57–60) |
+| **Responsive logic** | `screenWidth >= 768` → inner content wrapped in `maxWidth: 600, alignSelf: "center", width: "100%"` (lines 59, 83). Uses `useWindowDimensions()` |
 | **Consumers** | `src/app/discover.tsx`, `src/app/calendar.tsx`, `src/app/social.tsx`, `src/app/friends.tsx`, `src/app/profile.tsx` |
 
 ### 7. Event Detail Header
@@ -288,13 +288,13 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/app/event/[id].tsx` |
 | **Component** | Inline JSX block (not extracted) |
-| **Container lines** | 2602–2657 (nav bar `<View>`) |
-| **Padding** | `paddingHorizontal: 14, paddingTop: insets.top + 6, paddingBottom: 6` (lines 2606–2608) |
-| **Button size** | `width: 40, height: 40, borderRadius: 20` (lines 2614, 2623) |
-| **Layout** | `flexDirection: "row", justifyContent: "space-between"` (lines 2603–2605) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.top` in `paddingTop` (line 2607) |
-| **Responsive logic** | None |
+| **Container lines** | 2604–2663 (nav bar `<View>`) |
+| **Padding** | `paddingHorizontal: 14, paddingTop: insets.top + 6, paddingBottom: 6` (lines 2608–2610) |
+| **Button size** | `width: 40, height: 40, borderRadius: 20` (lines 2616, 2625) |
+| **Layout** | `flexDirection: "row", justifyContent: "space-between"` (lines 2605–2607) |
+| **Max width** | 600px on wide layouts (line 2612) |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.top` in `paddingTop` (line 2609) |
+| **Responsive logic** | `screenWidth >= 768` → `maxWidth: 600, alignSelf: "center", width: "100%"` (line 2612). Uses `screenWidth` from `useWindowDimensions()` (line 389) |
 | **Consumers** | Inline in `event/[id].tsx` only |
 
 ### 8. CreateEditorHeader
@@ -303,15 +303,15 @@ Exact file locations, line numbers, and dimension values for every surface in th
 |----------|-------|
 | **File** | `src/components/create/CreateEditorHeader.tsx` |
 | **Component** | `CreateEditorHeader` (named export) |
-| **Container lines** | 32–127 (outer `<View position="absolute">`) |
-| **Position** | `position: "absolute", top: 0, left: 0, right: 0, zIndex: 20` (line 33) |
-| **BlurView** | `intensity: 88, paddingTop: insets.top` (lines 38–40) |
-| **Action row** | `paddingTop: 4, paddingHorizontal: 16, paddingBottom: 10` (lines 50–51) |
-| **Button min-width** | `minWidth: 70` (lines 62, 91) |
-| **Layout** | `flexDirection: "row", justifyContent: "space-between"` (lines 53–55) |
-| **Max width** | None |
-| **Safe-area** | `useSafeAreaInsets()` → `insets.top` in BlurView `paddingTop` (lines 28, 40) |
-| **Responsive logic** | None |
+| **Container lines** | 34–131 (outer `<View position="absolute">`) |
+| **Position** | `position: "absolute", top: 0, left: 0, right: 0, zIndex: 20` (line 35) |
+| **BlurView** | `intensity: 88, paddingTop: insets.top` (lines 40–42) |
+| **Action row** | `paddingTop: 4, paddingHorizontal: 16, paddingBottom: 10` (lines 52–53). Wide: adds `maxWidth: 600, alignSelf: "center", width: "100%"` (line 58) |
+| **Button min-width** | `minWidth: 70` (lines 64, 93) |
+| **Layout** | `flexDirection: "row", justifyContent: "space-between"` (lines 55–57) |
+| **Max width** | 600px on wide layouts — action row (line 58) |
+| **Safe-area** | `useSafeAreaInsets()` → `insets.top` in BlurView `paddingTop` (lines 28, 42) |
+| **Responsive logic** | `screenWidth >= 768` → action row gets `maxWidth: 600, alignSelf: "center", width: "100%"` (lines 30, 58). Uses `useWindowDimensions()` |
 | **Consumers** | `src/app/create.tsx` |
 
 ### 9. InviteFlipCard

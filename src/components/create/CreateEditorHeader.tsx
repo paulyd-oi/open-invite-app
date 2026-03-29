@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { useTheme } from "@/lib/ThemeContext";
@@ -26,6 +26,8 @@ export function CreateEditorHeader({
   onLayout,
 }: CreateEditorHeaderProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const { isDark } = useTheme();
 
   return (
@@ -53,6 +55,7 @@ export function CreateEditorHeader({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
+              ...(isWide ? { maxWidth: 600, alignSelf: "center" as const, width: "100%" } : undefined),
             }}
           >
             {/* Cancel */}

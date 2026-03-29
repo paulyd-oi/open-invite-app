@@ -2609,6 +2609,7 @@ export default function EventDetailScreen() {
             paddingTop: insets.top + 6,
             paddingBottom: 6,
             zIndex: 10,
+            ...(screenWidth >= 768 ? { maxWidth: 600, alignSelf: "center" as const, width: "100%" } : undefined),
           }}>
             {eventBannerUri && event.eventPhotoUrl ? (
               <Pressable

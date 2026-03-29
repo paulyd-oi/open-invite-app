@@ -19,6 +19,7 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
@@ -136,6 +137,8 @@ export const EffectTray = memo(function EffectTray({
   onClose,
 }: EffectTrayProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const screenH = Dimensions.get("window").height;
   const libraryHeight = Math.round(screenH * LIBRARY_HEIGHT_PCT);
 
@@ -210,7 +213,14 @@ export const EffectTray = memo(function EffectTray({
       <Animated.View
         entering={FadeInDown.duration(220)}
         exiting={FadeOutDown.duration(180)}
-        style={[styles.outerContainer, { bottom: trayBottom }]}
+        style={[
+          styles.outerContainer,
+          { bottom: trayBottom },
+          isWide && {
+            left: Math.max(12, (screenWidth - 540) / 2),
+            right: Math.max(12, (screenWidth - 540) / 2),
+          },
+        ]}
       >
       <Animated.View
         style={[
