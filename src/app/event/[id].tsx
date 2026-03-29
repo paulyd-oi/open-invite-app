@@ -103,6 +103,7 @@ import { BusyBlockGate } from "@/components/event/BusyBlockGate";
 import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate";
 import { StickyRsvpBar } from "@/components/event/StickyRsvpBar";
 import { HostReflectionCard } from "@/components/event/HostReflectionCard";
+import { MemoriesRow } from "@/components/event/MemoriesRow";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -3838,87 +3839,22 @@ export default function EventDetailScreen() {
         </Animated.View>
 
         {/* ═══ V4.1 Compact Memories Row — low-emphasis, expandable ═══ */}
-        {(() => {
-          const memoriesPhotos: { imageUrl: string }[] =
-            (queryClient.getQueryData(eventKeys.photos(event.id)) as any)?.photos ?? [];
-          const hasMemories = memoriesPhotos.length > 0;
-          const isPastForMemories = startDate < new Date();
-
-          // 0 photos AND event hasn't happened yet → hide entirely
-          if (!hasMemories && !isPastForMemories) return null;
-
-          return (
-            <Animated.View entering={FadeInDown.delay(130).springify()}>
-              {showMemoriesExpanded ? (
-                <EventPhotoGallery
-                  eventId={event.id}
-                  eventTitle={event.title}
-                  eventTime={startDate}
-                  isOwner={isMyEvent}
-                />
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setShowMemoriesExpanded(true);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 12,
-                    marginBottom: 10,
-                    borderTopWidth: 0.5,
-                    borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-                  }}
-                >
-                  {/* Thumbnail preview (first photo or camera icon) */}
-                  {hasMemories && memoriesPhotos[0]?.imageUrl ? (
-                    <View style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", marginRight: 12 }}>
-                      <ExpoImage
-                        source={{ uri: toCloudinaryTransformedUrl(memoriesPhotos[0].imageUrl, CLOUDINARY_PRESETS.AVATAR_THUMB) }}
-                        style={{ width: 36, height: 36 }}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                    </View>
-                  ) : (
-                    <View style={{
-                      width: 36, height: 36, borderRadius: 10, marginRight: 12,
-                      alignItems: "center", justifyContent: "center",
-                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                    }}>
-                      <Camera size={16} color={colors.textTertiary} />
-                    </View>
-                  )}
-
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                      {hasMemories ? "Memories" : "Add memories"}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 1 }}>
-                      {hasMemories
-                        ? `${memoriesPhotos.length} photo${memoriesPhotos.length !== 1 ? "s" : ""}`
-                        : "Share moments from this event"}
-                    </Text>
-                  </View>
-
-                  {hasMemories && (
-                    <View style={{
-                      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                      backgroundColor: `${themeColor}14`,
-                      marginRight: 4,
-                    }}>
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: themeColor }}>
-                        {memoriesPhotos.length}
-                      </Text>
-                    </View>
-                  )}
-                  <ChevronRight size={16} color={colors.textTertiary} />
-                </Pressable>
-              )}
-            </Animated.View>
-          );
-        })()}
+        <MemoriesRow
+          eventId={event.id}
+          eventTitle={event.title}
+          eventTime={startDate}
+          isOwner={isMyEvent}
+          memoriesPhotos={(queryClient.getQueryData(eventKeys.photos(event.id)) as any)?.photos ?? []}
+          isPast={startDate < new Date()}
+          showExpanded={showMemoriesExpanded}
+          isDark={isDark}
+          themeColor={themeColor}
+          colors={colors}
+          onExpand={() => {
+            Haptics.selectionAsync();
+            setShowMemoriesExpanded(true);
+          }}
+        />
 
         </View>{/* close Discussion card */}
 
