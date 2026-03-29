@@ -306,7 +306,7 @@ export default function CreateEventScreen() {
         ts: new Date().toISOString(),
       });
       // [GROWTH_FUNNEL] create_completed
-      trackCreateCompleted({ eventId: response?.event?.id ?? "unknown" });
+      trackCreateCompleted({ eventId: response?.event?.id ?? "unknown", userId: session?.user?.id ?? null });
       markGuidanceComplete("create_invite");
       if (onboardingGuide.shouldShowStep("create_event")) {
         onboardingGuide.completeStep("create_event");

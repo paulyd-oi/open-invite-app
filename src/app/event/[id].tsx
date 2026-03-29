@@ -518,10 +518,17 @@ export default function EventDetailScreen() {
   const heroLoadedUrl = useRef<string | null>(null);
 
   // [GROWTH_FUNNEL] Track page view — once per mount
+  // isCreator uses isFromCreate as proxy (event data not yet loaded at mount)
   useEffect(() => {
     if (!id || pageViewFired.current) return;
     pageViewFired.current = true;
-    trackEventPageViewed({ eventId: id, from: from ?? null });
+    trackEventPageViewed({
+      eventId: id,
+      from: from ?? null,
+      userId: session?.user?.id ?? null,
+      isAuthenticated: bootStatus === 'authed',
+      isCreator: isFromCreate,
+    });
   }, [id]);
 
   // Check photo nudge dismiss state
@@ -1395,7 +1402,7 @@ export default function EventDetailScreen() {
       // [P0_ANALYTICS_EVENT] event_rsvp
       trackEventRsvp({ rsvpStatus: status, sourceScreen: "event_detail" });
       // [GROWTH_FUNNEL] rsvp_success
-      trackRsvpSuccess({ eventId: id ?? "unknown" });
+      trackRsvpSuccess({ eventId: id ?? "unknown", userId: session?.user?.id ?? null, isCreator: isMyEvent });
       // [P0_POSTHOG_VALUE] rsvp_completed — canonical retention event
       trackRsvpCompleted({
         eventId: id ?? "unknown",
@@ -1630,7 +1637,7 @@ export default function EventDetailScreen() {
 
   const handleRsvp = (status: RsvpStatus) => {
     // [GROWTH_FUNNEL] Track every RSVP attempt
-    if (id) trackRsvpAttempt({ eventId: id, isAuthenticated: bootStatus === 'authed' });
+    if (id) trackRsvpAttempt({ eventId: id, userId: session?.user?.id ?? null, isAuthenticated: bootStatus === 'authed', isCreator: isMyEvent });
 
     // [P0_RSVP] Guard: prevent rapid-tap race conditions
     if (rsvpMutation.isPending) {
@@ -1662,7 +1669,7 @@ export default function EventDetailScreen() {
         setPendingRsvpIntent({ eventId: id, status: status as PendingRsvpStatus });
         if (__DEV__) devLog('[P0_RSVP] stored pending intent pre-auth', { eventId: id, status });
       }
-      if (id) trackRsvpRedirectToAuth({ eventId: id });
+      if (id) trackRsvpRedirectToAuth({ eventId: id, userId: null, isAuthenticated: false });
       safeToast.info("Sign up to confirm your RSVP");
       router.replace('/welcome');
       return;
@@ -2772,7 +2779,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "copy" });
+                    trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                     const link = getEventUniversalLink(event.id);
                     await Clipboard.setStringAsync(link);
                     safeToast.success("Link copied");
@@ -2794,7 +2801,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "sms" });
+                    trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                     const link = getEventUniversalLink(event.id);
                     const body = `${event.emoji ?? "📅"} ${event.title} — you in?\n\n${link}`;
                     Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
@@ -2816,7 +2823,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "native" });
+                    trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                     shareEvent({ ...event, location: locationDisplay ?? null });
                   }}
                   style={{

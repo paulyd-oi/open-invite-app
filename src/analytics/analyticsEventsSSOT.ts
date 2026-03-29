@@ -790,6 +790,9 @@ export function trackFriendsLensLoaded(props: {
 export function trackEventPageViewed(props: {
   eventId: string;
   from: string | null;
+  userId: string | null;
+  isAuthenticated: boolean;
+  isCreator: boolean;
 }): void {
   track(AnalyticsEvent.EVENT_PAGE_VIEWED, props);
 }
@@ -797,7 +800,9 @@ export function trackEventPageViewed(props: {
 /** rsvp_attempt — fires on RSVP button press, before any logic. No PII. [GROWTH_FUNNEL] */
 export function trackRsvpAttempt(props: {
   eventId: string;
+  userId: string | null;
   isAuthenticated: boolean;
+  isCreator: boolean;
 }): void {
   track(AnalyticsEvent.RSVP_ATTEMPT, props);
 }
@@ -805,6 +810,8 @@ export function trackRsvpAttempt(props: {
 /** rsvp_redirect_to_auth — fires when unauthenticated user is redirected. No PII. [GROWTH_FUNNEL] */
 export function trackRsvpRedirectToAuth(props: {
   eventId: string;
+  userId: string | null;
+  isAuthenticated: boolean;
 }): void {
   track(AnalyticsEvent.RSVP_REDIRECT_TO_AUTH, props);
 }
@@ -812,6 +819,8 @@ export function trackRsvpRedirectToAuth(props: {
 /** rsvp_success — fires on successful RSVP mutation. No PII. [GROWTH_FUNNEL] */
 export function trackRsvpSuccess(props: {
   eventId: string;
+  userId: string | null;
+  isCreator: boolean;
 }): void {
   track(AnalyticsEvent.RSVP_SUCCESS, props);
 }
@@ -820,6 +829,8 @@ export function trackRsvpSuccess(props: {
 export function trackShareTriggered(props: {
   eventId: string;
   method: "native" | "sms" | "copy";
+  userId: string | null;
+  isCreator: boolean;
 }): void {
   track(AnalyticsEvent.SHARE_TRIGGERED, props);
 }
@@ -827,6 +838,7 @@ export function trackShareTriggered(props: {
 /** create_completed — fires after successful event creation. No PII. [GROWTH_FUNNEL] */
 export function trackCreateCompleted(props: {
   eventId: string;
+  userId: string | null;
 }): void {
   track(AnalyticsEvent.CREATE_COMPLETED, props);
 }
