@@ -323,9 +323,10 @@ export default function PaywallScreen() {
 
   const getPlanCTALabel = (): string => {
     if (isPurchasing) return "";
+    const introPrice = yearlyPackage?.product?.introPrice?.priceString ?? `$${PRICING.proYearlyIntro}`;
     switch (selectedPlan) {
       case "lifetime": return `Get Founder Lifetime — ${getSelectedPrice()}`;
-      case "yearly": return `Get Annual Pro — ${getSelectedPrice()}/yr`;
+      case "yearly": return `Get Annual Pro — ${introPrice} first year`;
       case "monthly": return `Get Monthly Pro — ${getSelectedPrice()}/mo`;
     }
   };
@@ -381,10 +382,10 @@ export default function PaywallScreen() {
               <Crown size={40} color={themeColor} />
             </View>
             <Text style={{ color: isDark ? "#FFFFFF" : colors.text }} className="text-3xl font-bold text-center">
-              Upgrade to Pro
+              Founder Release
             </Text>
             <Text style={{ color: isDark ? "rgba(255,255,255,0.6)" : colors.textSecondary }} className="text-center mt-2 text-base">
-              Premium themes, effects, and event atmosphere
+              Limited pricing for early supporters
             </Text>
           </Animated.View>
         </LinearGradient>
@@ -424,7 +425,7 @@ export default function PaywallScreen() {
               style={{ backgroundColor: "#F59E0B" }}
             >
               <Flame size={12} color="#fff" />
-              <Text className="text-white text-xs font-bold ml-1">Founder</Text>
+              <Text className="text-white text-xs font-bold ml-1">Limited Release</Text>
             </View>
 
             <View className="flex-row items-center justify-between mt-2">
@@ -436,7 +437,7 @@ export default function PaywallScreen() {
                   {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
                 </Text>
                 <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                  One-time payment. Pro forever.
+                  One-time payment. Pro forever. First 1,000 only.
                 </Text>
               </View>
               <View
@@ -489,19 +490,31 @@ export default function PaywallScreen() {
               }),
             }}
           >
-            <View className="flex-row items-center justify-between">
+            {/* Early Adopter badge */}
+            <View
+              className="absolute -top-3 left-4 px-3 py-1 rounded-full flex-row items-center"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Sparkles size={12} color="#fff" />
+              <Text className="text-white text-xs font-bold ml-1">Early Adopter</Text>
+            </View>
+
+            <View className="flex-row items-center justify-between mt-2">
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-base font-bold">
                   Annual Pro
                 </Text>
-                <Text style={{ color: themeColor }} className="text-xl font-bold mt-1">
-                  {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`} / year
-                </Text>
-                {yearlyPackage?.product?.introPrice ? (
-                  <Text style={{ color: "#10B981" }} className="text-xs font-semibold mt-1">
-                    Intro: {yearlyPackage.product.introPrice.priceString} for first year
+                <View className="flex-row items-baseline mt-1">
+                  <Text style={{ color: themeColor }} className="text-xl font-bold">
+                    {yearlyPackage?.product?.introPrice?.priceString ?? `$${PRICING.proYearlyIntro}`}
                   </Text>
-                ) : null}
+                  <Text style={{ color: colors.textSecondary }} className="text-sm ml-1">
+                    first year
+                  </Text>
+                </View>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                  {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`}/yr after. First 10,000 users only.
+                </Text>
               </View>
               <View
                 className="w-6 h-6 rounded-full border-2 items-center justify-center"

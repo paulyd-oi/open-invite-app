@@ -30,6 +30,7 @@ import {
   Palette,
   Users,
   Flame,
+  Sparkles,
   Ticket,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -571,7 +572,7 @@ export default function SubscriptionScreen() {
                       {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
                     </Text>
                     <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                      One-time payment. Pro forever.
+                      One-time payment. Pro forever. First 1,000 only.
                     </Text>
                   </View>
                   <View
@@ -598,17 +599,23 @@ export default function SubscriptionScreen() {
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
-                    <Text style={{ color: colors.text }} className="text-base font-semibold">
-                      Annual Pro
-                    </Text>
-                    <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
-                      {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`} / year
-                    </Text>
-                    {yearlyPackage?.product?.introPrice ? (
-                      <Text style={{ color: "#10B981" }} className="text-xs font-semibold mt-1">
-                        Intro: {yearlyPackage.product.introPrice.priceString} for first year
+                    <View className="flex-row items-center">
+                      <Sparkles size={14} color={themeColor} />
+                      <Text style={{ color: colors.text }} className="text-base font-semibold ml-1">
+                        Annual Pro
                       </Text>
-                    ) : null}
+                    </View>
+                    <View className="flex-row items-baseline mt-1">
+                      <Text style={{ color: themeColor }} className="text-lg font-bold">
+                        {yearlyPackage?.product?.introPrice?.priceString ?? `$${PRICING.proYearlyIntro}`}
+                      </Text>
+                      <Text style={{ color: colors.textSecondary }} className="text-sm ml-1">
+                        first year
+                      </Text>
+                    </View>
+                    <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                      {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`}/yr after. First 10,000 users only.
+                    </Text>
                   </View>
                   <View
                     className="w-6 h-6 rounded-full border-2 items-center justify-center"
