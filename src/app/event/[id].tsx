@@ -370,7 +370,8 @@ const EventDetailErrorState: React.FC<EventDetailErrorStateProps> = ({
 };
 
 export default function EventDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const isFromCreate = from === "create";
   
   // [P1_EVENT_400] Guard: Log route params immediately
   if (__DEV__) {
@@ -401,6 +402,9 @@ export default function EventDetailScreen() {
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
+  // [POST_CREATE] Nudge banner — shown once per create entry, dismissible
+  const [showCreateNudge, setShowCreateNudge] = useState(isFromCreate);
+
   // Prompt arbitration: only ONE modal per RSVP success
   type RsvpPromptChoice = "post_value_invite" | "first_rsvp_nudge" | "notification" | "none";
   const [rsvpPromptChoice, setRsvpPromptChoice] = useState<RsvpPromptChoice>("none");
@@ -2720,6 +2724,52 @@ export default function EventDetailScreen() {
           </Animated.View>
 
         </View>
+
+        {/* ═══ POST-CREATE SHARE NUDGE ═══ */}
+        {showCreateNudge && isMyEvent && (
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4 }}>
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              borderRadius: RADIUS.xl,
+              backgroundColor: isDark ? `${themeColor}18` : `${themeColor}10`,
+              borderWidth: 0.5,
+              borderColor: isDark ? `${themeColor}30` : `${themeColor}20`,
+            }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Share it to get responses</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  shareEvent({ ...event, location: locationDisplay ?? null });
+                  setShowCreateNudge(false);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: themeColor,
+                }}
+              >
+                <Share2 size={14} color="#FFFFFF" />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowCreateNudge(false)}
+                style={{ padding: 6, marginLeft: 4 }}
+                hitSlop={8}
+              >
+                <X size={14} color={colors.textTertiary} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (

@@ -63,7 +63,8 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 
 1. Analytics tracking + cache invalidation (event keys, entitlements, circles)
 2. **Immediate navigation** to `/event/{id}?from=create` via `router.replace()` — no intermediate UI
-3. Fallback only (no event ID returned): notification prompt modal or `router.back()`
+3. Event page shows post-create share nudge banner (see event-page.md)
+4. Fallback only (no event ID returned): notification prompt modal or `router.back()`
 
 `router.replace` prevents stacking — back button returns to the screen before create, not to create.
 

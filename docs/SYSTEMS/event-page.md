@@ -87,7 +87,19 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 - **Calendar:** `router.push(/event/{id})` — standard push
 - **Universal link:** `go.openinvite.cloud/share/event/:id` → deep link
 
-The `from=create` param is available for post-create UI polish (e.g., share nudge). Currently unused by event page.
+The `from=create` param triggers the post-create share nudge (see below).
+
+---
+
+## Post-Create Share Nudge
+
+When `from=create` and user is the event owner:
+
+- Inline banner appears below the invite card: "Your event is live — Share it to get responses"
+- Primary CTA: Share button (invokes existing `shareEvent()` flow)
+- Dismiss: X button or tapping Share (both hide the banner)
+- State: `useState(isFromCreate)` — shown once per entry, not persisted
+- Does not appear for: deep links, normal browsing, non-owners, revisits
 
 ---
 
