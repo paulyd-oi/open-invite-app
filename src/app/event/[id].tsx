@@ -86,7 +86,7 @@ import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { buildEventSharePayload, getEventUniversalLink } from "@/lib/shareSSOT";
+import { buildEventSharePayload, buildEventSmsBody, buildEventReminderText, getEventUniversalLink } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -275,33 +275,29 @@ const addToDeviceCalendar = async (event: { title: string; description?: string 
   }
 };
 
+// Build EventShareInput from raw event data (shared by all share surfaces)
+const buildShareInput = (event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
+  const startDate = new Date(event.startTime);
+  const endDate = event.endTime ? new Date(event.endTime) : null;
+  const dateStr = startDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  const timeStr = endDate
+    ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+    : startDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+  return { id: event.id, title: event.title, emoji: event.emoji, dateStr, timeStr, location: event.location, description: event.description };
+};
+
 // Helper to share event via native share sheet
 const shareEvent = async (event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
   try {
-    const startDate = new Date(event.startTime);
-    const endDate = event.endTime ? new Date(event.endTime) : null;
-    const dateStr = startDate.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    const timeStr = endDate
-      ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-      : startDate.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-
     // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
-    const payload = buildEventSharePayload({
-      id: event.id,
-      title: event.title,
-      emoji: event.emoji,
-      dateStr,
-      timeStr,
-      location: event.location,
-      description: event.description,
-    });
+    const payload = buildEventSharePayload(buildShareInput(event));
 
     trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
     await Share.share({
@@ -2817,8 +2813,7 @@ export default function EventDetailScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    const link = getEventUniversalLink(event.id);
-                    const body = `${event.emoji ?? "📅"} ${event.title} — you in?\n\n${link}`;
+                    const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
                     Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
                   }}
                   style={{
@@ -2965,6 +2960,7 @@ export default function EventDetailScreen() {
                             visibility: event.visibility ?? "unknown",
                             hasCircleId: !!event.circleId,
                           });
+                          trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                           shareEvent({ ...event, location: locationDisplay ?? null });
                         }}
                         style={{
@@ -3007,6 +3003,7 @@ export default function EventDetailScreen() {
                         onPress={() => {
                           trackRsvpSuccessPromptTap({ source: "event" });
                           trackInviteShared({ entity: "event", sourceScreen: "rsvp_success" });
+                          trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setShowRsvpSuccessPrompt(false);
                           if (event) shareEvent({ ...event, location: locationDisplay ?? null });
@@ -3235,17 +3232,8 @@ export default function EventDetailScreen() {
           const bringClaimed = bringItems.filter((i) => !!i.claimedByUserId).length;
           const hasPitchIn = event?.pitchInEnabled && event?.pitchInHandle;
 
-          const startMs = new Date(event.startTime).getTime();
-          const now = Date.now();
-          const hoursUntil = (startMs - now) / (1000 * 60 * 60);
-          const startsSoon = hoursUntil > 0 && hoursUntil <= 4;
-
-          // ── Build reminder text ──
-          const eventTitle = event.title ?? "the event";
-          const eventLink = getEventUniversalLink(event.id);
-          const reminderText = startsSoon
-            ? `Hey \u2014 ${eventTitle} starts soon! Come through: ${eventLink}`
-            : `${eventTitle} is coming up soon. You in? ${eventLink}`;
+          // ── Build reminder text (SSOT) ──
+          const reminderText = buildEventReminderText(buildShareInput({ ...event, location: locationDisplay ?? null }));
 
           return (
             <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
@@ -3256,6 +3244,7 @@ export default function EventDetailScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
+                    trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                     shareEvent({ ...event, location: locationDisplay ?? null });
                   }}
                   style={{

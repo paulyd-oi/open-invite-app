@@ -94,46 +94,56 @@ export function getEventUniversalLink(eventId: string): string {
 }
 
 /**
- * Build the share payload for an event.
+ * Build the share payload for an event (native share sheet).
  * Returns { message, url } ready for Share.share().
  *
- * [P0_SHARE_ULINK] Message includes BOTH links for maximum compatibility:
- *   1. Custom-scheme deep link (best for installed users)
- *   2. Universal link fallback (works in browsers / for non-installed users)
- *   3. App Store download link
- * The Share.share() `url` field is the universal link (rich iMessage previews).
+ * [P0_SHARE_ULINK] Universal link is the single destination.
+ * The Share.share() `url` field provides rich iMessage/social previews.
  */
 export function buildEventSharePayload(event: EventShareInput, referralCode?: string | null): {
   message: string;
   url: string;
 } {
-  const deepLink = getEventDeepLink(event.id);
   const universalLink = appendReferralParam(getEventUniversalLink(event.id), referralCode);
 
-  let msg = `${event.emoji ?? "📅"} ${event.title}\n\n`;
-  msg += `📅 ${event.dateStr} at ${event.timeStr}\n`;
-  if (event.location) {
-    msg += `📍 ${event.location}\n`;
-  }
-  if (event.description) {
-    msg += `\n${event.description}\n`;
-  }
-  msg += `\nOpen in app: ${deepLink}`;
-  msg += `\nOr open: ${universalLink}`;
-  msg += `\nDownload: ${APP_STORE_URL}`;
+  const msg = `${event.title} ${event.dateStr} at ${event.timeStr}\n\nJoin us\n\n${universalLink}`;
 
   assertNoForbiddenDomains(msg, "buildEventSharePayload");
 
   if (__DEV__) {
     devLog("[P0_SHARE_ULINK] event share", {
       eventId: event.id,
-      deepLink,
       universalLink,
-      urlFieldUsed: universalLink,
     });
   }
 
   return { message: msg, url: universalLink };
+}
+
+/**
+ * Build the SMS body for an event invite.
+ * Concise, context-rich, single universal link on its own line.
+ * [P0_SHARE_SSOT]
+ */
+export function buildEventSmsBody(event: EventShareInput, referralCode?: string | null): string {
+  const universalLink = appendReferralParam(getEventUniversalLink(event.id), referralCode);
+  const msg = `${event.emoji ?? "📅"} ${event.title} ${event.dateStr} at ${event.timeStr} — you in?\n\n${universalLink}`;
+
+  assertNoForbiddenDomains(msg, "buildEventSmsBody");
+  return msg;
+}
+
+/**
+ * Build host reminder text for an event (pasteable into SMS/DM/group chat).
+ * Concise personal nudge with universal link.
+ * [P0_SHARE_SSOT]
+ */
+export function buildEventReminderText(event: EventShareInput): string {
+  const universalLink = getEventUniversalLink(event.id);
+  const msg = `${event.title} ${event.dateStr} at ${event.timeStr} — coming up\n\n${universalLink}`;
+
+  assertNoForbiddenDomains(msg, "buildEventReminderText");
+  return msg;
 }
 
 /**

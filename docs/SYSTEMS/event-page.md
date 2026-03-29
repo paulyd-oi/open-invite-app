@@ -62,9 +62,18 @@
 
 ## Share
 
-- `shareEvent(event)` → `buildEventSharePayload()` → native `Share.share()`
+All event share copy lives in `src/lib/shareSSOT.ts`. No inline composition in event/[id].tsx.
+
+| Surface | Builder | Template |
+|---------|---------|----------|
+| Native share sheet | `buildEventSharePayload()` | `{title} {day/time}\n\nJoin us\n\n{link}` |
+| SMS / Text | `buildEventSmsBody()` | `{emoji} {title} {day/time} — you in?\n\n{link}` |
+| Copy Link | `getEventUniversalLink()` | bare universal link |
+| Host Reminder | `buildEventReminderText()` | `{title} {day/time} — coming up\n\n{link}` |
+
 - Universal link: `go.openinvite.cloud/share/event/:id`
-- Source of truth: `src/lib/shareSSOT.ts`
+- `buildShareInput()` in event/[id].tsx converts raw event data → `EventShareInput` (shared by all surfaces)
+- All 4 native share call sites route through `shareEvent()` → `buildEventSharePayload()`
 
 ---
 
@@ -106,6 +115,79 @@ When `from=create` and user is the event owner:
 - Dismiss: X button or tapping Share (both hide the banner)
 - State: `useState(isFromCreate)` — shown once per entry, not persisted
 - Does not appear for: deep links, normal browsing, non-owners, revisits
+
+---
+
+## Analytics — Core Funnels
+
+Source of truth: `src/analytics/analyticsEventsSSOT.ts`
+Identity: `posthogIdentify()` at `src/app/_layout.tsx:414` (centralized, ref-guarded)
+
+### Event Inventory
+
+| Event | File | Line | Payload | Dedup |
+|-------|------|------|---------|-------|
+| `event_page_viewed` | event/[id].tsx | 524 | `{ eventId, from, userId, isAuthenticated, isCreator }` | useRef |
+| `share_triggered` | event/[id].tsx | 2793, 2815, 2836 | `{ eventId, method, userId, isCreator }` | none (intentional) |
+| `rsvp_attempt` | event/[id].tsx | 1646 | `{ eventId, userId, isAuthenticated, isCreator }` | none (intentional) |
+| `rsvp_redirect_to_auth` | event/[id].tsx | 1678 | `{ eventId, userId: null, isAuthenticated: false }` | none |
+| `rsvp_success` | event/[id].tsx | 1411 | `{ eventId, userId, isCreator }` | mutation onSuccess |
+| `create_completed` | create.tsx | 309 | `{ eventId, userId }` | mutation onSuccess |
+
+`userId` is `null` when logged out, never `undefined`.
+
+### Funnel 1 — Share Conversion
+
+```
+share_triggered → event_page_viewed (on recipient device)
+```
+- Segment by: `method` (native / sms / copy), `isCreator`
+- Note: cross-device — requires matching via eventId
+
+### Funnel 2 — RSVP Conversion
+
+```
+event_page_viewed → rsvp_attempt → rsvp_success
+```
+- Segment by: `isAuthenticated`, `from` (create / feed / deep link)
+- Key metric: conversion rate from view to success
+
+### Funnel 3 — Auth Friction
+
+```
+rsvp_attempt → rsvp_redirect_to_auth → rsvp_success
+```
+- Segment by: `isAuthenticated` on `rsvp_attempt`
+- Measures: drop-off at auth redirect, recovery rate post-auth
+- Note: `rsvp_success` fires post-auth via intent claim (different session)
+
+### Funnel 4 — Creator Loop
+
+```
+create_completed → share_triggered → event_page_viewed
+```
+- Segment by: `userId` (creator identity), `method`
+- Measures: share rate after creation, viral reach per event
+
+### PostHog Dashboard Spec
+
+**Dashboard 1 — Core Funnel**
+- Funnels 1 + 2
+- Funnel visualization: `event_page_viewed` → `rsvp_attempt` → `rsvp_success`
+- Breakdown: `from` (entry source), `isCreator`
+- Time range: 7d / 30d
+
+**Dashboard 2 — Auth Friction**
+- Funnel 3
+- Funnel visualization: `rsvp_attempt` → `rsvp_redirect_to_auth` → `rsvp_success`
+- Filter: `isAuthenticated = false` on `rsvp_attempt`
+- Key insight: what % of unauthenticated users complete RSVP post-auth
+
+**Dashboard 3 — Creator Loop**
+- Funnel 4
+- Funnel visualization: `create_completed` → `share_triggered` → `event_page_viewed`
+- Breakdown: `method` on `share_triggered`
+- Key insight: share rate per creation, which channel drives most views
 
 ---
 
