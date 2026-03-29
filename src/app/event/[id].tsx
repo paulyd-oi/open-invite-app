@@ -94,6 +94,7 @@ import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
 import { ReportModal } from "@/components/event/ReportModal";
 import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
 import { ColorPickerSheet } from "@/components/event/ColorPickerSheet";
+import { PhotoUploadSheet } from "@/components/event/PhotoUploadSheet";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -5091,53 +5092,32 @@ export default function EventDetailScreen() {
         }}
       />
 
-      {/* Event Photo Upload Sheet */}
-      <BottomSheet visible={showPhotoSheet} onClose={() => setShowPhotoSheet(false)} title="Event Photo">
-        <View className="px-5 pb-6">
-          <Pressable
-            onPress={async () => {
-              setShowPhotoSheet(false);
-              // Wait for sheet dismiss animation before opening picker
-              // Prevents iOS gesture/touch blocker overlay freeze
-              await new Promise(r => setTimeout(r, 300));
-              launchEventPhotoPicker();
-            }}
-            className="flex-row items-center py-3"
-          >
-            <Camera size={20} color={themeColor} />
-            <Text className="ml-3 text-base font-medium" style={{ color: colors.text }}>
-              {event?.eventPhotoUrl ? "Replace photo" : "Upload photo"}
-            </Text>
-            {uploadingPhoto && <ActivityIndicator size="small" className="ml-auto" color={themeColor} />}
-          </Pressable>
-          {event?.eventPhotoUrl && (
-            <Pressable
-              onPress={async () => {
-                try {
-                  setShowPhotoSheet(false);
-                  await api.put(`/api/events/${id}/photo`, { remove: true });
-                  invalidateEventMedia(queryClient, id ?? undefined);
-                  safeToast.success("Photo removed");
-                } catch (e: any) {
-                  if (__DEV__) devError("[EVENT_PHOTO_REMOVE]", e);
-                  safeToast.error("Failed to remove photo");
-                }
-              }}
-              className="flex-row items-center py-3"
-            >
-              <Trash2 size={20} color="#EF4444" />
-              <Text className="ml-3 text-base font-medium" style={{ color: "#EF4444" }}>Remove photo</Text>
-            </Pressable>
-          )}
-          <Pressable
-            onPress={() => setShowPhotoSheet(false)}
-            className="flex-row items-center py-3"
-          >
-            <X size={20} color={colors.textSecondary} />
-            <Text className="ml-3 text-base" style={{ color: colors.textSecondary }}>Cancel</Text>
-          </Pressable>
-        </View>
-      </BottomSheet>
+      <PhotoUploadSheet
+        visible={showPhotoSheet}
+        hasExistingPhoto={!!event?.eventPhotoUrl}
+        uploadingPhoto={uploadingPhoto}
+        themeColor={themeColor}
+        colors={colors}
+        onClose={() => setShowPhotoSheet(false)}
+        onUploadPhoto={async () => {
+          setShowPhotoSheet(false);
+          // Wait for sheet dismiss animation before opening picker
+          // Prevents iOS gesture/touch blocker overlay freeze
+          await new Promise(r => setTimeout(r, 300));
+          launchEventPhotoPicker();
+        }}
+        onRemovePhoto={async () => {
+          try {
+            setShowPhotoSheet(false);
+            await api.put(`/api/events/${id}/photo`, { remove: true });
+            invalidateEventMedia(queryClient, id ?? undefined);
+            safeToast.success("Photo removed");
+          } catch (e: any) {
+            if (__DEV__) devError("[EVENT_PHOTO_REMOVE]", e);
+            safeToast.error("Failed to remove photo");
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
