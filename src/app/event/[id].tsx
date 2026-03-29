@@ -99,6 +99,7 @@ import { AttendeesSheet } from "@/components/event/AttendeesSheet";
 import { EventActionsSheet } from "@/components/event/EventActionsSheet";
 import { HostToolsRow } from "@/components/event/HostToolsRow";
 import { PostCreateNudge } from "@/components/event/PostCreateNudge";
+import { BusyBlockGate } from "@/components/event/BusyBlockGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2294,34 +2295,10 @@ export default function EventDetailScreen() {
       devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, maskedBusy: true, viewerIsOwner: isMyEvent });
     }
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Busy", headerBackTitle: "Back" }} />
-        <View className="flex-1 items-center justify-center px-6">
-          <View
-            className="w-16 h-16 rounded-full items-center justify-center mb-4"
-            style={{ backgroundColor: colors.surface }}
-          >
-            <Lock size={28} color={colors.textSecondary} />
-          </View>
-          <Text
-            className="text-xl font-semibold text-center mb-2"
-            style={{ color: colors.text }}
-          >
-            Busy
-          </Text>
-          <Text
-            className="text-center mb-6"
-            style={{ color: colors.textSecondary, lineHeight: 22 }}
-          >
-            This time is blocked on the host's calendar.
-          </Text>
-          <Button
-            variant="ghost"
-            label="Go Back"
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
-          />
-        </View>
-      </SafeAreaView>
+      <BusyBlockGate
+        colors={colors}
+        onGoBack={() => router.canGoBack() ? router.back() : router.replace('/friends')}
+      />
     );
   }
 
