@@ -93,6 +93,7 @@ import { RADIUS } from "@/ui/layout";
 import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
 import { ReportModal } from "@/components/event/ReportModal";
 import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
+import { ColorPickerSheet } from "@/components/event/ColorPickerSheet";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -5056,104 +5057,39 @@ export default function EventDetailScreen() {
               </KeyboardAwareScrollView>
       </BottomSheet>
 
-      {/* Color Picker (uses shared BottomSheet) */}
-      <BottomSheet
+      <ColorPickerSheet
         visible={showColorPicker}
+        currentColorOverride={currentColorOverride}
+        colors={colors}
         onClose={() => setShowColorPicker(false)}
-        heightPct={0}
-        backdropOpacity={0.5}
-        title="Block Color"
-      >
-              <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-                  Customize how this event appears on your calendar
-                </Text>
-              </View>
-
-              {/* Color Palette Grid */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-                  {COLOR_PALETTE.map((color) => {
-                    const isSelected = currentColorOverride === color;
-                    return (
-                      <Pressable
-                        key={color}
-                        onPress={async () => {
-                          if (!id) return;
-                          // Busy blocks cannot be recolored [P0_EVENT_COLOR_UI]
-                          if (isBusyBlock) {
-                            if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_busy', { eventId: id, isBusyBlock });
-                            return;
-                          }
-                          if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'color_pick', { eventId: id, color, isMyEvent });
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          try {
-                            await setOverrideColor(id, color);
-                            if (__DEV__) {
-                              devLog("[EventColorPicker] Color set:", { eventId: id, color });
-                            }
-                          } catch (error) {
-                            safeToast.error("Save Failed", "Failed to save color");
-                          }
-                        }}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 24,
-                          backgroundColor: color,
-                          borderWidth: isSelected ? 3 : 0,
-                          borderColor: colors.text,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {isSelected && (
-                          <Check size={24} color="#FFFFFF" />
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Reset to Default */}
-              {currentColorOverride && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                  <Button
-                    variant="secondary"
-                    label="Reset to Default"
-                    onPress={async () => {
-                      if (!id) return;
-                      // Busy blocks cannot be reset [P0_EVENT_COLOR_UI]
-                      if (isBusyBlock) {
-                        if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_reset_busy', { eventId: id, isBusyBlock });
-                        return;
-                      }
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      try {
-                        await resetColor(id);
-                        if (__DEV__) {
-                          devLog("[EventColorPicker] Color reset to default:", { eventId: id });
-                        }
-                      } catch (error) {
-                        safeToast.error("Save Failed", "Failed to reset color");
-                      }
-                    }}
-                    style={{ borderRadius: RADIUS.md }}
-                  />
-                </View>
-              )}
-
-              {/* Done Button */}
-              <View style={{ paddingHorizontal: 20 }}>
-                <Button
-                  variant="primary"
-                  label="Done"
-                  onPress={() => setShowColorPicker(false)}
-                  style={{ borderRadius: RADIUS.md, paddingVertical: 14 }}
-                />
-              </View>
-      </BottomSheet>
+        onSelectColor={async (color) => {
+          if (!id) return;
+          if (isBusyBlock) {
+            if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_busy', { eventId: id, isBusyBlock });
+            return;
+          }
+          if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'color_pick', { eventId: id, color, isMyEvent });
+          try {
+            await setOverrideColor(id, color);
+            if (__DEV__) devLog("[EventColorPicker] Color set:", { eventId: id, color });
+          } catch (error) {
+            safeToast.error("Save Failed", "Failed to save color");
+          }
+        }}
+        onResetColor={async () => {
+          if (!id) return;
+          if (isBusyBlock) {
+            if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_reset_busy', { eventId: id, isBusyBlock });
+            return;
+          }
+          try {
+            await resetColor(id);
+            if (__DEV__) devLog("[EventColorPicker] Color reset to default:", { eventId: id });
+          } catch (error) {
+            safeToast.error("Save Failed", "Failed to reset color");
+          }
+        }}
+      />
 
       {/* Event Photo Upload Sheet */}
       <BottomSheet visible={showPhotoSheet} onClose={() => setShowPhotoSheet(false)} title="Event Photo">
