@@ -1359,15 +1359,6 @@ export default function FriendsScreen() {
               left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
               right={
                 <View className="flex-row items-center">
-                  {receivedRequests.length > 0 && (
-                    <View
-                      className="w-6 h-6 rounded-full items-center justify-center mr-2"
-                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
-                    </View>
-                  )}
                   {/* Context-aware header button: Activity=hidden, Chats=New, People=Add */}
                   {friendsTab === 1 && (
                     <Button

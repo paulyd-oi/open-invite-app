@@ -41,7 +41,7 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { logError, normalizeCreateEventError, type CreateEventErrorReceipt } from "@/lib/errors";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
-import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
+import { shouldShowNotificationPrompt, markUserHasCreatedEvent } from "@/lib/notificationPrompt";
 import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, usePremiumDriftGuard, type PaywallContext } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -319,6 +319,9 @@ export default function CreateEventScreen() {
       }
 
       const evt = response?.event;
+
+      // Mark user as event creator — suppresses post-RSVP notification prompts
+      markUserHasCreatedEvent(session?.user?.id);
 
       // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {

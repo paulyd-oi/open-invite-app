@@ -20,6 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type Circle } from "@/shared/contracts";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import { useTheme } from "@/lib/ThemeContext";
+import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
@@ -99,6 +100,7 @@ const THRESH_OPEN_PX = 28;               // drag distance to snap open
 export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount = 0 }: CircleCardProps) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
 
   // [P1_CIRCLES_SWIPE_UI] Define actions in strict order: Pin, Mute, Delete
@@ -295,8 +297,14 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
     transform: [{ translateX: translateX.value }],
   }));
 
+  // For 1:1 DMs, show only the other person's avatar (not self)
+  const currentUserId = session?.user?.id;
+  const avatarMembers = circle.type === "dm" && currentUserId
+    ? members.filter(m => m.userId !== currentUserId)
+    : members;
+
   // Circular arrangement: up to 5 members positioned around a ring
-  const displayedMembers = members.slice(0, 5);
+  const displayedMembers = avatarMembers.slice(0, 5);
   const AVATAR_CONTAINER = 48;
   const AVATAR_SIZE = displayedMembers.length <= 2 ? 24 : displayedMembers.length <= 3 ? 20 : 16;
   const RING_RADIUS = displayedMembers.length <= 2 ? 10 : 12;

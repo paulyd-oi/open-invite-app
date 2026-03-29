@@ -41,6 +41,8 @@
 - Invalidates on settle: `feed`, `feedPaginated`, `myEvents`, `calendar`, `attending`
 - Statuses: `going`, `interested`, `not_going`, `maybe`, `invited`, `null`
 - Side effect: Auto-starts Live Activity on "going" (iOS)
+- Post-RSVP prompt arbitration: PostValueInvite > FirstRsvpNudge > NotificationPrePrompt
+- NotificationPrePrompt only fires if user has NOT created any events (targets social-only users)
 
 ---
 

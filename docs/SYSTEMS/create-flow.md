@@ -62,9 +62,10 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 ## Post-Create
 
 1. Analytics tracking + cache invalidation (event keys, entitlements, circles)
-2. **Immediate navigation** to `/event/{id}?from=create` via `router.replace()` — no intermediate UI
-3. Event page shows post-create share nudge banner (see event-page.md)
-4. Fallback only (no event ID returned): notification prompt modal or `router.back()`
+2. `markUserHasCreatedEvent(userId)` — flags user as event creator (suppresses post-RSVP notification prompt)
+3. **Immediate navigation** to `/event/{id}?from=create` via `router.replace()` — no intermediate UI
+4. Event page shows post-create share nudge banner (see event-page.md)
+5. Fallback only (no event ID returned): notification prompt modal or `router.back()`
 
 `router.replace` prevents stacking — back button returns to the screen before create, not to create.
 
