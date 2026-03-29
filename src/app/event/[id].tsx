@@ -91,6 +91,7 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
+import { ReportModal } from "@/components/event/ReportModal";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -5000,114 +5001,23 @@ export default function EventDetailScreen() {
               </View>
       </BottomSheet>
 
-      {/* Report Event Modal */}
-      <Modal
+      <ReportModal
         visible={showReportModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowReportModal(false)}
-      >
-        <Pressable 
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowReportModal(false)}
-        >
-          <Pressable 
-            className="rounded-t-3xl p-6 pb-10"
-            style={{ backgroundColor: colors.background }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text className="text-xl font-bold mb-2" style={{ color: colors.text }}>
-              Report Event
-            </Text>
-            <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
-              Select a reason for your report
-            </Text>
-            
-            {(["spam", "inappropriate", "safety", "other"] as const).map((reason) => {
-              const labels: Record<typeof reason, string> = {
-                spam: "Spam",
-                inappropriate: "Inappropriate Content",
-                safety: "Safety Concern",
-                other: "Other",
-              };
-              const isSelected = selectedReportReason === reason;
-              return (
-                <Pressable
-                  key={reason}
-                  className="flex-row items-center py-3 px-4 rounded-xl mb-2"
-                  style={{ 
-                    backgroundColor: isSelected ? themeColor + "20" : colors.surface,
-                    borderWidth: isSelected ? 2 : 1,
-                    borderColor: isSelected ? themeColor : colors.border,
-                  }}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setSelectedReportReason(reason);
-                  }}
-                >
-                  <View 
-                    className="w-5 h-5 rounded-full border-2 mr-3 items-center justify-center"
-                    style={{ borderColor: isSelected ? themeColor : colors.border }}
-                  >
-                    {isSelected && (
-                      <View 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: themeColor }}
-                      />
-                    )}
-                  </View>
-                  <Text style={{ color: colors.text }}>{labels[reason]}</Text>
-                </Pressable>
-              );
-            })}
-            
-            {selectedReportReason === "other" && (
-              <TextInput
-                className="rounded-xl p-4 mt-2"
-                style={{ 
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  color: colors.text,
-                  minHeight: 80,
-                  textAlignVertical: "top",
-                }}
-                placeholder="Please describe the issue..."
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                value={reportDetails}
-                onChangeText={setReportDetails}
-              />
-            )}
-            
-            <View className="flex-row mt-4 gap-3">
-              <Pressable
-                className="flex-1 py-4 rounded-xl items-center"
-                style={{ backgroundColor: colors.surface }}
-                onPress={() => {
-                  setShowReportModal(false);
-                  setSelectedReportReason(null);
-                  setReportDetails("");
-                }}
-              >
-                <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
-                  Cancel
-                </Text>
-              </Pressable>
-              
-              <Button
-                variant="primary"
-                label={isSubmittingReport ? "Submitting..." : "Submit Report"}
-                onPress={submitEventReport}
-                disabled={!selectedReportReason || isSubmittingReport}
-                loading={isSubmittingReport}
-                style={{ flex: 1, borderRadius: RADIUS.md }}
-              />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        selectedReportReason={selectedReportReason}
+        reportDetails={reportDetails}
+        isSubmittingReport={isSubmittingReport}
+        themeColor={themeColor}
+        colors={colors}
+        onClose={() => setShowReportModal(false)}
+        onSelectReason={setSelectedReportReason}
+        onChangeDetails={setReportDetails}
+        onSubmit={submitEventReport}
+        onCancel={() => {
+          setShowReportModal(false);
+          setSelectedReportReason(null);
+          setReportDetails("");
+        }}
+      />
 
       {/* Attendees Modal - P0: View all attendees (uses shared BottomSheet) */}
       <BottomSheet
