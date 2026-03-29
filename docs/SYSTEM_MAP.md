@@ -31,6 +31,7 @@ Boot → Auth Gate (bootStatus === 'authed')
 | **Event Page** | `src/app/event/[id].tsx`, `src/app/event/edit/[id].tsx` | [event-page.md](SYSTEMS/event-page.md) |
 | **Theme & Effects** | `src/lib/eventThemes.ts`, `ThemeEffectLayer.tsx`, `MotifOverlay.tsx` | [theme-effects.md](SYSTEMS/theme-effects.md) |
 | **Chat (Circles)** | `src/app/circle/[id].tsx`, `src/components/circle/*` | [chat.md](SYSTEMS/chat.md) |
+| **Discover** | `src/app/discover.tsx`, `src/components/ideas/DailyIdeasDeck.tsx` | [discover.md](SYSTEMS/discover.md) |
 | **Calendar** | `src/app/calendar.tsx`, `src/lib/calendarSync.ts` | [calendar.md](SYSTEMS/calendar.md) |
 | **Location** | `src/hooks/useLocationSearch.ts`, `src/components/create/placeSearch.ts` | [location.md](SYSTEMS/location.md) |
 

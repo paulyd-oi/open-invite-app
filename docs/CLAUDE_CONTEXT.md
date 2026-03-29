@@ -157,6 +157,7 @@ A structured reference layer lives in `docs/SYSTEM_MAP.md` with detailed subsyst
 | Event Page | `docs/SYSTEMS/event-page.md` |
 | Theme & Effects | `docs/SYSTEMS/theme-effects.md` |
 | Chat (Circles) | `docs/SYSTEMS/chat.md` |
+| Discover | `docs/SYSTEMS/discover.md` |
 | Calendar | `docs/SYSTEMS/calendar.md` |
 | Location | `docs/SYSTEMS/location.md` |
 
