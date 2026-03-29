@@ -128,8 +128,8 @@ ThemeEffectLayer; else no particles. Preview matches event page behavior.
 - Frontend collects user coords via `expo-location`
 - Backend route: `GET /api/places/search?query=...&lat=...&lon=...`
 - Uses `GOOGLE_PLACES_API_KEY` env var on Render
-- Passes `location=${lat},${lon}&radius=50000` to Google Places API
-- Fallback chain: Google Places -> Photon -> Nominatim -> smart suggestions
+- Passes `location=${lat},${lon}&radius=80000&strictbounds` to Google Places API (strict-then-relaxed strategy)
+- Fallback chain: Google Places (strict) -> Google Places (relaxed) -> Photon (distance-filtered) -> Nominatim (distance-filtered) -> smart suggestions
 - No code changes needed if API key is set correctly
 
 ---
