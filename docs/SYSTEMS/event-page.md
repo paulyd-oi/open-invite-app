@@ -46,6 +46,7 @@
 - NotificationPrePrompt only fires if user has NOT created any events (targets social-only users)
 - **Sticky bottom RSVP bar:** Floating bar pinned to bottom for guests. Visible when: `!isMyEvent && !event?.isBusy && event && !hasJoinRequest && myRsvpStatus !== "going"`. Shows "I'm In" (primary, solid green) + "Save" (secondary). Full events show disabled "Full" state. Reuses `handleRsvp()` — no duplicated business logic. Auto-dismisses when `myRsvpStatus` changes to "going" or `hasJoinRequest` becomes true. Supports pre-auth RSVP flow for logged-out users. Scroll content gets extra paddingBottom when bar is visible. Shows "X going" count text (muted, above buttons) when `effectiveGoingCount > 0`.
 - **Social proof row:** Compact avatar stack + "X going" text (or "Be the first to join" zero-state) placed adjacent to the inline RSVP buttons. Inherits guest-only visibility from parent `!isMyEvent && !event?.isBusy` block. Also shown above "You're Attending" bar for confirmed attendees (reinforces decision). Data sourced from existing `attendeesList` (max 4 avatars) and `effectiveGoingCount` — no new queries.
+- **Find Friends nudge:** Post-RSVP inline card exposing contacts import flow. Visible when: `!isMyEvent && myRsvpStatus === "going" && !showRsvpSuccessPrompt && !findFriendsNudgeDismissed`. CTA routes to `/find-friends`. Dismiss persisted via AsyncStorage key `dismissedFindFriendsNudge`. Placed after success prompt, before social proof row — avoids stacking with success prompt via `!showRsvpSuccessPrompt` guard.
 
 ---
 

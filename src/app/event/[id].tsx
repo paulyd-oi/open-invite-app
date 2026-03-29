@@ -466,6 +466,7 @@ export default function EventDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
+  const [findFriendsNudgeDismissed, setFindFriendsNudgeDismissed] = useState(true); // default hidden until check
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
@@ -538,6 +539,13 @@ export default function EventDetailScreen() {
       if (v === "true") setPhotoNudgeDismissed(true);
     });
   }, [id]);
+
+  // [GROWTH_FIND_FRIENDS] Check global dismiss state
+  useEffect(() => {
+    AsyncStorage.getItem("dismissedFindFriendsNudge").then((v) => {
+      setFindFriendsNudgeDismissed(v === "true");
+    });
+  }, []);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -3006,6 +3014,49 @@ export default function EventDetailScreen() {
                       </Pressable>
                       <Pressable
                         onPress={() => setShowRsvpSuccessPrompt(false)}
+                        style={{ marginLeft: 8, padding: 4 }}
+                      >
+                        <X size={14} color={colors.textTertiary} />
+                      </Pressable>
+                    </View>
+                  </Animated.View>
+                )}
+
+                {/* [GROWTH_V1] Find Friends nudge — post-RSVP contacts import exposure */}
+                {!isMyEvent && myRsvpStatus === "going" && !showRsvpSuccessPrompt && !findFriendsNudgeDismissed && (
+                  <Animated.View entering={FadeInDown.duration(300)} style={{ marginBottom: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        padding: 14,
+                        borderRadius: RADIUS.lg,
+                        backgroundColor: isDark ? "rgba(59,130,246,0.10)" : "#EFF6FF",
+                        borderWidth: 1,
+                        borderColor: isDark ? "rgba(59,130,246,0.25)" : "#BFDBFE",
+                      }}
+                    >
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? "rgba(59,130,246,0.20)" : "#DBEAFE", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                        <UserPlus size={16} color="#3B82F6" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>Find friends on Open Invite</Text>
+                        <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>See who you know is already here</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push("/find-friends" as any);
+                        }}
+                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, marginLeft: 8, backgroundColor: "#3B82F6" }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Find</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={async () => {
+                          setFindFriendsNudgeDismissed(true);
+                          await AsyncStorage.setItem("dismissedFindFriendsNudge", "true");
+                        }}
                         style={{ marginLeft: 8, padding: 4 }}
                       >
                         <X size={14} color={colors.textTertiary} />
