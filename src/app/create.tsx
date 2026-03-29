@@ -319,18 +319,14 @@ export default function CreateEventScreen() {
       }
 
       const evt = response?.event;
+
+      // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {
-        setCreatedEvent({
-          id: evt.id,
-          title: evt.title ?? title,
-          emoji: evt.emoji ?? emoji,
-          startTime: evt.startTime ?? startDate.toISOString(),
-          endTime: evt.endTime ?? endDate?.toISOString() ?? null,
-          location: evt.location ?? locationSearch.location ?? null,
-          description: evt.description ?? description ?? null,
-        });
+        router.replace(`/event/${evt.id}?from=create` as any);
+        return;
       }
 
+      // Fallback: no event ID returned (shouldn't happen)
       let notifEligible = false;
       try {
         notifEligible = await shouldShowNotificationPrompt(session?.user?.id) ?? false;
@@ -338,9 +334,7 @@ export default function CreateEventScreen() {
         notifEligible = false;
       }
 
-      if (evt?.id) {
-        router.replace(`/event/${evt.id}` as any);
-      } else if (notifEligible) {
+      if (notifEligible) {
         setCreatePromptChoice("notification");
       } else {
         router.back();

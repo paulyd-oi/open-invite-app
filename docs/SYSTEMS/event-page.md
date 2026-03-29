@@ -80,9 +80,21 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 
 ---
 
+## Navigation Sources
+
+- **Create flow:** `router.replace(/event/{id}?from=create)` — immediate, no intermediate UI
+- **Feed/discover:** `router.push(/event/{id})` — standard push
+- **Calendar:** `router.push(/event/{id})` — standard push
+- **Universal link:** `go.openinvite.cloud/share/event/:id` → deep link
+
+The `from=create` param is available for post-create UI polish (e.g., share nudge). Currently unused by event page.
+
+---
+
 ## Invariants
 
 - Particle layer is exclusive: effect OR theme particles, never both.
 - Theme gradient, video, styling, and filters are NOT suppressed by effects — only particles are exclusive.
 - Edit page uses same ThemeTray + EffectTray components as create flow.
 - Edit hydrates theme/effect state from event data on load.
+- Post-create navigation must use `router.replace` (not push) to prevent stacking create screen in history.

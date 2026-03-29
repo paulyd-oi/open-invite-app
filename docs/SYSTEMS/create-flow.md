@@ -61,9 +61,11 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 
 ## Post-Create
 
-1. Navigate to `/event/{id}` via `router.replace()`
-2. Invalidate: event keys, entitlements, circles
-3. Optional: notification prompt modal
+1. Analytics tracking + cache invalidation (event keys, entitlements, circles)
+2. **Immediate navigation** to `/event/{id}?from=create` via `router.replace()` — no intermediate UI
+3. Fallback only (no event ID returned): notification prompt modal or `router.back()`
+
+`router.replace` prevents stacking — back button returns to the screen before create, not to create.
 
 ---
 
