@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -295,7 +296,7 @@ export default function PublicProfileScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: STACK_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={themeColor} />

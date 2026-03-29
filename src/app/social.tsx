@@ -34,6 +34,7 @@ import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
+import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
@@ -1657,7 +1658,7 @@ export default function SocialScreen() {
           testID="social-feed"
           className="flex-1 px-5"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: TAB_BOTTOM_PADDING }}
           showsVerticalScrollIndicator={false}
           onScroll={handleFeedScroll}
           scrollEventThrottle={400}

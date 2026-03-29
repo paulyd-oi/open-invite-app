@@ -20,6 +20,7 @@ import { BlurView } from "expo-blur";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { getDiscussionPrompts, inferEventTags } from "@/lib/discussionPromptSSOT";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -2497,7 +2498,7 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: STACK_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}

@@ -35,6 +35,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
+import { FORM_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import {
@@ -417,7 +418,7 @@ export default function EditEventScreen() {
       >
         <ScrollView
           className="flex-1 px-5"
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: FORM_BOTTOM_PADDING }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

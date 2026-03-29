@@ -32,6 +32,7 @@ import { Image as ExpoImage } from "expo-image";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
+import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { safeToast } from "@/lib/safeToast";
@@ -552,7 +553,7 @@ export default function DiscoverScreen() {
               data={activeFeed}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 16, paddingBottom: 100 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 16, paddingBottom: TAB_BOTTOM_PADDING }}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}
@@ -967,7 +968,7 @@ export default function DiscoverScreen() {
             /* ═══ Saved V2 — Event List with Time Groups ═══ */
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: 100 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: TAB_BOTTOM_PADDING }}
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl

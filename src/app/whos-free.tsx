@@ -22,6 +22,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
+import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 import { devLog, devError } from "@/lib/devLog";
@@ -479,7 +480,7 @@ export default function WhosFreeScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: STACK_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

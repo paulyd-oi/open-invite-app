@@ -80,6 +80,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
+import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { Button } from "@/ui/Button";
@@ -1451,7 +1452,7 @@ export default function FriendsScreen() {
       <ScrollView
         className="flex-1"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        contentContainerStyle={{ paddingTop: chromeHeight, paddingHorizontal: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: chromeHeight, paddingHorizontal: 20, paddingBottom: TAB_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

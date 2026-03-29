@@ -52,6 +52,7 @@ import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
+import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
@@ -2454,7 +2455,7 @@ export default function CalendarScreen() {
           ref={scrollViewRef}
           className="flex-1"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: TAB_BOTTOM_PADDING }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

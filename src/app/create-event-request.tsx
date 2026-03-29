@@ -34,6 +34,7 @@ import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
@@ -354,7 +355,7 @@ export default function CreateEventRequestScreen() {
       >
         <ScrollView
           className="flex-1 px-5"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: TAB_BOTTOM_PADDING }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

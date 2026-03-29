@@ -39,6 +39,7 @@ import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devLog } from "@/lib/devLog";
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
+import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 
 /** Normalize backend reward type strings to canonical _pro format for display */
 function normalizeRewardType(type: string): string {
@@ -190,7 +191,7 @@ export default function InviteScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: STACK_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
