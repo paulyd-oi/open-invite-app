@@ -106,6 +106,7 @@ import { HostReflectionCard } from "@/components/event/HostReflectionCard";
 import { MemoriesRow } from "@/components/event/MemoriesRow";
 import { EventSettingsAccordion } from "@/components/event/EventSettingsAccordion";
 import { DiscussionCard } from "@/components/event/DiscussionCard";
+import { WhosComingCard } from "@/components/event/WhosComingCard";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -3387,235 +3388,26 @@ export default function EventDetailScreen() {
         {/* ═══ WHO'S COMING CARD ═══ */}
         <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
-        {/* ═══ Who's Coming / Social Proof (Task 4 — reduced card fatigue) ═══ */}
-        {(() => {
-          // 403 privacy denied: show privacy message
-          if (attendeesPrivacyDenied) {
-            return (
-              <Animated.View entering={FadeInDown.delay(95).springify()}>
-                <View style={{ paddingVertical: 14, marginBottom: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Lock size={16} color="#9CA3AF" />
-                    <Text style={{ fontSize: 14, fontWeight: "600", marginLeft: 8, color: colors.text }}>
-                      Who's Coming
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 6 }}>
-                    Attendees visible to invited or going members
-                  </Text>
-                </View>
-              </Animated.View>
-            );
-          }
-
-          // Has attendees: show compact roster preview (1-row avatar stack)
-          if (effectiveGoingCount > 0 || attendeesList.length > 0) {
-            const STACK_MAX = 5;
-            const AVATAR_SIZE = 40;
-            const OVERLAP = 11;
-            const hostId = event?.user?.id;
-            const hostInList = attendeesList.find(a => a.id === hostId);
-            const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
-            const orderedForStack: AttendeeInfo[] = [
-              ...(hostInList ? [hostInList] : []),
-              ...nonHostAttendees,
-            ];
-            const hostAttendee: AttendeeInfo | null = (!hostInList && event?.user) ? {
-              id: event.user.id ?? 'host',
-              name: event.user.name ?? 'Host',
-              imageUrl: event.user.image ?? null,
-              isHost: true,
-            } : null;
-            const stackSource = hostAttendee ? [hostAttendee, ...orderedForStack] : orderedForStack;
-            const visibleAvatars = stackSource.slice(0, STACK_MAX);
-            const overflowCount = Math.max(0, effectiveGoingCount - visibleAvatars.length);
-            const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
-
-            return (
-              <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 14 }}>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-                  Who's Coming
-                </Text>
-                <Pressable
-                  testID="event-detail-whos-coming-open"
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setShowAttendeesModal(true);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingVertical: 14,
-                    paddingHorizontal: 14,
-                    borderRadius: RADIUS.lg,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
-                    borderWidth: 0.5,
-                    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                  }}
-                >
-                  {/* Avatar stack */}
-                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: "row" }}>
-                      {visibleAvatars.map((attendee, idx) => {
-                        const isHostAvatar = attendee.id === hostId || attendee.isHost;
-                        return (
-                          <View
-                            key={attendee.id}
-                            style={{
-                              position: "absolute",
-                              left: idx * (AVATAR_SIZE - OVERLAP),
-                              width: AVATAR_SIZE,
-                              height: AVATAR_SIZE,
-                              borderRadius: AVATAR_SIZE / 2,
-                              backgroundColor: isHostAvatar ? (isDark ? "#3C2A1A" : "#FFF7ED") : "#DCFCE7",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderWidth: 2,
-                              borderColor: isHostAvatar ? (isDark ? "#92400E" : "#FDBA74") : "#BBF7D0",
-                              zIndex: visibleAvatars.length - idx,
-                            }}
-                          >
-                            <EntityAvatar
-                              photoUrl={attendee.imageUrl}
-                              initials={attendee.name?.[0] ?? "?"}
-                              size={AVATAR_SIZE - 4}
-                              backgroundColor={isHostAvatar ? (isDark ? "#3C2A1A" : "#FFF7ED") : "#DCFCE7"}
-                              foregroundColor={isHostAvatar ? "#92400E" : "#166534"}
-                            />
-                          </View>
-                        );
-                      })}
-                      {overflowCount > 0 && (
-                        <View
-                          style={{
-                            position: "absolute",
-                            left: visibleAvatars.length * (AVATAR_SIZE - OVERLAP),
-                            width: AVATAR_SIZE,
-                            height: AVATAR_SIZE,
-                            borderRadius: AVATAR_SIZE / 2,
-                            backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: isDark ? "#3C3C3E" : "#E5E7EB",
-                          }}
-                        >
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: colors.textSecondary }}>
-                            +{overflowCount}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
-                      {myRsvpStatus === "going" && effectiveGoingCount === 1
-                        ? "You\u2019re in — be the first to invite friends"
-                        : myRsvpStatus === "going" && effectiveGoingCount === 2
-                        ? "You + 1 other going"
-                        : myRsvpStatus === "going" && effectiveGoingCount > 2
-                        ? `You + ${effectiveGoingCount - 1} others going`
-                        : effectiveGoingCount >= 10
-                        ? `${effectiveGoingCount} going \u00B7 Popular`
-                        : effectiveGoingCount >= 5
-                        ? `${effectiveGoingCount} going \u00B7 Filling up`
-                        : `${effectiveGoingCount} going`}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: `${themeColor}12` }}>
-                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "600" }}>View all</Text>
-                    <ChevronRight size={14} color={themeColor} style={{ marginLeft: 2 }} />
-                  </View>
-                </Pressable>
-              </Animated.View>
-            );
-          }
-
-          // No one coming yet - warm, inviting placeholder
-          return (
-            <Animated.View entering={FadeInDown.delay(95).springify()}>
-              <View style={{ paddingVertical: 14, marginBottom: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={{
-                    width: 28, height: 28, borderRadius: 14,
-                    alignItems: "center", justifyContent: "center",
-                    backgroundColor: STATUS.going.bgSoft,
-                  }}>
-                    <Users size={14} color={STATUS.going.fg} />
-                  </View>
-                  <Text style={{ fontSize: 13, marginLeft: 8, color: colors.textSecondary }}>
-                    {isMyEvent ? "No one\u2019s joined yet \u2014 share to get the word out" : "Be the first to join this event"}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          );
-        })()}
-
-        {/* Interested Users Section */}
-        {interests.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(110).springify()} className="mb-3">
-            <Pressable
-              onPress={() => setShowInterestedUsers(!showInterestedUsers)}
-              className="flex-row items-center justify-between"
-            >
-              <View className="flex-row items-center">
-                <Heart size={16} color="#EC4899" />
-                <Text className="font-semibold ml-2" style={{ color: colors.text }}>
-                  {interests.length} Interested
-                </Text>
-              </View>
-              <ChevronRight
-                size={18}
-                color={colors.textTertiary}
-                style={{ transform: [{ rotate: showInterestedUsers ? "90deg" : "0deg" }] }}
-              />
-            </Pressable>
-            {showInterestedUsers && (
-              <View className="mt-3 flex-row flex-wrap">
-                {interests.map((interest) => (
-                  <View
-                    key={interest.id}
-                    className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-                  >
-                    <EntityAvatar
-                      photoUrl={interest.user.image}
-                      initials={interest.user.name?.[0] ?? "?"}
-                      size={24}
-                      backgroundColor="#EC489930"
-                      foregroundColor="#EC4899"
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text className="text-sm" style={{ color: colors.text }}>
-                      {interest.user.name ?? "Unknown"}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </Animated.View>
-        )}
-
-        {/* Interested Count for Event Owners */}
-        {isMyEvent && interests.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(115).springify()} className="mb-3">
-            <View
-              className="rounded-xl p-4 flex-row items-center"
-              style={{ backgroundColor: "#EC489910", borderWidth: 1, borderColor: "#EC489930" }}
-            >
-              <Heart size={20} color="#EC4899" />
-              <View className="ml-3 flex-1">
-                <Text className="font-semibold" style={{ color: colors.text }}>
-                  {interests.length} people interested
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                  They might attend if the timing works
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
+        {/* ═══ Who's Coming / Social Proof ═══ */}
+        <WhosComingCard
+          attendeesPrivacyDenied={attendeesPrivacyDenied}
+          effectiveGoingCount={effectiveGoingCount}
+          attendeesList={attendeesList}
+          hostId={event?.user?.id}
+          hostUser={event?.user}
+          myRsvpStatus={myRsvpStatus}
+          isMyEvent={isMyEvent}
+          interests={interests}
+          showInterestedUsers={showInterestedUsers}
+          isDark={isDark}
+          themeColor={themeColor}
+          colors={colors}
+          onOpenAttendees={() => {
+            Haptics.selectionAsync();
+            setShowAttendeesModal(true);
+          }}
+          onToggleInterestedUsers={() => setShowInterestedUsers(!showInterestedUsers)}
+        />
         </View>{/* close Who's Coming card */}
 
         {/* ═══ DISCUSSION CARD ═══ */}
