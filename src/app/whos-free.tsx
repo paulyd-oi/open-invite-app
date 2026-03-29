@@ -468,7 +468,7 @@ export default function WhosFreeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       <Stack.Screen
         options={{
           title: "Who's Free?",
@@ -479,7 +479,7 @@ export default function WhosFreeScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

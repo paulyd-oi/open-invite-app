@@ -828,7 +828,7 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       <Stack.Screen
         options={{
           title: user?.name ?? "Profile",
@@ -852,7 +852,7 @@ export default function UserProfileScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

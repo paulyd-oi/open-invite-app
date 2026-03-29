@@ -339,7 +339,7 @@ export default function CreateEventRequestScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       <Stack.Screen
         options={{
           title: "Propose Event",

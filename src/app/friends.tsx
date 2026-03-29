@@ -1336,7 +1336,7 @@ export default function FriendsScreen() {
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
-    <SafeAreaView testID="friends-screen" className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView testID="friends-screen" className="flex-1" edges={[]} style={{ backgroundColor: colors.background }}>
 
       {/* ═══ Floating translucent top chrome ═══ */}
       <View

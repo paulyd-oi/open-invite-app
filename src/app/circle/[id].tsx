@@ -1768,7 +1768,7 @@ export default function CircleScreen() {
   const currentUserId = session!.user?.id;
 
   return (
-    <SafeAreaView className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView className="flex-1" edges={[]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Floating BlurView header chrome */}

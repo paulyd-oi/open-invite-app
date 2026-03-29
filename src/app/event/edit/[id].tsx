@@ -360,7 +360,7 @@ export default function EditEventScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Custom Header with Back Button */}

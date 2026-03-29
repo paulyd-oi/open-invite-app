@@ -2454,7 +2454,7 @@ export default function EventDetailScreen() {
   const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={["bottom"]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
@@ -2486,7 +2486,7 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 28 }}
+        contentContainerStyle={{ paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}

@@ -179,7 +179,7 @@ export default function InviteScreen() {
   const successCount = stats?.successfulReferrals ?? 0;
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       <Stack.Screen
         options={{
           title: "Invite Friends",
@@ -190,6 +190,7 @@ export default function InviteScreen() {
 
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
