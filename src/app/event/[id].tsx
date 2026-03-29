@@ -2484,6 +2484,10 @@ export default function EventDetailScreen() {
     : resolveEventTheme(event.themeId);
   const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
+  // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility
+  const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
+  const stickyBarHeight = 64 + insets.bottom;
+
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -2528,7 +2532,7 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: STACK_BOTTOM_PADDING }}
+        contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING }}
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
@@ -3045,9 +3049,11 @@ export default function EventDetailScreen() {
                             paddingHorizontal: 28,
                             minHeight: 48,
                             borderRadius: 999,
-                            backgroundColor: "rgba(34, 197, 94, 0.78)",
-                            borderWidth: 1,
-                            borderColor: "rgba(255, 255, 255, 0.18)",
+                            backgroundColor: "#22C55E",
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.15,
+                            shadowRadius: 4,
                           }}
                         >
                           <Check size={18} color="#FFFFFF" />
@@ -4325,6 +4331,119 @@ export default function EventDetailScreen() {
         })()}
 
       </KeyboardAwareScrollView>
+
+      {/* [GROWTH_STICKY_RSVP] Floating bottom RSVP bar for guests */}
+      {showStickyRsvp && (
+        <Animated.View
+          entering={FadeInDown.duration(300).springify()}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingBottom: insets.bottom + 8,
+            paddingTop: 10,
+            paddingHorizontal: 16,
+            backgroundColor: isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)",
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+          }}
+        >
+          {eventMeta.isFull ? (
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 16,
+            }}>
+              <View style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 12,
+                borderRadius: 999,
+                backgroundColor: "#E5E7EB",
+                opacity: 0.6,
+              }}>
+                <Users size={16} color={colors.textTertiary} />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
+              </View>
+              <Pressable
+                onPress={() => handleRsvp("interested")}
+                disabled={rsvpMutation.isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 999,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                }}
+              >
+                <Heart size={16} color={colors.text} />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>
+                  {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              opacity: rsvpMutation.isPending ? 0.6 : 1,
+            }}>
+              <Pressable
+                onPress={() => handleRsvp("going")}
+                disabled={rsvpMutation.isPending}
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 13,
+                  borderRadius: 999,
+                  backgroundColor: "#22C55E",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                }}
+              >
+                {rsvpMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Check size={16} color="#FFFFFF" />
+                    <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>I'm In</Text>
+                  </>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => handleRsvp("interested")}
+                disabled={rsvpMutation.isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 13,
+                  paddingHorizontal: 20,
+                  borderRadius: 999,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                }}
+              >
+                <Heart size={16} color={colors.text} />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>
+                  {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </Animated.View>
+      )}
 
       {/* Calendar Sync Modal */}
       <Modal

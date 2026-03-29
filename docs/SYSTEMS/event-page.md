@@ -44,6 +44,7 @@
 - Pre-auth RSVP: if unauthenticated user taps Going/Interested, intent is stored via `setPendingRsvpIntent()` (SecureStore, 7-day expiry), a "Sign up to confirm your RSVP" toast fires, then redirects to `/welcome`. After auth, `useRsvpIntentClaim` in `_layout.tsx` auto-applies the RSVP.
 - Post-RSVP prompt arbitration: PostValueInvite > FirstRsvpNudge > NotificationPrePrompt
 - NotificationPrePrompt only fires if user has NOT created any events (targets social-only users)
+- **Sticky bottom RSVP bar:** Floating bar pinned to bottom for guests. Visible when: `!isMyEvent && !event?.isBusy && event && !hasJoinRequest && myRsvpStatus !== "going"`. Shows "I'm In" (primary, solid green) + "Save" (secondary). Full events show disabled "Full" state. Reuses `handleRsvp()` — no duplicated business logic. Auto-dismisses when `myRsvpStatus` changes to "going" or `hasJoinRequest` becomes true. Supports pre-auth RSVP flow for logged-out users. Scroll content gets extra paddingBottom when bar is visible.
 
 ---
 
