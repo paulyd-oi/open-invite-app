@@ -96,6 +96,7 @@ import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
 import { ColorPickerSheet } from "@/components/event/ColorPickerSheet";
 import { PhotoUploadSheet } from "@/components/event/PhotoUploadSheet";
 import { AttendeesSheet } from "@/components/event/AttendeesSheet";
+import { EventActionsSheet } from "@/components/event/EventActionsSheet";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -4657,278 +4658,107 @@ export default function EventDetailScreen() {
         userId={session?.user?.id}
       />
 
-      {/* Event Actions Bottom Sheet (uses shared BottomSheet) */}
-      <BottomSheet
+      <EventActionsSheet
         visible={showEventActionsSheet}
+        isMyEvent={isMyEvent}
+        isBusy={!!event?.isBusy}
+        isImported={!!event?.isImported}
+        hasEventPhoto={!!event?.eventPhotoUrl}
+        isBusyBlock={isBusyBlock}
+        currentColorOverride={currentColorOverride}
+        myRsvpStatus={myRsvpStatus}
+        liveActivity={(() => {
+          const startMs = event ? new Date(event.startTime).getTime() : 0;
+          const endMs = event?.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+          const now = Date.now();
+          const hasEnded = now > endMs;
+          const startsWithin4h = startMs - now < 4 * 3600000;
+          const canToggle = liveActivitySupported && startsWithin4h;
+          const subtitle = liveActivityActive
+            ? "On \u2014 tracking countdown"
+            : canToggle
+              ? "Off \u2014 tap to start"
+              : !liveActivitySupported
+                ? "Requires latest app update"
+                : "Available closer to event start";
+          return { active: liveActivityActive, supported: liveActivitySupported, subtitle, canToggle, hasEnded };
+        })()}
+        isDark={isDark}
+        themeColor={themeColor}
+        colors={colors}
         onClose={() => setShowEventActionsSheet(false)}
-        heightPct={0}
-        backdropOpacity={0.5}
-        title="Event Options"
-      >
-              {/* Actions */}
-              <View style={{ paddingHorizontal: 20 }}>
-                {/* Owner Actions (app-created, non-busy only) */}
-                {isMyEvent && !event?.isBusy && (
-                  <>
-                    <Pressable
-                      testID="event-detail-menu-edit"
-                      className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                      onPress={() => {
-                        setShowEventActionsSheet(false);
-                        Haptics.selectionAsync();
-                        router.push(`/event/edit/${id}`);
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                      >
-                        <Pencil size={20} color={themeColor} />
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: 16 }}>Edit Event</Text>
-                    </Pressable>
-
-                    <Pressable
-                      className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                      onPress={() => {
-                        setShowEventActionsSheet(false);
-                        handleDuplicateEvent();
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                      >
-                        <Copy size={20} color={themeColor} />
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: 16 }}>Duplicate Event</Text>
-                    </Pressable>
-
-                    <Pressable
-                      className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                      onPress={() => {
-                        setShowEventActionsSheet(false);
-                        Haptics.selectionAsync();
-                        setTimeout(() => launchEventPhotoPicker(), 350);
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                      >
-                        <Camera size={20} color={themeColor} />
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: 16 }}>
-                        {event?.eventPhotoUrl ? "Change Banner Photo" : "Add Banner Photo"}
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
-
-                {/* Share - available to everyone (unless busy block) */}
-                {!event?.isBusy && (
-                  <Pressable
-                    className="flex-row items-center py-4"
-                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                    onPress={() => {
-                      setShowEventActionsSheet(false);
-                      Haptics.selectionAsync();
-                      shareEvent({ ...event, location: locationDisplay ?? null });
-                    }}
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                    >
-                      <Share2 size={20} color={themeColor} />
-                    </View>
-                    <Text style={{ color: colors.text, fontSize: 16 }}>Share Event</Text>
-                  </Pressable>
-                )}
-
-                {/* Lock Screen Updates — iOS live activity toggle (hidden until native check resolves) */}
-                {Platform.OS === "ios" && liveActivityActive !== null && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
-                  const startMs = new Date(event.startTime).getTime();
-                  const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
-                  const now = Date.now();
-                  const hasEnded = now > endMs;
-                  if (hasEnded) return null;
-                  const startsWithin4h = startMs - now < 4 * 3600000;
-                  // Can toggle = native module available + within 4h window
-                  const canToggle = liveActivitySupported && startsWithin4h;
-                  const subtitle = liveActivityActive
-                    ? "On — tracking countdown"
-                    : canToggle
-                      ? "Off — tap to start"
-                      : !liveActivitySupported
-                        ? "Requires latest app update"
-                        : "Available closer to event start";
-                  return (
-                    <Pressable
-                      className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border, opacity: canToggle || liveActivityActive ? 1 : 0.55 }}
-                      disabled={!canToggle && !liveActivityActive}
-                      onPress={async () => {
-                        if (!canToggle && !liveActivityActive) return;
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        if (liveActivityActive) {
-                          await endLiveActivity(event.id);
-                          setLiveActivityActive(false);
-                          liveActivityManuallyDismissed.current = true;
-                          safeToast.success("Stopped", "Lock Screen updates off");
-                        } else {
-                          const ok = await startLiveActivity({
-                            eventId: event.id,
-                            eventTitle: event.title,
-                            startTime: event.startTime,
-                            endTime: event.endTime,
-                            locationName: locationDisplay,
-                            rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
-                            emoji: event.emoji,
-                            goingCount: effectiveGoingCount,
-                            themeAccentColor: resolveEventTheme(event.themeId).backAccent,
-                          });
-                          if (ok) {
-                            setLiveActivityActive(true);
-                            liveActivityManuallyDismissed.current = false;
-                            safeToast.success("Started", "Tracking on Lock Screen");
-                          } else {
-                            safeToast.error("Couldn't start", "Check Live Activities in Settings");
-                          }
-                        }
-                        setShowEventActionsSheet(false);
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: liveActivityActive ? `${STATUS.going.fg}12` : (isDark ? "#2C2C2E" : "#F3F4F6") }}
-                      >
-                        <Bell size={20} color={liveActivityActive ? STATUS.going.fg : themeColor} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 16 }}>Lock Screen Updates</Text>
-                        <Text style={{ color: liveActivityActive ? STATUS.going.fg : colors.textTertiary, fontSize: 12, marginTop: 1 }}>
-                          {subtitle}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })()}
-
-                {/* Report - only for non-owners, non-busy */}
-                {!isMyEvent && !event?.isBusy && (
-                  <Pressable
-                    className="flex-row items-center py-4"
-                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                    onPress={() => {
-                      setShowEventActionsSheet(false);
-                      handleReportEvent();
-                    }}
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                    >
-                      <AlertTriangle size={20} color={colors.textSecondary} />
-                    </View>
-                    <Text style={{ color: colors.text, fontSize: 16 }}>Report Event</Text>
-                  </Pressable>
-                )}
-
-                {/* Block Color - host-only invariant [P0_EVENT_COLOR_GATE] */}
-                {isMyEvent && !isBusyBlock && (
-                <Pressable
-                  className="flex-row items-center py-4"
-                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                  onPress={() => {
-                    // [P0_MODAL_GUARD] Close actions sheet FIRST, then open color picker
-                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
-                    if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "event_actions", to: "color", ms: 350 });
-                    setShowEventActionsSheet(false);
-                    Haptics.selectionAsync();
-                    setTimeout(() => {
-                      setShowColorPicker(true);
-                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "event_actions", to: "color", ms: 350 });
-                    }, 350);
-                  }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Palette size={20} color={themeColor} />
-                  </View>
-                  <View className="flex-1 flex-row items-center justify-between">
-                    <Text style={{ color: colors.text, fontSize: 16 }}>Block Color</Text>
-                    {currentColorOverride && (
-                      <View
-                        className="w-6 h-6 rounded-full mr-2"
-                        style={{ backgroundColor: currentColorOverride, borderWidth: 2, borderColor: colors.border }}
-                      />
-                    )}
-                  </View>
-                </Pressable>
-                )}
-
-                {/* Delete Event - host-only destructive action (app-created only) */}
-                {isMyEvent && !event?.isBusy && !event?.isImported && (
-                <Pressable
-                  testID="event-detail-menu-delete"
-                  className="flex-row items-center py-4"
-                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                  onPress={() => {
-                    setShowEventActionsSheet(false);
-                    Haptics.selectionAsync();
-                    setTimeout(() => setShowDeleteEventConfirm(true), 350);
-                  }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: "rgba(239,68,68,0.12)" }}
-                  >
-                    <Trash2 size={20} color={STATUS.destructive.fg} />
-                  </View>
-                  <Text style={{ color: STATUS.destructive.fg, fontSize: 16, fontWeight: "500" }}>Delete Event</Text>
-                </Pressable>
-                )}
-
-                {/* [IMPORTED_EVENT] Remove from Open Invite — imported events only */}
-                {isMyEvent && !!event?.isImported && (
-                <Pressable
-                  testID="event-detail-menu-remove-imported"
-                  className="flex-row items-center py-4"
-                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                  onPress={() => {
-                    if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_pressed", { eventId: id });
-                    setShowEventActionsSheet(false);
-                    Haptics.selectionAsync();
-                    setTimeout(() => setShowRemoveImportedConfirm(true), 350);
-                  }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: "rgba(239,68,68,0.12)" }}
-                  >
-                    <Trash2 size={20} color={STATUS.destructive.fg} />
-                  </View>
-                  <Text style={{ color: STATUS.destructive.fg, fontSize: 16, fontWeight: "500" }}>Remove from Open Invite</Text>
-                </Pressable>
-                )}
-
-                {/* Cancel */}
-                <Pressable
-                  className="flex-row items-center justify-center py-4 mt-2"
-                  onPress={() => setShowEventActionsSheet(false)}
-                >
-                  <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
-                    Cancel
-                  </Text>
-                </Pressable>
-              </View>
-      </BottomSheet>
+        onEdit={() => {
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          router.push(`/event/edit/${id}`);
+        }}
+        onDuplicate={() => {
+          setShowEventActionsSheet(false);
+          handleDuplicateEvent();
+        }}
+        onChangePhoto={() => {
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          setTimeout(() => launchEventPhotoPicker(), 350);
+        }}
+        onShare={() => {
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          shareEvent({ ...event, location: locationDisplay ?? null });
+        }}
+        onToggleLiveActivity={async () => {
+          if (liveActivityActive) {
+            await endLiveActivity(event.id);
+            setLiveActivityActive(false);
+            liveActivityManuallyDismissed.current = true;
+            safeToast.success("Stopped", "Lock Screen updates off");
+          } else {
+            const ok = await startLiveActivity({
+              eventId: event.id,
+              eventTitle: event.title,
+              startTime: event.startTime,
+              endTime: event.endTime,
+              locationName: locationDisplay,
+              rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
+              emoji: event.emoji,
+              goingCount: effectiveGoingCount,
+              themeAccentColor: resolveEventTheme(event.themeId).backAccent,
+            });
+            if (ok) {
+              setLiveActivityActive(true);
+              liveActivityManuallyDismissed.current = false;
+              safeToast.success("Started", "Tracking on Lock Screen");
+            } else {
+              safeToast.error("Couldn't start", "Check Live Activities in Settings");
+            }
+          }
+          setShowEventActionsSheet(false);
+        }}
+        onReport={() => {
+          setShowEventActionsSheet(false);
+          handleReportEvent();
+        }}
+        onOpenColorPicker={() => {
+          if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "event_actions", to: "color", ms: 350 });
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          setTimeout(() => {
+            setShowColorPicker(true);
+            if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "event_actions", to: "color", ms: 350 });
+          }, 350);
+        }}
+        onDelete={() => {
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          setTimeout(() => setShowDeleteEventConfirm(true), 350);
+        }}
+        onRemoveImported={() => {
+          if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_pressed", { eventId: id });
+          setShowEventActionsSheet(false);
+          Haptics.selectionAsync();
+          setTimeout(() => setShowRemoveImportedConfirm(true), 350);
+        }}
+      />
 
       <ReportModal
         visible={showReportModal}
