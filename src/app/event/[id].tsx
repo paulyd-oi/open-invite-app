@@ -139,6 +139,7 @@ import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/h
 import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { resolveEventTheme, buildCustomThemeTokens, THEME_VIDEOS, THEME_BACKGROUNDS } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import { MotifOverlay } from "@/components/create/MotifOverlay";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
@@ -2479,6 +2480,16 @@ export default function EventDetailScreen() {
 
       {/* Full-page particle effect — behind all content */}
       <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
+      {/* Event-level effect overlay — persisted independently of theme */}
+      {event.effectId && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <MotifOverlay
+            presetId={event.effectId}
+            customConfig={event.customEffectConfig ?? undefined}
+            intensity={0.70}
+          />
+        </View>
+      )}
       {/* Atmospheric filter overlay — after particles, before content */}
       {pageTheme.visualStack?.filter && (
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />

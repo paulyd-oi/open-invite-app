@@ -24,7 +24,6 @@ import {
   ListChecks,
   X,
   Plus,
-  Crown,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -54,10 +53,14 @@ import {
   getInvalidateAfterEventDelete,
 } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
-import { EVENT_THEMES, isPremiumTheme, isValidThemeId, getVisibleThemePacks, type ThemeId } from "@/lib/eventThemes";
+import { EVENT_THEMES, isPremiumTheme, isValidThemeId, type ThemeId } from "@/lib/eventThemes";
+import { type CustomTheme } from "@/lib/customThemeStorage";
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
-import { Lock } from "@/ui/icons";
+import { ThemeTray } from "@/components/create/ThemeTray";
+import { EffectTray } from "@/components/create/EffectTray";
+import { type ParticleMotifConfig } from "@/components/create/MotifOverlay";
+import { Lock, Sparkles, Palette } from "@/ui/icons";
 import EmojiPicker from "rn-emoji-keyboard";
 
 export default function EditEventScreen() {
@@ -104,6 +107,13 @@ export default function EditEventScreen() {
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
   const [originalThemeId, setOriginalThemeId] = useState<ThemeId | null>(null);
   const [existingCustomThemeData, setExistingCustomThemeData] = useState<any>(null);
+  const [selectedCustomTheme, setSelectedCustomTheme] = useState<CustomTheme | null>(null);
+  // Event Effects V1
+  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+  const [customEffectConfig, setCustomEffectConfig] = useState<ParticleMotifConfig | null>(null);
+  // Tray visibility
+  const [showThemeTray, setShowThemeTray] = useState(false);
+  const [showEffectTray, setShowEffectTray] = useState(false);
   const premiumStatus = usePremiumStatusContract();
   const { isPro: userIsPro } = premiumStatus;
   const { openPaywall } = useSubscription();
@@ -166,6 +176,21 @@ export default function EditEventScreen() {
       // Preserve custom theme data for round-trip
       if ((event as any).customThemeData) {
         setExistingCustomThemeData((event as any).customThemeData);
+        // Hydrate selectedCustomTheme so ThemeTray shows it as selected
+        setSelectedCustomTheme({
+          id: "custom_existing",
+          name: (event as any).customThemeData.name ?? "Custom",
+          visualStack: (event as any).customThemeData.visualStack ?? {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      // Load Effect
+      if ((event as any).effectId) {
+        setSelectedEffectId((event as any).effectId);
+      }
+      if ((event as any).customEffectConfig) {
+        setCustomEffectConfig((event as any).customEffectConfig);
       }
       setIsLoaded(true);
     }
@@ -291,8 +316,16 @@ export default function EditEventScreen() {
         })),
       } : { bringListEnabled: false }),
       // Event Themes V1
-      themeId: selectedThemeId ?? (existingCustomThemeData ? "custom" : null),
-      customThemeData: selectedThemeId ? null : existingCustomThemeData,
+      ...(selectedThemeId
+        ? { themeId: selectedThemeId, customThemeData: null }
+        : selectedCustomTheme
+          ? { themeId: "custom" as any, customThemeData: { visualStack: selectedCustomTheme.visualStack, name: selectedCustomTheme.name } }
+          : existingCustomThemeData
+            ? { themeId: "custom" as any, customThemeData: existingCustomThemeData }
+            : { themeId: null, customThemeData: null }),
+      // Event Effects V1
+      effectId: selectedEffectId ?? null,
+      customEffectConfig: selectedEffectId === "__custom__" && customEffectConfig ? customEffectConfig : null,
     });
   };
 
@@ -405,82 +438,68 @@ export default function EditEventScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Event Theme Picker — Curated Collections */}
+          {/* Event Theme & Effect — open tray pickers */}
           <Animated.View entering={FadeInDown.delay(25).springify()}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 4, marginTop: 4 }}>Event Theme</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 8, marginTop: 4 }}>Theme & Effects</Text>
             {hasPreservedPremiumTheme && (
               <Text style={{ color: colors.textTertiary, fontSize: 12, marginBottom: 8, lineHeight: 16 }}>
                 This event keeps its premium theme from your previous Pro access. You can keep this look or switch to a free theme.
               </Text>
             )}
-            {getVisibleThemePacks(new Date(), originalThemeId).map((pack, packIdx, packs) => {
-              const isFirstPremium = pack.premium && (packIdx === 0 || !packs[packIdx - 1].premium);
-              return (
-                <View key={pack.label}>
-                  {/* Premium section divider — shown once before the first premium pack */}
-                  {isFirstPremium && (
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 2, paddingHorizontal: 4 }}>
-                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
-                      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8 }}>
-                        <Crown size={10} color={colors.textTertiary} />
-                        <Text style={{ fontSize: 10, fontWeight: "600", color: colors.textTertiary, marginLeft: 3, letterSpacing: 0.5 }}>PRO</Text>
-                      </View>
-                      <View style={{ flex: 1, height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }} />
-                    </View>
-                  )}
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textTertiary, marginTop: 8, marginBottom: 4, paddingLeft: 4 }}>{pack.label}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
-                    <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
-                      {pack.ids.map((tid) => {
-                        const t = EVENT_THEMES[tid];
-                        const selected = selectedThemeId === tid;
-                        const premium = isPremiumTheme(tid);
-                        // Preserved: this is the event's original premium theme, kept after downgrade
-                        const isPreserved = premium && !userIsPro && tid === originalThemeId;
-                        const locked = premium && !userIsPro && !isPreserved;
-                        return (
-                          <Pressable
-                            key={tid}
-                            onPress={() => {
-                              if (locked) {
-                                openPaywall?.({ source: "theme_picker" });
-                                return;
-                              }
-                              Haptics.selectionAsync();
-                              setSelectedThemeId(selected ? null : tid);
-                            }}
-                            style={{
-                              width: 72,
-                              alignItems: "center",
-                              paddingVertical: 10,
-                              paddingHorizontal: 4,
-                              borderRadius: 14,
-                              borderWidth: selected ? 2 : 1,
-                              borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                              backgroundColor: selected
-                                ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
-                                : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
-                              opacity: locked ? 0.65 : 1,
-                            }}
-                          >
-                            <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
-                            <Text style={{ fontSize: 10, fontWeight: "600", color: selected ? t.backAccent : colors.textSecondary, textAlign: "center" }} numberOfLines={1}>
-                              {t.label}
-                            </Text>
-                            {locked && (
-                              <View style={{ position: "absolute", top: 4, right: 4 }}>
-                                <Lock size={10} color={colors.textTertiary} />
-                              </View>
-                            )}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
+              {/* Theme trigger */}
+              <Pressable
+                onPress={() => { Haptics.selectionAsync(); setShowThemeTray(true); setShowEffectTray(false); }}
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: selectedThemeId || selectedCustomTheme ? themeColor : colors.border,
+                  backgroundColor: selectedThemeId || selectedCustomTheme
+                    ? (isDark ? `${themeColor}18` : `${themeColor}0C`)
+                    : colors.surface,
+                }}
+              >
+                <Sparkles size={18} color={selectedThemeId || selectedCustomTheme ? themeColor : colors.textSecondary} />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Theme</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>
+                    {selectedThemeId
+                      ? EVENT_THEMES[selectedThemeId]?.label ?? selectedThemeId
+                      : selectedCustomTheme
+                        ? selectedCustomTheme.name
+                        : "None"}
+                  </Text>
                 </View>
-              );
-            })}
-            <View style={{ height: 12 }} />
+              </Pressable>
+              {/* Effect trigger */}
+              <Pressable
+                onPress={() => { Haptics.selectionAsync(); setShowEffectTray(true); setShowThemeTray(false); }}
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: selectedEffectId ? themeColor : colors.border,
+                  backgroundColor: selectedEffectId
+                    ? (isDark ? `${themeColor}18` : `${themeColor}0C`)
+                    : colors.surface,
+                }}
+              >
+                <Palette size={18} color={selectedEffectId ? themeColor : colors.textSecondary} />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Effect</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>
+                    {selectedEffectId ? (selectedEffectId === "__custom__" ? "Custom" : selectedEffectId.replace(/_/g, " ")) : "None"}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
           </Animated.View>
 
           {/* Title */}
@@ -891,6 +910,51 @@ export default function EditEventScreen() {
           Haptics.selectionAsync();
           setShowEmojiPicker(false);
         }}
+      />
+      {/* Theme Tray — full parity with create flow */}
+      <ThemeTray
+        visible={showThemeTray}
+        selectedThemeId={selectedThemeId}
+        selectedCustomTheme={selectedCustomTheme}
+        userIsPro={userIsPro}
+        isDark={isDark}
+        themeColor={themeColor}
+        glassText={colors.text}
+        glassSecondary={colors.textSecondary}
+        glassTertiary={colors.textTertiary}
+        onSelectTheme={(id) => {
+          setSelectedThemeId(id);
+          setSelectedCustomTheme(null);
+          if (id) setExistingCustomThemeData(null);
+        }}
+        onSelectCustomTheme={(ct) => {
+          setSelectedCustomTheme(ct);
+          if (ct) {
+            setSelectedThemeId(null);
+            setExistingCustomThemeData({ visualStack: ct.visualStack, name: ct.name });
+          }
+        }}
+        onOpenPaywall={(source) => openPaywall?.({ source })}
+        onClose={() => setShowThemeTray(false)}
+      />
+      {/* Effect Tray — full parity with create flow */}
+      <EffectTray
+        visible={showEffectTray}
+        selectedEffectId={selectedEffectId}
+        themeColor={themeColor}
+        isDark={isDark}
+        glassText={colors.text}
+        glassSecondary={colors.textSecondary}
+        glassTertiary={colors.textTertiary}
+        onSelectEffect={(key) => {
+          setSelectedEffectId(key);
+          if (key !== "__custom__") setCustomEffectConfig(null);
+        }}
+        onCustomEffect={(config) => {
+          setCustomEffectConfig(config);
+          setSelectedEffectId(config ? "__custom__" : null);
+        }}
+        onClose={() => setShowEffectTray(false)}
       />
     </SafeAreaView>
   );

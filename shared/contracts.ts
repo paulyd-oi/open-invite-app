@@ -69,6 +69,9 @@ export const eventSchema = z.object({
   // Event Themes V1
   themeId: z.string().nullable().optional(),
   customThemeData: z.any().nullable().optional(),
+  // Event Effects V1
+  effectId: z.string().nullable().optional(),
+  customEffectConfig: z.any().nullable().optional(),
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -218,6 +221,9 @@ export const createEventRequestSchema = z.object({
   // Event Themes V1
   themeId: z.string().nullable().optional(),
   customThemeData: z.any().nullable().optional(),
+  // Event Effects V1
+  effectId: z.string().nullable().optional(),
+  customEffectConfig: z.any().nullable().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

@@ -474,6 +474,15 @@ export default function CreateEventScreen() {
         : selectedCustomTheme
           ? { themeId: "custom" as any, customThemeData: { visualStack: selectedCustomTheme.visualStack, name: selectedCustomTheme.name } }
           : {}),
+      // Event Effects V1 — persist independently of theme
+      ...(selectedEffectId
+        ? {
+            effectId: selectedEffectId,
+            ...(selectedEffectId === "__custom__" && customEffectConfig
+              ? { customEffectConfig }
+              : {}),
+          }
+        : {}),
     };
     createMutation.mutate(createPayload);
   };
