@@ -12,6 +12,7 @@ import {
   Switch,
   Dimensions,
   StyleSheet,
+  useWindowDimensions,
   Animated as RNAnimated,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
@@ -385,6 +386,7 @@ export default function EventDetailScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const editTop = Math.max(12, (insets?.top ?? 0) + 6);
   const [showMap, _setShowMap] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -4441,14 +4443,23 @@ export default function EventDetailScreen() {
           style={{
             position: "absolute",
             bottom: 0,
-            left: 0,
-            right: 0,
-            paddingBottom: insets.bottom + 8,
+            ...(screenWidth >= 768
+              ? {
+                  left: Math.max(16, (screenWidth - 600) / 2),
+                  right: Math.max(16, (screenWidth - 600) / 2),
+                  borderRadius: 20,
+                  paddingBottom: insets.bottom + 12,
+                }
+              : {
+                  left: 0,
+                  right: 0,
+                  paddingBottom: insets.bottom + 8,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                }),
             paddingTop: 10,
             paddingHorizontal: 16,
             backgroundColor: isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)",
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
           }}
         >
           {effectiveGoingCount > 0 && (

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, Platform } from "react-native";
+import { View, Pressable, Platform, useWindowDimensions } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { type LucideIcon } from "../ui/icons";
 import Animated, {
@@ -36,6 +36,10 @@ const ISLAND_RADIUS = 28; // pill shape
 
 /** Minimum paddingBottom screens need to clear the floating tab bar. */
 export const FLOATING_TAB_INSET = ISLAND_HEIGHT + ISLAND_BOTTOM + 20;
+
+// ─── Responsive layout (local — no shared hook) ───────────
+const WIDE_THRESHOLD = 768; // iPad Mini portrait logical width
+const WIDE_MAX_WIDTH = 400; // max pill width on wide layouts
 
 // ─── NavButton ──────────────────────────────────────────────
 
@@ -244,14 +248,21 @@ export default function BottomNavigation() {
   // Safe area bottom: at least 8 on devices without home indicator
   const safeBottom = Math.max(insets.bottom, 8);
 
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= WIDE_THRESHOLD;
+
   return (
     <View
       accessibilityRole="tablist"
       style={{
         position: "absolute",
         bottom: safeBottom + ISLAND_BOTTOM,
-        left: ISLAND_HORIZONTAL,
-        right: ISLAND_HORIZONTAL,
+        ...(isWide
+          ? {
+              left: Math.max(ISLAND_HORIZONTAL, (screenWidth - WIDE_MAX_WIDTH) / 2),
+              right: Math.max(ISLAND_HORIZONTAL, (screenWidth - WIDE_MAX_WIDTH) / 2),
+            }
+          : { left: ISLAND_HORIZONTAL, right: ISLAND_HORIZONTAL }),
         height: ISLAND_HEIGHT,
         borderRadius: ISLAND_RADIUS,
         backgroundColor: isDark ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",

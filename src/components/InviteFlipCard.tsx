@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useMemo } from "react";
-import { View, Text, Pressable, Platform } from "react-native";
+import { View, Text, Pressable, Platform, useWindowDimensions } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -126,6 +126,8 @@ export function InviteFlipCard({
   editButton,
   photoNudge,
 }: InviteFlipCardProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
   const flipProgress = useSharedValue(0);
 
   // ── Card theme (always resolves — neutral fallback for unthemed events) ──
@@ -189,7 +191,7 @@ export function InviteFlipCard({
     : null;
 
   return (
-    <View style={{ paddingHorizontal: 16 }}>
+    <View style={{ paddingHorizontal: 16, ...(isWide ? { maxWidth: 480, alignSelf: "center" as const, width: "100%" } : undefined) }}>
       <Pressable onPress={handleFlip}>
         {/* Floating shadow container */}
         <View style={{ ...CARD_SHADOW, borderRadius: CARD_RADIUS }}>
