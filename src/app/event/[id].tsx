@@ -105,6 +105,7 @@ import { StickyRsvpBar } from "@/components/event/StickyRsvpBar";
 import { HostReflectionCard } from "@/components/event/HostReflectionCard";
 import { MemoriesRow } from "@/components/event/MemoriesRow";
 import { EventSettingsAccordion } from "@/components/event/EventSettingsAccordion";
+import { DiscussionCard } from "@/components/event/DiscussionCard";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -3621,223 +3622,37 @@ export default function EventDetailScreen() {
         <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         {/* Comments Section */}
-        <Animated.View entering={FadeInDown.delay(130).springify()}>
-          <View className="mb-3">
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6 }}>
-                Discussion
-              </Text>
-              {comments.length > 0 && (
-                <View style={{ marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: `${themeColor}14` }}>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: themeColor }}>
-                    {comments.length}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Conversation encouragement for events with attendees */}
-            {event.joinRequests && event.joinRequests.filter((r) => r.status === "accepted").length >= 2 && comments.length === 0 && (
-              <View
-                className="rounded-xl p-3 mb-3 flex-row items-center"
-                style={{ backgroundColor: `${themeColor}15`, borderWidth: 1, borderColor: `${themeColor}30` }}
-              >
-                <View className="w-8 h-8 rounded-full items-center justify-center mr-3" style={{ backgroundColor: `${themeColor}25` }}>
-                  <MessageCircle size={16} color={themeColor} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-medium" style={{ color: colors.text }}>
-                    Start the conversation!
-                  </Text>
-                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                    Coordinate plans with others who are attending
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Comment Input */}
-            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              {commentImage && (
-                <View className="mb-3 relative">
-                  {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image preview, Cloudinary-transformed */}
-                  <ExpoImage
-                    source={{ uri: toCloudinaryTransformedUrl(commentImage, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
-                    style={{ width: "100%", height: 160, borderRadius: 12 }}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={200}
-                    priority="normal"
-                  />
-                  <Pressable
-                    onPress={() => setCommentImage(null)}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full items-center justify-center"
-                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-                  >
-                    <X size={16} color="#fff" />
-                  </Pressable>
-                </View>
-              )}
-              <View className="flex-row items-end">
-                <View className="flex-1 rounded-xl mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <TextInput
-                    testID="event-detail-comment-input"
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    placeholder="Add a comment..."
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    className="p-3 max-h-24"
-                    style={{ color: colors.text }}
-                  />
-                </View>
-                <Pressable
-                  onPress={handlePickImage}
-                  disabled={isUploadingImage}
-                  className="w-10 h-10 rounded-full items-center justify-center mr-2"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                >
-                  {isUploadingImage ? (
-                    <ActivityIndicator size="small" color={themeColor} />
-                  ) : (
-                    <ImagePlus size={20} color={commentImage ? themeColor : "#9CA3AF"} />
-                  )}
-                </Pressable>
-                <Pressable
-                  testID="event-detail-comment-submit"
-                  onPress={handlePostComment}
-                  disabled={createCommentMutation.isPending || isUploadingImage || (!commentText.trim() && !commentImage)}
-                  className="w-10 h-10 rounded-full items-center justify-center"
-                  style={{
-                    backgroundColor: commentText.trim() || commentImage ? themeColor : isDark ? "#2C2C2E" : "#E5E7EB"
-                  }}
-                >
-                  {createCommentMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <MessageCircle size={18} color={commentText.trim() || commentImage ? "#fff" : "#9CA3AF"} />
-                  )}
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Comments List */}
-            {isLoadingComments ? (
-              <View className="items-center py-8">
-                <ActivityIndicator size="small" color={themeColor} />
-              </View>
-            ) : comments.length === 0 ? (
-              <View className="rounded-xl p-6 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                <MessageCircle size={32} color="#9CA3AF" />
-                <Text className="font-medium mt-2" style={{ color: colors.text }}>
-                  No messages yet
-                </Text>
-                <Text className="text-center text-sm mt-1 mb-4" style={{ color: colors.textSecondary }}>
-                  Break the ice! Start a conversation
-                </Text>
-                {/* [DISCUSS_PROMPTS] Smart conversation starters */}
-                <View className="w-full">
-                  <Text className="text-xs font-medium mb-2" style={{ color: colors.textTertiary }}>
-                    Try asking:
-                  </Text>
-                  {(() => {
-                    const prompts = getDiscussionPrompts({
-                      eventId: event?.id,
-                      title: event?.title ?? undefined,
-                      description: event?.description ?? undefined,
-                      locationName: event?.location ?? undefined,
-                      startAt: event?.startTime ?? undefined,
-                      endAt: event?.endTime ?? undefined,
-                      isHost: isMyEvent,
-                      visibility: event?.visibility ?? undefined,
-                    });
-                    if (__DEV__) {
-                      devLog("[DISCUSS_PROMPTS]", `eventId=${event?.id?.slice(0, 8)} tags=${inferEventTags(event?.title ?? undefined, event?.location ?? undefined, event?.description ?? undefined).join(",")||"none"} prompts="${prompts.map(p=>p.text).join("|")}"`);
-                    }
-                    return prompts;
-                  })().map((prompt) => (
-                    <Pressable
-                      key={prompt.id}
-                      onPress={() => setCommentText(prompt.text)}
-                      className="rounded-lg p-2 mb-1"
-                      style={{ backgroundColor: isDark ? "#3C3C3E" : "#F3F4F6" }}
-                    >
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                        {prompt.text}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <View>
-                {comments.map((comment, index) => (
-                  <Animated.View
-                    key={comment.id}
-                    entering={FadeIn.delay(index * 50)}
-                  >
-                    <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        router.push(`/user/${comment.userId}` as any);
-                      }}
-                      className="rounded-xl p-4 mb-2"
-                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                    >
-                      <View className="flex-row">
-                        <EntityAvatar
-                          photoUrl={comment.user.image}
-                          initials={comment.user.name?.[0] ?? "?"}
-                          size={40}
-                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
-                          foregroundColor={themeColor}
-                          style={{ marginRight: 12 }}
-                        />
-                        <View className="flex-1">
-                          <View className="flex-row items-center justify-between">
-                            <Text className="font-semibold" style={{ color: colors.text }}>
-                              {comment.user.name ?? "User"}
-                            </Text>
-                            <View className="flex-row items-center">
-                              <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                                {formatTimeAgo(comment.createdAt)}
-                              </Text>
-                              {(comment.userId === session?.user?.id || isMyEvent) && (
-                                <Pressable
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteComment(comment.id);
-                                  }}
-                                  className="ml-2 p-1"
-                                >
-                                  <Trash2 size={14} color="#9CA3AF" />
-                                </Pressable>
-                              )}
-                            </View>
-                          </View>
-                          {comment.content && (
-                            <Text className="mt-1" style={{ color: colors.textSecondary }}>{comment.content}</Text>
-                          )}
-                          {comment.imageUrl && (
-                            // INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image display, Cloudinary-transformed
-                            <ExpoImage
-                              source={{ uri: toCloudinaryTransformedUrl(comment.imageUrl, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
-                              style={{ width: "100%", height: 192, borderRadius: 12, marginTop: 8 }}
-                              contentFit="cover"
-                              cachePolicy="memory-disk"
-                              transition={200}
-                              priority="normal"
-                            />
-                          )}
-                        </View>
-                      </View>
-                    </Pressable>
-                  </Animated.View>
-                ))}
-              </View>
-            )}
-          </View>
-        </Animated.View>
+        <DiscussionCard
+          comments={comments}
+          isLoadingComments={isLoadingComments}
+          commentText={commentText}
+          commentImage={commentImage}
+          isUploadingImage={isUploadingImage}
+          isPostingComment={createCommentMutation.isPending}
+          isMyEvent={isMyEvent}
+          currentUserId={session?.user?.id}
+          joinRequests={event.joinRequests}
+          eventId={event.id}
+          eventTitle={event.title}
+          eventDescription={event.description}
+          eventLocation={event.location}
+          eventStartTime={event.startTime}
+          eventEndTime={event.endTime}
+          eventVisibility={event.visibility}
+          isDark={isDark}
+          themeColor={themeColor}
+          colors={colors}
+          onChangeCommentText={setCommentText}
+          onClearCommentImage={() => setCommentImage(null)}
+          onPickImage={handlePickImage}
+          onPostComment={handlePostComment}
+          onDeleteComment={handleDeleteComment}
+          onPressUser={(userId) => {
+            Haptics.selectionAsync();
+            router.push(`/user/${userId}` as any);
+          }}
+          formatTimeAgo={formatTimeAgo}
+        />
 
         {/* ═══ V4.1 Compact Memories Row — low-emphasis, expandable ═══ */}
         <MemoriesRow
