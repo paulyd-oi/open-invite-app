@@ -2853,6 +2853,27 @@ export default function EventDetailScreen() {
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
             {hasJoinRequest ? (
               <Animated.View entering={FadeInDown.duration(300)}>
+                {/* [GROWTH_SOCIAL_PROOF] Reinforce decision for confirmed attendees */}
+                {effectiveGoingCount > 0 && (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                    <View style={{ flexDirection: "row", marginRight: 8 }}>
+                      {attendeesList.slice(0, 4).map((a, i) => (
+                        <View key={a.id} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i }}>
+                          <EntityAvatar
+                            photoUrl={a.imageUrl}
+                            initials={a.name?.[0] ?? "?"}
+                            size={24}
+                            backgroundColor={isDark ? "#2C2C2E" : "#DCFCE7"}
+                            foregroundColor="#166534"
+                          />
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
+                      {effectiveGoingCount} going
+                    </Text>
+                  </View>
+                )}
                 <View style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -2991,6 +3012,36 @@ export default function EventDetailScreen() {
                       </Pressable>
                     </View>
                   </Animated.View>
+                )}
+
+                {/* [GROWTH_SOCIAL_PROOF] Nudge row near decision point */}
+                {(!myRsvpStatus || showRsvpOptions) && (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                    {effectiveGoingCount > 0 ? (
+                      <>
+                        <View style={{ flexDirection: "row", marginRight: 8 }}>
+                          {attendeesList.slice(0, 4).map((a, i) => (
+                            <View key={a.id} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i }}>
+                              <EntityAvatar
+                                photoUrl={a.imageUrl}
+                                initials={a.name?.[0] ?? "?"}
+                                size={24}
+                                backgroundColor={isDark ? "#2C2C2E" : "#DCFCE7"}
+                                foregroundColor="#166534"
+                              />
+                            </View>
+                          ))}
+                        </View>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
+                          {effectiveGoingCount} going
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
+                        Be the first to join
+                      </Text>
+                    )}
+                  </View>
                 )}
 
                 {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
@@ -4349,6 +4400,11 @@ export default function EventDetailScreen() {
             borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
           }}
         >
+          {effectiveGoingCount > 0 && (
+            <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textTertiary, textAlign: "center", marginBottom: 6 }}>
+              {effectiveGoingCount} going
+            </Text>
+          )}
           {eventMeta.isFull ? (
             <View style={{
               flexDirection: "row",
