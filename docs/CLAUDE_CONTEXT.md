@@ -147,12 +147,31 @@ ThemeEffectLayer; else no particles. Preview matches event page behavior.
 
 ---
 
-## 8. Instructions for Future Claude Runs
+## 8. System Map
+
+A structured reference layer lives in `docs/SYSTEM_MAP.md` with detailed subsystem docs in `docs/SYSTEMS/`:
+
+| System | Doc |
+|--------|-----|
+| Create Flow | `docs/SYSTEMS/create-flow.md` |
+| Event Page | `docs/SYSTEMS/event-page.md` |
+| Theme & Effects | `docs/SYSTEMS/theme-effects.md` |
+| Chat (Circles) | `docs/SYSTEMS/chat.md` |
+| Calendar | `docs/SYSTEMS/calendar.md` |
+| Location | `docs/SYSTEMS/location.md` |
+
+**Enforcement:** When modifying any subsystem, update the corresponding `docs/SYSTEMS/*.md` file.
+
+---
+
+## 9. Instructions for Future Claude Runs
 
 1. **Read this file first.** It is the repo context SSOT.
 2. **Read `docs/CLAUDE_WORKFLOW.md`** for process expectations.
-3. **Do not re-discover architecture** unless this doc is clearly wrong.
-4. **Update this file** when major architectural truths change (new features, removed systems, changed patterns).
-5. **Check `CLAUDE.md`** (project root) for tool/routing/state management rules.
-6. **Check `docs/DEBUGGING_GUIDE.md`** when investigating bugs.
-7. **Check `docs/UX_CONTRACTS.md`** when modifying UI behavior.
+3. **Read `docs/SYSTEM_MAP.md`** for architecture overview; read relevant `docs/SYSTEMS/*.md` for the subsystem you're modifying.
+4. **Do not re-discover architecture** unless this doc is clearly wrong.
+5. **Update this file** when major architectural truths change (new features, removed systems, changed patterns).
+6. **Update `docs/SYSTEMS/*.md`** when changing subsystem behavior, components, or data flow.
+7. **Check `CLAUDE.md`** (project root) for tool/routing/state management rules.
+8. **Check `docs/DEBUGGING_GUIDE.md`** when investigating bugs.
+9. **Check `docs/UX_CONTRACTS.md`** when modifying UI behavior.

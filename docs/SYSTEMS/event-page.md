@@ -1,0 +1,88 @@
+# Event Page
+
+> Event detail view and edit flow.
+> Owner: `src/app/event/[id].tsx`, `src/app/event/edit/[id].tsx`
+
+---
+
+## Render Layers (back to front)
+
+```
+1. SafeAreaView (canvasColor from theme)
+2. AnimatedGradientLayer (if visualStack.gradient)
+3. ThemeVideoLayer (if visualStack.video)
+4. Particle layer (EXCLUSIVE):
+   - IF effectId: MotifOverlay (user-selected effect)
+   - ELSE: ThemeEffectLayer (theme-bundled particles/lottie)
+5. ThemeFilterLayer (if visualStack.filter)
+6. Blurred photo backdrop (Cloudinary blur + gradient scrim)
+7. Content: InviteFlipCard + event details
+```
+
+---
+
+## Query Keys
+
+| Key | Purpose |
+|-----|---------|
+| `eventKeys.single(id)` | Event metadata |
+| `eventKeys.rsvp(id)` | Viewer's RSVP status |
+| `eventKeys.attendees(id)` | Who's coming roster |
+| `eventKeys.interests(id)` | Interested/maybe list |
+| `eventKeys.comments(id)` | Comments feed |
+| `eventKeys.mute(id)` | Mute status |
+
+---
+
+## RSVP System
+
+- Mutation: `useRsvpMutation()` with optimistic updates
+- Targets: `rsvp`, `attendees`, `single` keys
+- Invalidates on settle: `feed`, `feedPaginated`, `myEvents`, `calendar`, `attending`
+- Statuses: `going`, `interested`, `not_going`, `maybe`, `invited`, `null`
+- Side effect: Auto-starts Live Activity on "going" (iOS)
+
+---
+
+## Comments
+
+- Inline in event page (no separate route)
+- Create: `POST /api/events/:id/comments` → `{ content, imageUrl? }`
+- Delete: `DELETE /api/events/:id/comments/:commentId`
+- Invalidates: `eventKeys.comments(id)`
+- No realtime — fetch-on-demand only
+
+---
+
+## Share
+
+- `shareEvent(event)` → `buildEventSharePayload()` → native `Share.share()`
+- Universal link: `go.openinvite.cloud/share/event/:id`
+- Source of truth: `src/lib/shareSSOT.ts`
+
+---
+
+## Edit Flow (event/edit/[id].tsx)
+
+**Components:** ThemeTray, EffectTray, EmojiPicker, DateTimePicker
+
+**Save payload:**
+```
+title, description?, location?, emoji,
+startTime, endTime, visibility, groupIds?,
+capacity?, pitchIn*?, bringList*?,
+themeId?, customThemeData?, effectId?, customEffectConfig?
+```
+
+**Mutations:**
+- Update: `PUT /api/events/${id}` → `getInvalidateAfterEventEdit(id)`
+- Delete: `DELETE /api/events/${id}` → `getInvalidateAfterEventDelete()`
+
+---
+
+## Invariants
+
+- Particle layer is exclusive: effect OR theme particles, never both.
+- Theme gradient, video, styling, and filters are NOT suppressed by effects — only particles are exclusive.
+- Edit page uses same ThemeTray + EffectTray components as create flow.
+- Edit hydrates theme/effect state from event data on load.
