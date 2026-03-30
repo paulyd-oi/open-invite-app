@@ -563,7 +563,8 @@ export default function DiscoverScreen() {
                 />
               }
               ListHeaderComponent={
-                /* ═══ Sort Chips ═══ */
+                <>
+                {/* ═══ Sort Chips ═══ */}
                 <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                   {/* INVARIANT_ALLOW_SMALL_MAP */}
                   {SORT_OPTIONS.map((opt) => {
@@ -598,6 +599,31 @@ export default function DiscoverScreen() {
                     );
                   })}
                 </View>
+                {/* ═══ Friend Nudge — low friend signal ═══ */}
+                {friendHostData && (friendHostData.events?.length ?? 0) === 0 && activeFeed.length > 0 && (
+                  <Pressable
+                    onPress={() => router.push("/add-friends" as any)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: `${themeColor}10`,
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 12,
+                      borderWidth: 1,
+                      borderColor: `${themeColor}20`,
+                    }}
+                  >
+                    <Users size={18} color={themeColor} />
+                    <Text style={{ flex: 1, fontSize: 13, color: colors.text, marginLeft: 10 }}>
+                      See what your friends are up to
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>
+                      Find Friends
+                    </Text>
+                  </Pressable>
+                )}
+                </>
               }
               ListEmptyComponent={
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
