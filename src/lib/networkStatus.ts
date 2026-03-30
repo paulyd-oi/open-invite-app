@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "./devLog";
@@ -43,6 +44,23 @@ export function initNetworkMonitoring() {
   // Check initial state
   NetInfo.fetch().then((state: NetInfoState) => {
     globalIsOnline = !!(state.isConnected && state.isInternetReachable !== false);
+  });
+
+  // Re-check on foreground resume — JS bridge is suspended in background,
+  // so NetInfo listener misses state changes that happen while backgrounded
+  AppState.addEventListener("change", (nextState: AppStateStatus) => {
+    if (nextState === "active") {
+      NetInfo.fetch().then((state: NetInfoState) => {
+        const online = !!(state.isConnected && state.isInternetReachable !== false);
+        if (online !== globalIsOnline) {
+          globalIsOnline = online;
+          listeners.forEach((listener) => listener(online));
+          if (__DEV__) {
+            devLog(`[NetworkStatus] Foreground resume: ${online ? "back online" : "still offline"}`);
+          }
+        }
+      });
+    }
   });
 }
 
@@ -96,8 +114,13 @@ export function useNetworkStatus(): {
 
   const refresh = useCallback(async (): Promise<boolean> => {
     const state = await NetInfo.fetch();
-    const online = !!(state.isConnected && state.isInternetReachable !== false);
+    // On explicit retry, trust isConnected as primary signal —
+    // isInternetReachable can lag behind (returns false/null after
+    // background→foreground or slow reconnect even when connected)
+    const online = !!state.isConnected;
     globalIsOnline = online;
+    // Notify all global subscribers, not just this hook instance
+    listeners.forEach((listener) => listener(online));
     if (mountedRef.current) {
       setOnline(online);
     }
