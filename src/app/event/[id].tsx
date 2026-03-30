@@ -2442,6 +2442,9 @@ export default function EventDetailScreen() {
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
       )}
 
+      {/* Canvas-color mask over dark gradient band at top of screen */}
+      <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top + 52, backgroundColor: canvasColor, zIndex: 1 }} />
+
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
