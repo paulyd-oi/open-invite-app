@@ -2550,28 +2550,17 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* ═══ CONTENT RAIL — softened scrim behind section cards ═══ */}
-        <View style={{ position: "relative", paddingTop: 8 }}>
-          {/* Rail backdrop */}
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 8,
-              right: 8,
-              bottom: 0,
-              borderRadius: 24,
-              backgroundColor: isDark ? "rgba(12,14,18,0.18)" : "rgba(255,255,255,0.18)",
-              overflow: "hidden",
-            }}
-          >
-            {/* Soft gradient blending rail top into hero transition */}
-            <LinearGradient
-              colors={["transparent", isDark ? "rgba(12,14,18,0.18)" : "rgba(255,255,255,0.18)"]}
-              style={{ height: 40, width: "100%" }}
-            />
-          </View>
+        {/* ═══ CONTENT WELL — neutralized foreground surface for section cards ═══ */}
+        {/* Top fade: smooth transition from hero atmosphere into content well */}
+        <LinearGradient
+          colors={["transparent", isDark ? "rgba(12,14,18,0.75)" : "rgba(255,255,255,0.75)"]}
+          style={{ height: 40 }}
+          pointerEvents="none"
+        />
+        <View style={{
+          backgroundColor: isDark ? "rgba(12,14,18,0.75)" : "rgba(255,255,255,0.75)",
+          paddingTop: 4,
+        }}>
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
@@ -3007,7 +2996,7 @@ export default function EventDetailScreen() {
           );
         })()}
 
-        </View>{/* close content rail wrapper */}
+        </View>{/* close content well */}
 
       </KeyboardAwareScrollView>
 
