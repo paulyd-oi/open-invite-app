@@ -2445,8 +2445,8 @@ export default function EventDetailScreen() {
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
-        <View style={{ position: "relative" }}>
+        {/* ═══ HERO ZONE — card on neutral surface, no atmosphere bleed ═══ */}
+        <View style={{ position: "relative", backgroundColor: colors.background }}>
 
           {/* Nav bar — glass-effect over atmosphere */}
           <EventHeroNav
