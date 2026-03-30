@@ -117,6 +117,7 @@ import { CircleMembersSheet } from "@/components/circle/CircleMembersSheet";
 import { CircleSettingsSheet } from "@/components/circle/CircleSettingsSheet";
 import { CircleHeaderChrome } from "@/components/circle/CircleHeaderChrome";
 import { CircleNextEventCard } from "@/components/circle/CircleNextEventCard";
+import { CircleChatOverlays } from "@/components/circle/CircleChatOverlays";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2359,140 +2360,49 @@ export default function CircleScreen() {
           }}
         />
 
-        {/* [P2_CHAT_SCROLL_BTN] Floating scroll-to-bottom button */}
-        {showScrollToBottom && unseenCount === 0 ? (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              flatListRef.current?.scrollToEnd({ animated: true });
-              if (__DEV__) devLog("[P2_CHAT_SCROLL_BTN]", "tap", {});
-            }}
-            style={{
-              position: "absolute",
-              right: 16,
-              bottom: 92,
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: isDark ? "rgba(58,58,60,0.9)" : "rgba(255,255,255,0.95)",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 49,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: isDark ? 0.4 : 0.15,
-              shadowRadius: 3,
-              elevation: 3,
-              borderWidth: isDark ? 0 : 0.5,
-              borderColor: "rgba(0,0,0,0.08)",
-            }}
-          >
-            <ChevronDown size={18} color={colors.textSecondary} />
-          </Pressable>
-        ) : null}
-
-        {/* [P1_CHAT_PILL] Floating new messages indicator */}
-        {unseenCount > 0 ? (
-          <Pressable
-            onPress={() => {
-              if (__DEV__) {
-                devLog("[P1_CHAT_PILL]", "pill_tap", { unseen: unseenCount });
-              }
-              clearUnseen();
-              scheduleAutoScroll();
-              sendReadHorizon("pill_tap");
-              if (__DEV__) {
-                devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "tap" });
-              }
-            }}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 92,
-              alignItems: "center",
-              zIndex: 50,
-            }}
-          >
-            <View
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 16,
-                backgroundColor: "rgba(0,0,0,0.72)",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-                New messages
-              </Text>
-              {unseenCount > 1 ? (
-                <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>
-                  {unseenCount > 99 ? "99+" : unseenCount}
-                </Text>
-              ) : null}
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{"\u2193"}</Text>
-            </View>
-          </Pressable>
-        ) : null}
-
-        {/* [P1_CHAT_SEND_UI] Failed message banner */}
-        {hasFailed && latestFailed && (
-            <Pressable
-              onPress={() => {
-                const cmi = latestFailed.clientMessageId;
-                if (!cmi) {
-                  safeToast.error("Retry Failed", "Cannot retry this message");
-                  return;
-                }
-                if (__DEV__) devLog("[P1_CHAT_SEND_UI]", "retry_from_banner", { failedId: latestFailed.id, clientMessageId: cmi });
-                retryFailedMessage(
-                  id,
-                  latestFailed.id,
-                  queryClient,
-                  () => sendMessageMutation.mutate({
-                    content: latestFailed.content,
-                    clientMessageId: cmi,
-                  }),
-                );
-              }}
-              style={{
-                backgroundColor: "rgba(239,68,68,0.1)",
-                borderTopWidth: 1,
-                borderColor: "rgba(239,68,68,0.2)",
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-            >
-              <RefreshCw size={12} color="#EF4444" />
-              <Text style={{ color: "#EF4444", fontSize: 13, fontWeight: "500" }}>
-                Message failed to send · Tap to retry
-              </Text>
-            </Pressable>
-        )}
-
-        {/* [P0_WS_TYPING_UI] Typing indicator */}
-        {typingUserIds.length > 0 && (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
-            <Text style={{ color: colors.textTertiary, fontSize: 13, fontStyle: "italic" }}>
-              {(() => {
-                const names = typingUserIds.map((uid) => {
-                  const m = members.find((mb) => mb.userId === uid);
-                  return m?.user?.name ?? "Someone";
-                });
-                if (names.length === 1) return `${names[0]} is typing\u2026`;
-                if (names.length === 2) return `${names[0]} and ${names[1]} are typing\u2026`;
-                return `${names.length} people are typing\u2026`;
-              })()}
-            </Text>
-          </View>
-        )}
+        {/* Chat overlays: scroll-to-bottom, new messages pill, failed banner, typing */}
+        <CircleChatOverlays
+          showScrollToBottom={showScrollToBottom}
+          unseenCount={unseenCount}
+          hasFailed={hasFailed}
+          failedBannerVisible={!!latestFailed}
+          typingNames={typingUserIds.map((uid) => {
+            const m = members.find((mb) => mb.userId === uid);
+            return m?.user?.name ?? "Someone";
+          })}
+          colors={colors}
+          isDark={isDark}
+          onScrollToBottom={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            flatListRef.current?.scrollToEnd({ animated: true });
+            if (__DEV__) devLog("[P2_CHAT_SCROLL_BTN]", "tap", {});
+          }}
+          onPillTap={() => {
+            if (__DEV__) devLog("[P1_CHAT_PILL]", "pill_tap", { unseen: unseenCount });
+            clearUnseen();
+            scheduleAutoScroll();
+            sendReadHorizon("pill_tap");
+            if (__DEV__) devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "tap" });
+          }}
+          onRetryFailed={() => {
+            if (!latestFailed) return;
+            const cmi = latestFailed.clientMessageId;
+            if (!cmi) {
+              safeToast.error("Retry Failed", "Cannot retry this message");
+              return;
+            }
+            if (__DEV__) devLog("[P1_CHAT_SEND_UI]", "retry_from_banner", { failedId: latestFailed.id, clientMessageId: cmi });
+            retryFailedMessage(
+              id,
+              latestFailed.id,
+              queryClient,
+              () => sendMessageMutation.mutate({
+                content: latestFailed.content,
+                clientMessageId: cmi,
+              }),
+            );
+          }}
+        />
 
         {/* [P2_CHAT_REPLY] Reply preview bar */}
         {replyTarget && (
