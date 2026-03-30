@@ -111,6 +111,7 @@ import { CircleEditMessageOverlay } from "@/components/circle/CircleEditMessageO
 import { CircleReactionPicker } from "@/components/circle/CircleReactionPicker";
 import { CircleAvailabilitySheet } from "@/components/circle/CircleAvailabilitySheet";
 import { CirclePlanLockSheet } from "@/components/circle/CirclePlanLockSheet";
+import { CirclePollSheet } from "@/components/circle/CirclePollSheet";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2829,120 +2830,42 @@ export default function CircleScreen() {
       />
 
       {/* [P1_POLL_UI] Poll Detail Sheet */}
-      <BottomSheet
+      <CirclePollSheet
         visible={showPollSheet}
-        onClose={() => { setShowPollSheet(false); if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_close", { sheet: "poll" }); }}
-        heightPct={0}
-        maxHeightPct={0.6}
-        backdropOpacity={0.5}
         title={polls?.[activePollIdx]?.question ?? "Poll"}
-      >
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-          {(() => {
-            const detailOpts = polls?.[activePollIdx]?.options;
-            const detailWinner = planLock?.locked && detailOpts
-              ? detailOpts.reduce((best, o) => (o.count > best.count ? o : best), detailOpts[0])
-              : null;
-            const detailWinnerId = detailWinner && detailWinner.count > 0 ? detailWinner.id : null;
-            return detailOpts?.map((opt) => {
-              const isVoted = opt.votedByMe;
-              const isDetailWinner = detailWinnerId === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    voteMutation.mutate({ pollId: polls![activePollIdx].id, optionId: opt.id });
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingVertical: 14,
-                    paddingHorizontal: 14,
-                    marginBottom: 8,
-                    borderRadius: 12,
-                    borderWidth: 1.5,
-                    borderColor: isDetailWinner ? (isDark ? "#34C759" : "#30A14E") : isVoted ? themeColor : colors.border,
-                    backgroundColor: isDetailWinner ? (isDark ? "rgba(52,199,89,0.12)" : "rgba(48,161,78,0.08)") : isVoted ? (themeColor + "12") : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
-                  }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
-                  <View style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 11,
-                    borderWidth: 2,
-                    borderColor: isDetailWinner ? (isDark ? "#34C759" : "#30A14E") : isVoted ? themeColor : colors.textTertiary,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: isDetailWinner ? (isDark ? "#34C759" : "#30A14E") : isVoted ? themeColor : "transparent",
-                  }}>
-                    {(isVoted || isDetailWinner) && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
-                  </View>
-                  <Text style={{ fontSize: 15, fontWeight: (isVoted || isDetailWinner) ? "600" : "400", color: isDetailWinner ? (isDark ? "#34C759" : "#30A14E") : colors.text, flex: 1 }}>{opt.label}</Text>
-                  {isDetailWinner && <Text style={{ fontSize: 11, fontWeight: "700", color: isDark ? "#34C759" : "#30A14E" }}>WINNER</Text>}
-                </View>
-                <View style={{
-                  paddingHorizontal: 10,
-                  paddingVertical: 3,
-                  borderRadius: 10,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                }}>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: isDetailWinner ? (isDark ? "#34C759" : "#30A14E") : isVoted ? themeColor : colors.textSecondary }}>{opt.count}</Text>
-                </View>
-              </Pressable>
-              );
-            });
-          })()}
-        </ScrollView>
-
-        {/* [P1_LOCK_POLISH] Poll finalization context */}
-        {planLock?.locked && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
-            <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: "center", fontStyle: "italic" }}>
-              This poll finalized the plan.
-            </Text>
-          </View>
-        )}
-
-        {/* [P1_POLL_LOCK_BRIDGE] Lock plan with winning option */}
-        {(() => {
+        options={polls?.[activePollIdx]?.options}
+        isLocked={planLock?.locked ?? false}
+        isHost={isHost}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
+        onClose={() => { setShowPollSheet(false); if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_close", { sheet: "poll" }); }}
+        onVote={(optionId) => {
+          Haptics.selectionAsync();
+          voteMutation.mutate({ pollId: polls![activePollIdx].id, optionId });
+        }}
+        onLockWithWinner={async (winnerLabel) => {
           const activePoll = polls?.[activePollIdx];
-          if (!activePoll || !isHost) return null;
-          const totalVotes = activePoll.options.reduce((s: number, o: any) => s + o.count, 0);
-          if (totalVotes === 0) return null;
-          const winner = activePoll.options.reduce((best: any, o: any) => o.count > best.count ? o : best, activePoll.options[0]);
-          if (!winner) return null;
-          return (
-            <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-              <Button
-                variant="primary"
-                label={`🔒 Lock plan with "${winner.label}"`}
-                onPress={async () => {
-                  const note = `Locked plan: ${winner.label}`;
-                  if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_attempt", { pollId: activePoll.id, winnerId: winner.id, winnerLabel: winner.label, note });
-                  try {
-                    await api.post(`/api/circles/${id}/plan-lock`, { locked: true, note });
-                    queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
-                    queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
-                    queryClient.invalidateQueries({ queryKey: circleKeys.availabilitySummary(id!) });
-                    if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_success", { note });
-                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_success", { pollId: activePoll.id, winner: winner.label });
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    setShowPollSheet(false);
-                  } catch (e: any) {
-                    if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_error", { status: e?.status ?? "unknown" });
-                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_error", { status: e?.status ?? "unknown" });
-                    safeToast.error("Lock Failed", "Failed to lock plan");
-                  }
-                }}
-                style={{ borderRadius: RADIUS.md }}
-              />
-            </View>
-          );
-        })()}
-      </BottomSheet>
+          if (!activePoll) return;
+          const note = `Locked plan: ${winnerLabel}`;
+          const winner = activePoll.options.find((o: any) => o.label === winnerLabel);
+          if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_attempt", { pollId: activePoll.id, winnerId: winner?.id, winnerLabel, note });
+          try {
+            await api.post(`/api/circles/${id}/plan-lock`, { locked: true, note });
+            queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
+            queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
+            queryClient.invalidateQueries({ queryKey: circleKeys.availabilitySummary(id!) });
+            if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_success", { note });
+            if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_success", { pollId: activePoll.id, winner: winnerLabel });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setShowPollSheet(false);
+          } catch (e: any) {
+            if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_error", { status: e?.status ?? "unknown" });
+            if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_error", { status: e?.status ?? "unknown" });
+            safeToast.error("Lock Failed", "Failed to lock plan");
+          }
+        }}
+      />
 
       {/* [P0_CIRCLE_INFO] Info Sheet */}
       <BottomSheet
