@@ -81,84 +81,16 @@ import { ListView } from "@/components/calendar/CalendarListView";
 import { CalendarBusyBlockModal } from "@/components/calendar/CalendarBusyBlockModal";
 import { CalendarFirstLoginGuideModal } from "@/components/calendar/CalendarFirstLoginGuideModal";
 import { CalendarHeaderChrome, MONTHS, CALENDAR_VIEW_MODES, type ViewMode } from "@/components/calendar/CalendarHeaderChrome";
+import { DAYS, DAYS_FULL, CALENDAR_VIEW_HEIGHT_KEY, GUIDE_SEEN_KEY_PREFIX, UNIFIED_MIN_HEIGHT, UNIFIED_MAX_HEIGHT, COMPACT_TO_STACKED_THRESHOLD, STACKED_TO_DETAILS_THRESHOLD, getDaysInMonth, getFirstDayOfMonth, getOrdinalSuffix, formatDateShort, getViewModeFromHeight, getHeightMultiplierForMode } from "@/lib/calendarUtils";
 
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const CALENDAR_VIEW_HEIGHT_KEY = "@openinvite_calendar_view_height";
+// NOTE: getEventPalette, EventPalette, and assertGreyPaletteInvariant are now imported from @/lib/eventPalette
+// This is the single source of truth for busy/work grey rendering
+
 // Keep full list for reference
 const VIEW_MODES: { id: ViewMode; label: string; icon: typeof List }[] = [
   ...CALENDAR_VIEW_MODES,
   { id: "list", label: "List", icon: List },
 ];
-
-// User-specific guide key - ensures long-time users never see guide again
-const GUIDE_SEEN_KEY_PREFIX = "guide_seen::";
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, month: number) {
-  return new Date(year, month, 1).getDay();
-}
-
-// Get ordinal suffix for a number (1st, 2nd, 3rd, etc.)
-function getOrdinalSuffix(day: number): string {
-  if (day > 3 && day < 21) return "th";
-  switch (day % 10) {
-    case 1: return "st";
-    case 2: return "nd";
-    case 3: return "rd";
-    default: return "th";
-  }
-}
-
-// Format date as "Jan. 4th"
-function formatDateShort(date: Date): string {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const day = date.getDate();
-  return `${months[date.getMonth()]}. ${day}${getOrdinalSuffix(day)}`;
-}
-
-
-// NOTE: getEventPalette, EventPalette, and assertGreyPaletteInvariant are now imported from @/lib/eventPalette
-// This is the single source of truth for busy/work grey rendering
-
-// Unified height system - continuous scale from compact through details
-// compact: 40-64, stacked: 64-80, details: 80-160
-const UNIFIED_MIN_HEIGHT = 40;  // Compact minimum
-const UNIFIED_MAX_HEIGHT = 160; // Details maximum (2x)
-
-// Thresholds for view mode transitions (based on unified height)
-const COMPACT_TO_STACKED_THRESHOLD = 64;  // When height reaches stacked base
-const STACKED_TO_DETAILS_THRESHOLD = 80;  // When height reaches details base
-
-// Get current view mode based on unified height
-function getViewModeFromHeight(height: number): ViewMode {
-  if (height < COMPACT_TO_STACKED_THRESHOLD) return "compact";
-  if (height < STACKED_TO_DETAILS_THRESHOLD) return "stacked";
-  return "details";
-}
-
-// Get height multiplier for a specific view mode given the unified height
-function getHeightMultiplierForMode(unifiedHeight: number, mode: ViewMode): number {
-  const baseHeight = BASE_HEIGHTS[mode];
-
-  switch (mode) {
-    case "compact":
-      // Compact range: 40-64, multiplier 1.0-1.6
-      return Math.min(unifiedHeight / baseHeight, 1.6);
-    case "stacked":
-      // Stacked range: 64-80, multiplier 1.0-1.25
-      return Math.max(0.75, Math.min(unifiedHeight / baseHeight, 1.25));
-    case "details":
-      // Details range: 80-160, multiplier 1.0-2.0
-      return Math.max(0.75, unifiedHeight / baseHeight);
-    default:
-      return 1;
-  }
-}
-
 
 export default function CalendarScreen() {
   const { data: session } = useSession();
