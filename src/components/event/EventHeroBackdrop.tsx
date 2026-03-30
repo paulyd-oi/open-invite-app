@@ -34,13 +34,13 @@ export function EventHeroBackdrop({
           blurRadius={70}
           cachePolicy="memory-disk"
         />
-        {/* Layered scrim: let color through, fade to canvas */}
+        {/* Layered scrim: let color through, fade to transparent (page bg shows through) */}
         <LinearGradient
           colors={[
             isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)",
             isDark ? "rgba(0,0,0,0.15)" : "transparent",
             isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.03)",
-            canvasColor,
+            "transparent",
           ]}
           locations={[0, 0.25, 0.7, 1]}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
@@ -63,8 +63,8 @@ export function EventHeroBackdrop({
   return (
     <LinearGradient
       colors={isDark
-        ? [baseTint ?? `${themeColor}30`, baseTint ? "transparent" : `${themeColor}12`, canvasColor]
-        : [baseTint ?? `${themeColor}20`, baseTint ? "transparent" : `${themeColor}0A`, canvasColor]
+        ? [baseTint ?? `${themeColor}30`, baseTint ? "transparent" : `${themeColor}12`, "transparent"]
+        : [baseTint ?? `${themeColor}20`, baseTint ? "transparent" : `${themeColor}0A`, "transparent"]
       }
       locations={[0, 0.4, 1]}
       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}

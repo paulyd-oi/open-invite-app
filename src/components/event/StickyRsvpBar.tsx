@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Check, Heart, Users } from "@/ui/icons";
 
@@ -22,6 +22,23 @@ interface StickyRsvpBarProps {
   onRsvpInterested: () => void;
 }
 
+// Glass surface tokens
+const GLASS = {
+  imIn: {
+    bg: "#22C55E",
+    border: "rgba(255,255,255,0.25)",
+    shadow: { color: "#22C55E", opacity: 0.35, radius: 8, offset: { width: 0, height: 3 } },
+  },
+  save: {
+    dark: { bg: "rgba(255,255,255,0.12)", border: "rgba(255,255,255,0.15)" },
+    light: { bg: "rgba(255,255,255,0.60)", border: "rgba(0,0,0,0.08)" },
+  },
+  full: {
+    dark: { bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.10)" },
+    light: { bg: "rgba(0,0,0,0.04)", border: "rgba(0,0,0,0.06)" },
+  },
+} as const;
+
 export function StickyRsvpBar({
   effectiveGoingCount,
   isFull,
@@ -31,33 +48,25 @@ export function StickyRsvpBar({
   screenWidth,
   bottomInset,
   colors,
-  themeColor,
   onRsvpGoing,
   onRsvpInterested,
 }: StickyRsvpBarProps) {
+  const saveGlass = isDark ? GLASS.save.dark : GLASS.save.light;
+  const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
+
   return (
     <Animated.View
       entering={FadeInDown.duration(300).springify()}
+      pointerEvents="box-none"
       style={{
         position: "absolute",
         bottom: 0,
-        ...(screenWidth >= 768
-          ? {
-              left: Math.max(16, (screenWidth - 600) / 2),
-              right: Math.max(16, (screenWidth - 600) / 2),
-              borderRadius: 20,
-              paddingBottom: bottomInset + 12,
-            }
-          : {
-              left: 0,
-              right: 0,
-              paddingBottom: bottomInset + 8,
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-            }),
+        left: 0,
+        right: 0,
+        paddingBottom: bottomInset + 8,
         paddingTop: 10,
         paddingHorizontal: 16,
-        backgroundColor: isDark ? "rgba(20,20,24,0.88)" : "rgba(255,255,255,0.82)",
+        // Transparent container — buttons carry the visual weight
       }}
     >
       {effectiveGoingCount > 0 && (
@@ -66,20 +75,17 @@ export function StickyRsvpBar({
         </Text>
       )}
       {isFull ? (
-        <View style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 16,
-        }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <View style={{
             flex: 1,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            paddingVertical: 12,
-            borderRadius: 999,
-            backgroundColor: "#E5E7EB",
+            paddingVertical: 13,
+            borderRadius: 16,
+            backgroundColor: fullGlass.bg,
+            borderWidth: 1,
+            borderColor: fullGlass.border,
             opacity: 0.6,
           }}>
             <Users size={16} color={colors.textTertiary} />
@@ -92,10 +98,12 @@ export function StickyRsvpBar({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              paddingVertical: 12,
+              paddingVertical: 13,
               paddingHorizontal: 20,
-              borderRadius: 999,
-              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+              borderRadius: 16,
+              backgroundColor: saveGlass.bg,
+              borderWidth: 1,
+              borderColor: saveGlass.border,
             }}
           >
             <Heart size={16} color={colors.text} />
@@ -112,6 +120,7 @@ export function StickyRsvpBar({
           gap: 12,
           opacity: isPending ? 0.6 : 1,
         }}>
+          {/* I'm In — green glass, primary weight */}
           <Pressable
             onPress={onRsvpGoing}
             disabled={isPending}
@@ -120,13 +129,15 @@ export function StickyRsvpBar({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              paddingVertical: 13,
-              borderRadius: 999,
-              backgroundColor: "#22C55E",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: GLASS.imIn.bg,
+              borderWidth: 1,
+              borderColor: GLASS.imIn.border,
+              shadowColor: GLASS.imIn.shadow.color,
+              shadowOffset: GLASS.imIn.shadow.offset,
+              shadowOpacity: GLASS.imIn.shadow.opacity,
+              shadowRadius: GLASS.imIn.shadow.radius,
             }}
           >
             {isPending ? (
@@ -138,6 +149,7 @@ export function StickyRsvpBar({
               </>
             )}
           </Pressable>
+          {/* Save — glass secondary */}
           <Pressable
             onPress={onRsvpInterested}
             disabled={isPending}
@@ -145,10 +157,12 @@ export function StickyRsvpBar({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              paddingVertical: 13,
+              paddingVertical: 14,
               paddingHorizontal: 20,
-              borderRadius: 999,
-              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+              borderRadius: 16,
+              backgroundColor: saveGlass.bg,
+              borderWidth: 1,
+              borderColor: saveGlass.border,
             }}
           >
             <Heart size={16} color={colors.text} />
