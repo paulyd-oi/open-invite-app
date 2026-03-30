@@ -112,6 +112,7 @@ import { SocialProofRow } from "@/components/event/SocialProofRow";
 import { RsvpSuccessPrompt } from "@/components/event/RsvpSuccessPrompt";
 import { FindFriendsNudge } from "@/components/event/FindFriendsNudge";
 import { RsvpStatusDisplay } from "@/components/event/RsvpStatusDisplay";
+import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2798,122 +2799,18 @@ export default function EventDetailScreen() {
 
                 {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
                 {(!myRsvpStatus || showRsvpOptions) && (
-                  <Animated.View style={rsvpButtonAnimStyle}>
-                    {/* Full indicator */}
-                    {eventMeta.isFull && myRsvpStatus !== "going" && (
-                      <View style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 10,
-                        marginBottom: 8,
-                        borderRadius: RADIUS.sm,
-                        backgroundColor: STATUS.destructive.bgSoft,
-                      }}>
-                        <Users size={14} color={STATUS.destructive.fg} />
-                        <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: "500", color: STATUS.destructive.fg }}>This invite is full</Text>
-                      </View>
-                    )}
-                    {/* Pending indicator */}
-                    {rsvpMutation.isPending && (
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, marginBottom: 6 }}>
-                        <ActivityIndicator size="small" color={themeColor} />
-                        <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary }}>Updating…</Text>
-                      </View>
-                    )}
-                    {/* Two independent pill buttons — row wrapper has NO visual styling */}
-                    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 16, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
-                      {/* Going — Primary pill (solid filled green) */}
-                      {eventMeta.isFull && myRsvpStatus !== "going" ? (
-                        <View style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          paddingVertical: 14,
-                          paddingHorizontal: 28,
-                          minHeight: 48,
-                          borderRadius: 999,
-                          backgroundColor: "#E5E7EB",
-                          opacity: 0.6,
-                        }}>
-                          <Users size={18} color={colors.textTertiary} />
-                          <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
-                        </View>
-                      ) : (
-                        <Pressable
-                          testID="event-detail-action-going"
-                          onPress={() => handleRsvp("going")}
-                          disabled={rsvpMutation.isPending}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            paddingVertical: 14,
-                            paddingHorizontal: 28,
-                            minHeight: 48,
-                            borderRadius: 999,
-                            backgroundColor: "#22C55E",
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.15,
-                            shadowRadius: 4,
-                          }}
-                        >
-                          <Check size={18} color="#FFFFFF" />
-                          <Text style={{
-                            marginLeft: 8,
-                            fontSize: 16,
-                            fontWeight: "700",
-                            color: "#FFFFFF",
-                            letterSpacing: 0.2,
-                          }}>
-                            {myRsvpStatus === "going" ? "Going ✓" : "I'm In"}
-                          </Text>
-                        </Pressable>
-                      )}
-
-                      {/* Save — Secondary pill (outlined) */}
-                      <Pressable
-                        testID="event-detail-action-save"
-                        onPress={() => handleRsvp("interested")}
-                        disabled={rsvpMutation.isPending}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          paddingVertical: 14,
-                          paddingHorizontal: 28,
-                          minHeight: 48,
-                          borderRadius: 999,
-                          backgroundColor: "rgba(255, 255, 255, 0.42)",
-                          borderWidth: 1.5,
-                          borderColor: "rgba(255, 255, 255, 0.55)",
-                        }}
-                      >
-                        <Heart size={18} color={pageTheme.backAccent} />
-                        <Text style={{
-                          marginLeft: 8,
-                          fontSize: 15,
-                          fontWeight: "600",
-                          color: pageTheme.backAccent,
-                        }}>
-                          {myRsvpStatus === "interested" ? "Saved ✓" : "Save"}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    {/* Not Going — tertiary text link */}
-                    {myRsvpStatus && myRsvpStatus !== "not_going" && (
-                      <Pressable
-                        testID="event-detail-action-not-going"
-                        onPress={() => handleRsvp("not_going")}
-                        disabled={rsvpMutation.isPending}
-                        style={{ alignSelf: "center", marginTop: 12, paddingVertical: 6 }}
-                      >
-                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>Can't make it</Text>
-                      </Pressable>
-                    )}
-                  </Animated.View>
+                  <RsvpButtonGroup
+                    myRsvpStatus={myRsvpStatus}
+                    isFull={eventMeta.isFull}
+                    isPending={rsvpMutation.isPending}
+                    themeColor={themeColor}
+                    accentColor={pageTheme.backAccent}
+                    colors={colors}
+                    animStyle={rsvpButtonAnimStyle}
+                    onRsvpGoing={() => handleRsvp("going")}
+                    onRsvpInterested={() => handleRsvp("interested")}
+                    onRsvpNotGoing={() => handleRsvp("not_going")}
+                  />
                 )}
                 {/* [EVENT_LIVE_UI_2] Saved confirmation text */}
                 {rsvpSavedVisible && (
