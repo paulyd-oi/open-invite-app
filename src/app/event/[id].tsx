@@ -116,6 +116,7 @@ import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { PhotoNudge } from "@/components/event/PhotoNudge";
 import { EditPhotoButton } from "@/components/event/EditPhotoButton";
+import { EventHeroNav } from "@/components/event/EventHeroNav";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2497,71 +2498,23 @@ export default function EventDetailScreen() {
           {/* Theme effect moved to full-page level (SafeAreaView) */}
 
           {/* Nav bar — glass-effect over atmosphere */}
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 14,
-            paddingTop: insets.top + 6,
-            paddingBottom: 6,
-            zIndex: 10,
-            ...(screenWidth >= 768 ? { maxWidth: 600, alignSelf: "center" as const, width: "100%" } : undefined),
-          }}>
-            {eventBannerUri && event.eventPhotoUrl ? (
-              <Pressable
-                onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
-                style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden" }}
-              >
-                <BlurView intensity={30} tint="dark" style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.15)" }}>
-                  <ChevronLeft size={24} color="#FFFFFF" />
-                </BlurView>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
-                style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }}
-              >
-                <ChevronLeft size={24} color={colors.text} />
-              </Pressable>
-            )}
-            {eventBannerUri && event.eventPhotoUrl ? (
-              <Pressable
-                testID="event-detail-menu-open"
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
-                    eventId: id,
-                    isImported: !!event?.isImported,
-                    isBusy: !!event?.isBusy,
-                    isMyEvent,
-                  });
-                  setShowEventActionsSheet(true);
-                }}
-                style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden" }}
-              >
-                <BlurView intensity={30} tint="dark" style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.15)" }}>
-                  <MoreHorizontal size={22} color="#FFFFFF" />
-                </BlurView>
-              </Pressable>
-            ) : (
-              <Pressable
-                testID="event-detail-menu-open"
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
-                    eventId: id,
-                    isImported: !!event?.isImported,
-                    isBusy: !!event?.isBusy,
-                    isMyEvent,
-                  });
-                  setShowEventActionsSheet(true);
-                }}
-                style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }}
-              >
-                <MoreHorizontal size={22} color={colors.text} />
-              </Pressable>
-            )}
-          </View>
+          <EventHeroNav
+            hasPhoto={!!(eventBannerUri && event.eventPhotoUrl)}
+            screenWidth={screenWidth}
+            topInset={insets.top}
+            colors={colors}
+            onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+            onOpenOptions={() => {
+              Haptics.selectionAsync();
+              if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
+                eventId: id,
+                isImported: !!event?.isImported,
+                isBusy: !!event?.isBusy,
+                isMyEvent,
+              });
+              setShowEventActionsSheet(true);
+            }}
+          />
 
           {/* Floating invite card */}
           <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 2, paddingBottom: 14 }}>
