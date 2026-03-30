@@ -2394,12 +2394,14 @@ export default function EventDetailScreen() {
     ? buildCustomThemeTokens(event.customThemeData)
     : resolveEventTheme(event.themeId);
 
+  const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
+
   // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility
   const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
   const stickyBarHeight = 64 + insets.bottom;
 
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
