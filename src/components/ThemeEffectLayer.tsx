@@ -255,9 +255,9 @@ export const EFFECT_CONFIGS = {
     shapes: ["snowflake", "circle"],
   },
   coastal_haze: {
-    particleCount: 18,
+    particleCount: 12,
     minSize: 12,
-    maxSize: 22,
+    maxSize: 16,
     minOpacity: 0.09,
     maxOpacity: 0.17,
     minSpeed: 4,
@@ -266,7 +266,7 @@ export const EFFECT_CONFIGS = {
     minSwayPeriod: 6,
     maxSwayPeriod: 12,
     direction: -1,
-    blurSigma: 11,
+    blurSigma: 3,
     colors: [
       "rgba(20, 184, 166, 1)",    // teal / chill_hang accent
       "rgba(110, 220, 200, 1)",   // seafoam
@@ -276,11 +276,11 @@ export const EFFECT_CONFIGS = {
     shaderPreset: "aurora",
   },
   arcade_sparkle: {
-    particleCount: 28,
+    particleCount: 14,
     minSize: 3,
     maxSize: 6,
     minOpacity: 0.18,
-    maxOpacity: 0.30,
+    maxOpacity: 0.20,
     minSpeed: 8,
     maxSpeed: 13,
     swayAmplitude: 15,
@@ -1416,11 +1416,13 @@ export class SkiaErrorBoundary extends React.Component<
 interface ThemeEffectLayerProps {
   themeId: string | null | undefined;
   overrideVisualStack?: import("@/lib/eventThemes").ThemeVisualStack;
+  disableShader?: boolean;
 }
 
 export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
   overrideVisualStack,
+  disableShader,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
@@ -1452,7 +1454,7 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
       {_skiaAvailable && config && (
         <SkiaErrorBoundary>
           <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-            {shaderPreset && (
+            {shaderPreset && !disableShader && (
               <ShaderBackgroundField
                 shaderPreset={shaderPreset}
                 shaderOpacity={shaderOpacity}

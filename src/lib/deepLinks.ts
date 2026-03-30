@@ -26,6 +26,7 @@ import { safeToast } from './safeToast';
 import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened, trackCircleInviteIntentPreauth } from '@/analytics/analyticsEventsSSOT';
 import { setPendingCircleInvite } from './pendingCircleInvite';
 import { getBootStatus } from '@/hooks/useBootAuthority';
+import { parseAttributionFromUrl, setAttributionContext } from './attribution';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -318,6 +319,12 @@ export async function handleDeepLink(url: string): Promise<boolean> {
       devLog('Could not parse deep link:', url);
     }
     return false;
+  }
+
+  // [OPERATOR_BACKFLOW] Capture attribution params (?t=, ?c=, ?v=) from tracked links
+  const attribution = parseAttributionFromUrl(url);
+  if (attribution) {
+    setAttributionContext({ ...attribution, source_path: url.split('?')[0] });
   }
 
   if (__DEV__) {

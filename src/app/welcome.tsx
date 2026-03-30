@@ -62,6 +62,7 @@ import { runExactAppleAuthBootstrap } from "@/lib/exactAppleAuthBootstrap";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
+import { getAttributionContext } from "@/lib/attribution";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, runAppleSignInDiagnostics, classifyAppleAuthError, decodeAppleAuthError } from "@/lib/appleSignIn";
@@ -494,6 +495,15 @@ export default function WelcomeOnboardingScreen() {
       // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
       if (isNewAccount) {
         trackSignupCompleted({ authProvider: "email", isEmailVerified: false });
+        // [OPERATOR_BACKFLOW] Report signup attribution to Operator Engine (fire-and-forget)
+        getAttributionContext().then((attr) => {
+          if (attr) {
+            api.post("/api/operator/attribute", {
+              event_type: "signup_completed",
+              attribution: attr,
+            }).catch(() => {}); // non-blocking
+          }
+        }).catch(() => {});
       }
 
       // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate + send verification email
@@ -726,6 +736,15 @@ export default function WelcomeOnboardingScreen() {
       traceLog("final_success", { advancingToSlide: 3 });
       // [P0_ANALYTICS_EVENT] signup_completed (Apple — best-effort, fires on every Apple auth since we can't distinguish new vs returning)
       trackSignupCompleted({ authProvider: "apple", isEmailVerified: true });
+      // [OPERATOR_BACKFLOW] Report signup attribution to Operator Engine (fire-and-forget)
+      getAttributionContext().then((attr) => {
+        if (attr) {
+          api.post("/api/operator/attribute", {
+            event_type: "signup_completed",
+            attribution: attr,
+          }).catch(() => {});
+        }
+      }).catch(() => {});
       // [GROWTH_APPLE_SIGNIN] Track success
       trackAppleSignInResult({ success: true, durationMs: Date.now() - _appleT0 });
       setCurrentSlide(3);

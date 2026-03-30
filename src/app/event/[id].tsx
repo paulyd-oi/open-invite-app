@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -2398,35 +2399,20 @@ export default function EventDetailScreen() {
   const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
   const stickyBarHeight = 64 + insets.bottom;
 
-  // __DEV__ debug toggle — flip to false to isolate which layer causes the strip
-  const DEBUG_LAYERS = {
-    gradient: true,
-    video: true,
-    effect: true,   // Skia shaders + particles
-    filter: true,
-  };
-
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: "transparent" }} edges={[]}>
       <Stack.Screen options={{ headerShown: false, headerTransparent: true, contentStyle: { backgroundColor: "transparent" } }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
       {/* Animated gradient background (custom themes + catalog themes with gradient) */}
-      {DEBUG_LAYERS.gradient && pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
+      {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <AnimatedGradientLayer config={{
-            ...pageTheme.visualStack.gradient,
-            colors: [
-              "transparent",
-              ...pageTheme.visualStack.gradient!.colors.slice(1, -1),
-              "transparent",
-            ],
-          }} />
+          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
         </View>
       )}
 
       {/* Looping video background — behind particles and content */}
-      {DEBUG_LAYERS.video && pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
+      {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
           <ThemeVideoLayer
             source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
@@ -2439,7 +2425,7 @@ export default function EventDetailScreen() {
 
       {/* Particle layer — effectId overrides theme particles to avoid double-rendering.
            Theme gradient/video/filter still render normally; only particles are suppressed. */}
-      {DEBUG_LAYERS.effect && (event.effectId ? (
+      {event.effectId ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <MotifOverlay
             presetId={event.effectId}
@@ -2449,9 +2435,10 @@ export default function EventDetailScreen() {
         </View>
       ) : (
         <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
-      ))}
+      )}
+
       {/* Atmospheric filter overlay — after particles, before content */}
-      {DEBUG_LAYERS.filter && pageTheme.visualStack?.filter && (
+      {pageTheme.visualStack?.filter && (
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
       )}
 
@@ -2549,6 +2536,9 @@ export default function EventDetailScreen() {
           </Animated.View>
 
         </View>
+
+        {/* Breathing room between hero card and first content card */}
+        <View style={{ height: 16 }} />
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
@@ -2693,7 +2683,7 @@ export default function EventDetailScreen() {
         )}
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
-        {!isMyEvent && !event?.isBusy && (
+        {!isMyEvent && !event?.isBusy && (hasJoinRequest || myRsvpStatus) && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
             {hasJoinRequest ? (
               <ConfirmedAttendeeBanner
@@ -2703,7 +2693,7 @@ export default function EventDetailScreen() {
                 colors={colors}
               />
             ) : (
-              <View style={{ marginBottom: 18 }}>
+              <View style={{ marginBottom: 4 }}>
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
                   devLog("[P0_RSVP]", "ui render", {
