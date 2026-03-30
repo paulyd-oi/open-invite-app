@@ -114,6 +114,7 @@ import { CirclePlanLockSheet } from "@/components/circle/CirclePlanLockSheet";
 import { CirclePollSheet } from "@/components/circle/CirclePollSheet";
 import { CircleNotifyLevelSheet } from "@/components/circle/CircleNotifyLevelSheet";
 import { CircleMembersSheet } from "@/components/circle/CircleMembersSheet";
+import { CircleSettingsSheet } from "@/components/circle/CircleSettingsSheet";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2893,406 +2894,129 @@ export default function CircleScreen() {
         </ScrollView>
       </BottomSheet>
 
-      {/* Circle Settings (uses shared BottomSheet) */}
-      <BottomSheet
+      {/* Circle Settings Sheet */}
+      <CircleSettingsSheet
         visible={showGroupSettings}
+        circleName={circle?.name}
+        circleEmoji={circle?.emoji}
+        circlePhotoUrl={circle?.photoUrl}
+        circleDescription={circle?.description}
+        isMuted={circle?.isMuted ?? false}
+        memberCount={members.length}
+        settingsView={settingsSheetView}
+        isHost={isHost}
+        editingDescription={editingDescription}
+        descriptionText={descriptionText}
+        uploadingPhoto={uploadingPhoto}
+        isMutePending={muteMutation.isPending}
+        isSaveDescriptionPending={updateCircleMutation.isPending}
+        notifyLevel={notifyLevel}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
         onClose={() => { setShowGroupSettings(false); setSettingsSheetView("settings"); }}
-        heightPct={0}
-        maxHeightPct={0.85}
-        backdropOpacity={0.5}
-        keyboardMode="padding"
-      >
-              {/* Header */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
-                  Circle Settings
-                </Text>
-              </View>
-
-              {/* Scrollable content for keyboard accessibility */}
-              <ScrollView 
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-              {settingsSheetView === "settings" && (<>
-              {/* Circle Info */}
-              <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", alignItems: "center" }}>
-                <View
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 12,
-                    backgroundColor: `${themeColor}20`,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 16,
-                    overflow: "hidden",
-                  }}
-                >
-                  <CirclePhotoEmoji photoUrl={circle?.photoUrl} emoji={circle?.emoji ?? "👥"} emojiStyle={{ fontSize: 28 }} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                    {circle?.name}
-                  </Text>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-                    {members.length} member{members.length !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Description Section */}
-              <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.textSecondary }}>Description</Text>
-                  {isHost && !editingDescription && (
-                    <Pressable
-                      onPress={() => {
-                        setDescriptionText(circle?.description ?? "");
-                        setEditingDescription(true);
-                      }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: "500", color: themeColor }}>Edit</Text>
-                    </Pressable>
-                  )}
-                </View>
-                {editingDescription && isHost ? (
-                  <View>
-                    <TextInput
-                      value={descriptionText}
-                      onChangeText={(text) => setDescriptionText(text.slice(0, 160))}
-                      placeholder="Add a circle description..."
-                      placeholderTextColor={colors.textTertiary}
-                      multiline
-                      maxLength={160}
-                      style={{
-                        backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                        borderRadius: 12,
-                        padding: 12,
-                        color: colors.text,
-                        fontSize: 15,
-                        minHeight: 60,
-                        textAlignVertical: "top",
-                      }}
-                    />
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                      <Text style={{ fontSize: 12, color: colors.textTertiary }}>{descriptionText.length}/160</Text>
-                      <View style={{ flexDirection: "row" }}>
-                        <Pressable
-                          onPress={() => setEditingDescription(false)}
-                          style={{ paddingHorizontal: 16, paddingVertical: 8, marginRight: 8 }}
-                        >
-                          <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary }}>Cancel</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => {
-                            const newDescription = descriptionText.trim() || undefined;
-                            updateCircleMutation.mutate({ description: newDescription ?? "" });
-                          }}
-                          disabled={updateCircleMutation.isPending}
-                          style={{
-                            backgroundColor: themeColor,
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            opacity: updateCircleMutation.isPending ? 0.5 : 1,
-                          }}
-                        >
-                          <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
-                            {updateCircleMutation.isPending ? "Saving..." : "Save"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: 15, color: circle?.description ? colors.text : colors.textTertiary, fontStyle: circle?.description ? "normal" : "italic" }}>
-                    {circle?.description ?? (isHost ? "Tap Edit to add a description" : "No description")}
-                  </Text>
-                )}
-              </View>
-
-              {/* Settings Options */}
-              <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-                {/* Circle Photo (host only) */}
-                {isHost && (
-                  <Pressable
-                    onPress={() => setSettingsSheetView("photo")}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 16,
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
-                    }}
-                  >
-                    <Camera size={22} color={themeColor} />
-                    <View style={{ flex: 1, marginLeft: 16 }}>
-                      <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Circle Photo</Text>
-                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {circle?.photoUrl ? "Change or remove photo" : "Add a circle photo"}
-                      </Text>
-                    </View>
-                    <ChevronRight size={20} color={colors.textTertiary} />
-                  </Pressable>
-                )}
-
-                {/* Members List */}
-                <Pressable
-                  onPress={() => {
-                    // [P0_MODAL_GUARD] Close settings FIRST, then open members
-                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
-                    if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "settings", to: "members", ms: 350 });
-                    setShowGroupSettings(false);
-                    setTimeout(() => {
-                      setShowMembersSheet(true);
-                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "settings", to: "members", ms: 350 });
-                    }, 350);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 16,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                >
-                  <Users size={22} color={colors.text} />
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Members</Text>
-                  </View>
-                  <ChevronRight size={20} color={colors.textTertiary} />
-                </Pressable>
-
-                {/* Share Group */}
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
-                    const cp = buildCircleSharePayload(circle?.name ?? "my group", id);
-                    Share.share({ message: cp.message, title: cp.title }).catch(() => {
-                      // User cancelled share
-                    });
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 16,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                >
-                  <Users size={22} color={themeColor} />
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Share Group</Text>
-                  </View>
-                  <ChevronRight size={20} color={colors.textTertiary} />
-                </Pressable>
-
-                {/* [P0_CIRCLE_MUTE_V1] Mute Messages Toggle */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                >
-                  <BellOff size={22} color={colors.textSecondary} />
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Mute Messages</Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                      {circle?.isMuted ? "Notifications silenced" : "Get notified of new messages"}
-                    </Text>
-                    {/* [P0_CIRCLE_MUTE_POLISH] Helper text explaining mute scope */}
-                    <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
-                      Mutes message notifications only. Event alerts still send.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={circle?.isMuted ?? false}
-                    onValueChange={(value) => {
-                      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "toggle_press", { circleId: id, userId: session?.user?.id, desiredValue: value, currentValue: circle?.isMuted, sourceField: "circle?.isMuted via circleKeys.single" });
-                      if (muteMutation.isPending) {
-                        if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'circleMute ignored, circleId=' + id);
-                        return;
-                      }
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      muteMutation.mutate(value);
-                    }}
-                    trackColor={{ false: isDark ? "#3A3A3C" : "#E5E7EB", true: themeColor + "80" }}
-                    thumbColor={circle?.isMuted ? themeColor : isDark ? "#FFFFFF" : "#FFFFFF"}
-                    ios_backgroundColor={isDark ? "#3A3A3C" : "#E5E7EB"}
-                  />
-                </View>
-
-                {/* [P1_NOTIFY_LEVEL_UI] Notification Level Row */}
-                <Pressable
-                  onPress={() => {
-                    if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_level_tap");
-                    // [P0_CIRCLE_SETTINGS] Close settings sheet FIRST, then open notify sheet
-                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
-                    setShowPollSheet(false);
-                    setShowGroupSettings(false);
-                    setTimeout(() => {
-                      setShowNotifySheet(true);
-                      if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_sheet_opened");
-                    }, 350);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                >
-                  <Bell size={22} color={colors.textSecondary} />
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Notification Level</Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                      {notifyLevel === "all" ? "All activity" : notifyLevel === "decisions" ? "Decisions only" : notifyLevel === "mentions" ? "Mentions only" : "Muted"}
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color={colors.textTertiary} />
-                </Pressable>
-
-                {/* Leave Group */}
-                <Pressable
-                  onPress={() => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                    setShowGroupSettings(false);
-                    // Navigate back and let the delete happen from friends screen
-                    router.back();
-                    safeToast.info("Leave Group", "To leave this group, swipe left on it in your Friends tab.");
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 16,
-                  }}
-                >
-                  <X size={22} color="#FF3B30" />
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30" }}>Leave Group</Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>Remove yourself from this group</Text>
-                  </View>
-                </Pressable>
-              </View>
-              </>)}
-
-              {/* Photo actions view (inside same sheet) */}
-              {settingsSheetView === "photo" && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
-                  <View style={{ paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 4 }}>
-                    <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, textAlign: "center" }}>Circle Photo</Text>
-                  </View>
-                  <Pressable
-                    onPress={async () => {
-                      if (uploadingPhoto) return;
-                      setShowGroupSettings(false);
-                      setSettingsSheetView("settings");
-                      // Wait for sheet dismiss animation to complete before opening picker
-                      // Prevents iOS gesture/touch blocker overlay freeze
-                      await new Promise(r => setTimeout(r, 300));
-                      try {
-                        if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_START]');
-                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                        if (status !== "granted") {
-                          safeToast.warning("Permission Required", "Please allow access to your photos.");
-                          return;
-                        }
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                          mediaTypes: ["images"],
-                          allowsEditing: true,
-                          aspect: [1, 1],
-                          quality: 0.8,
-                        });
-                        if (result.canceled || !result.assets?.[0]) {
-                          if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_CANCEL]');
-                          return;
-                        }
-                        if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
-
-                        setUploadingPhoto(true);
-                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
-                        if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
-                        await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        safeToast.success("Saved", "Circle photo updated");
-                        queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
-                        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-                      } catch (error: any) {
-                        if (__DEV__) devError("[CIRCLE_PHOTO]", "upload failed", error);
-                        safeToast.error("Upload Failed", error?.message || "Please try again.");
-                      } finally {
-                        setUploadingPhoto(false);
-                      }
-                    }}
-                    disabled={uploadingPhoto}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 16,
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
-                      opacity: uploadingPhoto ? 0.5 : 1,
-                    }}
-                  >
-                    <Camera size={22} color={themeColor} />
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text, marginLeft: 16, flex: 1 }}>
-                      {uploadingPhoto ? "Uploading..." : "Upload Photo"}
-                    </Text>
-                  </Pressable>
-
-                  {circle?.photoUrl && (
-                    <Pressable
-                      onPress={async () => {
-                        try {
-                          await api.put(`/api/circles/${id}`, { photoUrl: null, photoPublicId: null });
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          safeToast.success("Removed", "Circle photo removed");
-                          queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
-                          queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-                        } catch (error: any) {
-                          if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
-                          safeToast.error("Remove Failed", "Failed to remove photo.");
-                        }
-                        setSettingsSheetView("settings");
-                      }}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingVertical: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: colors.border,
-                      }}
-                    >
-                      <X size={22} color="#FF3B30" />
-                      <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30", marginLeft: 16, flex: 1 }}>
-                        Remove Photo
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  <Pressable
-                    onPress={() => setSettingsSheetView("settings")}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 16,
-                    }}
-                  >
-                    <ChevronLeft size={20} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary, marginLeft: 8 }}>
-                      Back
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-              </ScrollView>
-      </BottomSheet>
+        onSetView={setSettingsSheetView}
+        onEditDescription={() => {
+          setDescriptionText(circle?.description ?? "");
+          setEditingDescription(true);
+        }}
+        onCancelEditDescription={() => setEditingDescription(false)}
+        onDescriptionChange={setDescriptionText}
+        onSaveDescription={() => {
+          const newDescription = descriptionText.trim() || undefined;
+          updateCircleMutation.mutate({ description: newDescription ?? "" });
+        }}
+        onMuteToggle={(value) => {
+          if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "toggle_press", { circleId: id, userId: session?.user?.id, desiredValue: value, currentValue: circle?.isMuted, sourceField: "circle?.isMuted via circleKeys.single" });
+          if (muteMutation.isPending) {
+            if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'circleMute ignored, circleId=' + id);
+            return;
+          }
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          muteMutation.mutate(value);
+        }}
+        onShareGroup={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
+          const cp = buildCircleSharePayload(circle?.name ?? "my group", id);
+          Share.share({ message: cp.message, title: cp.title }).catch(() => {});
+        }}
+        onOpenMembers={() => {
+          // [P0_MODAL_GUARD] Close settings FIRST, then open members
+          if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "settings", to: "members", ms: 350 });
+          setShowGroupSettings(false);
+          setTimeout(() => {
+            setShowMembersSheet(true);
+            if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "settings", to: "members", ms: 350 });
+          }, 350);
+        }}
+        onOpenNotifyLevel={() => {
+          if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_level_tap");
+          setShowPollSheet(false);
+          setShowGroupSettings(false);
+          setTimeout(() => {
+            setShowNotifySheet(true);
+            if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_sheet_opened");
+          }, 350);
+        }}
+        onLeaveGroup={() => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setShowGroupSettings(false);
+          router.back();
+          safeToast.info("Leave Group", "To leave this group, swipe left on it in your Friends tab.");
+        }}
+        onUploadPhoto={async () => {
+          if (uploadingPhoto) return;
+          setShowGroupSettings(false);
+          setSettingsSheetView("settings");
+          await new Promise(r => setTimeout(r, 300));
+          try {
+            if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_START]');
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== "granted") {
+              safeToast.warning("Permission Required", "Please allow access to your photos.");
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ["images"],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (result.canceled || !result.assets?.[0]) {
+              if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_CANCEL]');
+              return;
+            }
+            if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
+            setUploadingPhoto(true);
+            const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
+            if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
+            await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            safeToast.success("Saved", "Circle photo updated");
+            queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+            queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+          } catch (error: any) {
+            if (__DEV__) devError("[CIRCLE_PHOTO]", "upload failed", error);
+            safeToast.error("Upload Failed", error?.message || "Please try again.");
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }}
+        onRemovePhoto={async () => {
+          try {
+            await api.put(`/api/circles/${id}`, { photoUrl: null, photoPublicId: null });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            safeToast.success("Removed", "Circle photo removed");
+            queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+            queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+          } catch (error: any) {
+            if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
+            safeToast.error("Remove Failed", "Failed to remove photo.");
+          }
+          setSettingsSheetView("settings");
+        }}
+      />
 
       {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}
       <CircleNotifyLevelSheet
