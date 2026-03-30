@@ -118,6 +118,7 @@ import { CircleSettingsSheet } from "@/components/circle/CircleSettingsSheet";
 import { CircleHeaderChrome } from "@/components/circle/CircleHeaderChrome";
 import { CircleNextEventCard } from "@/components/circle/CircleNextEventCard";
 import { CircleChatOverlays } from "@/components/circle/CircleChatOverlays";
+import { CircleLifecycleChips } from "@/components/circle/CircleLifecycleChips";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -1885,68 +1886,28 @@ export default function CircleScreen() {
           );
         })()}
 
-        {/* [P1_LIFECYCLE_UI] Finalized Chip */}
-        {lifecycleState === "finalized" && (() => {
-          if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "chip_render");
-          return (
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setPlanLockDraftNote(planLock?.note ?? "");
-                setShowPlanLockSheet(true);
-              }}
-              style={{
-                alignSelf: "center",
-                flexDirection: "row",
-                alignItems: "center",
-                paddingHorizontal: 14,
-                paddingVertical: 6,
-                marginVertical: 6,
-                borderRadius: 16,
-                backgroundColor: isDark ? "rgba(52,199,89,0.10)" : "rgba(48,161,78,0.08)",
-                gap: 6,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#34C759" : "#1A7F37" }}>
-                ✅ Finalized{lifecycleNote ? ` \u2022 ${lifecycleNote}` : (planLock?.note ? ` \u2022 ${planLock.note}` : "")}
-              </Text>
-            </Pressable>
-          );
-        })()}
-
-        {/* [P1_LIFECYCLE_UI] Completion Prompt — ephemeral run-it-back */}
-        {lifecycleState === "completed" && !completionDismissed && (
-          <Animated.View entering={FadeIn.duration(300)} style={{
-            alignItems: "center",
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            marginVertical: 4,
-            gap: 8,
-          }}>
-            <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text, textAlign: "center" }}>
-              🎉 Event done — run it back?
-            </Text>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <Button
-                variant="primary"
-                size="sm"
-                label="Start new plan"
-                onPress={() => {
-                  if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
-                  lifecycleMutation.mutate({ state: "planning" });
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setCompletionDismissed(true);
-                }}
-              />
-              <Button
-                variant="secondary"
-                size="sm"
-                label="Dismiss"
-                onPress={() => setCompletionDismissed(true)}
-              />
-            </View>
-          </Animated.View>
-        )}
+        {/* [P1_LIFECYCLE_UI] Finalized Chip + Completion Prompt */}
+        <CircleLifecycleChips
+          lifecycleState={lifecycleState}
+          lifecycleNote={lifecycleNote}
+          planLockNote={planLock?.note}
+          completionDismissed={completionDismissed}
+          colors={colors}
+          isDark={isDark}
+          onFinalizedChipPress={() => {
+            if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "chip_render");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setPlanLockDraftNote(planLock?.note ?? "");
+            setShowPlanLockSheet(true);
+          }}
+          onRunItBack={() => {
+            if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
+            lifecycleMutation.mutate({ state: "planning" });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setCompletionDismissed(true);
+          }}
+          onDismissCompletion={() => setCompletionDismissed(true)}
+        />
 
         {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
         {availTonight && lifecycleState !== "finalized" && lifecycleState !== "completed" && (
