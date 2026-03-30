@@ -36,7 +36,7 @@ export function HostReflectionCard({
 
   return (
     <Animated.View entering={FadeInDown.delay(150).springify()} style={{ marginHorizontal: 16, marginBottom: 12 }}>
-      <View className="rounded-2xl p-5" style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+      <View className="rounded-2xl p-5" style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
             <NotebookPen size={20} color={themeColor} />

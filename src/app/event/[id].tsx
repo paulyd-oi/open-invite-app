@@ -2550,23 +2550,21 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* ═══ CONTENT WELL — neutralized foreground surface for section cards ═══ */}
-        {/* Top fade: smooth transition from hero atmosphere into content well */}
+        {/* Hero-bottom shadow bridge — softens the seam under the card */}
         <LinearGradient
-          colors={["transparent", isDark ? "rgba(12,14,18,0.75)" : "rgba(255,255,255,0.75)"]}
-          style={{ height: 40 }}
+          colors={isDark
+            ? ["rgba(0,0,0,0.18)", "rgba(0,0,0,0.08)", "transparent"]
+            : ["rgba(0,0,0,0.10)", "rgba(0,0,0,0.04)", "transparent"]
+          }
+          style={{ height: 32 }}
           pointerEvents="none"
         />
-        <View style={{
-          backgroundColor: isDark ? "rgba(12,14,18,0.75)" : "rgba(255,255,255,0.75)",
-          paddingTop: 4,
-        }}>
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
             <View style={{
-              backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)",
+              backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)",
               borderRadius: 16,
               padding: 14,
               borderWidth: 1,
@@ -2796,7 +2794,7 @@ export default function EventDetailScreen() {
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         <AboutCard
           description={event.description}
@@ -2849,7 +2847,7 @@ export default function EventDetailScreen() {
         </View>{/* close About card */}
 
         {/* ═══ WHO'S COMING CARD ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         {/* ═══ Who's Coming / Social Proof ═══ */}
         <WhosComingCard
@@ -2874,7 +2872,7 @@ export default function EventDetailScreen() {
         </View>{/* close Who's Coming card */}
 
         {/* ═══ DISCUSSION CARD ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         {/* Comments Section */}
         <DiscussionCard
@@ -2995,8 +2993,6 @@ export default function EventDetailScreen() {
             />
           );
         })()}
-
-        </View>{/* close content well */}
 
       </KeyboardAwareScrollView>
 
