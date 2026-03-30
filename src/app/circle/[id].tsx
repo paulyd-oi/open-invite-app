@@ -115,6 +115,7 @@ import { CirclePollSheet } from "@/components/circle/CirclePollSheet";
 import { CircleNotifyLevelSheet } from "@/components/circle/CircleNotifyLevelSheet";
 import { CircleMembersSheet } from "@/components/circle/CircleMembersSheet";
 import { CircleSettingsSheet } from "@/components/circle/CircleSettingsSheet";
+import { CircleHeaderChrome } from "@/components/circle/CircleHeaderChrome";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -1784,111 +1785,26 @@ export default function CircleScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Floating BlurView header chrome */}
-      <View
-        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+      <CircleHeaderChrome
+        circleName={circle.name}
+        circleEmoji={circle.emoji}
+        circlePhotoUrl={circle.photoUrl}
+        members={members}
+        insetsTop={insets.top}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
+        onLayout={(h) => { if (h !== chromeHeight) setChromeHeight(h); }}
+        onBack={() => router.back()}
+        onOpenSettings={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setShowGroupSettings(true);
         }}
-        pointerEvents="box-none"
-      >
-      <BlurView
-        intensity={88}
-        tint={isDark ? "dark" : "light"}
-        style={{ paddingTop: insets.top, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
-      >
-      <View
-        className="flex-row items-center px-4 py-3"
-      >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          <ArrowLeft size={20} color={colors.text} />
-        </Pressable>
-
-        <Pressable className="flex-1 flex-row items-center">
-          <View
-            className="w-10 h-10 rounded-xl items-center justify-center mr-3 overflow-hidden"
-            style={{ backgroundColor: themeColor + "20" }}
-          >
-            <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
-          </View>
-          <View className="flex-1">
-            <View className="flex-row items-center">
-              <Text className="font-semibold" style={{ color: colors.text }}>
-                {circle.name}
-              </Text>
-              <HelpSheet screenKey="circles" config={HELP_SHEETS.circles} />
-            </View>
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>
-              {members.length} members
-            </Text>
-          </View>
-        </Pressable>
-
-        {/* Member Avatars - Tappable to open settings */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowGroupSettings(true);
-          }}
-          className="flex-row mr-3"
-        >
-          {members.slice(0, 3).map((member, i) => (
-            <View
-              key={member.userId}
-              className="rounded-full border-2"
-              style={{
-                marginLeft: i > 0 ? -12 : 0,
-                borderColor: colors.surface,
-              }}
-            >
-              <EntityAvatar
-                photoUrl={member.user.image}
-                initials={member.user.name?.[0] ?? "?"}
-                size={28}
-                backgroundColor={member.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
-                foregroundColor={themeColor}
-              />
-            </View>
-          ))}
-          {members.length > 3 && (
-            <View
-              className="w-8 h-8 rounded-full items-center justify-center border-2"
-              style={{
-                marginLeft: -12,
-                borderColor: colors.surface,
-                backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
-              }}
-            >
-              <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
-                +{members.length - 3}
-              </Text>
-            </View>
-          )}
-        </Pressable>
-
-        {/* Create Event Button */}
-        <View className="items-center mr-3">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowCreateEvent(true);
-            }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: themeColor }}
-          >
-            <CalendarPlus size={18} color="#fff" />
-          </Pressable>
-          <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
-            Create
-          </Text>
-        </View>
-      </View>
-      </BlurView>
-      </View>
+        onCreateEvent={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setShowCreateEvent(true);
+        }}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
