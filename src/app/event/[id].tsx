@@ -2483,7 +2483,7 @@ export default function EventDetailScreen() {
           />
 
           {/* Floating invite card */}
-          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 2, paddingBottom: 4 }}>
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 2 }}>
             <InviteFlipCard
               title={event.title}
               imageUri={
@@ -2552,7 +2552,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
             <View style={{
               backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)",
               borderRadius: 16,
@@ -2694,7 +2694,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
             {hasJoinRequest ? (
               <ConfirmedAttendeeBanner
                 effectiveGoingCount={effectiveGoingCount}
