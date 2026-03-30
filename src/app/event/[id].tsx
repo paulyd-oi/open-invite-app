@@ -2483,7 +2483,7 @@ export default function EventDetailScreen() {
           />
 
           {/* Floating invite card */}
-          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 2 }}>
+          <Animated.View entering={FadeInDown.delay(30).springify()}>
             <InviteFlipCard
               title={event.title}
               imageUri={

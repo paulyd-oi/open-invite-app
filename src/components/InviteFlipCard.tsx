@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useMemo } from "react";
-import { View, Text, Pressable, Platform, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -88,18 +88,7 @@ const MINI_AV = 28;
 const MINI_OVERLAP = 8;
 
 // ─── Shadow style (cross-platform) ──────────────────────
-const CARD_SHADOW = Platform.select({
-  ios: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 36,
-  },
-  android: {
-    elevation: 14,
-  },
-  default: {},
-}) as Record<string, unknown>;
+const CARD_SHADOW = {} as Record<string, unknown>;
 
 // ─── Component ───────────────────────────────────────────
 
@@ -767,8 +756,8 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Flip hint below card */}
-      <Animated.View style={[{ alignItems: "center", paddingTop: 10 }, hintStyle]}>
+      {/* Flip hint overlaying card bottom */}
+      <Animated.View style={[{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }, hintStyle]}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <RefreshCw size={11} color={colors.textTertiary} />
           <Text style={{ fontSize: 12, color: colors.textTertiary, fontWeight: "500", marginLeft: 5 }}>
