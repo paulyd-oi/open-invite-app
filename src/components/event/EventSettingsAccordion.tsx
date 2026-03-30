@@ -73,7 +73,7 @@ export function EventSettingsAccordion({
   onToggleExpanded,
 }: EventSettingsAccordionProps) {
   return (
-    <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginHorizontal: 16, marginBottom: 0 }}>
+    <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginHorizontal: 16, marginBottom: 12 }}>
       <View className="rounded-2xl" style={{ backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)", borderRadius: 16, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
         <Pressable
           onPress={onToggleExpanded}
