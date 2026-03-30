@@ -111,6 +111,7 @@ import { AboutCard } from "@/components/event/AboutCard";
 import { SocialProofRow } from "@/components/event/SocialProofRow";
 import { RsvpSuccessPrompt } from "@/components/event/RsvpSuccessPrompt";
 import { FindFriendsNudge } from "@/components/event/FindFriendsNudge";
+import { RsvpStatusDisplay } from "@/components/event/RsvpStatusDisplay";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2729,72 +2730,26 @@ export default function EventDetailScreen() {
 
                 {/* Current RSVP status — compact inline */}
                 {myRsvpStatus && (
-                  <Animated.View entering={FadeInDown.duration(250)} style={{ marginBottom: 12 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        borderRadius: RADIUS.xl,
-                        backgroundColor: "rgba(255, 255, 255, 0.28)",
-                        borderWidth: 1,
-                        borderColor: "rgba(255, 255, 255, 0.42)",
-                      }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        {myRsvpStatus === "going" && <Check size={18} color="#16A34A" />}
-                        {myRsvpStatus === "interested" && <Heart size={18} color={STATUS.interested.fg} />}
-                        {myRsvpStatus === "not_going" && <X size={18} color={colors.textTertiary} />}
-                        <Text style={{
-                          marginLeft: 8,
-                          fontSize: 15,
-                          fontWeight: "600",
-                          color: myRsvpStatus === "going" ? "#15803D" :
-                                 myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary,
-                        }}>
-                          {myRsvpStatus === "going" ? "You're In" :
-                           myRsvpStatus === "interested" ? "Saved" : "Not Going"}
-                        </Text>
-                      </View>
-                      <Pressable
-                        onPress={() => setShowRsvpOptions(!showRsvpOptions)}
-                        disabled={rsvpMutation.isPending}
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: "rgba(255, 255, 255, 0.42)", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.5)" }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: "500", color: "#374151" }}>Change</Text>
-                      </Pressable>
-                    </View>
-                    {myRsvpStatus === "going" && (
-                      <Pressable
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          trackRsvpShareClicked({
-                            eventId: event.id,
-                            surface: "rsvp_confirmation",
-                            visibility: event.visibility ?? "unknown",
-                            hasCircleId: !!event.circleId,
-                          });
-                          trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                          shareEvent({ ...event, location: locationDisplay ?? null });
-                        }}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          alignSelf: "flex-start",
-                          marginTop: 8,
-                          paddingHorizontal: 14,
-                          paddingVertical: 8,
-                          borderRadius: 16,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                        }}
-                      >
-                        <Share2 size={14} color={themeColor} />
-                        <Text style={{ fontSize: 13, fontWeight: "500", marginLeft: 6, color: themeColor }}>Share with friends</Text>
-                      </Pressable>
-                    )}
-                  </Animated.View>
+                  <RsvpStatusDisplay
+                    myRsvpStatus={myRsvpStatus}
+                    isPending={rsvpMutation.isPending}
+                    isDark={isDark}
+                    themeColor={themeColor}
+                    colors={colors}
+                    showRsvpOptions={showRsvpOptions}
+                    onToggleOptions={() => setShowRsvpOptions(!showRsvpOptions)}
+                    onShareWithFriends={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      trackRsvpShareClicked({
+                        eventId: event.id,
+                        surface: "rsvp_confirmation",
+                        visibility: event.visibility ?? "unknown",
+                        hasCircleId: !!event.circleId,
+                      });
+                      trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                      shareEvent({ ...event, location: locationDisplay ?? null });
+                    }}
+                  />
                 )}
 
                 {/* [GROWTH_V1] Inline success prompt — "Want to bring someone?" */}
