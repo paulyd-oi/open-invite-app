@@ -925,6 +925,12 @@ export default function CalendarScreen() {
   // For recurring events whose raw startTime is in the past, use nextOccurrence
   // as the display time so the event appears on the correct calendar day.
   const getEffectiveStart = useCallback((event: any): Date => {
+    // Prefer backend-computed effectiveStartTime (handles bounded + legacy recurring + non-recurring)
+    if (event.effectiveStartTime) {
+      const eff = new Date(event.effectiveStartTime);
+      if (!isNaN(eff.getTime())) return eff;
+    }
+    // Fallback for older cached responses: legacy recurring with nextOccurrence
     if (event.isRecurring && event.nextOccurrence) {
       const nextOcc = new Date(event.nextOccurrence);
       if (!isNaN(nextOcc.getTime())) return nextOcc;
@@ -1055,7 +1061,7 @@ export default function CalendarScreen() {
   const calendarGesture = Gesture.Race(swipeMonthGesture, pinchGesture);
 
   const selectedDateEvents = getEventsForDate(selectedDate).sort(
-    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    (a, b) => getEffectiveStart(a).getTime() - getEffectiveStart(b).getTime()
   );
 
   // Render calendar cell based on view mode

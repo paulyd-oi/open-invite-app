@@ -57,6 +57,8 @@ export const eventSchema = z.object({
   nextOccurrence: z.string().nullable().optional(), // Next future occurrence for recurring events (legacy only — null for bounded series)
   seriesId: z.string().nullable().optional(), // Links bounded recurring occurrences (null for legacy/non-recurring)
   seriesIndex: z.number().nullable().optional(), // 0-based position within series
+  effectiveStartTime: z.string().optional(), // Concrete start time for display/sorting (accounts for recurrence)
+  effectiveEndTime: z.string().nullable().optional(), // Concrete end time for display/gating (accounts for recurrence)
   visibility: z.string(),
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
@@ -199,6 +201,8 @@ export const createEventRequestSchema = z.object({
   nextOccurrence: z.string().nullable().optional(),
   seriesId: z.string().nullable().optional(),
   seriesIndex: z.number().nullable().optional(),
+  effectiveStartTime: z.string().optional(),
+  effectiveEndTime: z.string().nullable().optional(),
   visibility: z.enum(["all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
   groupIds: z.array(z.string()).optional(), // Required if visibility is specific_groups
   circleId: z.string().optional(), // Required if visibility is circle_only
@@ -1418,6 +1422,8 @@ export const businessEventSchema = z.object({
   nextOccurrence: z.string().nullable().optional(),
   seriesId: z.string().nullable().optional(),
   seriesIndex: z.number().nullable().optional(),
+  effectiveStartTime: z.string().optional(),
+  effectiveEndTime: z.string().nullable().optional(),
   category: z.string().nullable(),
   maxAttendees: z.number().nullable(),
   rsvpDeadline: z.string().nullable(),
@@ -1530,6 +1536,8 @@ export const createBusinessEventInputSchema = z.object({
   nextOccurrence: z.string().nullable().optional(),
   seriesId: z.string().nullable().optional(),
   seriesIndex: z.number().nullable().optional(),
+  effectiveStartTime: z.string().optional(),
+  effectiveEndTime: z.string().nullable().optional(),
   category: z.string().optional(),
   maxAttendees: z.number().min(1).optional(),
   rsvpDeadline: z.string().optional(),
