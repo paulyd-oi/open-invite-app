@@ -922,9 +922,19 @@ export default function CalendarScreen() {
   }, [friendBirthdays]);
 
   // Get events for a specific date (for calendar grid - respects showOnCalendar setting)
+  // For recurring events whose raw startTime is in the past, use nextOccurrence
+  // as the display time so the event appears on the correct calendar day.
+  const getEffectiveStart = useCallback((event: any): Date => {
+    if (event.isRecurring && event.nextOccurrence) {
+      const nextOcc = new Date(event.nextOccurrence);
+      if (!isNaN(nextOcc.getTime())) return nextOcc;
+    }
+    return new Date(event.startTime);
+  }, []);
+
   const getEventsForCalendarDate = useCallback((date: Date) => {
     return allEvents.filter((event) => {
-      const eventDate = new Date(event.startTime);
+      const eventDate = getEffectiveStart(event);
       const matchesDate = eventDate.toDateString() === date.toDateString();
       // Filter out work events from calendar bubbles if setting is off
       if (!workSettings.showOnCalendar && (event as any).isWork) {
@@ -932,7 +942,7 @@ export default function CalendarScreen() {
       }
       return matchesDate;
     });
-  }, [allEvents, workSettings.showOnCalendar]);
+  }, [allEvents, workSettings.showOnCalendar, getEffectiveStart]);
 
   // Get events for a specific date (for event list - always includes work events)
   const getEventsForDate = useCallback((date: Date) => {
@@ -945,18 +955,22 @@ export default function CalendarScreen() {
     return allEvents.filter((event) => {
       if (!event.startTime) return false;
 
-      const start = new Date(event.startTime);
+      const start = getEffectiveStart(event);
       if (isNaN(start.getTime())) return false;
 
-      const end =
+      // Compute end using event duration applied to effective start
+      const originalStart = new Date(event.startTime);
+      const originalEnd =
         event.endTime && !isNaN(new Date(event.endTime).getTime())
           ? new Date(event.endTime)
-          : new Date(start.getTime() + 60 * 60 * 1000); // defensive fallback
+          : new Date(originalStart.getTime() + 60 * 60 * 1000);
+      const duration = originalEnd.getTime() - originalStart.getTime();
+      const end = new Date(start.getTime() + duration);
 
       // Overlap test
       return start <= dayEnd && end >= dayStart;
     });
-  }, [allEvents]);
+  }, [allEvents, getEffectiveStart]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
