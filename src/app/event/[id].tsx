@@ -2393,7 +2393,6 @@ export default function EventDetailScreen() {
   const pageTheme = event.customThemeData
     ? buildCustomThemeTokens(event.customThemeData)
     : resolveEventTheme(event.themeId);
-  const heroFillColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
   // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility
   const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
@@ -2407,7 +2406,14 @@ export default function EventDetailScreen() {
       {/* Animated gradient background (custom themes + catalog themes with gradient) */}
       {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
+          <AnimatedGradientLayer config={{
+            ...pageTheme.visualStack.gradient,
+            colors: [
+              "transparent",
+              ...pageTheme.visualStack.gradient!.colors.slice(1, -1),
+              "transparent",
+            ],
+          }} />
         </View>
       )}
 
@@ -2446,8 +2452,8 @@ export default function EventDetailScreen() {
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══ HERO ZONE — bg matches card plaque so no strip above/below card ═══ */}
-        <View style={{ position: "relative", backgroundColor: heroFillColor }}>
+        {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
+        <View style={{ position: "relative" }}>
 
           {/* Nav bar — glass-effect over atmosphere */}
           <EventHeroNav
