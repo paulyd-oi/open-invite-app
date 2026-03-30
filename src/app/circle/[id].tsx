@@ -107,6 +107,7 @@ import { CircleAddMembersModal } from "@/components/circle/CircleAddMembersModal
 import { CircleFriendSuggestionModal } from "@/components/circle/CircleFriendSuggestionModal";
 import { CircleRemoveMemberModal } from "@/components/circle/CircleRemoveMemberModal";
 import { CircleCreateEventModal } from "@/components/circle/CircleCreateEventModal";
+import { CircleEditMessageOverlay } from "@/components/circle/CircleEditMessageOverlay";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3822,75 +3823,26 @@ export default function CircleScreen() {
       />
 
       {/* [P2_CHAT_EDITDEL] Edit message overlay */}
-      {editTargetId !== null && (
-        <Pressable
-          style={{
-            position: "absolute",
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          onPress={() => { setEditTargetId(null); setEditDraftContent(""); }}
-        >
-          <Pressable
-            style={{
-              width: "85%",
-              backgroundColor: isDark ? "#2c2c2e" : "#ffffff",
-              borderRadius: 16,
-              padding: 20,
-              shadowColor: "#000",
-              shadowOpacity: 0.15,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 8,
-            }}
-            onPress={() => {}}
-          >
-            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, marginBottom: 12 }}>Edit message</Text>
-            <TextInput
-              value={editDraftContent}
-              onChangeText={setEditDraftContent}
-              multiline
-              style={{
-                color: colors.text,
-                fontSize: 16,
-                backgroundColor: isDark ? "#1c1c1e" : "#f3f4f6",
-                borderRadius: 10,
-                padding: 12,
-                minHeight: 60,
-                maxHeight: 160,
-                textAlignVertical: "top",
-              }}
-              autoFocus
-            />
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 16, gap: 12 }}>
-              <Pressable
-                onPress={() => { setEditTargetId(null); setEditDraftContent(""); }}
-                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }}
-              >
-                <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: "500" }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  const trimmed = editDraftContent.trim();
-                  if (!trimmed) {
-                    safeToast.error("Message Empty", "Message cannot be empty");
-                    return;
-                  }
-                  setEditedContentByStableId((prev) => ({ ...prev, [editTargetId]: { content: trimmed, editedAt: Date.now() } }));
-                  if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "edit_save", { messageId: editTargetId });
-                  setEditTargetId(null);
-                  setEditDraftContent("");
-                }}
-                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: themeColor }}
-              >
-                <Text style={{ color: "#fff", fontSize: 15, fontWeight: "600" }}>Save</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      )}
+      <CircleEditMessageOverlay
+        visible={editTargetId !== null}
+        draftContent={editDraftContent}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
+        onClose={() => { setEditTargetId(null); setEditDraftContent(""); }}
+        onChangeText={setEditDraftContent}
+        onSave={() => {
+          const trimmed = editDraftContent.trim();
+          if (!trimmed) {
+            safeToast.error("Message Empty", "Message cannot be empty");
+            return;
+          }
+          setEditedContentByStableId((prev) => ({ ...prev, [editTargetId!]: { content: trimmed, editedAt: Date.now() } }));
+          if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "edit_save", { messageId: editTargetId });
+          setEditTargetId(null);
+          setEditDraftContent("");
+        }}
+      />
 
       {/* [P2_CHAT_REACTIONS] Emoji reaction picker overlay */}
       {reactionTargetId !== null && (
