@@ -16,6 +16,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
@@ -2442,8 +2443,13 @@ export default function EventDetailScreen() {
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
       )}
 
-      {/* Canvas-color mask over dark gradient band at top of screen */}
-      <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top + 52, backgroundColor: canvasColor, zIndex: 1 }} />
+      {/* Canvas-color fade mask over dark gradient band at top of screen */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[canvasColor, canvasColor, "transparent"]}
+        locations={[0, 0.55, 1]}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top + 80, zIndex: 1 }}
+      />
 
       <KeyboardAwareScrollView
         className="flex-1"
