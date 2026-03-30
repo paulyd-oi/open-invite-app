@@ -2406,10 +2406,7 @@ export default function EventDetailScreen() {
       {/* Animated gradient background (custom themes + catalog themes with gradient) */}
       {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <AnimatedGradientLayer config={{
-            ...pageTheme.visualStack.gradient,
-            colors: ["transparent", ...pageTheme.visualStack.gradient!.colors.slice(1)],
-          }} />
+          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
         </View>
       )}
 
