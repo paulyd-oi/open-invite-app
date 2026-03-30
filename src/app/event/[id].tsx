@@ -16,7 +16,6 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
@@ -117,7 +116,6 @@ import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBan
 import { PhotoNudge } from "@/components/event/PhotoNudge";
 import { EditPhotoButton } from "@/components/event/EditPhotoButton";
 import { EventHeroNav } from "@/components/event/EventHeroNav";
-import { EventHeroBackdrop } from "@/components/event/EventHeroBackdrop";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2395,7 +2393,6 @@ export default function EventDetailScreen() {
   const pageTheme = event.customThemeData
     ? buildCustomThemeTokens(event.customThemeData)
     : resolveEventTheme(event.themeId);
-  const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
   // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility
   const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
@@ -2448,20 +2445,8 @@ export default function EventDetailScreen() {
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
-        <View style={{ position: "relative", overflow: "hidden" }}>
-          {/* Ambient blurred background — cinematic atmosphere */}
-          <EventHeroBackdrop
-            eventBannerUri={eventBannerUri}
-            hasPhoto={!!(eventBannerUri && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private")}
-            canvasColor={canvasColor}
-            isDark={isDark}
-            themeColor={themeColor}
-            pageTintDark={pageTheme.pageTintDark}
-            pageTintLight={pageTheme.pageTintLight}
-          />
-
-          {/* Theme effect moved to full-page level (SafeAreaView) */}
+        {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
+        <View style={{ position: "relative" }}>
 
           {/* Nav bar — glass-effect over atmosphere */}
           <EventHeroNav
@@ -2549,16 +2534,6 @@ export default function EventDetailScreen() {
           </Animated.View>
 
         </View>
-
-        {/* Hero-bottom shadow bridge — softens the seam under the card */}
-        <LinearGradient
-          colors={isDark
-            ? ["rgba(0,0,0,0.18)", "rgba(0,0,0,0.08)", "transparent"]
-            : ["rgba(0,0,0,0.10)", "rgba(0,0,0,0.04)", "transparent"]
-          }
-          style={{ height: 32 }}
-          pointerEvents="none"
-        />
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
