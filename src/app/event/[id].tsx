@@ -2406,6 +2406,43 @@ export default function EventDetailScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
+      {/* Animated gradient background (custom themes + catalog themes with gradient) */}
+      {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
+        </View>
+      )}
+
+      {/* Looping video background — behind particles and content */}
+      {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+          <ThemeVideoLayer
+            source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
+            poster={pageTheme.visualStack.video.poster ? THEME_BACKGROUNDS[pageTheme.visualStack.video.poster] : undefined}
+            opacity={pageTheme.visualStack.video.opacity}
+            isActive={true}
+          />
+        </View>
+      )}
+
+      {/* Particle layer — effectId overrides theme particles to avoid double-rendering.
+           Theme gradient/video/filter still render normally; only particles are suppressed. */}
+      {event.effectId ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <MotifOverlay
+            presetId={event.effectId}
+            customConfig={event.customEffectConfig ?? undefined}
+            intensity={0.70}
+          />
+        </View>
+      ) : (
+        <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
+      )}
+      {/* Atmospheric filter overlay — after particles, before content */}
+      {pageTheme.visualStack?.filter && (
+        <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
+      )}
+
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
@@ -2413,36 +2450,6 @@ export default function EventDetailScreen() {
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
         <View style={{ position: "relative", overflow: "hidden" }}>
-          {/* Theme layers scoped to hero zone only */}
-          {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
-            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-              <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
-            </View>
-          )}
-          {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-              <ThemeVideoLayer
-                source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
-                poster={pageTheme.visualStack.video.poster ? THEME_BACKGROUNDS[pageTheme.visualStack.video.poster] : undefined}
-                opacity={pageTheme.visualStack.video.opacity}
-                isActive={true}
-              />
-            </View>
-          )}
-          {event.effectId ? (
-            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-              <MotifOverlay
-                presetId={event.effectId}
-                customConfig={event.customEffectConfig ?? undefined}
-                intensity={0.70}
-              />
-            </View>
-          ) : (
-            <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
-          )}
-          {pageTheme.visualStack?.filter && (
-            <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
-          )}
           {/* Ambient blurred background — cinematic atmosphere */}
           <EventHeroBackdrop
             eventBannerUri={eventBannerUri}
