@@ -2449,7 +2449,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
-        <View style={{ position: "relative", overflow: "hidden", backgroundColor: canvasColor }}>
+        <View style={{ position: "relative", overflow: "hidden" }}>
           {/* Ambient blurred background — cinematic atmosphere */}
           <EventHeroBackdrop
             eventBannerUri={eventBannerUri}
@@ -2550,39 +2550,146 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* Soft gradient fade from hero zone into page body */}
-        <LinearGradient
-          colors={[canvasColor, "transparent"]}
-          style={{ height: 48, marginTop: -1 }}
-          pointerEvents="none"
-        />
+        {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
+        {isMyEvent && !event?.isBusy && (
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
+            <View style={{
+              backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)",
+              borderRadius: 16,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)",
+            }}>
+              {/* Header with dismiss — only during post-create nudge */}
+              {showCreateNudge && (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Invite people to get responses</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setShowCreateNudge(false)}
+                    style={{ padding: 6 }}
+                    hitSlop={8}
+                  >
+                    <X size={14} color={colors.textTertiary} />
+                  </Pressable>
+                </View>
+              )}
 
-        {/* ═══ POST-CREATE INVITE ACTIONS ═══ */}
-        {showCreateNudge && isMyEvent && (
-          <PostCreateNudge
-            isDark={isDark}
-            themeColor={themeColor}
-            colors={colors}
-            onDismiss={() => setShowCreateNudge(false)}
-            onCopyLink={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-              const link = getEventUniversalLink(event.id);
-              await Clipboard.setStringAsync(link);
-              safeToast.success("Link copied");
-            }}
-            onSendSms={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-              const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
-              Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
-            }}
-            onShareSheet={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-              shareEvent({ ...event, location: locationDisplay ?? null });
-            }}
-          />
+              {/* Invite actions — shown during post-create nudge */}
+              {showCreateNudge && (
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                  <Pressable
+                    onPress={async () => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                      const link = getEventUniversalLink(event.id);
+                      await Clipboard.setStringAsync(link);
+                      safeToast.success("Link copied");
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: 12,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <Copy size={14} color={colors.text} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Copy Link</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                      const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
+                      Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: 12,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <MessageCircle size={14} color={colors.text} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Text</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                      shareEvent({ ...event, location: locationDisplay ?? null });
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: 12,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Share2 size={14} color="#FFFFFF" />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>More</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Persistent host tools — Share + Reminder */}
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
+                    trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                    shareEvent({ ...event, location: locationDisplay ?? null });
+                  }}
+                  style={{
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    paddingVertical: 10, borderRadius: 12,
+                    backgroundColor: showCreateNudge ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)") : themeColor,
+                  }}
+                >
+                  <Share2 size={14} color={showCreateNudge ? colors.text : "#FFFFFF"} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: showCreateNudge ? colors.text : "#FFFFFF", marginLeft: 6 }}>Share</Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const reminderText = buildEventReminderText(buildShareInput({ ...event, location: locationDisplay ?? null }));
+                    try { await Clipboard.setStringAsync(reminderText); } catch {}
+                    safeToast.success("Reminder copied");
+                  }}
+                  style={{
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    paddingVertical: 10, borderRadius: 12,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <Copy size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Reminder</Text>
+                </Pressable>
+              </View>
+
+              {/* Coordination summaries — bring list + pitch in */}
+              {(!!event?.bringListEnabled && (event?.bringListItems ?? []).length > 0 || !!event?.pitchInEnabled && !!event?.pitchInHandle) && (
+                <View style={{ marginTop: 10 }}>
+                  {!!event?.bringListEnabled && (event?.bringListItems ?? []).length > 0 && (
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
+                      <ListChecks size={13} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                        What to bring: {(event.bringListItems ?? []).filter((i: any) => !!i.claimedByUserId).length}/{(event.bringListItems ?? []).length} claimed
+                      </Text>
+                    </View>
+                  )}
+                  {!!event?.pitchInEnabled && !!event?.pitchInHandle && (
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
+                      <HandCoins size={13} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                        Pitch In: {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : ""} @{event.pitchInHandle}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </Animated.View>
         )}
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
@@ -2672,35 +2779,7 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* ═══ HOST TOOLS V2 — turnout tools + host guidance ═══ */}
-        {isMyEvent && !event?.isBusy && (
-          <HostToolsRow
-            bringListEnabled={!!event?.bringListEnabled}
-            bringListItems={event?.bringListItems ?? []}
-            pitchInEnabled={!!event?.pitchInEnabled}
-            pitchInHandle={event?.pitchInHandle}
-            pitchInMethod={event?.pitchInMethod}
-            isDark={isDark}
-            themeColor={themeColor}
-            colors={colors}
-            onShare={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
-              trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-              shareEvent({ ...event, location: locationDisplay ?? null });
-            }}
-            onCopyReminder={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const reminderText = buildEventReminderText(buildShareInput({ ...event, location: locationDisplay ?? null }));
-              try { await Clipboard.setStringAsync(reminderText); } catch {}
-              safeToast.success("Reminder copied");
-            }}
-            onEdit={() => {
-              Haptics.selectionAsync();
-              router.push(`/event/edit/${id}`);
-            }}
-          />
-        )}
+        {/* HostToolsRow merged into HOST ACTION CARD above */}
 
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
