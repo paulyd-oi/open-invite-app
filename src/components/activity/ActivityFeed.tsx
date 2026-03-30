@@ -378,9 +378,11 @@ export interface ActivityFeedProps {
    * Used when embedded inside another screen (e.g. Friends pane).
    */
   embedded?: boolean;
+  /** Override the default empty state (e.g. friend-oriented when embedded in Friends tab) */
+  emptyComponent?: React.ReactElement;
 }
 
-export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
+export function ActivityFeed({ embedded = false, emptyComponent }: ActivityFeedProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, colors } = useTheme();
@@ -617,7 +619,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
         isLoading ? <ActivityFeedSkeleton /> :
         isError ? <ErrorState onRetry={onRefresh} /> :
         filteredEmptyState ? <FilteredEmptyState filter={activeFilter} colors={colors} onReset={() => setActiveFilter("all")} /> :
-        <EmptyState />
+        emptyComponent ?? <EmptyState />
       }
       ListFooterComponent={isFetchingNextPage ? <PaginationFooter colors={colors} /> : null}
       refreshControl={

@@ -1073,8 +1073,19 @@ export function DailyIdeasDeck({
           className="text-sm mt-1 text-center"
           style={{ color: colors.textSecondary }}
         >
-          Check back tomorrow — we'll find something fun.
+          {peopleCount === 0
+            ? "Add friends to unlock personalized ideas"
+            : "Check back tomorrow — we'll find something fun."}
         </Text>
+        {peopleCount === 0 && (
+          <Pressable
+            onPress={() => router.push("/add-friends" as any)}
+            className="px-5 py-2.5 rounded-full mt-4"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-sm font-semibold" style={{ color: "#fff" }}>Find Friends</Text>
+          </Pressable>
+        )}
       </View>
     );
   }
