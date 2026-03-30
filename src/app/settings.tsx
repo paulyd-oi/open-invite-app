@@ -93,6 +93,7 @@ import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
 import { Button } from "@/ui/Button";
 import { SettingsEditProfileSection } from "@/components/settings/SettingsEditProfileSection";
+import { SettingsThemeSection } from "@/components/settings/SettingsThemeSection";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -1707,107 +1708,25 @@ export default function SettingsScreen() {
         )}
 
         {/* Theme Section */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">APPEARANCE</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {/* Theme Mode Picker */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowThemeModePicker(!showThemeModePicker);
-              }}
-              className="flex-row items-center p-4"
-              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-            >
-              <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                {getThemeModeIcon(themeMode)}
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">Theme Mode</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {getThemeModeLabel(themeMode)}
-                </Text>
-              </View>
-              <Text style={{ color: colors.textTertiary }} className="text-lg">{showThemeModePicker ? "‹" : "›"}</Text>
-            </Pressable>
-
-            {showThemeModePicker && (
-              <View className="px-4 pb-4 pt-2">
-                {(["light", "dark", "auto"] as ThemeMode[]).map((mode) => (
-                  <Pressable
-                    key={mode}
-                    onPress={() => handleSaveThemeMode(mode)}
-                    className="flex-row items-center py-3 px-2 rounded-xl mb-1"
-                    style={{ backgroundColor: themeMode === mode ? `${themeColor}15` : "transparent" }}
-                  >
-                    <View className="w-8 h-8 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeMode === mode ? `${themeColor}20` : isDark ? "#2C2C2E" : "#F3F4F6" }}>
-                      {mode === "light" && <Sun size={18} color={themeMode === mode ? themeColor : colors.textSecondary} />}
-                      {mode === "dark" && <Moon size={18} color={themeMode === mode ? themeColor : colors.textSecondary} />}
-                      {mode === "auto" && <Smartphone size={18} color={themeMode === mode ? themeColor : colors.textSecondary} />}
-                    </View>
-                    <Text style={{ color: themeMode === mode ? themeColor : colors.text }} className="flex-1 font-medium">
-                      {getThemeModeLabel(mode)}
-                    </Text>
-                    {themeMode === mode && <Check size={18} color={themeColor} />}
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* Theme Color Picker */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowThemePicker(!showThemePicker);
-              }}
-              className="flex-row items-center p-4"
-            >
-              <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                <Palette size={20} color={themeColor} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">Theme Color</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {themeColorName}
-                </Text>
-              </View>
-              <View
-                className="w-6 h-6 rounded-full border-2"
-                style={{ backgroundColor: themeColor, borderColor: colors.border }}
-              />
-            </Pressable>
-
-            {showThemePicker && (
-              <View className="px-4 pb-4">
-                <View className="flex-row flex-wrap">
-                  {THEME_COLORS.map((theme) => (
-                    <Pressable
-                      key={theme.color}
-                      onPress={() => handleSaveTheme(theme.color)}
-                      className="w-1/4 p-2"
-                    >
-                      <View className="items-center">
-                        <View
-                          className="w-12 h-12 rounded-full items-center justify-center"
-                          style={{
-                            backgroundColor: theme.color,
-                            borderWidth: themeColor === theme.color ? 2 : 0,
-                            borderColor: isDark ? "#FFFFFF" : "#1F2937"
-                          }}
-                        >
-                          {themeColor === theme.color && (
-                            <Check size={20} color="#fff" />
-                          )}
-                        </View>
-                        <Text style={{ color: colors.textSecondary }} className="text-xs mt-1 text-center">{theme.name}</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        </Animated.View>
+        <SettingsThemeSection
+          themeMode={themeMode}
+          themeColor={themeColor}
+          themeColorName={themeColorName}
+          showThemeModePicker={showThemeModePicker}
+          showThemePicker={showThemePicker}
+          colors={colors}
+          isDark={isDark}
+          onToggleModePicker={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowThemeModePicker(!showThemeModePicker);
+          }}
+          onToggleColorPicker={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowThemePicker(!showThemePicker);
+          }}
+          onSaveThemeMode={handleSaveThemeMode}
+          onSaveTheme={handleSaveTheme}
+        />
 
         {/* Account Section */}
         <Animated.View entering={FadeInDown.delay(120).springify()} className="mx-4 mt-6">
