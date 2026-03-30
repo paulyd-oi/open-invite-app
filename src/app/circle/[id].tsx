@@ -105,6 +105,7 @@ import { MiniCalendar } from "@/components/circle/CircleMembersSection";
 import { MessageBubble, formatDateSeparator, parseSystemEventPayload, parseSystemMemberLeftPayload } from "@/components/circle/CircleChatSection";
 import { CircleAddMembersModal } from "@/components/circle/CircleAddMembersModal";
 import { CircleFriendSuggestionModal } from "@/components/circle/CircleFriendSuggestionModal";
+import { CircleRemoveMemberModal } from "@/components/circle/CircleRemoveMemberModal";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3777,100 +3778,26 @@ export default function CircleScreen() {
       </Modal>
 
       {/* Remove Member Confirmation Modal */}
-      <Modal
+      <CircleRemoveMemberModal
         visible={!!selectedMemberToRemove}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setSelectedMemberToRemove(null)}
-      >
-        <Pressable
-          style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20 }}
-          onPress={() => setSelectedMemberToRemove(null)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 340 }}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 20,
-                padding: 24,
-                alignItems: "center",
-              }}
-            >
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: "#FF3B3020",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                }}
-              >
-                <WarningIcon size={32} color="#FF3B30" />
-              </View>
-
-              <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center", marginBottom: 8 }}>
-                Remove Member?
-              </Text>
-
-              <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 }}>
-                {(() => {
-                  const memberToRemove = members.find(m => m.userId === selectedMemberToRemove);
-                  return `Are you sure you want to remove ${memberToRemove?.user.name ?? "this member"} from the circle?`;
-                })()}
-              </Text>
-
-              <View style={{ flexDirection: "row", width: "100%" }}>
-                <Pressable
-                  onPress={() => setSelectedMemberToRemove(null)}
-                  style={{
-                    flex: 1,
-                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    marginRight: 8,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
-                    Cancel
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (selectedMemberToRemove) {
-                      if (__DEV__) {
-                        devLog('[CircleRemoveMember] Confirm pressed:', {
-                          circleId: id,
-                          memberUserIdToRemove: selectedMemberToRemove,
-                          apiPath: `/api/circles/${id}/members/${selectedMemberToRemove}`,
-                        });
-                      }
-                      removeMemberMutation.mutate(selectedMemberToRemove);
-                    }
-                  }}
-                  disabled={removeMemberMutation.isPending}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#FF3B30",
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    opacity: removeMemberMutation.isPending ? 0.5 : 1,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
-                    {removeMemberMutation.isPending ? "Removing..." : "Remove"}
-                  </Text>
-                </Pressable>
-              </View>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        memberName={members.find(m => m.userId === selectedMemberToRemove)?.user.name ?? null}
+        isPending={removeMemberMutation.isPending}
+        colors={colors}
+        isDark={isDark}
+        onCancel={() => setSelectedMemberToRemove(null)}
+        onConfirm={() => {
+          if (selectedMemberToRemove) {
+            if (__DEV__) {
+              devLog('[CircleRemoveMember] Confirm pressed:', {
+                circleId: id,
+                memberUserIdToRemove: selectedMemberToRemove,
+                apiPath: `/api/circles/${id}/members/${selectedMemberToRemove}`,
+              });
+            }
+            removeMemberMutation.mutate(selectedMemberToRemove);
+          }
+        }}
+      />
 
       {/* Create Event Modal with visibility tabs */}
       <Modal
