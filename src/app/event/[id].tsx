@@ -2446,7 +2446,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
-        <View style={{ position: "relative" }}>
+        <View style={{ position: "relative", backgroundColor: colors.background }}>
 
           {/* Nav bar — glass-effect over atmosphere */}
           <EventHeroNav
