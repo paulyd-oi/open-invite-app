@@ -106,6 +106,7 @@ import { MessageBubble, formatDateSeparator, parseSystemEventPayload, parseSyste
 import { CircleAddMembersModal } from "@/components/circle/CircleAddMembersModal";
 import { CircleFriendSuggestionModal } from "@/components/circle/CircleFriendSuggestionModal";
 import { CircleRemoveMemberModal } from "@/components/circle/CircleRemoveMemberModal";
+import { CircleCreateEventModal } from "@/components/circle/CircleCreateEventModal";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3799,70 +3800,19 @@ export default function CircleScreen() {
         }}
       />
 
-      {/* Create Event Modal with visibility tabs */}
-      <Modal
+      {/* Create Event Modal */}
+      <CircleCreateEventModal
         visible={showCreateEvent}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCreateEvent(false)}
-      >
-        <Pressable
-          onPress={() => setShowCreateEvent(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: colors.surface,
-              borderRadius: 20,
-              padding: 20,
-              width: "85%",
-              maxWidth: 340,
-            }}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, textAlign: "center", marginBottom: 16 }}>
-              Create Event
-            </Text>
-
-            {/* Circle Only indicator */}
-            <View style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <Text style={{
-                textAlign: "center",
-                fontSize: 14,
-                fontWeight: "600",
-                color: themeColor,
-              }}>
-                Circle Only
-              </Text>
-            </View>
-
-            {/* Description text */}
-            <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: "center", marginBottom: 20 }}>
-              Events created here are only visible to friends in this group.
-            </Text>
-
-            {/* Create Button */}
-            <Button
-              variant="primary"
-              label="Create"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setShowCreateEvent(false);
-                router.push(`/create?circleId=${id}&visibility=circle_only` as any);
-              }}
-              style={{ borderRadius: 12 }}
-            />
-
-            {/* Cancel Button */}
-            <Pressable
-              onPress={() => setShowCreateEvent(false)}
-              style={{ paddingVertical: 12, marginTop: 8 }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary, textAlign: "center" }}>Cancel</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
+        onClose={() => setShowCreateEvent(false)}
+        onCreatePress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setShowCreateEvent(false);
+          router.push(`/create?circleId=${id}&visibility=circle_only` as any);
+        }}
+      />
 
       {/* Paywall Modal for member limit gating */}
       <PaywallModal
