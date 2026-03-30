@@ -108,6 +108,7 @@ import { EventSettingsAccordion } from "@/components/event/EventSettingsAccordio
 import { DiscussionCard } from "@/components/event/DiscussionCard";
 import { WhosComingCard } from "@/components/event/WhosComingCard";
 import { AboutCard } from "@/components/event/AboutCard";
+import { SocialProofRow } from "@/components/event/SocialProofRow";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2687,26 +2688,12 @@ export default function EventDetailScreen() {
             {hasJoinRequest ? (
               <Animated.View entering={FadeInDown.duration(300)}>
                 {/* [GROWTH_SOCIAL_PROOF] Reinforce decision for confirmed attendees */}
-                {effectiveGoingCount > 0 && (
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                    <View style={{ flexDirection: "row", marginRight: 8 }}>
-                      {attendeesList.slice(0, 4).map((a, i) => (
-                        <View key={a.id} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i }}>
-                          <EntityAvatar
-                            photoUrl={a.imageUrl}
-                            initials={a.name?.[0] ?? "?"}
-                            size={24}
-                            backgroundColor={isDark ? "#2C2C2E" : "#DCFCE7"}
-                            foregroundColor="#166534"
-                          />
-                        </View>
-                      ))}
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
-                      {effectiveGoingCount} going
-                    </Text>
-                  </View>
-                )}
+                <SocialProofRow
+                  attendees={attendeesList}
+                  effectiveGoingCount={effectiveGoingCount}
+                  isDark={isDark}
+                  colors={colors}
+                />
                 <View style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -2894,32 +2881,13 @@ export default function EventDetailScreen() {
 
                 {/* [GROWTH_SOCIAL_PROOF] Nudge row near decision point */}
                 {(!myRsvpStatus || showRsvpOptions) && (
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                    {effectiveGoingCount > 0 ? (
-                      <>
-                        <View style={{ flexDirection: "row", marginRight: 8 }}>
-                          {attendeesList.slice(0, 4).map((a, i) => (
-                            <View key={a.id} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i }}>
-                              <EntityAvatar
-                                photoUrl={a.imageUrl}
-                                initials={a.name?.[0] ?? "?"}
-                                size={24}
-                                backgroundColor={isDark ? "#2C2C2E" : "#DCFCE7"}
-                                foregroundColor="#166534"
-                              />
-                            </View>
-                          ))}
-                        </View>
-                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
-                          {effectiveGoingCount} going
-                        </Text>
-                      </>
-                    ) : (
-                      <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
-                        Be the first to join
-                      </Text>
-                    )}
-                  </View>
+                  <SocialProofRow
+                    attendees={attendeesList}
+                    effectiveGoingCount={effectiveGoingCount}
+                    isDark={isDark}
+                    colors={colors}
+                    showFallback
+                  />
                 )}
 
                 {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
