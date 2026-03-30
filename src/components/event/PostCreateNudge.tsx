@@ -34,10 +34,10 @@ export function PostCreateNudge({
       <View style={{
         paddingVertical: 14,
         paddingHorizontal: 16,
-        borderRadius: RADIUS.xl,
-        backgroundColor: isDark ? `${themeColor}18` : `${themeColor}10`,
-        borderWidth: 0.5,
-        borderColor: isDark ? `${themeColor}30` : `${themeColor}20`,
+        borderRadius: 16,
+        backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)",
+        borderWidth: 1,
+        borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)",
       }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <View style={{ flex: 1 }}>

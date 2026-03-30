@@ -17,6 +17,7 @@ interface StickyRsvpBarProps {
   screenWidth: number;
   bottomInset: number;
   colors: StickyRsvpBarColors;
+  themeColor?: string;
   onRsvpGoing: () => void;
   onRsvpInterested: () => void;
 }
@@ -30,6 +31,7 @@ export function StickyRsvpBar({
   screenWidth,
   bottomInset,
   colors,
+  themeColor,
   onRsvpGoing,
   onRsvpInterested,
 }: StickyRsvpBarProps) {
@@ -55,7 +57,7 @@ export function StickyRsvpBar({
             }),
         paddingTop: 10,
         paddingHorizontal: 16,
-        backgroundColor: isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)",
+        backgroundColor: isDark ? "rgba(20,20,24,0.88)" : "rgba(255,255,255,0.82)",
       }}
     >
       {effectiveGoingCount > 0 && (

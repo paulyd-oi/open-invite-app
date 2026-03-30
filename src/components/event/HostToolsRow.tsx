@@ -46,6 +46,13 @@ export function HostToolsRow({
 
   return (
     <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
+      <View style={{
+        backgroundColor: isDark ? "rgba(20,20,24,0.52)" : "rgba(255,255,255,0.76)",
+        borderRadius: 16,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)",
+      }}>
       {/* Compact action row */}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {/* Share */}
@@ -107,6 +114,7 @@ export function HostToolsRow({
           )}
         </View>
       )}
+      </View>
     </Animated.View>
   );
 }

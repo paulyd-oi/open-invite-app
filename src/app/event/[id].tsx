@@ -151,6 +151,7 @@ import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { COLOR_PALETTE } from "@/lib/eventColorOverrides";
 import { wrapRace } from "@/lib/devStress";
 import { postIdempotent } from "@/lib/idempotencyKey";
+import { getAttributionContext } from "@/lib/attribution";
 import {
   eventKeys,
   invalidateEventKeys,
@@ -1311,14 +1312,18 @@ export default function EventDetailScreen() {
   type RsvpStatus = RsvpStatusMutation;
 
   const rsvpMutation = useMutation({
-    mutationFn: (status: RsvpStatus) => {
+    mutationFn: async (status: RsvpStatus) => {
       if (__DEV__) {
         devLog("[P0_RSVP]", "mutationFn", { eventId: id, status });
       }
       if (isBusyBlock) {
         throw new Error("BUSY_BLOCK");
       }
-      return wrapRace("RSVP_submit", () => postIdempotent(`/api/events/${id}/rsvp`, { status }));
+      // [OPERATOR_BACKFLOW] Include attribution context in RSVP body for Operator Engine
+      const attribution = status === "going" ? await getAttributionContext().catch(() => null) : null;
+      const body: Record<string, unknown> = { status };
+      if (attribution) body.attribution = attribution;
+      return wrapRace("RSVP_submit", () => postIdempotent(`/api/events/${id}/rsvp`, body));
     },
     onMutate: async (nextStatus: RsvpStatus) => {
       // [P0_RSVP] Optimistic update: snapshot cache, update RSVP status and totalGoing immediately
@@ -2545,6 +2550,13 @@ export default function EventDetailScreen() {
 
         </View>
 
+        {/* Soft gradient fade from hero zone into page body */}
+        <LinearGradient
+          colors={[canvasColor, "transparent"]}
+          style={{ height: 48, marginTop: -1 }}
+          pointerEvents="none"
+        />
+
         {/* ═══ POST-CREATE INVITE ACTIONS ═══ */}
         {showCreateNudge && isMyEvent && (
           <PostCreateNudge
@@ -2654,38 +2666,7 @@ export default function EventDetailScreen() {
                   />
                 )}
 
-                {/* [GROWTH_SOCIAL_PROOF] Nudge row near decision point */}
-                {(!myRsvpStatus || showRsvpOptions) && (
-                  <SocialProofRow
-                    attendees={attendeesList}
-                    effectiveGoingCount={effectiveGoingCount}
-                    isDark={isDark}
-                    colors={colors}
-                    showFallback
-                  />
-                )}
-
-                {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
-                {(!myRsvpStatus || showRsvpOptions) && (
-                  <RsvpButtonGroup
-                    myRsvpStatus={myRsvpStatus}
-                    isFull={eventMeta.isFull}
-                    isPending={rsvpMutation.isPending}
-                    themeColor={themeColor}
-                    accentColor={pageTheme.backAccent}
-                    colors={colors}
-                    animStyle={rsvpButtonAnimStyle}
-                    onRsvpGoing={() => handleRsvp("going")}
-                    onRsvpInterested={() => handleRsvp("interested")}
-                    onRsvpNotGoing={() => handleRsvp("not_going")}
-                  />
-                )}
-                {/* [EVENT_LIVE_UI_2] Saved confirmation text */}
-                {rsvpSavedVisible && (
-                  <View style={{ alignItems: "center", marginTop: 6 }}>
-                    <Text style={{ fontSize: 12, color: STATUS.interested.fg, fontWeight: "500" }}>Saved — you'll find this in your Saved tab</Text>
-                  </View>
-                )}
+                {/* Inline RSVP buttons removed — sticky bottom CTA is single source of truth for guest actions */}
               </View>
             )}
           </Animated.View>
@@ -2937,6 +2918,7 @@ export default function EventDetailScreen() {
           screenWidth={screenWidth}
           bottomInset={insets.bottom}
           colors={colors}
+          themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
           onRsvpInterested={() => handleRsvp("interested")}
         />
