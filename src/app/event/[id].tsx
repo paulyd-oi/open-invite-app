@@ -2400,7 +2400,7 @@ export default function EventDetailScreen() {
 
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: "transparent" }} edges={[]}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, headerTransparent: true }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
       {/* Animated gradient background (custom themes + catalog themes with gradient) */}
