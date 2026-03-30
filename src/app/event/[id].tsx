@@ -2450,24 +2450,26 @@ export default function EventDetailScreen() {
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
         <View style={{ position: "relative" }}>
 
-          {/* Nav bar — glass-effect over atmosphere */}
-          <EventHeroNav
-            hasPhoto={!!(eventBannerUri && event.eventPhotoUrl)}
-            screenWidth={screenWidth}
-            topInset={insets.top}
-            colors={colors}
-            onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
-            onOpenOptions={() => {
-              Haptics.selectionAsync();
-              if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
-                eventId: id,
-                isImported: !!event?.isImported,
-                isBusy: !!event?.isBusy,
-                isMyEvent,
-              });
-              setShowEventActionsSheet(true);
-            }}
-          />
+          {/* Nav bar — canvasColor blocks dark atmosphere gradient at top */}
+          <View style={{ backgroundColor: canvasColor }}>
+            <EventHeroNav
+              hasPhoto={!!(eventBannerUri && event.eventPhotoUrl)}
+              screenWidth={screenWidth}
+              topInset={insets.top}
+              colors={colors}
+              onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+              onOpenOptions={() => {
+                Haptics.selectionAsync();
+                if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
+                  eventId: id,
+                  isImported: !!event?.isImported,
+                  isBusy: !!event?.isBusy,
+                  isMyEvent,
+                });
+                setShowEventActionsSheet(true);
+              }}
+            />
+          </View>
 
           {/* Floating invite card */}
           <Animated.View entering={FadeInDown.delay(30).springify()}>
