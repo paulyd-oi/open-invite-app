@@ -2402,7 +2402,7 @@ export default function EventDetailScreen() {
   const stickyBarHeight = 64 + insets.bottom;
 
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={[]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
