@@ -1,7 +1,9 @@
 # Calendar Page Extraction Spec
 
-> **STATUS: PLANNING** — 0 of 10 extractions shipped.
-> File: `src/app/calendar.tsx` — **3,205 lines**.
+> **STATUS: COMPLETE** — 8 of 8 extractions shipped (spec originally listed 10 candidates; day cells shipped as 1 commit with 3 components).
+> File: `src/app/calendar.tsx` — **1,632 lines** (was 3,205).
+>
+> Commits: `c6f51a2` DayCells, `cd9ee20` EventListItem, `56f0359` BirthdaysSection, `70df8fb` ListView, `9de35b4` BusyBlockModal, `7111811` FirstLoginGuideModal, `a1ff546` HeaderChrome, `0a1f7b7` calendarUtils.
 
 ---
 

@@ -1,7 +1,9 @@
 # Settings Page Extraction Spec
 
-> **STATUS: PLANNING** — 0 of 10 extractions shipped.
-> File: `src/app/settings.tsx` — **3,237 lines**.
+> **STATUS: COMPLETE** — 10 of 10 extractions shipped.
+> File: `src/app/settings.tsx` — **1,814 lines** (was 3,237).
+>
+> Commits: `feb77a0` EditProfile, `73f28ee` Theme, `653e7e7` Birthday, `3df9c1b` WorkSchedule, `966786f` Subscription, `35a827b` NotificationsDevTools, `e6167d4` PushDiagModal, `361180e` PasscodeModal, `620a539` ReferralCounter, `d57c335` ProfileCard.
 
 ---
 

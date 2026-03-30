@@ -49,8 +49,8 @@ Two layers:
 |------|------:|---------|
 | `circle/[id].tsx` | 2937 | Circle detail: members, messaging, events, sharing, settings |
 | `event/[id].tsx` | 3244 | Event detail: RSVP, attendees, sharing, discussion, deep-link entry |
-| `settings.tsx` | 3236 | Settings hub: profile, photo, theme, notifications, privacy, subscription |
-| `calendar.tsx` | 3205 | Home/calendar: multi-view (list, grid, strip), friend availability, quick actions |
+| `settings.tsx` | 1814 | Settings hub: profile, photo, theme, notifications, privacy, subscription |
+| `calendar.tsx` | 1632 | Home/calendar: multi-view (list, grid, strip), friend availability, quick actions |
 | `social.tsx` | 1971 | Social feed: infinite scroll, swipe gestures, quick RSVP, friend requests |
 | `welcome.tsx` | 1739 | Pre-auth landing: Apple Sign-In, animated branding, onboarding entry |
 | `friends.tsx` | 1594 | Friends: pending requests, friend list, circles, availability queries |
@@ -97,7 +97,7 @@ Two layers:
 
 ---
 
-## src/components/ — Components (149 files, ~35,594 lines)
+## src/components/ — Components (167 files, ~35,594 lines)
 
 | File | Lines | Purpose |
 |------|------:|---------|
@@ -142,6 +142,23 @@ Two layers:
 | `circle/CircleCreateEventModal.tsx` | 88 | Confirm modal for creating a circle-scoped event |
 | `circle/CircleLifecycleChips.tsx` | 83 | Finalized chip and completion/run-it-back prompt |
 | `circle/CircleReactionPicker.tsx` | 76 | Emoji reaction grid overlay with selection state |
+| `calendar/CalendarEventListItem.tsx` | 554 | Event card with context menu, share/sync/color/busy/delete actions |
+| `calendar/CalendarDayCells.tsx` | 326 | CompactDayCell, StackedDayCell, DetailsDayCell (3 pinch-zoom view modes) |
+| `calendar/CalendarBusyBlockModal.tsx` | 219 | Quick busy block creation modal with time pickers |
+| `calendar/CalendarHeaderChrome.tsx` | 190 | Floating BlurView header with month nav and view mode selector |
+| `calendar/CalendarBirthdaysSection.tsx` | 172 | Collapsible upcoming birthdays section with navigation |
+| `calendar/CalendarListView.tsx` | 136 | Full month list view grouped by date |
+| `calendar/CalendarFirstLoginGuideModal.tsx` | 113 | First-login welcome/tour modal |
+| `settings/ReferralCounterSection.tsx` | 294 | Referral code display, progress, referrer input (standalone module) |
+| `settings/SettingsPushDiagnosticsModal.tsx` | 292 | DEV-only push diagnostics modal with DiagRow helper |
+| `settings/SettingsNotificationsDevTools.tsx` | 284 | DEV-only push debug tools (diagnostics, receipts, queue) |
+| `settings/SettingsWorkScheduleSection.tsx` | 266 | Per-day work hours editor with split schedule support |
+| `settings/SettingsEditProfileSection.tsx` | 257 | Profile editing form (avatar, banner, name, username, bio) |
+| `settings/SettingsBirthdaySection.tsx` | 156 | Birthday date picker + show/hide toggles |
+| `settings/SettingsThemeSection.tsx` | 154 | Theme mode picker + color picker grid |
+| `settings/SettingsSubscriptionSection.tsx` | 128 | Plan status, upgrade CTA, restore, refresh |
+| `settings/SettingsAdminPasscodeModal.tsx` | 96 | Admin unlock passcode entry modal |
+| `settings/SettingsProfileCard.tsx` | 70 | Profile view mode card (avatar + edit trigger) |
 | `EventReactions.tsx` | 337 | Emoji reaction picker with spring animation |
 | `EmptyState.tsx` | 326 | Animated empty state with pulsing icon and optional CTA |
 | `event/DiscussionCard.tsx` | 313 | Event discussion: text posts, image attachments, prompts |
@@ -285,7 +302,7 @@ Two layers:
 
 ---
 
-## src/lib/ — Utilities (107 files, ~18,897 lines)
+## src/lib/ — Utilities (108 files, ~18,897 lines)
 
 | File | Lines | Purpose |
 |------|------:|---------|
@@ -298,6 +315,7 @@ Two layers:
 | `adminApi.ts` | 615 | Admin API: user search, badges, entitlements |
 | `SubscriptionContext.tsx` | 541 | RevenueCat context: offerings, purchase, restore, feature flags |
 | `calendarSync.ts` | 447 | Expo Calendar sync: device calendar, ICS import, dedup |
+| `calendarUtils.ts` | 71 | Date helpers, color utilities, height system constants, ViewMode type |
 | `deepLinks.ts` | 439 | Deep link router: event, user, invite, RSVP, circle, ICS |
 | `revenuecatClient.ts` | 428 | RevenueCat SDK wrapper with graceful degradation |
 | `offlineSync.ts` | 422 | Offline queue replay on network restore |
