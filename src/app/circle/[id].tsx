@@ -113,6 +113,7 @@ import { CircleAvailabilitySheet } from "@/components/circle/CircleAvailabilityS
 import { CirclePlanLockSheet } from "@/components/circle/CirclePlanLockSheet";
 import { CirclePollSheet } from "@/components/circle/CirclePollSheet";
 import { CircleNotifyLevelSheet } from "@/components/circle/CircleNotifyLevelSheet";
+import { CircleMembersSheet } from "@/components/circle/CircleMembersSheet";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3309,216 +3310,54 @@ export default function CircleScreen() {
       />
 
       {/* Members Sheet Modal */}
-      <Modal
+      <CircleMembersSheet
         visible={showMembersSheet}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        members={members}
+        availableFriends={availableFriends}
+        selectedFriends={selectedFriends}
+        isHost={isHost}
+        circleCreatedById={circle?.createdById}
+        isPending={addMembersMutation.isPending}
+        selectedCount={selectedFriends.length}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
+        bottomInset={insets.bottom}
+        onClose={() => {
           setShowMembersSheet(false);
           setSelectedFriends([]);
         }}
-      >
-        <Pressable
-          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => {
-            setShowMembersSheet(false);
-            setSelectedFriends([]);
-          }}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <Animated.View
-              entering={FadeInDown.springify().damping(20).stiffness(300)}
-              style={{
-                backgroundColor: colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                height: Dimensions.get('window').height * 0.92,
-                maxHeight: Dimensions.get('window').height * 0.95,
-                overflow: "hidden",
-              }}
-              onLayout={__DEV__ ? (e) => {
-                const { height: sheetH } = e.nativeEvent.layout;
-                devLog('[P0_MEMBERS_SHEET]', 'sheet_open', { sheetHeight: Math.round(sheetH), windowHeight: Math.round(Dimensions.get('window').height), bottomInset: insets.bottom, sheetPct: '92%', maxPct: '95%' });
-                devLog('[P2_ANIMATION]', { component: 'members_sheet', animationMounted: true });
-                devLog('[P2_CIRCLE_UX]', { polishApplied: true });
-              } : undefined}
-            >
-              {/* Modal Handle */}
-              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.textTertiary,
-                    opacity: 0.4,
-                  }}
-                />
-              </View>
-
-              {/* Modal Header */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                  Members
-                </Text>
-              </View>
-
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(40, insets.bottom + 16) }}
-                onContentSizeChange={__DEV__ ? (_w, h) => {
-                  devLog('[P0_MEMBERS_SHEET]', 'scroll_content_size', { contentHeight: Math.round(h), membersCount: members.length, availableFriendsCount: availableFriends.length });
-                } : undefined}
-              >
-                {/* Members List — SSOT via UserRow */}
-                {__DEV__ && members.length > 0 && once('P0_USERROW_SHEET_SOT_circle') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: members.length })}
-                {members.map((member, idx) => {
-                  const isHostOfCircle = circle?.createdById === member.userId;
-                  return (
-                    <View
-                      key={member.userId}
-                      style={{
-                        borderBottomWidth: idx < members.length - 1 ? 1 : 0,
-                        borderBottomColor: colors.border,
-                      }}
-                    >
-                      <UserListRow
-                        handle={null}
-                        displayName={member.user.name}
-                        bio={null}
-                        avatarUri={member.user.image}
-                        badgeText={isHostOfCircle ? "Host" : null}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setShowMembersSheet(false);
-                          setSelectedFriends([]);
-                          router.push(`/user/${member.userId}`);
-                        }}
-                        rightAccessory={
-                          isHost && !isHostOfCircle ? (
-                              <Pressable
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                  if (__DEV__) {
-                                    devLog('[CircleRemoveMember] Trash pressed, member snapshot:', {
-                                      memberId: member.id,
-                                      memberUserId: member.userId,
-                                      memberUserIdFromUser: member.user?.id,
-                                      memberName: member.user?.name,
-                                      circleId: id,
-                                    });
-                                  }
-                                  const targetUserId = member.userId;
-                                  if (!targetUserId) {
-                                    devError('[CircleRemoveMember] ERROR: No userId found for member');
-                                    safeToast.error("Member Not Found", "Unable to identify member. Please try again.");
-                                    return;
-                                  }
-                                  setShowMembersSheet(false);
-                                  setTimeout(() => {
-                                    setSelectedMemberToRemove(targetUserId);
-                                  }, 100);
-                                }}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 16,
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  backgroundColor: "#FF3B3015",
-                                }}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <TrashIcon size={16} color="#FF3B30" />
-                              </Pressable>
-                          ) : undefined
-                        }
-                      />
-                    </View>
-                  );
-                })}
-
-                {/* Add Members Section — visual separator from members list */}
-                <View style={{ marginTop: 20, paddingTop: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>Add Members</Text>
-
-                  {availableFriends.length > 0 ? (
-                    <View
-                      onLayout={__DEV__ ? (e) => {
-                        devLog('[P0_MEMBERS_SHEET]', 'add_members_list_layout', { listHeight: Math.round(e.nativeEvent.layout.height), friendCount: availableFriends.length });
-                      } : undefined}
-                    >
-                      {__DEV__ && availableFriends.length > 0 && once('P0_USERROW_SHEET_SOT_circle_add') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_add_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: availableFriends.length })}
-                      {availableFriends.map((friend, idx) => {
-                        const isSelected = selectedFriends.includes(friend.friendId);
-                        return (
-                          <Animated.View
-                            key={friend.friendId}
-                            entering={FadeInDown.delay(idx * 25).springify()}
-                          >
-                            <Pressable
-                              onPress={() => toggleFriendSelection(friend.friendId)}
-                              style={{
-                                borderBottomWidth: 1,
-                                borderBottomColor: colors.border,
-                              }}
-                            >
-                              <UserListRow
-                                handle={friend.friend.Profile?.handle}
-                                displayName={friend.friend.name}
-                                bio={friend.friend.Profile?.calendarBio}
-                                avatarUri={friend.friend.image}
-                                disablePressFeedback
-                                rightAccessory={
-                                  <View
-                                    style={{
-                                      width: 20,
-                                      height: 20,
-                                      borderRadius: 10,
-                                      borderWidth: 2,
-                                      borderColor: colors.border,
-                                      backgroundColor: isSelected ? themeColor : "transparent",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    {isSelected && <Check size={16} color="#fff" />}
-                                  </View>
-                                }
-                              />
-                            </Pressable>
-                          </Animated.View>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>No more friends to add</Text>
-                  )}
-                </View>
-              </ScrollView>
-
-              {/* Add Button */}
-              {selectedFriends.length > 0 && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(24, insets.bottom + 8), paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Button
-                    variant="primary"
-                    label={
-                      addMembersMutation.isPending
-                        ? "Adding..."
-                        : `Add ${selectedFriends.length} Friend${selectedFriends.length > 1 ? "s" : ""}`
-                    }
-                    onPress={handleAddMembers}
-                    disabled={selectedFriends.length === 0 || addMembersMutation.isPending}
-                    loading={addMembersMutation.isPending}
-                    style={{ borderRadius: 12 }}
-                  />
-                </View>
-              )}
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onToggleFriend={toggleFriendSelection}
+        onAddMembers={handleAddMembers}
+        onRemoveMember={(userId) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (__DEV__) {
+            const member = members.find(m => m.userId === userId);
+            devLog('[CircleRemoveMember] Trash pressed, member snapshot:', {
+              memberId: member?.id,
+              memberUserId: userId,
+              memberUserIdFromUser: member?.user?.id,
+              memberName: member?.user?.name,
+              circleId: id,
+            });
+          }
+          if (!userId) {
+            devError('[CircleRemoveMember] ERROR: No userId found for member');
+            safeToast.error("Member Not Found", "Unable to identify member. Please try again.");
+            return;
+          }
+          setShowMembersSheet(false);
+          setTimeout(() => {
+            setSelectedMemberToRemove(userId);
+          }, 100);
+        }}
+        onViewProfile={(userId) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowMembersSheet(false);
+          setSelectedFriends([]);
+          router.push(`/user/${userId}`);
+        }}
+      />
 
       {/* Remove Member Confirmation Modal */}
       <CircleRemoveMemberModal
