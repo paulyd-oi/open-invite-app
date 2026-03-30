@@ -126,13 +126,18 @@ export function CreateLocationSection({
             </Animated.View>
           )}
 
-          {/* Close search button */}
+          {/* Close search / use custom location */}
           {showLocationSearch && (
             <Pressable
               onPress={onCloseSearch}
-              className="mt-2 py-2"
+              className="mt-2 rounded-xl p-3 flex-row items-center justify-center"
+              style={{
+                backgroundColor: glassSurface,
+                borderWidth: 1,
+                borderColor: glassBorder,
+              }}
             >
-              <Text style={{ color: "#4ECDC4" }} className="text-center font-medium">
+              <Text style={{ color: glassText }} className="font-medium">
                 {locationQuery && !selectedPlace ? "Use custom location" : "Close"}
               </Text>
             </Pressable>

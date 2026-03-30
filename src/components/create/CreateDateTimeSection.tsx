@@ -95,9 +95,9 @@ export function CreateDateTimeSection({
           onPress={onFindBestTime}
           className="rounded-xl p-4 flex-row items-center"
           style={{
-            backgroundColor: `${themeColor}10`,
+            backgroundColor: glassSurface,
             borderWidth: 1,
-            borderColor: `${themeColor}30`,
+            borderColor: glassBorder,
           }}
         >
           <View
