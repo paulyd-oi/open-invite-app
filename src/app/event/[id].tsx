@@ -2398,13 +2398,21 @@ export default function EventDetailScreen() {
   const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
   const stickyBarHeight = 64 + insets.bottom;
 
+  // __DEV__ debug toggle — flip to false to isolate which layer causes the strip
+  const DEBUG_LAYERS = {
+    gradient: true,
+    video: true,
+    effect: true,   // Skia shaders + particles
+    filter: true,
+  };
+
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: "transparent" }} edges={[]}>
       <Stack.Screen options={{ headerShown: false, headerTransparent: true, contentStyle: { backgroundColor: "transparent" } }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
       {/* Animated gradient background (custom themes + catalog themes with gradient) */}
-      {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
+      {DEBUG_LAYERS.gradient && pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <AnimatedGradientLayer config={{
             ...pageTheme.visualStack.gradient,
@@ -2418,7 +2426,7 @@ export default function EventDetailScreen() {
       )}
 
       {/* Looping video background — behind particles and content */}
-      {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
+      {DEBUG_LAYERS.video && pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
           <ThemeVideoLayer
             source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
@@ -2431,7 +2439,7 @@ export default function EventDetailScreen() {
 
       {/* Particle layer — effectId overrides theme particles to avoid double-rendering.
            Theme gradient/video/filter still render normally; only particles are suppressed. */}
-      {event.effectId ? (
+      {DEBUG_LAYERS.effect && (event.effectId ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <MotifOverlay
             presetId={event.effectId}
@@ -2441,9 +2449,9 @@ export default function EventDetailScreen() {
         </View>
       ) : (
         <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
-      )}
+      ))}
       {/* Atmospheric filter overlay — after particles, before content */}
-      {pageTheme.visualStack?.filter && (
+      {DEBUG_LAYERS.filter && pageTheme.visualStack?.filter && (
         <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
       )}
 
