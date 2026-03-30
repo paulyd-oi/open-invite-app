@@ -104,6 +104,7 @@ import { broadcastReadHorizon, useReadHorizonReceiver } from "@/lib/realtime/rea
 import { MiniCalendar } from "@/components/circle/CircleMembersSection";
 import { MessageBubble, formatDateSeparator, parseSystemEventPayload, parseSystemMemberLeftPayload } from "@/components/circle/CircleChatSection";
 import { CircleAddMembersModal } from "@/components/circle/CircleAddMembersModal";
+import { CircleFriendSuggestionModal } from "@/components/circle/CircleFriendSuggestionModal";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2765,66 +2766,13 @@ export default function CircleScreen() {
       />
 
       {/* Friend Suggestion Modal */}
-      <Modal
+      <CircleFriendSuggestionModal
         visible={showFriendSuggestionModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowFriendSuggestionModal(false)}
-      >
-        <Pressable
-          style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20 }}
-          onPress={() => setShowFriendSuggestionModal(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 340 }}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 20,
-                padding: 24,
-                alignItems: "center",
-              }}
-            >
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: `${themeColor}20`,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                }}
-              >
-                <UserCheck size={32} color={themeColor} />
-              </View>
-
-              <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center", marginBottom: 8 }}>
-                Members Added!
-              </Text>
-
-              <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 }}>
-                {friendSuggestions.length === 1
-                  ? `${friendSuggestions[0]?.newMemberName} has been added to the circle.`
-                  : `${friendSuggestions.length} new members have been added to the circle.`}
-                {"\n\n"}
-                <Text style={{ color: colors.text, fontWeight: "500" }}>
-                  Tip: Make sure everyone in the circle is friends with each other to see all events!
-                </Text>
-              </Text>
-
-              <View style={{ flexDirection: "row", width: "100%" }}>
-                <Button
-                  variant="primary"
-                  label="Got it!"
-                  onPress={() => setShowFriendSuggestionModal(false)}
-                  style={{ flex: 1, borderRadius: RADIUS.md }}
-                />
-              </View>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        suggestions={friendSuggestions}
+        colors={colors}
+        themeColor={themeColor}
+        onClose={() => setShowFriendSuggestionModal(false)}
+      />
 
       {/* [P1_AVAIL_SUMMARY_UI] Availability Roster Sheet */}
       <BottomSheet
