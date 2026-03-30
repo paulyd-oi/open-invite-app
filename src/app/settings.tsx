@@ -96,6 +96,7 @@ import { SettingsEditProfileSection } from "@/components/settings/SettingsEditPr
 import { SettingsThemeSection } from "@/components/settings/SettingsThemeSection";
 import { SettingsBirthdaySection } from "@/components/settings/SettingsBirthdaySection";
 import { SettingsWorkScheduleSection, type WorkScheduleDay, type WorkScheduleSettings } from "@/components/settings/SettingsWorkScheduleSection";
+import { SettingsSubscriptionSection } from "@/components/settings/SettingsSubscriptionSection";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -1970,115 +1971,33 @@ export default function SettingsScreen() {
 
         {/* Subscription Section - Between Referral and Birthdays */}
         {/* P0 INVARIANT: Subscription block must never be blank. Always render Free/Pro/Error fallback. */}
+        {__DEV__ && (() => { devLog("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
+        {__DEV__ && (() => { devLog("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
         <Animated.View entering={FadeInDown.delay(167).springify()} className="mx-4 mt-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
           {/* Always render the subscription card - loading state shows "Free" as safe default, not blank */}
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {__DEV__ && (() => { devLog("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
-            {/* Current Status - Show truthful state */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          <SettingsSubscriptionSection
+            userIsPremium={userIsPremium}
+            entitlementsLoading={entitlementsLoading}
+            isRestoringPurchases={isRestoringPurchases}
+            isRefreshingEntitlements={isRefreshingEntitlements}
+            colors={colors}
+            isDark={isDark}
+            themeColor={themeColor}
+            onNavigateToSubscription={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/subscription?source=settings");
+            }}
+            onOpenPaywall={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              const result = await subscription.openPaywall({ source: "settings", preferred: "yearly" });
+              if (!result.ok && result.error && !result.cancelled) {
                 router.push("/subscription?source=settings");
-              }}
-              className="p-4"
-              style={{ borderBottomWidth: !userIsPremium ? 1 : 0, borderBottomColor: colors.separator }}
-            >
-              <View className="flex-row items-center">
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: userIsPremium ? "#FFD70020" : isDark ? "#2C2C2E" : "#F9FAFB" }}
-                >
-                  <Crown size={20} color={userIsPremium ? "#FFD700" : colors.textSecondary} />
-                </View>
-                <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-base font-medium">
-                    {userIsPremium ? "Subscription" : "Plan"}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">
-                    {userIsPremium ? "Thank you for your support!" : "Free"}
-                  </Text>
-                </View>
-                {!userIsPremium && <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>}
-              </View>
-            </Pressable>
-
-            {/* Upgrade CTA (only show for free users) */}
-            {__DEV__ && (() => { devLog("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
-            {!userIsPremium && (
-              <Pressable
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  const result = await subscription.openPaywall({ source: "settings", preferred: "yearly" });
-                  if (!result.ok && result.error && !result.cancelled) {
-                    // Fallback to subscription page
-                    router.push("/subscription?source=settings");
-                  }
-                }}
-                className="flex-row items-center p-4"
-                style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-              >
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: `${themeColor}20` }}
-                >
-                  <Sparkles size={20} color={themeColor} />
-                </View>
-                <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-base font-medium">Upgrade to Founder Pro</Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited hosting</Text>
-                </View>
-                <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
-                  <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>
-                </View>
-              </Pressable>
-            )}
-
-            {/* Restore Purchases */}
-            <Pressable
-              onPress={handleRestorePurchases}
-              disabled={isRestoringPurchases}
-              className="flex-row items-center p-4"
-              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-              >
-                <RotateCcw size={20} color={colors.textSecondary} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">
-                  {isRestoringPurchases ? "Restoring..." : "Restore Purchases"}
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  Recover previous purchases
-                </Text>
-              </View>
-            </Pressable>
-
-            {/* Refresh Status Button */}
-            <Pressable
-              onPress={handleRefreshEntitlements}
-              disabled={isRefreshingEntitlements || entitlementsLoading}
-              className="flex-row items-center p-4"
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-              >
-                <RotateCcw size={20} color={colors.textSecondary} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">
-                  {isRefreshingEntitlements ? "Refreshing..." : "Refresh Pro Status"}
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  Sync your Founder Pro status
-                </Text>
-              </View>
-            </Pressable>
-          </View>
+              }
+            }}
+            onRestorePurchases={handleRestorePurchases}
+            onRefreshEntitlements={handleRefreshEntitlements}
+          />
         </Animated.View>
 
         {/* Birthdays Section */}
