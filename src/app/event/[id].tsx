@@ -109,6 +109,7 @@ import { DiscussionCard } from "@/components/event/DiscussionCard";
 import { WhosComingCard } from "@/components/event/WhosComingCard";
 import { AboutCard } from "@/components/event/AboutCard";
 import { SocialProofRow } from "@/components/event/SocialProofRow";
+import { RsvpSuccessPrompt } from "@/components/event/RsvpSuccessPrompt";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2797,43 +2798,19 @@ export default function EventDetailScreen() {
 
                 {/* [GROWTH_V1] Inline success prompt — "Want to bring someone?" */}
                 {showRsvpSuccessPrompt && myRsvpStatus === "going" && (
-                  <Animated.View entering={FadeInDown.duration(300)} style={{ marginBottom: 10 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        padding: 14,
-                        borderRadius: RADIUS.lg,
-                        backgroundColor: isDark ? "#1C2520" : "#F0FDF4",
-                        borderWidth: 1,
-                        borderColor: STATUS.going.border,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: STATUS.going.fg }}>You're in!</Text>
-                        <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>Let friends know — share this event</Text>
-                      </View>
-                      <Pressable
-                        onPress={() => {
-                          trackRsvpSuccessPromptTap({ source: "event" });
-                          trackInviteShared({ entity: "event", sourceScreen: "rsvp_success" });
-                          trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setShowRsvpSuccessPrompt(false);
-                          if (event) shareEvent({ ...event, location: locationDisplay ?? null });
-                        }}
-                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, marginLeft: 8, backgroundColor: STATUS.going.fg }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Share</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => setShowRsvpSuccessPrompt(false)}
-                        style={{ marginLeft: 8, padding: 4 }}
-                      >
-                        <X size={14} color={colors.textTertiary} />
-                      </Pressable>
-                    </View>
-                  </Animated.View>
+                  <RsvpSuccessPrompt
+                    isDark={isDark}
+                    colors={colors}
+                    onShare={() => {
+                      trackRsvpSuccessPromptTap({ source: "event" });
+                      trackInviteShared({ entity: "event", sourceScreen: "rsvp_success" });
+                      trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowRsvpSuccessPrompt(false);
+                      if (event) shareEvent({ ...event, location: locationDisplay ?? null });
+                    }}
+                    onDismiss={() => setShowRsvpSuccessPrompt(false)}
+                  />
                 )}
 
                 {/* [GROWTH_V1] Find Friends nudge — post-RSVP contacts import exposure */}
