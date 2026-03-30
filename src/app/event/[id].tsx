@@ -2894,7 +2894,11 @@ export default function EventDetailScreen() {
 
         {/* ═══ [EVENT_LIVE_UI] Host Reflection (post-event) ═══ */}
         {isMyEvent && !event.isBusy && (() => {
-          const eventEndTime = event.endTime ? new Date(event.endTime) : new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+          // Compute effective end for this occurrence (same logic as countdown label)
+          // For recurring events, endTime is the *original* occurrence's end — we need
+          // to shift it to the displayed occurrence using the event's duration.
+          const duration = endDate ? endDate.getTime() - originalStartDate.getTime() : 2 * 60 * 60 * 1000;
+          const eventEndTime = new Date(startDate.getTime() + duration);
           const hasEnded = new Date() > eventEndTime;
           const hasSummary = event.summary && event.summary.length > 0;
           const reflectionEnabled = event.reflectionEnabled === true;
@@ -3047,11 +3051,13 @@ export default function EventDetailScreen() {
         currentColorOverride={currentColorOverride}
         myRsvpStatus={myRsvpStatus}
         liveActivity={(() => {
-          const startMs = event ? new Date(event.startTime).getTime() : 0;
-          const endMs = event?.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+          // Use display-aware start (nextOccurrence for recurring) and compute end via duration
+          const effectiveStartMs = startDate.getTime();
+          const dur = endDate ? endDate.getTime() - originalStartDate.getTime() : 3600000;
+          const effectiveEndMs = effectiveStartMs + dur;
           const now = Date.now();
-          const hasEnded = now > endMs;
-          const startsWithin4h = startMs - now < 4 * 3600000;
+          const hasEnded = now > effectiveEndMs;
+          const startsWithin4h = effectiveStartMs - now < 4 * 3600000;
           const canToggle = liveActivitySupported && startsWithin4h;
           const subtitle = liveActivityActive
             ? "On \u2014 tracking countdown"
