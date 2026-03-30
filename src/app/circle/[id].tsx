@@ -112,6 +112,7 @@ import { CircleReactionPicker } from "@/components/circle/CircleReactionPicker";
 import { CircleAvailabilitySheet } from "@/components/circle/CircleAvailabilitySheet";
 import { CirclePlanLockSheet } from "@/components/circle/CirclePlanLockSheet";
 import { CirclePollSheet } from "@/components/circle/CirclePollSheet";
+import { CircleNotifyLevelSheet } from "@/components/circle/CircleNotifyLevelSheet";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3293,65 +3294,19 @@ export default function CircleScreen() {
       </BottomSheet>
 
       {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}
-      <BottomSheet
+      <CircleNotifyLevelSheet
         visible={showNotifySheet}
+        currentLevel={notifyLevel}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
         onClose={() => { setShowNotifySheet(false); if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_close", { sheet: "notification_level" }); }}
-        heightPct={0}
-        maxHeightPct={0.45}
-        backdropOpacity={0.5}
-        title="Notifications"
-      >
-        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
-          <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 16 }}>
-            Choose what you want to hear from this circle.
-          </Text>
-          {([
-            { key: "all" as const, label: "All activity", desc: "Messages, decisions, and events" },
-            { key: "decisions" as const, label: "Decisions only", desc: "Polls and plan lock updates" },
-            { key: "mentions" as const, label: "Mentions only", desc: "Only when you\u2019re mentioned" },
-            { key: "mute" as const, label: "Muted", desc: "No notifications from this circle" },
-          ]).map((opt) => (
-            <Pressable
-              key={opt.key}
-              onPress={() => {
-                if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "select", { level: opt.key });
-                Haptics.selectionAsync();
-                notifyLevelMutation.mutate(opt.key);
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                marginBottom: 6,
-                borderRadius: 12,
-                borderWidth: 1.5,
-                borderColor: notifyLevel === opt.key ? themeColor : colors.border,
-                backgroundColor: notifyLevel === opt.key ? (themeColor + "12") : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: notifyLevel === opt.key ? "600" : "400", color: notifyLevel === opt.key ? themeColor : colors.text }}>
-                  {opt.label}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{opt.desc}</Text>
-              </View>
-              <View style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                borderWidth: 2,
-                borderColor: notifyLevel === opt.key ? themeColor : colors.textTertiary,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: notifyLevel === opt.key ? themeColor : "transparent",
-              }}>
-                {notifyLevel === opt.key && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </BottomSheet>
+        onSelect={(level) => {
+          if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "select", { level });
+          Haptics.selectionAsync();
+          notifyLevelMutation.mutate(level);
+        }}
+      />
 
       {/* Members Sheet Modal */}
       <Modal
