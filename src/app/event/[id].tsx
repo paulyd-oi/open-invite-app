@@ -113,6 +113,7 @@ import { RsvpSuccessPrompt } from "@/components/event/RsvpSuccessPrompt";
 import { FindFriendsNudge } from "@/components/event/FindFriendsNudge";
 import { RsvpStatusDisplay } from "@/components/event/RsvpStatusDisplay";
 import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
+import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2690,31 +2691,12 @@ export default function EventDetailScreen() {
         {!isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
             {hasJoinRequest ? (
-              <Animated.View entering={FadeInDown.duration(300)}>
-                {/* [GROWTH_SOCIAL_PROOF] Reinforce decision for confirmed attendees */}
-                <SocialProofRow
-                  attendees={attendeesList}
-                  effectiveGoingCount={effectiveGoingCount}
-                  isDark={isDark}
-                  colors={colors}
-                />
-                <View style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 16,
-                  paddingHorizontal: 18,
-                  marginBottom: 18,
-                  borderRadius: RADIUS.xxl,
-                  backgroundColor: STATUS.going.bgSoft,
-                  borderWidth: 0.5,
-                  borderColor: STATUS.going.border,
-                }}>
-                  <Check size={18} color={STATUS.going.fg} />
-                  <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: STATUS.going.fg }}>You're Attending</Text>
-                  <Text style={{ marginLeft: 6, fontSize: 13, color: colors.textSecondary }}>· on your calendar</Text>
-                </View>
-              </Animated.View>
+              <ConfirmedAttendeeBanner
+                effectiveGoingCount={effectiveGoingCount}
+                attendees={attendeesList}
+                isDark={isDark}
+                colors={colors}
+              />
             ) : (
               <View style={{ marginBottom: 18 }}>
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
