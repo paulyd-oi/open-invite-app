@@ -296,7 +296,31 @@ export default function DiscoverScreen() {
       }
     });
 
-    const allEvents = Array.from(allEventsMap.values());
+    // Collapse recurring event instances into single entries per series.
+    // Backend may return separate rows per occurrence — keep only the one
+    // with the nearest upcoming time so each series appears once.
+    const seriesMap = new Map<string, PopularEvent>();
+    for (const event of allEventsMap.values()) {
+      if (event.isRecurring && event.recurrence && event.user?.id) {
+        const key = `series:${event.user.id}:${event.recurrence}:${event.title.toLowerCase().trim()}`;
+        const existing = seriesMap.get(key);
+        if (!existing) {
+          seriesMap.set(key, event);
+        } else {
+          // Keep the instance whose effective time is nearest in the future
+          const existTime = new Date(existing.nextOccurrence ?? existing.startTime).getTime();
+          const newTime = new Date(event.nextOccurrence ?? event.startTime).getTime();
+          if (newTime < existTime) {
+            seriesMap.set(key, event);
+          }
+        }
+      } else {
+        // Non-recurring: keep as-is (keyed by id, already deduped)
+        seriesMap.set(event.id, event);
+      }
+    }
+
+    const allEvents = Array.from(seriesMap.values());
     const now = new Date();
 
     // Enrich with canonical attendee count + filter to upcoming + non-private
