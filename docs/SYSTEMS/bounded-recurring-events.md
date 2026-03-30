@@ -1,7 +1,7 @@
 # Bounded Recurring Events
 
 > Migration from runtime recurrence interpretation to bounded generated occurrences.
-> Status: DESIGN — not yet implemented.
+> Status: PHASE 3 COMPLETE — new event creation generates bounded occurrences with seriesId/seriesIndex.
 > Created: 2026-03-30.
 
 ---
