@@ -115,6 +115,7 @@ import { RsvpStatusDisplay } from "@/components/event/RsvpStatusDisplay";
 import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { PhotoNudge } from "@/components/event/PhotoNudge";
+import { EditPhotoButton } from "@/components/event/EditPhotoButton";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -2599,27 +2600,17 @@ export default function EventDetailScreen() {
               themeId={event.themeId ?? null}
               editButton={
                 isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-                  <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>
-                    <Pressable
-                      onPress={() => {
-                        if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
-                        RNAnimated.sequence([
-                          RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
-                          RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
-                        ]).start();
-                        setShowPhotoSheet(true);
-                      }}
-                      style={{
-                        borderRadius: 20,
-                        padding: 8,
-                        backgroundColor: "rgba(0,0,0,0.55)",
-                        borderWidth: 1,
-                        borderColor: "rgba(255,255,255,0.15)",
-                      }}
-                    >
-                      <Pencil size={16} color="#fff" />
-                    </Pressable>
-                  </RNAnimated.View>
+                  <EditPhotoButton
+                    editScale={editScale}
+                    onPress={() => {
+                      if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
+                      RNAnimated.sequence([
+                        RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
+                        RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+                      ]).start();
+                      setShowPhotoSheet(true);
+                    }}
+                  />
                 ) : undefined
               }
               photoNudge={
