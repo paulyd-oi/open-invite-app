@@ -97,6 +97,7 @@ import { SettingsThemeSection } from "@/components/settings/SettingsThemeSection
 import { SettingsBirthdaySection } from "@/components/settings/SettingsBirthdaySection";
 import { SettingsWorkScheduleSection, type WorkScheduleDay, type WorkScheduleSettings } from "@/components/settings/SettingsWorkScheduleSection";
 import { SettingsSubscriptionSection } from "@/components/settings/SettingsSubscriptionSection";
+import { SettingsNotificationsDevTools } from "@/components/settings/SettingsNotificationsDevTools";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -152,75 +153,7 @@ function SettingItem({ icon, title, subtitle, onPress, onLongPress, rightElement
   );
 }
 
-// DEV-only: Dead-letter counter row for offline queue diagnostics
-/** DEV-only replay button with in-flight guard + analytics. Tag: [P0_OFFLINE_QUEUE_REPLAY] */
-function ReplayQueueButton({ isDark }: { isDark: boolean }) {
-  const [replaying, setReplaying] = useState(false);
-
-  return (
-    <SettingItem
-      icon={<RefreshCw size={20} color={replaying ? "#9CA3AF" : "#10B981"} />}
-      title={replaying ? "Replaying…" : "Replay Offline Queue"}
-      subtitle={replaying ? "In progress — please wait" : "Manually trigger queue replay"}
-      isDark={isDark}
-      onPress={async () => {
-        if (replaying) return; // guard against double-tap
-        setReplaying(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "triggered");
-        const t0 = Date.now();
-        try {
-          const result = await replayQueue();
-          const durationMs = Date.now() - t0;
-          devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "done", result);
-          trackOfflineQueueReplayResult({
-            success: result.success,
-            processed: result.failed === 0 ? 1 : 0, // coarse: no per-item count yet
-            failed: result.failed,
-            durationMs,
-          });
-          safeToast.success(
-            "Queue Replayed",
-            result.success
-              ? "All actions synced successfully."
-              : `Completed with ${result.failed} failed action(s).`,
-          );
-        } catch (e) {
-          devError("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "error", e);
-          trackOfflineQueueReplayResult({ success: false, processed: 0, failed: 0, durationMs: Date.now() - t0 });
-          safeToast.error("Replay Failed", String(e));
-        } finally {
-          setReplaying(false);
-        }
-      }}
-    />
-  );
-}
-
-function DeadLetterDebugRow({ isDark }: { isDark: boolean }) {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    getDeadLetterCount().then((c) => { if (mounted) setCount(c); });
-    return () => { mounted = false; };
-  }, []);
-
-  return (
-    <SettingItem
-      icon={<Trash2 size={20} color="#F97316" />}
-      title={`Dead Letters: ${count ?? "…"}`}
-      subtitle="Offline actions that exceeded max retries"
-      isDark={isDark}
-      onPress={async () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await clearDeadLetterCount();
-        setCount(0);
-        safeToast.success("Cleared", "Dead letter counter reset to 0.");
-      }}
-    />
-  );
-}
+// DEV-only components (ReplayQueueButton, DeadLetterDebugRow) moved to SettingsNotificationsDevTools
 
 // Referral Counter Component with code display and referrer input
 function ReferralCounterSection({
@@ -1721,151 +1654,19 @@ export default function SettingsScreen() {
               }}
             />
             {/* Push Diagnostics - visible only to allowlisted testers in DEV builds */}
-            {canShowPushDiagnostics && (
-              <>
-                {__DEV__ && devLog("[P0_PUSH_DIAG_GONE] rendered=true")}
-                <SettingItem
-                  icon={<Bell size={20} color="#10B981" />}
-                  title="Push Diagnostics"
-                  subtitle={isPushDiagRunning ? "Running..." : "Test push token registration"}
-                  isDark={isDark}
-                  onPress={handlePushDiagnostics}
-                />
-              </>
-            )}
-            {/* P0_PUSH_REG: Force re-register push token (DEV only) */}
-            {__DEV__ && (
-              <SettingItem
-                icon={<Bell size={20} color="#F59E0B" />}
-                title="Force Re-register Push"
-                subtitle="Bypass throttle, re-register token now"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  devLog("[P0_PUSH_REG] FORCE_REREGISTER triggered from Settings");
-                  await ensurePushRegistered({ reason: "settings_force", force: true });
-                }}
-              />
-            )}
-            {/* P0_PUSH_TWO_ENDED: View/clear push receipts (DEV only) */}
-            {__DEV__ && (
-              <SettingItem
-                icon={<Bell size={20} color="#8B5CF6" />}
-                title="View Push Receipts"
-                subtitle="Last 20 registration + delivery events"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  const entries = await getRecentReceipts();
-                  if (entries.length === 0) {
-                    Alert.alert("Push Receipts", "No receipts recorded yet.");
-                    return;
-                  }
-                  const lines = entries.map((r, i) => {
-                    const t = r.ts.split("T")[1]?.split(".")[0] ?? r.ts;
-                    const det = Object.entries(r.details).map(([k, v]) => `${k}=${String(v)}`).join(" ");
-                    return `${i + 1}. [${t}] ${r.kind} u=${r.userId} ${det}`;
-                  });
-                  Alert.alert(`Push Receipts (${entries.length})`, lines.join("\n"));
-                }}
-              />
-            )}
-            {__DEV__ && (
-              <SettingItem
-                icon={<Trash2 size={20} color="#EF4444" />}
-                title="Clear Push Receipts"
-                subtitle="Remove all stored receipt entries"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  await clearPushReceipts();
-                  safeToast.success("Cleared", "Push receipts cleared.");
-                }}
-              />
-            )}
-            {/* P0_PUSH_UI_INVALIDATION: View query invalidation/refetch receipts (DEV only) */}
-            {__DEV__ && (
-              <SettingItem
-                icon={<FileText size={20} color="#06B6D4" />}
-                title="View Query Receipts"
-                subtitle="Last 20 invalidation + refetch events"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  const all = await getRecentReceipts();
-                  const queryEntries = all.filter((r) => r.kind === "query_invalidate" || r.kind === "query_refetch");
-                  if (queryEntries.length === 0) {
-                    Alert.alert("Query Receipts", "No query receipts recorded yet.");
-                    return;
-                  }
-                  const lines = queryEntries.slice(0, 20).map((r, i) => {
-                    const t = r.ts.split("T")[1]?.split(".")[0] ?? r.ts;
-                    const qk = String(r.details.queryKeyName ?? "?");
-                    const rsn = String(r.details.reason ?? "?");
-                    const cid = r.details.circleId ? ` cid=${String(r.details.circleId).slice(0, 6)}` : "";
-                    return `${i + 1}. [${t}] ${r.kind} ${qk} reason=${rsn}${cid}`;
-                  });
-                  Alert.alert(`Query Receipts (${queryEntries.length})`, lines.join("\n"));
-                }}
-              />
-            )}
-            {/* P0_DIAG_BUNDLE: Copy full diagnostics bundle to clipboard (DEV only) */}
-            {__DEV__ && (
-              <SettingItem
-                icon={<Copy size={20} color="#14B8A6" />}
-                title="Copy Diagnostics Bundle"
-                subtitle="Push + query receipts + device + session → clipboard"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  try {
-                    const bundle = await buildDiagnosticsBundle(
-                      session?.user?.id ?? null,
-                      session?.user?.email ?? null,
-                    );
-                    await Clipboard.setStringAsync(JSON.stringify(bundle, null, 2));
-                    safeToast.success("Copied", "Diagnostics bundle copied to clipboard.");
-                  } catch (e) {
-                    devError("[P0_DIAG_BUNDLE] export failed", e);
-                    safeToast.error("Export Failed", "Could not build diagnostics bundle.");
-                  }
-                }}
-              />
-            )}
-            {/* P0_OFFLINE_DEAD_LETTER: View/clear dead-lettered offline actions (DEV only) */}
-            {__DEV__ && (
-              <DeadLetterDebugRow isDark={isDark} />
-            )}
-            {/* P0_OFFLINE_QUEUE_REPLAY_MANUAL: Replay offline queue (DEV only) */}
-            {__DEV__ && (
-              <ReplayQueueButton isDark={isDark} />
-            )}
-            {/* P0_OFFLINE_QUEUE_EXPORT: Export offline queue JSON (DEV only) */}
-            {__DEV__ && (
-              <SettingItem
-                icon={<Copy size={20} color="#6366F1" />}
-                title="Export Offline Queue JSON"
-                subtitle="Copy queue payload to clipboard"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  devLog("[P0_OFFLINE_QUEUE_EXPORT]", "triggered");
-                  try {
-                    const queue = await loadQueue();
-                    const json = JSON.stringify(queue, null, 2);
-                    await Clipboard.setStringAsync(json);
-                    devLog("[P0_OFFLINE_QUEUE_EXPORT]", "copied", { count: queue.length });
-                    safeToast.success(
-                      "Copied",
-                      `${queue.length} queued action(s) copied to clipboard.`,
-                    );
-                  } catch (e) {
-                    devError("[P0_OFFLINE_QUEUE_EXPORT]", "error", e);
-                    safeToast.error("Export Failed", String(e));
-                  }
-                }}
-              />
-            )}
+            <SettingsNotificationsDevTools
+              canShowPushDiagnostics={canShowPushDiagnostics}
+              isPushDiagRunning={isPushDiagRunning}
+              isDark={isDark}
+              sessionUserId={session?.user?.id ?? null}
+              sessionUserEmail={session?.user?.email ?? null}
+              onPushDiagnostics={handlePushDiagnostics}
+              onForceReregister={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                devLog("[P0_PUSH_REG] FORCE_REREGISTER triggered from Settings");
+                await ensurePushRegistered({ reason: "settings_force", force: true });
+              }}
+            />
           </View>
         </Animated.View>
 
