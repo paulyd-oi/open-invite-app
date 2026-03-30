@@ -110,6 +110,7 @@ import { CircleCreateEventModal } from "@/components/circle/CircleCreateEventMod
 import { CircleEditMessageOverlay } from "@/components/circle/CircleEditMessageOverlay";
 import { CircleReactionPicker } from "@/components/circle/CircleReactionPicker";
 import { CircleAvailabilitySheet } from "@/components/circle/CircleAvailabilitySheet";
+import { CirclePlanLockSheet } from "@/components/circle/CirclePlanLockSheet";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2792,105 +2793,40 @@ export default function CircleScreen() {
       />
 
       {/* [P1_PLAN_LOCK_UI] Plan Lock Sheet */}
-      <BottomSheet
+      <CirclePlanLockSheet
         visible={showPlanLockSheet}
+        isLocked={planLock?.locked ?? false}
+        draftNote={planLockDraftNote}
+        isHost={isHost}
+        isPending={planLockMutation.isPending}
+        colors={colors}
+        isDark={isDark}
+        themeColor={themeColor}
         onClose={() => setShowPlanLockSheet(false)}
-        heightPct={0}
-        maxHeightPct={0.5}
-        backdropOpacity={0.5}
-        keyboardMode="padding"
-        title="Plan Lock"
-      >
-        <View style={{ paddingHorizontal: 20, paddingBottom: 24, gap: 16 }}>
-          {/* Toggle */}
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>
-              {planLock?.locked ? "\uD83D\uDD12 Locked" : "\uD83D\uDD13 Unlocked"}
-            </Text>
-            <Switch
-              value={planLock?.locked ?? false}
-              onValueChange={(val) => {
-                if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "toggle", { locked: val });
-                planLockMutation.mutate({ locked: val, note: planLockDraftNote.trim() });
-              }}
-              trackColor={{ false: isDark ? "#3A3A3C" : "#E5E7EB", true: themeColor }}
-            />
-          </View>
-
-          {/* Note editor */}
-          <View>
-            <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary, marginBottom: 6 }}>
-              Note (optional)
-            </Text>
-            <TextInput
-              value={planLockDraftNote}
-              onChangeText={(t) => setPlanLockDraftNote(t.slice(0, 120))}
-              placeholder="e.g. Dinner at 7pm confirmed"
-              placeholderTextColor={colors.textTertiary}
-              maxLength={120}
-              multiline
-              style={{
-                color: colors.text,
-                fontSize: 14,
-                backgroundColor: isDark ? "#1c1c1e" : "#f3f4f6",
-                borderRadius: 10,
-                padding: 12,
-                minHeight: 48,
-                maxHeight: 100,
-                textAlignVertical: "top",
-              }}
-            />
-            <Text style={{ fontSize: 11, color: colors.textTertiary, textAlign: "right", marginTop: 4 }}>
-              {planLockDraftNote.length}/120
-            </Text>
-          </View>
-
-          {/* Save */}
-          <Button
-            variant="primary"
-            label={planLockMutation.isPending ? "Saving\u2026" : "Save"}
-            onPress={() => {
-              if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
-              planLockMutation.mutate({ locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
-              setShowPlanLockSheet(false);
-            }}
-            disabled={planLockMutation.isPending}
-            loading={planLockMutation.isPending}
-            style={{ borderRadius: RADIUS.md }}
-          />
-
-          {/* [P1_LOCK_POLISH] Host-only unlock */}
-          {isHost && planLock?.locked && (
-            <Pressable
-              onPress={async () => {
-                if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_attempt");
-                try {
-                  await api.post(`/api/circles/${id}/plan-lock`, { locked: false, note: "" });
-                  queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
-                  if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_success");
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setShowPlanLockSheet(false);
-                } catch (e: any) {
-                  if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_error", { status: e?.status ?? "unknown" });
-                  safeToast.error("Unlock Failed", "Failed to unlock plan");
-                }
-              }}
-              style={{
-                paddingVertical: 14,
-                borderRadius: 12,
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "rgba(255,59,48,0.4)" : "rgba(255,59,48,0.3)",
-                backgroundColor: isDark ? "rgba(255,59,48,0.08)" : "rgba(255,59,48,0.06)",
-              }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: "600", color: "#FF3B30" }}>
-                Unlock plan
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      </BottomSheet>
+        onDraftNoteChange={setPlanLockDraftNote}
+        onToggleLock={(val) => {
+          if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "toggle", { locked: val });
+          planLockMutation.mutate({ locked: val, note: planLockDraftNote.trim() });
+        }}
+        onSave={() => {
+          if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
+          planLockMutation.mutate({ locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
+          setShowPlanLockSheet(false);
+        }}
+        onUnlock={async () => {
+          if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_attempt");
+          try {
+            await api.post(`/api/circles/${id}/plan-lock`, { locked: false, note: "" });
+            queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
+            if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_success");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setShowPlanLockSheet(false);
+          } catch (e: any) {
+            if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_error", { status: e?.status ?? "unknown" });
+            safeToast.error("Unlock Failed", "Failed to unlock plan");
+          }
+        }}
+      />
 
       {/* [P1_POLL_UI] Poll Detail Sheet */}
       <BottomSheet
