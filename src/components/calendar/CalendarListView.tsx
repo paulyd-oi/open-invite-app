@@ -45,12 +45,12 @@ export function ListView({
 
     events
       .filter((e) => {
-        const d = new Date(e.startTime);
+        const d = new Date((e as any).effectiveStartTime ?? e.startTime);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       })
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+      .sort((a, b) => new Date((a as any).effectiveStartTime ?? a.startTime).getTime() - new Date((b as any).effectiveStartTime ?? b.startTime).getTime())
       .forEach((event) => {
-        const dateKey = new Date(event.startTime).toDateString();
+        const dateKey = new Date((event as any).effectiveStartTime ?? event.startTime).toDateString();
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(event);
       });
