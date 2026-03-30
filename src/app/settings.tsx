@@ -101,6 +101,7 @@ import { SettingsNotificationsDevTools } from "@/components/settings/SettingsNot
 import { SettingsPushDiagnosticsModal } from "@/components/settings/SettingsPushDiagnosticsModal";
 import { SettingsAdminPasscodeModal } from "@/components/settings/SettingsAdminPasscodeModal";
 import { ReferralCounterSection } from "@/components/settings/ReferralCounterSection";
+import { SettingsProfileCard } from "@/components/settings/SettingsProfileCard";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -1236,58 +1237,25 @@ export default function SettingsScreen() {
       >
         {/* Profile Section */}
         {!showEditProfile ? (
-          <Animated.View entering={FadeInDown.delay(0).springify()} className="mx-4 mt-4">
-            <View
-              className="rounded-2xl p-5 flex-row items-center"
-              style={{
-                backgroundColor: colors.surface,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: isDark ? 0 : 0.05,
-                shadowRadius: 8,
-              }}
-            >
-              {/* Avatar: admin unlock tap target ONLY — no Edit Profile navigation */}
-              <Pressable
-                onPress={() => {
-                  handleAdminUnlockTap();
-                }}
-                className="mr-4"
-              >
-                <EntityAvatar
-                  imageSource={avatarSource}
-                  initials={getProfileInitial({ profileData, session })}
-                  size={64}
-                  borderRadius={32}
-                  backgroundColor={avatarSource ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}20`}
-                  foregroundColor={themeColor}
-                  fallbackIcon="person-outline"
-                />
-              </Pressable>
-              {/* Right side: Edit Profile navigation */}
-              <Pressable
-                className="flex-1 flex-row items-center"
-                onPress={() => {
-                  if (__DEV__) devLog("[P0_SETTINGS_PROFILE_NAV] edit_profile triggered");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
-                  setEditName(displayName);
-                  setEditImage(avatarUri || "");
-                  setEditBanner(null); // null = unchanged
-                  setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
-                  setShowEditProfile(true);
-                }}
-              >
-                <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-lg font-semibold">
-                    {getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">Tap to edit profile</Text>
-                </View>
-                <Text style={{ color: colors.textTertiary }} className="text-xl">›</Text>
-              </Pressable>
-            </View>
-          </Animated.View>
+          <SettingsProfileCard
+            avatarSource={avatarSource}
+            displayName={getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
+            colors={colors}
+            isDark={isDark}
+            themeColor={themeColor}
+            initials={getProfileInitial({ profileData, session })}
+            onAdminUnlockTap={handleAdminUnlockTap}
+            onEditProfile={() => {
+              if (__DEV__) devLog("[P0_SETTINGS_PROFILE_NAV] edit_profile triggered");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
+              setEditName(displayName);
+              setEditImage(avatarUri || "");
+              setEditBanner(null);
+              setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
+              setShowEditProfile(true);
+            }}
+          />
         ) : (
           <SettingsEditProfileSection
             editName={editName}
