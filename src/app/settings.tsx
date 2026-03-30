@@ -99,6 +99,7 @@ import { SettingsWorkScheduleSection, type WorkScheduleDay, type WorkScheduleSet
 import { SettingsSubscriptionSection } from "@/components/settings/SettingsSubscriptionSection";
 import { SettingsNotificationsDevTools } from "@/components/settings/SettingsNotificationsDevTools";
 import { SettingsPushDiagnosticsModal } from "@/components/settings/SettingsPushDiagnosticsModal";
+import { SettingsAdminPasscodeModal } from "@/components/settings/SettingsAdminPasscodeModal";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -2081,86 +2082,23 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Admin Unlock Passcode Modal */}
-      <Modal
+      <SettingsAdminPasscodeModal
         visible={showPasscodeModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        passcodeInput={passcodeInput}
+        passcodeError={passcodeError}
+        colors={colors}
+        isDark={isDark}
+        onClose={() => {
           setShowPasscodeModal(false);
           setPasscodeInput("");
           setPasscodeError(false);
         }}
-      >
-        <Pressable
-          className="flex-1 justify-center items-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => {
-            setShowPasscodeModal(false);
-            setPasscodeInput("");
-            setPasscodeError(false);
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            className="mx-6 rounded-2xl p-6"
-            style={{ backgroundColor: colors.surface, maxWidth: 320, width: "85%" }}
-          >
-            <Text className="text-lg font-bold text-center mb-3" style={{ color: colors.text }}>
-              Enter Code
-            </Text>
-            <Text className="text-sm text-center mb-4" style={{ color: colors.textSecondary }}>
-              Enter code to continue
-            </Text>
-            <TextInput
-              value={passcodeInput}
-              onChangeText={(text) => {
-                setPasscodeInput(text);
-                setPasscodeError(false);
-              }}
-              placeholder="Passcode"
-              placeholderTextColor={colors.textTertiary}
-              secureTextEntry
-              keyboardType="number-pad"
-              autoFocus
-              className="rounded-xl px-4 py-3 text-center text-lg mb-3"
-              style={{
-                backgroundColor: colors.separator,
-                color: colors.text,
-                borderWidth: passcodeError ? 2 : 0,
-                borderColor: passcodeError ? "#EF4444" : "transparent",
-              }}
-              onSubmitEditing={handlePasscodeSubmit}
-            />
-            {passcodeError && (
-              <Text className="text-sm text-center mb-3" style={{ color: "#EF4444" }}>
-                Incorrect passcode
-              </Text>
-            )}
-            <View className="flex-row gap-3">
-              <Button
-                variant="secondary"
-                label="Cancel"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowPasscodeModal(false);
-                  setPasscodeInput("");
-                  setPasscodeError(false);
-                }}
-                style={{ flex: 1, borderRadius: 12 }}
-              />
-              <Button
-                variant="primary"
-                label="Submit"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  handlePasscodeSubmit();
-                }}
-                style={{ flex: 1, borderRadius: 12 }}
-              />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onPasscodeChange={(text) => {
+          setPasscodeInput(text);
+          setPasscodeError(false);
+        }}
+        onSubmit={handlePasscodeSubmit}
+      />
 
       {/* Push Diagnostics Modal - DEV-only, never shown in production */}
       {canShowPushDiagnostics && (
