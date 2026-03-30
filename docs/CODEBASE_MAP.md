@@ -47,7 +47,7 @@ Two layers:
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `circle/[id].tsx` | 4331 | Circle detail: members, messaging, events, sharing, settings |
+| `circle/[id].tsx` | 2937 | Circle detail: members, messaging, events, sharing, settings |
 | `event/[id].tsx` | 3244 | Event detail: RSVP, attendees, sharing, discussion, deep-link entry |
 | `settings.tsx` | 3236 | Settings hub: profile, photo, theme, notifications, privacy, subscription |
 | `calendar.tsx` | 3205 | Home/calendar: multi-view (list, grid, strip), friend availability, quick actions |
@@ -97,7 +97,7 @@ Two layers:
 
 ---
 
-## src/components/ — Components (133 files, ~33,127 lines)
+## src/components/ — Components (149 files, ~35,594 lines)
 
 | File | Lines | Purpose |
 |------|------:|---------|
@@ -117,6 +117,7 @@ Two layers:
 | `FeedCalendar.tsx` | 524 | Monthly calendar grid for Social tab with day-agenda sheet |
 | `CircleCard.tsx` | 506 | Swipeable circle card: pin, mute, leave actions |
 | `circle/CircleAvailabilitySection.tsx` | 490 | Circle availability types, helpers, day-detail events |
+| `circle/CircleSettingsSheet.tsx` | 389 | Two-view settings sheet (settings + photo management) |
 | `SuggestedTimesPicker.tsx` | 475 | Smart scheduling modal querying friend busy windows |
 | `notifications/NotificationNudgeModal.tsx` | 474 | Push notification enable prompt, evolving copy |
 | `EmptyStates.tsx` | 451 | Library of themed empty-state configs (icons, copy, actions) |
@@ -126,6 +127,21 @@ Two layers:
 | `paywall/PaywallModal.tsx` | 405 | Feature-limit paywall modal with premium benefits |
 | `event/AboutCard.tsx` | 371 | Event About: description, bring list, pitch-in, capacity |
 | `circle/CircleChatSection.tsx` | 340 | Chat bubbles, date separators, system event parsing |
+| `circle/CircleMembersSheet.tsx` | 251 | Full members list + add-members section |
+| `circle/CircleAddMembersModal.tsx` | 187 | Friend selection modal for adding circle members |
+| `circle/CircleHeaderChrome.tsx` | 142 | Floating BlurView header with avatar stack and create button |
+| `circle/CirclePollSheet.tsx` | 138 | Poll voting sheet with winner highlight and lock-plan bridge |
+| `circle/CircleAvailabilitySheet.tsx` | 136 | Tonight's availability roster display |
+| `circle/CircleChatOverlays.tsx` | 134 | Scroll-to-bottom, new messages pill, failed banner, typing indicator |
+| `circle/CircleNextEventCard.tsx` | 130 | Collapsible next-event anchor card with date formatting |
+| `circle/CirclePlanLockSheet.tsx` | 126 | Plan lock toggle with note editing and host unlock |
+| `circle/CircleRemoveMemberModal.tsx` | 117 | Destructive confirmation modal for removing a member |
+| `circle/CircleEditMessageOverlay.tsx` | 91 | Fullscreen overlay for editing a sent message |
+| `circle/CircleFriendSuggestionModal.tsx` | 90 | Post-add suggestion modal showing matched friends |
+| `circle/CircleNotifyLevelSheet.tsx` | 89 | Notification level radio picker |
+| `circle/CircleCreateEventModal.tsx` | 88 | Confirm modal for creating a circle-scoped event |
+| `circle/CircleLifecycleChips.tsx` | 83 | Finalized chip and completion/run-it-back prompt |
+| `circle/CircleReactionPicker.tsx` | 76 | Emoji reaction grid overlay with selection state |
 | `EventReactions.tsx` | 337 | Emoji reaction picker with spring animation |
 | `EmptyState.tsx` | 326 | Animated empty state with pulsing icon and optional CTA |
 | `event/DiscussionCard.tsx` | 313 | Event discussion: text posts, image attachments, prompts |
