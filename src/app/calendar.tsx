@@ -961,22 +961,18 @@ export default function CalendarScreen() {
     return allEvents.filter((event) => {
       if (!event.startTime) return false;
 
-      const start = getEffectiveStart(event);
+      // Use backend-computed effective times directly
+      const start = new Date(event.effectiveStartTime ?? event.startTime);
       if (isNaN(start.getTime())) return false;
 
-      // Compute end using event duration applied to effective start
-      const originalStart = new Date(event.startTime);
-      const originalEnd =
-        event.endTime && !isNaN(new Date(event.endTime).getTime())
-          ? new Date(event.endTime)
-          : new Date(originalStart.getTime() + 60 * 60 * 1000);
-      const duration = originalEnd.getTime() - originalStart.getTime();
-      const end = new Date(start.getTime() + duration);
+      const end = event.effectiveEndTime
+        ? new Date(event.effectiveEndTime)
+        : new Date(start.getTime() + 60 * 60 * 1000); // 1hr default
 
       // Overlap test
       return start <= dayEnd && end >= dayStart;
     });
-  }, [allEvents, getEffectiveStart]);
+  }, [allEvents]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -1061,7 +1057,7 @@ export default function CalendarScreen() {
   const calendarGesture = Gesture.Race(swipeMonthGesture, pinchGesture);
 
   const selectedDateEvents = getEventsForDate(selectedDate).sort(
-    (a, b) => getEffectiveStart(a).getTime() - getEffectiveStart(b).getTime()
+    (a, b) => new Date(a.effectiveStartTime ?? a.startTime).getTime() - new Date(b.effectiveStartTime ?? b.startTime).getTime()
   );
 
   // Render calendar cell based on view mode
