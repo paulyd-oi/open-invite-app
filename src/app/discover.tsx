@@ -52,7 +52,7 @@ import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
-import type { GetEventsResponse, GetFriendsHostedFeedResponse } from "@/shared/contracts";
+import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
 
 // ── Urgency helper — derives a human-readable time label from startTime ──
 function getUrgencyLabel(startTime: string): { label: string; tone: "soon" | "warm" | null } {
@@ -230,6 +230,17 @@ export default function DiscoverScreen() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
+
+  // Friend count for nudge gating — shares cache key with Friends/Calendar/etc.
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 120_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+  const friendCount = friendsData?.friends?.length ?? -1; // -1 = not yet loaded
 
   const friendHostUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -599,8 +610,8 @@ export default function DiscoverScreen() {
                     );
                   })}
                 </View>
-                {/* ═══ Friend Nudge — low friend signal ═══ */}
-                {friendHostData && (friendHostData.events?.length ?? 0) === 0 && activeFeed.length > 0 && (
+                {/* ═══ Friend Nudge — zero friends ═══ */}
+                {friendCount === 0 && activeFeed.length > 0 && (
                   <Pressable
                     onPress={() => router.push("/add-friends" as any)}
                     style={{
