@@ -108,6 +108,7 @@ import { CircleFriendSuggestionModal } from "@/components/circle/CircleFriendSug
 import { CircleRemoveMemberModal } from "@/components/circle/CircleRemoveMemberModal";
 import { CircleCreateEventModal } from "@/components/circle/CircleCreateEventModal";
 import { CircleEditMessageOverlay } from "@/components/circle/CircleEditMessageOverlay";
+import { CircleReactionPicker } from "@/components/circle/CircleReactionPicker";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -3845,65 +3846,23 @@ export default function CircleScreen() {
       />
 
       {/* [P2_CHAT_REACTIONS] Emoji reaction picker overlay */}
-      {reactionTargetId !== null && (
-        <Pressable
-          style={{
-            position: "absolute",
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          onPress={() => setReactionTargetId(null)}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              backgroundColor: isDark ? "#2c2c2e" : "#ffffff",
-              borderRadius: 28,
-              paddingHorizontal: 8,
-              paddingVertical: 6,
-              shadowColor: "#000",
-              shadowOpacity: 0.15,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 8,
-            }}
-          >
-            {REACTION_EMOJI.map((emoji) => {
-              const isSelected = (reactionsByStableId[reactionTargetId] ?? []).includes(emoji);
-              return (
-                <Pressable
-                  key={emoji}
-                  onPress={() => {
-                    setReactionsByStableId((prev) => {
-                      const existing = prev[reactionTargetId] ?? [];
-                      const next = existing.includes(emoji)
-                        ? existing.filter((e) => e !== emoji)
-                        : [...existing, emoji];
-                      if (__DEV__) devLog("[P2_CHAT_REACTIONS]", existing.includes(emoji) ? "clear" : "select", { emoji, messageId: reactionTargetId });
-                      return { ...prev, [reactionTargetId]: next };
-                    });
-                    setReactionTargetId(null);
-                  }}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: isSelected
-                      ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)")
-                      : "transparent",
-                  }}
-                >
-                  <Text style={{ fontSize: 26 }}>{emoji}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      )}
+      <CircleReactionPicker
+        visible={reactionTargetId !== null}
+        selectedReactions={reactionTargetId !== null ? (reactionsByStableId[reactionTargetId] ?? []) : []}
+        isDark={isDark}
+        onClose={() => setReactionTargetId(null)}
+        onSelect={(emoji) => {
+          setReactionsByStableId((prev) => {
+            const existing = prev[reactionTargetId!] ?? [];
+            const next = existing.includes(emoji)
+              ? existing.filter((e) => e !== emoji)
+              : [...existing, emoji];
+            if (__DEV__) devLog("[P2_CHAT_REACTIONS]", existing.includes(emoji) ? "clear" : "select", { emoji, messageId: reactionTargetId });
+            return { ...prev, [reactionTargetId!]: next };
+          });
+          setReactionTargetId(null);
+        }}
+      />
 
       {/* ─── [P0_CHAT_ANCHOR] DEV-only Chat QA Panel ─── */}
       {__DEV__ && (
