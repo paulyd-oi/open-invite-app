@@ -116,6 +116,7 @@ import { CircleNotifyLevelSheet } from "@/components/circle/CircleNotifyLevelShe
 import { CircleMembersSheet } from "@/components/circle/CircleMembersSheet";
 import { CircleSettingsSheet } from "@/components/circle/CircleSettingsSheet";
 import { CircleHeaderChrome } from "@/components/circle/CircleHeaderChrome";
+import { CircleNextEventCard } from "@/components/circle/CircleNextEventCard";
 
 // Icon components using Ionicons
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
@@ -2039,109 +2040,23 @@ export default function CircleScreen() {
         })()}
 
         {/* [P1_NEXT_EVENT_ANCHOR] Collapsible next-event anchor */}
-        {nextCircleEvent && (() => {
-          const eventDate = new Date(nextCircleEvent.startTime);
-          const now = new Date();
-          const diffMs = eventDate.getTime() - now.getTime();
-          const diffDays = Math.floor(diffMs / 86_400_000);
-          const diffHours = Math.floor(diffMs / 3_600_000);
-
-          let relativeLabel = "";
-          if (diffHours < 1) relativeLabel = "Starting soon";
-          else if (diffHours < 24) relativeLabel = `In ${diffHours}h`;
-          else if (diffDays === 1) relativeLabel = "Tomorrow";
-          else relativeLabel = `In ${diffDays} days`;
-
-          const dateStr = eventDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-          const timeStr = eventDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-          const accentColor = nextCircleEvent.color || themeColor;
-
-          return (
-            <View
-              style={{
-                marginHorizontal: 16,
-                marginTop: 6,
-                marginBottom: 10,
-                borderRadius: upNextExpanded ? 16 : 12,
-                borderWidth: 1.5,
-                borderColor: isDark ? accentColor + "30" : accentColor + "22",
-                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)",
-                overflow: "hidden",
-              }}
-            >
-              {/* Summary row — always visible, toggles expand */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setUpNextExpanded((v) => !v);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  backgroundColor: accentColor + "18",
-                }}
-              >
-                <Calendar size={14} color={accentColor} />
-                <Text
-                  numberOfLines={1}
-                  style={{ fontSize: 12, fontWeight: "700", color: accentColor, textTransform: "uppercase", letterSpacing: 0.5, marginLeft: 6, flex: 1 }}
-                >
-                  Up Next · {relativeLabel}
-                </Text>
-                {upNextExpanded ? (
-                  <ChevronUp size={14} color={accentColor} />
-                ) : (
-                  <ChevronDown size={14} color={accentColor} />
-                )}
-              </Pressable>
-
-              {/* Expanded event tile — matches UPCOMING thread card style */}
-              {upNextExpanded && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/event/${nextCircleEvent.id}` as any);
-                  }}
-                >
-                  {/* Banner photo strip */}
-                  {nextCircleEvent.eventPhotoUrl ? (
-                    <Image
-                      source={{ uri: nextCircleEvent.eventPhotoUrl }}
-                      style={{ width: "100%", height: 72, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
-                      resizeMode="cover"
-                    />
-                  ) : null}
-                  <View style={{ paddingHorizontal: 18, paddingTop: nextCircleEvent.eventPhotoUrl ? 10 : 16, paddingBottom: 18 }}>
-                    <Text
-                      numberOfLines={2}
-                      style={{ fontSize: 17, fontWeight: "700", color: colors.text }}
-                    >
-                      {nextCircleEvent.emoji ? `${nextCircleEvent.emoji} ` : ""}{nextCircleEvent.title}
-                    </Text>
-                    {nextCircleEvent.description ? (
-                      <Text numberOfLines={2} style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 }}>
-                        {nextCircleEvent.description}
-                      </Text>
-                    ) : null}
-                    <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 6 }}>
-                      {dateStr} · {timeStr}
-                    </Text>
-                    {nextCircleEvent.location ? (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>
-                        <MapPin size={12} color={colors.textTertiary} />
-                        <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textTertiary, flex: 1 }}>
-                          {nextCircleEvent.location}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </Pressable>
-              )}
-            </View>
-          );
-        })()}
+        {nextCircleEvent && (
+          <CircleNextEventCard
+            event={nextCircleEvent}
+            expanded={upNextExpanded}
+            colors={colors}
+            isDark={isDark}
+            themeColor={themeColor}
+            onToggleExpand={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setUpNextExpanded((v) => !v);
+            }}
+            onNavigateToEvent={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(`/event/${nextCircleEvent.id}` as any);
+            }}
+          />
+        )}
 
         {/* Messages List */}
         <FlatList
