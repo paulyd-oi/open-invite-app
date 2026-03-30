@@ -289,6 +289,7 @@ export default function DiscoverScreen() {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
 
+    // Step 1: id-based dedup (merge feed + my events)
     const allEventsMap = new Map<string, PopularEvent>();
     [...feedEvents, ...myEvents].forEach((event) => {
       if (!allEventsMap.has(event.id)) {
@@ -296,18 +297,25 @@ export default function DiscoverScreen() {
       }
     });
 
-    // Collapse recurring event instances into single entries per series.
+    if (__DEV__) console.log("[DISCOVER_DEDUP] RAW feed+my:", feedEvents.length + myEvents.length, "after id-dedup:", allEventsMap.size);
+
+    // Step 2: Collapse recurring event instances into single entries per series.
     // Backend may return separate rows per occurrence — keep only the one
     // with the nearest upcoming time so each series appears once.
+    // Uses TWO strategies:
+    //   A) Full series key (isRecurring + recurrence + userId + title)
+    //   B) Fallback: same host + same title (catches events where recurrence field is missing)
     const seriesMap = new Map<string, PopularEvent>();
+    const titleDedupMap = new Map<string, PopularEvent>();
+
     for (const event of allEventsMap.values()) {
+      // Strategy A: explicit recurring field match
       if (event.isRecurring && event.recurrence && event.user?.id) {
         const key = `series:${event.user.id}:${event.recurrence}:${event.title.toLowerCase().trim()}`;
         const existing = seriesMap.get(key);
         if (!existing) {
           seriesMap.set(key, event);
         } else {
-          // Keep the instance whose effective time is nearest in the future
           const existTime = new Date(existing.nextOccurrence ?? existing.startTime).getTime();
           const newTime = new Date(event.nextOccurrence ?? event.startTime).getTime();
           if (newTime < existTime) {
@@ -315,12 +323,27 @@ export default function DiscoverScreen() {
           }
         }
       } else {
-        // Non-recurring: keep as-is (keyed by id, already deduped)
-        seriesMap.set(event.id, event);
+        // Strategy B: title+host dedup for events missing recurrence metadata
+        // (backend may return duplicates with unique ids but identical host+title)
+        const hostTitleKey = `ht:${event.user?.id ?? "anon"}:${event.title.toLowerCase().trim()}`;
+        const existing = titleDedupMap.get(hostTitleKey);
+        if (!existing) {
+          titleDedupMap.set(hostTitleKey, event);
+        } else {
+          // Keep the nearest upcoming occurrence
+          const existTime = new Date(existing.nextOccurrence ?? existing.startTime).getTime();
+          const newTime = new Date(event.nextOccurrence ?? event.startTime).getTime();
+          if (newTime < existTime) {
+            titleDedupMap.set(hostTitleKey, event);
+          }
+        }
       }
     }
 
-    const allEvents = Array.from(seriesMap.values());
+    // Merge both maps (series keys and title-dedup keys are disjoint by prefix)
+    const allEvents = [...seriesMap.values(), ...titleDedupMap.values()];
+
+    if (__DEV__) console.log("[DISCOVER_DEDUP] after series collapse:", allEvents.length, "(series:", seriesMap.size, "title:", titleDedupMap.size, ")");
     const now = new Date();
 
     // Enrich with canonical attendee count + filter to upcoming + non-private
