@@ -330,6 +330,7 @@ export default function CircleScreen() {
 
   // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
   const [chromeHeight, setChromeHeight] = useState(0);
+  const [calendarAreaHeight, setCalendarAreaHeight] = useState(0);
   const [showCalendar, setShowCalendar] = useState(true);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
@@ -1814,6 +1815,87 @@ export default function CircleScreen() {
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+        {/* Persistent calendar area — fixed overlay between header and chat */}
+        <View
+          style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 19, backgroundColor: colors.background }}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h !== calendarAreaHeight) setCalendarAreaHeight(h);
+          }}
+        >
+          {/* Calendar Toggle */}
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowCalendar(!showCalendar);
+              setCalendarCollapsedByKeyboard(false);
+            }}
+            className="flex-row items-center justify-center py-2 border-b"
+            style={{ borderColor: colors.border }}
+          >
+            <Calendar size={14} color={themeColor} />
+            <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>
+              {showCalendar ? "Hide" : "Show"} Calendar
+            </Text>
+            {showCalendar ? (
+              <ChevronUp size={14} color={themeColor} style={{ marginLeft: 4 }} />
+            ) : (
+              <ChevronDown size={14} color={themeColor} style={{ marginLeft: 4 }} />
+            )}
+          </Pressable>
+
+          {/* Mini Calendar */}
+          {showCalendar && circle.memberEvents && (() => {
+            const totalEvents = circle.memberEvents.reduce((sum, m) => sum + m.events.length, 0);
+
+            if (totalEvents === 0) {
+              return (
+                <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3 pb-4">
+                  <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface }}>
+                    <View
+                      className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                      style={{ backgroundColor: colors.surfaceElevated }}
+                    >
+                      <Calendar size={24} color={colors.textTertiary} />
+                    </View>
+                    <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
+                      Nothing planned yet
+                    </Text>
+                    <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
+                      Create the first event for this group
+                    </Text>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      label="Create Event"
+                      onPress={() => {
+                        router.push({
+                          pathname: "/create",
+                          params: { circleId: id },
+                        } as any);
+                      }}
+                    />
+                  </View>
+                </Animated.View>
+              );
+            }
+
+            return (
+              <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
+                <MiniCalendar
+                  memberEvents={circle.memberEvents}
+                  members={members}
+                  themeColor={themeColor}
+                  colors={colors}
+                  isDark={isDark}
+                  circleId={id!}
+                  currentUserId={session?.user?.id ?? null}
+                />
+              </Animated.View>
+            );
+          })()}
+        </View>
+
         {/* Messages List */}
         <FlatList
           ref={flatListRef}
@@ -1822,7 +1904,7 @@ export default function CircleScreen() {
           initialNumToRender={15}
           maxToRenderPerBatch={10}
           windowSize={11}
-          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight, paddingBottom: 8 }}
+          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight + calendarAreaHeight, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -1835,78 +1917,6 @@ export default function CircleScreen() {
           }
           ListHeaderComponent={
             <View style={{ marginHorizontal: -16 }}>
-              {/* Calendar Toggle */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowCalendar(!showCalendar);
-                  setCalendarCollapsedByKeyboard(false);
-                }}
-                className="flex-row items-center justify-center py-2 border-b"
-                style={{ borderColor: colors.border }}
-              >
-                <Calendar size={14} color={themeColor} />
-                <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>
-                  {showCalendar ? "Hide" : "Show"} Calendar
-                </Text>
-                {showCalendar ? (
-                  <ChevronUp size={14} color={themeColor} style={{ marginLeft: 4 }} />
-                ) : (
-                  <ChevronDown size={14} color={themeColor} style={{ marginLeft: 4 }} />
-                )}
-              </Pressable>
-
-              {/* Mini Calendar */}
-              {showCalendar && circle.memberEvents && (() => {
-                const totalEvents = circle.memberEvents.reduce((sum, m) => sum + m.events.length, 0);
-
-                if (totalEvents === 0) {
-                  return (
-                    <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3 pb-4">
-                      <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface }}>
-                        <View
-                          className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                          style={{ backgroundColor: colors.surfaceElevated }}
-                        >
-                          <Calendar size={24} color={colors.textTertiary} />
-                        </View>
-                        <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
-                          Nothing planned yet
-                        </Text>
-                        <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
-                          Create the first event for this group
-                        </Text>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          label="Create Event"
-                          onPress={() => {
-                            router.push({
-                              pathname: "/create",
-                              params: { circleId: id },
-                            } as any);
-                          }}
-                        />
-                      </View>
-                    </Animated.View>
-                  );
-                }
-
-                return (
-                  <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
-                    <MiniCalendar
-                      memberEvents={circle.memberEvents}
-                      members={members}
-                      themeColor={themeColor}
-                      colors={colors}
-                      isDark={isDark}
-                      circleId={id!}
-                      currentUserId={session?.user?.id ?? null}
-                    />
-                  </Animated.View>
-                );
-              })()}
-
               {/* [P1_LIFECYCLE_UI] Finalized Chip + Completion Prompt */}
               <CircleLifecycleChips
                 lifecycleState={lifecycleState}
