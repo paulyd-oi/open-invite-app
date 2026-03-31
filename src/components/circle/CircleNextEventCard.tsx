@@ -58,8 +58,8 @@ export function CircleNextEventCard({
         marginBottom: 10,
         borderRadius: expanded ? 16 : 12,
         borderWidth: 1.5,
-        borderColor: isDark ? accentColor + "30" : accentColor + "22",
-        backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)",
+        borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)",
+        backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.72)",
         overflow: "hidden",
       }}
     >
