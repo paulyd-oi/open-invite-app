@@ -1,6 +1,6 @@
 # Claude Runtime Index — Open Invite
 
-**App:** Social coordination iOS app (Expo + React Native)
+**App:** Social coordination app (Expo + React Native) — iOS primary, Android confirmed target
 
 ---
 
@@ -27,6 +27,7 @@
   react-native-gesture-handler for gestures.
   lucide-react-native for icons.
   All packages pre-installed. DO NOT install new packages unless @expo-google-font or pure JS helpers.
+  Android is a confirmed target. Do NOT use iOS-only APIs (ActionSheetIOS, etc.). All UI must use cross-platform RN primitives.
 </stack>
 ```
 

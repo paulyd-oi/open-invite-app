@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Check, Heart, Users, Share2 } from "@/ui/icons";
@@ -20,7 +20,7 @@ interface StickyRsvpBarProps {
   themeColor?: string;
   onRsvpGoing: () => void;
   onRsvpInterested: () => void;
-  onChangeRsvp?: () => void;
+  onRsvpNotGoing?: () => void;
   onShare?: () => void;
 }
 
@@ -52,12 +52,13 @@ export function StickyRsvpBar({
   colors,
   onRsvpGoing,
   onRsvpInterested,
-  onChangeRsvp,
+  onRsvpNotGoing,
   onShare,
 }: StickyRsvpBarProps) {
   const saveGlass = isDark ? GLASS.save.dark : GLASS.save.light;
   const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
   const isConfirmed = myRsvpStatus === "going";
+  const [showingChange, setShowingChange] = useState(false);
 
   return (
     <Animated.View
@@ -79,10 +80,48 @@ export function StickyRsvpBar({
           {effectiveGoingCount} going
         </Text>
       )}
-      {isConfirmed ? (
+      {isConfirmed && showingChange ? (
+        /* ── Change-RSVP row: "Not Going" + "Never mind" ── */
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, opacity: isPending ? 0.6 : 1 }}>
+          <Pressable
+            onPress={() => { onRsvpNotGoing?.(); setShowingChange(false); }}
+            disabled={isPending}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: isDark ? "rgba(239,68,68,0.20)" : "rgba(239,68,68,0.12)",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(239,68,68,0.35)" : "rgba(239,68,68,0.25)",
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "700", color: "#EF4444" }}>Not Going</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowingChange(false)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              paddingHorizontal: 20,
+              borderRadius: 16,
+              backgroundColor: saveGlass.bg,
+              borderWidth: 1,
+              borderColor: saveGlass.border,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Never mind</Text>
+          </Pressable>
+        </View>
+      ) : isConfirmed ? (
+        /* ── Confirmed row: "You're In" + "Share" ── */
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <Pressable
-            onPress={onChangeRsvp}
+            onPress={() => setShowingChange(true)}
             style={{
               flex: 1,
               flexDirection: "row",

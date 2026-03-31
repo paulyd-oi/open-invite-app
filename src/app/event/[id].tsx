@@ -14,7 +14,6 @@ import {
   StyleSheet,
   useWindowDimensions,
   Animated as RNAnimated,
-  ActionSheetIOS,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -2898,12 +2897,7 @@ export default function EventDetailScreen() {
           themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
           onRsvpInterested={() => handleRsvp("interested")}
-          onChangeRsvp={() => {
-            ActionSheetIOS.showActionSheetWithOptions(
-              { options: ["Cancel", "Not Going"], cancelButtonIndex: 0, destructiveButtonIndex: 1 },
-              (index) => { if (index === 1) handleRsvp("not_going"); },
-            );
-          }}
+          onRsvpNotGoing={() => handleRsvp("not_going")}
           onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
         />
       )}
