@@ -56,12 +56,15 @@ interface FriendDiscoverySurfaceProps {
   showSkipButton?: boolean;
   onSkip?: () => void;
   onFriendAdded?: () => void;
+  /** Rendered below suggestions, inside the ScrollView */
+  children?: React.ReactNode;
 }
 
 export function FriendDiscoverySurface({
   showSkipButton = false,
   onSkip,
-  onFriendAdded
+  onFriendAdded,
+  children,
 }: FriendDiscoverySurfaceProps) {
   // *** PROOF LOG: Component entry - ALWAYS LOG ***
   console.log(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
@@ -608,6 +611,9 @@ export function FriendDiscoverySurface({
             })
           )}
         </View>
+
+        {/* Slot for extra content (e.g. contacts scan results) */}
+        {children}
 
         {/* Skip button for onboarding */}
         {showSkipButton && (
