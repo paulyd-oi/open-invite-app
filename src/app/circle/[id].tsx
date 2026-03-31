@@ -1815,9 +1815,11 @@ export default function CircleScreen() {
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Persistent calendar area — fixed overlay between header and chat */}
-        <View
-          style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 19, backgroundColor: colors.background }}
+        {/* Persistent calendar area — glass overlay between header and chat */}
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 19, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
           onLayout={(e) => {
             const h = e.nativeEvent.layout.height;
             if (h !== calendarAreaHeight) setCalendarAreaHeight(h);
@@ -1894,7 +1896,7 @@ export default function CircleScreen() {
               </Animated.View>
             );
           })()}
-        </View>
+        </BlurView>
 
         {/* Messages List */}
         <FlatList
