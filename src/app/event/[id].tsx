@@ -995,9 +995,8 @@ export default function EventDetailScreen() {
   }
 
   const isMyEvent = event?.userId === session?.user?.id;
-  // Card color override — when set, overrides content card surface backgrounds
-  const eventCardColor = (event as any)?.cardColor as string | null | undefined;
-  const cardSurfaceBg = eventCardColor || (isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)");
+  // Content card surface — theme-derived only (cardColor scoped to InviteFlipCard via its own prop)
+  const cardSurfaceBg = isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)";
   const hasJoinRequest = event?.joinRequests?.some(
     (r) => r.userId === session?.user?.id && r.status === "accepted"
   );
