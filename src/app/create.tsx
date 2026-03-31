@@ -153,6 +153,12 @@ export default function CreateEventScreen() {
   const [bringListItems, setBringListItems] = useState<string[]>([]);
   const [bringListInput, setBringListInput] = useState("");
 
+  // Privacy & Display state
+  const [showGuestList, setShowGuestList] = useState(true);
+  const [showGuestCount, setShowGuestCount] = useState(true);
+  const [showLocationPreRsvp, setShowLocationPreRsvp] = useState(false);
+  const [hideWebLocation, setHideWebLocation] = useState(false);
+
   // Event Themes V1 state
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
 
@@ -495,6 +501,12 @@ export default function CreateEventScreen() {
       setCardColor((editEvent as any).cardColor);
     }
 
+    // Privacy & Display
+    setShowGuestList((editEvent as any).showGuestList ?? true);
+    setShowGuestCount((editEvent as any).showGuestCount ?? true);
+    setShowLocationPreRsvp((editEvent as any).showLocationPreRsvp ?? false);
+    setHideWebLocation((editEvent as any).hideWebLocation ?? false);
+
     setIsEditLoaded(true);
   }, [isEditMode, editEvent, isEditLoaded]);
 
@@ -678,6 +690,11 @@ export default function CreateEventScreen() {
         : {}),
       // Card Color — explicit hex override
       ...(cardColor ? { cardColor } : {}),
+      // Privacy & Display
+      showGuestList,
+      showGuestCount,
+      showLocationPreRsvp,
+      hideWebLocation,
     };
     if (__DEV__) console.log("[CREATE_PAYLOAD] cardColor:", cardColor, "payload.cardColor:", (createPayload as any).cardColor);
     if (isEditMode) {
@@ -1029,6 +1046,14 @@ export default function CreateEventScreen() {
           onSetBringListItems: setBringListItems,
           bringListInput,
           onSetBringListInput: setBringListInput,
+          showGuestList,
+          onSetShowGuestList: setShowGuestList,
+          showGuestCount,
+          onSetShowGuestCount: setShowGuestCount,
+          showLocationPreRsvp,
+          onSetShowLocationPreRsvp: setShowLocationPreRsvp,
+          hideWebLocation,
+          onSetHideWebLocation: setHideWebLocation,
           showNudgeBanner,
           onNudgeUpgrade: handleNudgeUpgrade,
           onNudgeDismiss: handleNudgeDismiss,

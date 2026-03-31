@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { Check, Heart, Users, Share2 } from "@/ui/icons";
+import { Heart, Users, Share2 } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
   text: string;
@@ -65,6 +65,7 @@ export function StickyRsvpBar({
   const mutedGlass = isDark ? GLASS.muted.dark : GLASS.muted.light;
   const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
   const isConfirmed = myRsvpStatus === "going";
+  const isDeclined = myRsvpStatus === "not_going";
   const [showOptions, setShowOptions] = useState(false);
 
   // Close floating options when RSVP status changes (mutation completed)
@@ -168,6 +169,52 @@ export function StickyRsvpBar({
                 <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Never mind</Text>
               </AnimatedPressable>
             </>
+          ) : isDeclined ? (
+            /* Post-decline options: "Change to Going" + "Never mind" */
+            <>
+              <AnimatedPressable
+                onPress={onRsvpGoing}
+                disabled={isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 24,
+                  backgroundColor: GLASS.going.bg,
+                  borderWidth: 1,
+                  borderColor: GLASS.going.border,
+                  shadowColor: GLASS.going.shadow.color,
+                  shadowOffset: GLASS.going.shadow.offset,
+                  shadowOpacity: GLASS.going.shadow.opacity,
+                  shadowRadius: GLASS.going.shadow.radius,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                {isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>I'm going</Text>
+                )}
+              </AnimatedPressable>
+              <AnimatedPressable
+                onPress={() => setShowOptions(false)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 24,
+                  backgroundColor: mutedGlass.bg,
+                  borderWidth: 1,
+                  borderColor: mutedGlass.border,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Never mind</Text>
+              </AnimatedPressable>
+            </>
           ) : (
             /* Pre-RSVP options: "I'm going" + "Can't go" */
             <>
@@ -233,7 +280,7 @@ export function StickyRsvpBar({
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            paddingVertical: 13,
+            paddingVertical: 14,
             borderRadius: 16,
             backgroundColor: fullGlass.bg,
             borderWidth: 1,
@@ -250,7 +297,7 @@ export function StickyRsvpBar({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              paddingVertical: 13,
+              paddingVertical: 14,
               paddingHorizontal: 20,
               borderRadius: 16,
               backgroundColor: mutedGlass.bg,
@@ -285,8 +332,7 @@ export function StickyRsvpBar({
               shadowRadius: GLASS.going.shadow.radius,
             }}
           >
-            <Check size={16} color="#FFFFFF" />
-            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Going ✓</Text>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Going ✓</Text>
           </Pressable>
           {onShare && (
             <Pressable
@@ -307,6 +353,48 @@ export function StickyRsvpBar({
               <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
             </Pressable>
           )}
+        </View>
+      ) : isDeclined ? (
+        /* Post-decline: red "Can't go" + "Save" */
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <Pressable
+            onPress={() => setShowOptions(!showOptions)}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: GLASS.cantGo.bg,
+              borderWidth: 1,
+              borderColor: GLASS.cantGo.border,
+              shadowColor: GLASS.cantGo.shadow.color,
+              shadowOffset: GLASS.cantGo.shadow.offset,
+              shadowOpacity: GLASS.cantGo.shadow.opacity,
+              shadowRadius: GLASS.cantGo.shadow.radius,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Can't go</Text>
+          </Pressable>
+          <Pressable
+            onPress={onRsvpInterested}
+            disabled={isPending}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              paddingHorizontal: 20,
+              borderRadius: 16,
+              backgroundColor: mutedGlass.bg,
+              borderWidth: 1,
+              borderColor: mutedGlass.border,
+            }}
+          >
+            <Heart size={16} color={colors.text} />
+            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Save</Text>
+          </Pressable>
         </View>
       ) : (
         /* Pre-RSVP: "Going?" (muted) + "Save" */

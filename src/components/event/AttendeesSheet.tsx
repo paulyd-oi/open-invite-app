@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import * as Haptics from "expo-haptics";
-import { UserCheck, X, AlertTriangle, Users, RefreshCw } from "@/ui/icons";
+import { UserCheck, X, AlertTriangle, Users, RefreshCw, UserPlus } from "@/ui/icons";
 import { RADIUS } from "@/ui/layout";
 import { UserListRow } from "@/components/UserListRow";
 import BottomSheet from "@/components/BottomSheet";
@@ -14,6 +14,13 @@ interface Attendee {
   name: string | null;
   imageUrl?: string | null;
   isHost?: boolean;
+}
+
+interface GuestRsvpEntry {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
 }
 
 interface AttendeesSheetColors {
@@ -29,6 +36,7 @@ interface AttendeesSheetProps {
   hasError: boolean;
   isPrivacyDenied: boolean;
   attendees: Attendee[];
+  guestGoingList: GuestRsvpEntry[];
   effectiveGoingCount: number;
   hostUserId: string | undefined;
   isDark: boolean;
@@ -45,6 +53,7 @@ export function AttendeesSheet({
   hasError,
   isPrivacyDenied,
   attendees,
+  guestGoingList,
   effectiveGoingCount,
   hostUserId,
   isDark,
@@ -156,6 +165,36 @@ export function AttendeesSheet({
                 />
               </View>
             ))}
+
+            {/* Guest RSVPs section */}
+            {guestGoingList.length > 0 && (
+              <>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 8 }}>
+                  <UserPlus size={16} color="#6B7280" />
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginLeft: 8 }}>
+                    Guests
+                  </Text>
+                </View>
+                {guestGoingList.map((guest) => (
+                  <View
+                    key={guest.id}
+                    style={{
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
+                    <UserListRow
+                      handle={null}
+                      displayName={guest.name}
+                      bio={null}
+                      avatarUri={null}
+                      badgeText="Guest"
+                      onPress={() => {}}
+                    />
+                  </View>
+                ))}
+              </>
+            )}
           </>
         )}
       </KeyboardAwareScrollView>

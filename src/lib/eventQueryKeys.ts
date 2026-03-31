@@ -91,6 +91,7 @@ export const eventKeys = {
   rsvp: (id: string) => ["events", id, "rsvp"] as const,
   mute: (id: string) => ["events", id, "mute"] as const,
   attendees: (id: string) => ["events", "attendees", id] as const, // [P0_RSVP_SOT] Who's Coming list
+  rsvps: (id: string) => ["events", id, "rsvps"] as const, // Grouped RSVPs (going/interested/not_going)
   photos: (id: string) => ["events", id, "photos"] as const,
   
   // Feed/list keys
@@ -145,6 +146,7 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
   return [
     eventKeys.single(eventId),
     eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
+    eventKeys.rsvps(eventId), // Grouped RSVPs (not_going section)
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
     eventKeys.feed(),
@@ -166,6 +168,7 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
   return [
     eventKeys.single(eventId),
     eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
+    eventKeys.rsvps(eventId), // Grouped RSVPs (not_going section)
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
     eventKeys.feed(),

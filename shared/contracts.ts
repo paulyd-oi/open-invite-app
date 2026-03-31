@@ -145,6 +145,20 @@ export const eventSchema = z.object({
     claimedByUserId: z.string().nullable().optional(),
     claimedByName: z.string().nullable().optional(),
   })).optional(),
+  // Guest RSVPs (web event page — no email/phone/token exposed)
+  // SYNC: Must match guestRsvpItemSchema in backend contracts + publicEvents.ts serialization
+  guestRsvps: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.string(),
+    createdAt: z.string(),
+  })).optional(),
+  // Guest RSVP privacy flags (raw booleans — app decides UI logic)
+  // SYNC: Must match event model privacy booleans in prisma/schema.prisma
+  showGuestList: z.boolean().optional(),
+  showGuestCount: z.boolean().optional(),
+  showLocationPreRsvp: z.boolean().optional(),
+  hideWebLocation: z.boolean().optional(),
 });
 export type Event = z.infer<typeof eventSchema>;
 
@@ -155,6 +169,38 @@ export type EventVisibility = "all_friends" | "specific_groups" | "circle_only" 
 export type RsvpStatusMutation = "going" | "interested" | "not_going";
 /** RSVP status values the server may return (includes legacy "maybe"). */
 export type RsvpStatusResponse = "going" | "interested" | "not_going" | "maybe";
+
+// ============================================
+// Guest RSVP (web event page, no auth)
+// SYNC: Must match backend src/shared/contracts.ts Guest RSVP section
+// ============================================
+
+// POST /api/events/:id/rsvp/guest - Guest RSVP (no auth required)
+export const guestRsvpRequestSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email().max(200).optional(),
+  status: z.enum(["going", "not_going"]),
+});
+export type GuestRsvpRequest = z.infer<typeof guestRsvpRequestSchema>;
+
+// Response from guest RSVP create/upsert
+export const guestRsvpResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.enum(["going", "not_going"]),
+  token: z.string(),
+  createdAt: z.string(),
+});
+export type GuestRsvpResponse = z.infer<typeof guestRsvpResponseSchema>;
+
+// Guest RSVP item in event detail response (no email/phone/token)
+export const guestRsvpItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.string(),
+  createdAt: z.string(),
+});
+export type GuestRsvpItem = z.infer<typeof guestRsvpItemSchema>;
 
 // GET /api/events - Get user's events
 export const getEventsResponseSchema = z.object({
@@ -237,6 +283,11 @@ export const createEventRequestSchema = z.object({
   customEffectConfig: z.any().nullable().optional(),
   // Card Color — explicit hex override for card backgrounds (null = use theme default)
   cardColor: z.string().max(9).nullable().optional(),
+  // Privacy & Display — control guest/location visibility on web
+  showGuestList: z.boolean().optional(),
+  showGuestCount: z.boolean().optional(),
+  showLocationPreRsvp: z.boolean().optional(),
+  hideWebLocation: z.boolean().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

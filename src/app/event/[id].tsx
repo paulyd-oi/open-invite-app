@@ -1069,6 +1069,15 @@ export default function EventDetailScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
   });
 
+  // Fetch grouped RSVPs (includes not_going users for Who's Coming)
+  type RsvpUser = { id: string; name: string | null; image: string | null };
+  type GroupedRsvps = { going: RsvpUser[]; interested: RsvpUser[]; not_going: RsvpUser[]; maybe: RsvpUser[] };
+  const { data: groupedRsvpsData } = useQuery({
+    queryKey: eventKeys.rsvps(id ?? ""),
+    queryFn: () => api.get<GroupedRsvps>(`/api/events/${id}/rsvps`),
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
+  });
+
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
     queryKey: eventKeys.rsvp(id ?? ""),
@@ -1215,11 +1224,22 @@ export default function EventDetailScreen() {
   
   // [P0_RSVP_SOT] Use canonical derivation for count
   const derivedCount = deriveAttendeeCount(event);
-  
+
+  // Guest RSVPs from event detail response (Phase 1 — no additional fetch)
+  const guestRsvps = (event as any)?.guestRsvps as Array<{ id: string; name: string; status: string; createdAt: string }> | undefined;
+  const guestGoingList = (guestRsvps ?? []).filter((g) => g.status === "going");
+  const guestNotGoingList = (guestRsvps ?? []).filter((g) => g.status === "not_going");
+  const guestGoingCount = guestGoingList.length;
+  // Privacy flags from event detail
+  const showGuestList = (event as any)?.showGuestList !== false;
+  const showGuestCount = (event as any)?.showGuestCount !== false;
+
   // [P1_EVENT_META] COUNT SSOT — single source of truth for displayed count.
   // INVARIANT: displayedCount MUST derive exclusively from eventMeta.goingCount (owner: eventKeys.single).
   // attendeesData is for roster list only, NOT for count display.
-  const effectiveGoingCount = eventMeta.goingCount ?? 0;
+  // guestGoingCount adds web guest RSVPs (from event detail response, not from array length when counts hidden).
+  const baseGoingCount = eventMeta.goingCount ?? 0;
+  const effectiveGoingCount = showGuestCount ? baseGoingCount + guestGoingCount : baseGoingCount;
   // Alias for backward compat — all UI must use effectiveGoingCount
   const totalGoing = effectiveGoingCount;
 
@@ -1258,7 +1278,8 @@ export default function EventDetailScreen() {
   }
 
   const interests = interestsData?.event_interest ?? [];
-  
+  const notGoingUsers = groupedRsvpsData?.not_going ?? [];
+
   // ============================================
   // INVARIANT [P0_RSVP]: myRsvpStatus is the SOLE source of truth for RSVP display.
   // Owner: eventKeys.rsvp(id) query → myRsvpData.
@@ -2658,6 +2679,11 @@ export default function EventDetailScreen() {
           myRsvpStatus={myRsvpStatus}
           isMyEvent={isMyEvent}
           interests={interests}
+          notGoingUsers={notGoingUsers}
+          guestGoingList={showGuestList ? guestGoingList : []}
+          guestNotGoingList={showGuestList ? guestNotGoingList : []}
+          showGuestList={showGuestList}
+          showGuestCount={showGuestCount}
           showInterestedUsers={showInterestedUsers}
           isDark={isDark}
           themeColor={themeColor}
@@ -3062,6 +3088,7 @@ export default function EventDetailScreen() {
         hasError={!!attendeesError}
         isPrivacyDenied={attendeesPrivacyDenied}
         attendees={attendeesList}
+        guestGoingList={showGuestList ? guestGoingList : []}
         effectiveGoingCount={effectiveGoingCount}
         hostUserId={event?.user?.id}
         isDark={isDark}

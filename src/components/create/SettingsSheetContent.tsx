@@ -86,6 +86,16 @@ interface SettingsSheetContentProps {
   bringListInput: string;
   onSetBringListInput: (v: string) => void;
 
+  // Privacy & Display
+  showGuestList: boolean;
+  onSetShowGuestList: (v: boolean) => void;
+  showGuestCount: boolean;
+  onSetShowGuestCount: (v: boolean) => void;
+  showLocationPreRsvp: boolean;
+  onSetShowLocationPreRsvp: (v: boolean) => void;
+  hideWebLocation: boolean;
+  onSetHideWebLocation: (v: boolean) => void;
+
   // Nudge
   showNudgeBanner: boolean;
   onNudgeUpgrade: () => void;
@@ -112,6 +122,8 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
     pitchInNote, onSetPitchInNote,
     bringListEnabled, onSetBringListEnabled, bringListItems, onSetBringListItems,
     bringListInput, onSetBringListInput,
+    showGuestList, onSetShowGuestList, showGuestCount, onSetShowGuestCount,
+    showLocationPreRsvp, onSetShowLocationPreRsvp, hideWebLocation, onSetHideWebLocation,
     showNudgeBanner, onNudgeUpgrade, onNudgeDismiss,
     entitlementsTimedOut, entitlementsLoading, hostingQuotaLoading, onRetryEntitlements,
   } = props;
@@ -558,6 +570,70 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
             )}
           </View>
         )}
+      </View>
+
+      {/* ── Privacy & Display ── */}
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 10 }}>Privacy & Display</Text>
+
+        {/* Show Guest List */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ color: glassText, fontSize: 14, fontWeight: "500" }}>Show Guest List</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Let guests see who else is coming</Text>
+          </View>
+          <Switch
+            value={showGuestList}
+            onValueChange={(value) => { Haptics.selectionAsync(); onSetShowGuestList(value); }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={showGuestList ? themeColor : glassTertiary}
+          />
+        </View>
+
+        {/* Show Guest Count */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ color: glassText, fontSize: 14, fontWeight: "500" }}>Show Guest Count</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Show how many people are going</Text>
+          </View>
+          <Switch
+            value={showGuestCount}
+            onValueChange={(value) => { Haptics.selectionAsync(); onSetShowGuestCount(value); }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={showGuestCount ? themeColor : glassTertiary}
+          />
+        </View>
+
+        {/* Show Full Address Before RSVP */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, opacity: hideWebLocation ? 0.4 : 1 }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ color: glassText, fontSize: 14, fontWeight: "500" }}>Show Full Address Before RSVP</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>
+              {hideWebLocation ? "Location is already hidden on web" : "Show the full event address on the web page before guests RSVP"}
+            </Text>
+          </View>
+          <Switch
+            value={showLocationPreRsvp}
+            disabled={hideWebLocation}
+            onValueChange={(value) => { Haptics.selectionAsync(); onSetShowLocationPreRsvp(value); }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={showLocationPreRsvp && !hideWebLocation ? themeColor : glassTertiary}
+          />
+        </View>
+
+        {/* Hide Location on Web */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ color: glassText, fontSize: 14, fontWeight: "500" }}>Hide Location on Web</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Completely hide the location on the shared web page</Text>
+          </View>
+          <Switch
+            value={hideWebLocation}
+            onValueChange={(value) => { Haptics.selectionAsync(); onSetHideWebLocation(value); }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={hideWebLocation ? themeColor : glassTertiary}
+          />
+        </View>
       </View>
 
       {/* ── Nudge banner ── */}

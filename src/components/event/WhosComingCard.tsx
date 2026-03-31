@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Lock, Users, Heart, ChevronRight } from "@/ui/icons";
+import { Lock, Users, Heart, XCircle, ChevronRight, UserPlus } from "@/ui/icons";
 import { STATUS } from "@/ui/tokens";
 import { RADIUS } from "@/ui/layout";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -33,6 +33,19 @@ interface WhosComingCardColors {
   textTertiary: string;
 }
 
+interface NotGoingUser {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
+interface GuestRsvpEntry {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
+
 interface WhosComingCardProps {
   attendeesPrivacyDenied: boolean;
   effectiveGoingCount: number;
@@ -42,6 +55,11 @@ interface WhosComingCardProps {
   myRsvpStatus: string | null;
   isMyEvent: boolean;
   interests: Interest[];
+  notGoingUsers: NotGoingUser[];
+  guestGoingList: GuestRsvpEntry[];
+  guestNotGoingList: GuestRsvpEntry[];
+  showGuestList: boolean;
+  showGuestCount: boolean;
   showInterestedUsers: boolean;
   isDark: boolean;
   themeColor: string;
@@ -63,6 +81,11 @@ export function WhosComingCard({
   myRsvpStatus,
   isMyEvent,
   interests,
+  notGoingUsers,
+  guestGoingList,
+  guestNotGoingList,
+  showGuestList,
+  showGuestCount,
   showInterestedUsers,
   isDark,
   themeColor,
@@ -70,6 +93,11 @@ export function WhosComingCard({
   onOpenAttendees,
   onToggleInterestedUsers,
 }: WhosComingCardProps) {
+  // Combine app user not-going with guest not-going for unified section
+  const allNotGoing = [
+    ...notGoingUsers.map((u) => ({ id: u.id, name: u.name ?? "Unknown", isGuest: false })),
+    ...guestNotGoingList.map((g) => ({ id: g.id, name: g.name, isGuest: true })),
+  ];
   return (
     <>
       {/* ═══ Who's Coming / Social Proof ═══ */}
@@ -290,6 +318,80 @@ export function WhosComingCard({
                 They might attend if the timing works
               </Text>
             </View>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Not Going Section (app users + guest declines) */}
+      {allNotGoing.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(120).springify()} className="mb-3">
+          <View className="flex-row items-center mb-2">
+            <XCircle size={16} color="#9CA3AF" />
+            <Text className="font-semibold ml-2" style={{ color: colors.textTertiary }}>
+              {allNotGoing.length} Can't go
+            </Text>
+          </View>
+          <View className="flex-row flex-wrap">
+            {allNotGoing.map((entry) => (
+              <View
+                key={entry.id}
+                className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB", opacity: 0.6 }}
+              >
+                <EntityAvatar
+                  photoUrl={null}
+                  initials={entry.name[0] ?? "?"}
+                  size={24}
+                  backgroundColor={isDark ? "#3C3C3E" : "#E5E7EB"}
+                  foregroundColor="#9CA3AF"
+                  style={{ marginRight: 8 }}
+                />
+                <Text className="text-sm" style={{ color: colors.textTertiary }}>
+                  {entry.name}
+                </Text>
+                {entry.isGuest && (
+                  <View style={{ marginLeft: 6, backgroundColor: isDark ? "#3C3C3E" : "#E5E7EB", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: colors.textTertiary }}>Guest</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Guests Section (web RSVPs with status "going") */}
+      {guestGoingList.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(125).springify()} className="mb-3">
+          <View className="flex-row items-center mb-2">
+            <UserPlus size={16} color="#6B7280" />
+            <Text className="font-semibold ml-2" style={{ color: colors.textTertiary }}>
+              {showGuestCount ? `${guestGoingList.length} ` : ""}Guests
+            </Text>
+          </View>
+          <View className="flex-row flex-wrap">
+            {guestGoingList.map((guest) => (
+              <View
+                key={guest.id}
+                className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+              >
+                <EntityAvatar
+                  photoUrl={null}
+                  initials={guest.name[0] ?? "?"}
+                  size={24}
+                  backgroundColor={isDark ? "#3A3A5C" : "#EEF2FF"}
+                  foregroundColor="#6366F1"
+                  style={{ marginRight: 8 }}
+                />
+                <Text className="text-sm" style={{ color: colors.text }}>
+                  {guest.name}
+                </Text>
+                <View style={{ marginLeft: 6, backgroundColor: isDark ? "#3A3A5C" : "#EEF2FF", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "600", color: "#6366F1" }}>Guest</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </Animated.View>
       )}
