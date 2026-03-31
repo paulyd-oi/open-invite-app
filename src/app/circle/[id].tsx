@@ -62,7 +62,6 @@ import {
   Lock,
   type LucideIcon,
 } from "@/ui/icons";
-import { BlurView } from "expo-blur";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import { UserListRow } from "@/components/UserListRow";
@@ -329,8 +328,7 @@ export default function CircleScreen() {
   const [showTryAnother, setShowTryAnother] = useState(!!draftVariants);
 
   // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
-  const [chromeHeight, setChromeHeight] = useState(0);
-  const [calendarAreaHeight, setCalendarAreaHeight] = useState(340);
+  const [chromeHeight, setChromeHeight] = useState(340);
   const [showCalendar, setShowCalendar] = useState(true);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
@@ -1788,7 +1786,7 @@ export default function CircleScreen() {
     <SafeAreaView className="flex-1" edges={[]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Floating BlurView header chrome */}
+      {/* Floating BlurView header chrome — single glass surface for header + calendar */}
       <CircleHeaderChrome
         circleName={circle.name}
         circleEmoji={circle.emoji}
@@ -1808,23 +1806,7 @@ export default function CircleScreen() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           setShowCreateEvent(true);
         }}
-      />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Persistent calendar area — glass overlay between header and chat */}
-        <BlurView
-          intensity={88}
-          tint={isDark ? "dark" : "light"}
-          style={{ position: "absolute", top: chromeHeight - 1, left: 0, right: 0, zIndex: 19, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
-          onLayout={(e) => {
-            const h = e.nativeEvent.layout.height;
-            if (h !== calendarAreaHeight) setCalendarAreaHeight(h);
-          }}
-        >
           {/* Calendar Toggle */}
           <Pressable
             onPress={() => {
@@ -1896,8 +1878,13 @@ export default function CircleScreen() {
               </Animated.View>
             );
           })()}
-        </BlurView>
+      </CircleHeaderChrome>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
         {/* Messages List */}
         <FlatList
           ref={flatListRef}
@@ -1906,7 +1893,7 @@ export default function CircleScreen() {
           initialNumToRender={15}
           maxToRenderPerBatch={10}
           windowSize={11}
-          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight + calendarAreaHeight, paddingBottom: 8 }}
+          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
