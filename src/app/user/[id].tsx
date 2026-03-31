@@ -283,8 +283,12 @@ function EventCard({ event, index }: { event: Event; index: number }) {
 }
 
 // FriendCalendar Component (for friend events in unlocked state)
-function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: string }) {
-  const router = useRouter();
+function FriendCalendar({ events, themeColor, selectedDate, onSelectDate }: {
+  events: Event[];
+  themeColor: string;
+  selectedDate: string | null;
+  onSelectDate: (dateKey: string | null) => void;
+}) {
   const { isDark, colors } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -325,28 +329,11 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
   };
 
   const handleDayPress = (day: number) => {
-    const selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const dateKey = selectedDate.toDateString();
-    const dayEvents = eventsByDate.get(dateKey);
-
-    if (dayEvents && dayEvents.length > 0) {
-      const firstEvent = dayEvents[0];
-      // [P0_VISIBILITY] Proof log: friend calendar tap (always friend-of-host since this is their calendar)
-      if (__DEV__) {
-        devLog('[P0_VISIBILITY] Friend calendar tap navigating:', {
-          sourceSurface: 'friend-calendar',
-          eventIdPrefix: firstEvent.id?.slice(0, 6),
-          hostIdPrefix: firstEvent.userId?.slice(0, 6),
-          isBusy: false,
-          viewerFriendOfHost: true, // This calendar only shows friend's events, viewer IS friend of host
-          decision: 'full_details',
-          reason: 'friend_of_host',
-        });
-      }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Navigate to the first event of that day
-      router.push(`/event/${firstEvent.id}` as any);
-    }
+    const tappedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateKey = tappedDate.toDateString();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Toggle: tap same date again clears filter
+    onSelectDate(selectedDate === dateKey ? null : dateKey);
   };
 
   const renderDays = () => {
@@ -374,6 +361,7 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
       const dayEvents = eventsByDate.get(dateKey) ?? [];
       const hasEvents = dayEvents.length > 0;
       const isToday = today.toDateString() === dateKey;
+      const isSelected = selectedDate === dateKey;
 
       days.push(
         <Pressable
@@ -383,18 +371,30 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
         >
           <View
             className={`w-8 h-8 rounded-full items-center justify-center ${
-              isToday ? "border-2" : ""
-            } ${hasEvents ? "" : ""}`}
+              isToday && !isSelected ? "border-2" : ""
+            }`}
             style={{
-              borderColor: isToday ? themeColor : undefined,
-              backgroundColor: hasEvents ? themeColor + "20" : undefined,
+              borderColor: isToday && !isSelected ? themeColor : undefined,
+              backgroundColor: isSelected
+                ? themeColor
+                : hasEvents
+                  ? themeColor + "20"
+                  : undefined,
             }}
           >
             <Text
               className={`text-sm ${
-                hasEvents ? "font-semibold" : "font-normal"
+                hasEvents || isSelected ? "font-semibold" : "font-normal"
               }`}
-              style={{ color: hasEvents ? themeColor : isToday ? themeColor : colors.text }}
+              style={{
+                color: isSelected
+                  ? "#FFFFFF"
+                  : hasEvents
+                    ? themeColor
+                    : isToday
+                      ? themeColor
+                      : colors.text,
+              }}
             >
               {day}
             </Text>
@@ -442,6 +442,7 @@ export default function UserProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   // ===== [P0_SELF_PROFILE] INVARIANT: viewer must never land on /user/self =====
   const viewerId = session?.user?.id;
@@ -1074,29 +1075,46 @@ export default function UserProfileScreen() {
                       {user.name?.split(" ")[0] ?? "Their"}'s Calendar
                     </Text>
                   </View>
-                  <FriendCalendar events={allFriendCalendarEvents} themeColor={themeColor} />
+                  <FriendCalendar
+                    events={allFriendCalendarEvents}
+                    themeColor={themeColor}
+                    selectedDate={selectedCalendarDate}
+                    onSelectDate={setSelectedCalendarDate}
+                  />
                 </Animated.View>
 
                 {/* Events Section */}
-                <View className="flex-row items-center mb-3">
-                  <Calendar size={18} color="#4ECDC4" />
-                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                    Open Invites ({friendEvents.length})
-                  </Text>
-                </View>
+                {(() => {
+                  const displayEvents = selectedCalendarDate
+                    ? friendEvents.filter(e => new Date(e.startTime).toDateString() === selectedCalendarDate)
+                    : friendEvents;
+                  const dateLabel = selectedCalendarDate
+                    ? new Date(selectedCalendarDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    : null;
+                  return (
+                    <>
+                      <View className="flex-row items-center mb-3">
+                        <Calendar size={18} color="#4ECDC4" />
+                        <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                          {dateLabel ? `Events on ${dateLabel} (${displayEvents.length})` : `Open Invites (${friendEvents.length})`}
+                        </Text>
+                      </View>
 
-                {friendEvents.length === 0 ? (
-                  <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-                    <Text className="text-4xl mb-3">🎉</Text>
-                    <Text className="text-center" style={{ color: colors.textSecondary }}>
-                      No open invites from this friend yet
-                    </Text>
-                  </View>
-                ) : (
-                  friendEvents.map((event: Event, index: number) => (
-                    <EventCard key={event.id} event={event} index={index} />
-                  ))
-                )}
+                      {displayEvents.length === 0 ? (
+                        <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
+                          <Text className="text-4xl mb-3">{selectedCalendarDate ? "📅" : "🎉"}</Text>
+                          <Text className="text-center" style={{ color: colors.textSecondary }}>
+                            {selectedCalendarDate ? "No events on this date" : "No open invites from this friend yet"}
+                          </Text>
+                        </View>
+                      ) : (
+                        displayEvents.map((event: Event, index: number) => (
+                          <EventCard key={event.id} event={event} index={index} />
+                        ))
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes Section removed — /api/friends/:id/notes returns 404. */}
               </>
