@@ -425,7 +425,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(190, 18, 60, 0.10)",
     chipAccent: "#BE123C",
     category: "video",
-    visualStack: { gradient: { colors: ["rgba(26,10,16,0.50)", "rgba(190,18,60,0.38)", "rgba(212,175,55,0.18)", "rgba(22,8,12,0.50)"], speed: 2 }, particles: "rose_petals", shader: "bokeh", filter: "vignette", video: { source: "golden_hour_loop", poster: "golden_hour_bg", opacity: 0.6 } },
+    visualStack: { gradient: { colors: ["rgba(26,10,16,0.50)", "rgba(190,18,60,0.38)", "rgba(212,175,55,0.18)", "rgba(22,8,12,0.50)"], speed: 2 }, particles: "rose_petals", shader: "bokeh", filter: "vignette", video: { source: "gradient_warm_loop", poster: "gradient_warm_bg", opacity: 0.65 } },
   },
   celebration: {
     label: "Celebration",
@@ -439,7 +439,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(255, 215, 0, 0.10)",
     chipAccent: "#FFD700",
     category: "video",
-    visualStack: { gradient: { colors: ["rgba(10,14,42,0.50)", "rgba(255,215,0,0.35)", "rgba(239,68,68,0.22)", "rgba(8,10,35,0.50)"], speed: 3 }, particles: "firework_burst", lottie: "fireworks_scene", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.25 }, video: { source: "gradient_warm_loop", poster: "gradient_warm_bg", opacity: 0.6 } },
+    visualStack: { gradient: { colors: ["rgba(10,14,42,0.50)", "rgba(255,215,0,0.35)", "rgba(239,68,68,0.22)", "rgba(8,10,35,0.50)"], speed: 3 }, particles: "firework_burst", lottie: "fireworks_scene", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.25 }, video: { source: "abstract_color_loop", poster: "abstract_color_bg", opacity: 0.6 } },
   },
   valentines: {
     label: "Valentine's",
