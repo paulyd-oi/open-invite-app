@@ -569,12 +569,11 @@ export default function ProfileScreen() {
               backgroundColor: colors.surface,
               borderColor: userIsPremium ? "#FFD700" : colors.border,
               borderWidth: userIsPremium ? 2 : 1,
-              minHeight: bannerUri ? 220 : undefined,
             }}
           >
-            {/* Banner as full-bleed background */}
+            {/* Banner — canonical 3:1 aspect ratio */}
             {bannerUri && (
-              <>
+              <View style={{ aspectRatio: 3, width: "100%" }}>
                 {/* INVARIANT_HERO_USES_TRANSFORM_SSOT — banner decoded via CLOUDINARY_PRESETS.HERO_BANNER */}
                 <ExpoImage
                   source={{ uri: toCloudinaryTransformedUrl(bannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
@@ -592,28 +591,25 @@ export default function ProfileScreen() {
                     backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
                   }}
                 />
-              </>
+                {/* Bottom legibility gradient */}
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 80,
+                    backgroundColor: isDark
+                      ? "rgba(0,0,0,0.35)"
+                      : "rgba(255,255,255,0.25)",
+                  }}
+                />
+              </View>
             )}
 
-            {/* Bottom legibility gradient */}
-            {bannerUri && (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 80,
-                  backgroundColor: isDark
-                    ? "rgba(0,0,0,0.35)"
-                    : "rgba(255,255,255,0.25)",
-                }}
-              />
-            )}
-
-            {/* Content layer — pushed to bottom when banner present */}
-            <View style={{ flex: 1, justifyContent: bannerUri ? "flex-end" : "flex-start", padding: bannerUri ? 12 : 20 }}>
+            {/* Content layer */}
+            <View style={{ padding: bannerUri ? 12 : 20, marginTop: bannerUri ? -40 : 0 }}>
               {/* Avatar row */}
               <View style={{ alignItems: bannerUri ? "center" : "flex-start", marginBottom: bannerUri ? 8 : 0 }}>
                 {bannerUri && (
@@ -750,7 +746,7 @@ export default function ProfileScreen() {
                 leftIcon={<Pencil size={14} color={colors.textSecondary} />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/settings");
+                  router.push("/edit-profile");
                 }}
                 size="sm"
                 style={{ flex: 1, borderRadius: 10 }}

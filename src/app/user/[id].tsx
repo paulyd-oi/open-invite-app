@@ -498,6 +498,7 @@ export default function UserProfileScreen() {
   // ── Friend's profile theme ──
   const rawFriendThemeId = user?.Profile?.profileThemeId;
   const friendThemeId = isValidThemeId(rawFriendThemeId) ? rawFriendThemeId as ThemeId : null;
+  if (__DEV__ && user) devLog("[FRIEND_PROFILE] profileThemeId:", rawFriendThemeId, "resolved:", friendThemeId);
 
   // [P0_PROFILE_BANNER] DEV proof: banner rendering data for viewer profile
   useEffect(() => {
@@ -901,12 +902,11 @@ export default function UserProfileScreen() {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
                   borderWidth: 1,
-                  minHeight: heroUri ? 220 : undefined,
                 }}
               >
-                {/* Banner as full-bleed background — SSOT parity with profile.tsx */}
+                {/* Banner — canonical 3:1 aspect ratio */}
                 {heroUri && (
-                  <>
+                  <View style={{ aspectRatio: 3, width: "100%" }}>
                     {/* INVARIANT_HERO_USES_TRANSFORM_SSOT */}
                     <ExpoImage
                       source={{ uri: toCloudinaryTransformedUrl(heroUri, CLOUDINARY_PRESETS.HERO_BANNER) }}
@@ -921,18 +921,16 @@ export default function UserProfileScreen() {
                       position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
                       backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
                     }} />
-                  </>
-                )}
-                {/* Bottom legibility gradient */}
-                {heroUri && (
-                  <View pointerEvents="none" style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
-                    backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.25)",
-                  }} />
+                    {/* Bottom legibility gradient */}
+                    <View pointerEvents="none" style={{
+                      position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+                      backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.25)",
+                    }} />
+                  </View>
                 )}
 
-                {/* Content: centered avatar + text, optionally over glass panel */}
-                <View className="p-5 items-center" style={heroUri ? { justifyContent: "flex-end", flex: 1 } : undefined}>
+                {/* Content: centered avatar + text */}
+                <View className="p-5 items-center" style={heroUri ? { marginTop: -40 } : undefined}>
                   {/* INVARIANT: Badges are pill-only. No badge overlay on avatar. */}
                   <EntityAvatar
                     photoUrl={user.Profile?.avatarUrl ?? user.image}

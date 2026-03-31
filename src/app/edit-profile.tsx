@@ -1,0 +1,707 @@
+/**
+ * Edit Profile — Dedicated full-screen profile editor.
+ *
+ * Live themed background preview, profile fields, card color,
+ * and a bottom dock with "Theme" tab that opens the profile theme picker.
+ */
+
+import React, { useState, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Keyboard,
+  ActivityIndicator,
+  useWindowDimensions,
+} from "react-native";
+import { Image as ExpoImage } from "expo-image";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter, Stack } from "expo-router";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import {
+  Camera,
+  ImagePlus,
+  Trash2,
+  Palette,
+  X,
+} from "@/ui/icons";
+
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
+import { api } from "@/lib/api";
+import { qk } from "@/lib/queryKeys";
+import { useTheme } from "@/lib/ThemeContext";
+import { usePremiumStatusContract, trackAnalytics } from "@/lib/entitlements";
+import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
+import { getImageSource } from "@/lib/imageSource";
+import { updateProfileAndSync } from "@/lib/profileSync";
+import { invalidateProfileMedia } from "@/lib/mediaInvalidation";
+import { normalizeHandle, validateHandle } from "@/lib/handleUtils";
+import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
+import { safeToast } from "@/lib/safeToast";
+import { toUserMessage, logError } from "@/lib/errors";
+import { devLog } from "@/lib/devLog";
+import { EntityAvatar } from "@/components/EntityAvatar";
+import { Button } from "@/ui/Button";
+import { ProfileThemeBackground } from "@/components/ProfileThemeBackground";
+import { ThemePicker } from "@/components/customization/ThemePicker";
+import { PremiumUpsellSheet } from "@/components/paywall/PremiumUpsellSheet";
+import {
+  getThemesForSurface,
+  isValidThemeId,
+  type ThemeId,
+} from "@/lib/eventThemes";
+import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
+
+const PROFILE_THEME_IDS = getThemesForSurface("profile");
+
+// ─── Component ──────────────────────────────────────────────
+
+export default function EditProfileScreen() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= 768;
+  const { isPro: userIsPro } = usePremiumStatusContract();
+
+  // ── Profile data ──
+  const { data: profileData } = useQuery({
+    queryKey: qk.profile(),
+    queryFn: () => api.get<GetProfileResponse>("/api/profile"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60_000,
+  });
+
+  // ── Edit state ──
+  const [editName, setEditName] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [editBanner, setEditBanner] = useState<string | null>(null);
+  const [editCalendarBio, setEditCalendarBio] = useState("");
+  const [editHandle, setEditHandle] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // ── Theme/color state ──
+  const [editThemeId, setEditThemeId] = useState<ThemeId | null>(null);
+  const [showThemeTray, setShowThemeTray] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [upsell, setUpsell] = useState<{ visible: boolean; themeId: ThemeId | null }>({ visible: false, themeId: null });
+
+  // ── Avatar source ──
+  const [avatarSource, setAvatarSource] = useState<any>(null);
+
+  // ── Prefill from profile data ──
+  useEffect(() => {
+    if (profileData?.profile) {
+      const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
+      setEditName(displayName);
+      setEditImage(avatarUri || "");
+      setEditCalendarBio(profileData.profile.calendarBio || "");
+      const handle = profileData.profile.handle;
+      if (handle && !handle.startsWith("user_")) {
+        setEditHandle(handle);
+      }
+      const rawThemeId = profileData.profile.profileThemeId;
+      setEditThemeId(isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null);
+    }
+  }, [profileData, session]);
+
+  // Load avatar source with auth headers
+  useEffect(() => {
+    const loadAvatar = async () => {
+      try {
+        const { avatarUri } = getProfileDisplay({ profileData, session });
+        const source = await getImageSource(typeof avatarUri === "string" ? avatarUri : undefined);
+        setAvatarSource(source ?? null);
+      } catch {
+        setAvatarSource(null);
+      }
+    };
+    loadAvatar();
+  }, [profileData, session]);
+
+  // Keyboard tracking
+  useEffect(() => {
+    const s1 = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const s2 = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { s1.remove(); s2.remove(); };
+  }, []);
+
+  // ── Mutations ──
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      api.put<UpdateProfileResponse>("/api/profile", data),
+    onSuccess: async () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await updateProfileAndSync(queryClient);
+      invalidateProfileMedia(queryClient);
+      safeToast.success("Saved", "Profile updated");
+      router.back();
+    },
+    onError: (error: unknown) => {
+      logError("EditProfile Save", error);
+      const errCode = error && typeof error === "object" && "code" in error ? String((error as any).code) : "";
+      if (errCode === "HANDLE_TAKEN") {
+        setHandleError("That username is already taken");
+      } else if (errCode === "USERNAME_COOLDOWN") {
+        const errMsg = error && typeof error === "object" && "message" in error ? String((error as any).message) : "Username change on cooldown";
+        setHandleError(errMsg);
+      } else {
+        const { title, message } = toUserMessage(error);
+        safeToast.error(title, message);
+      }
+    },
+  });
+
+  // ── Handlers ──
+  const handlePickImage = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setEditImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError("Pick Image", error);
+      safeToast.error("Error", "Failed to pick image");
+    }
+  }, []);
+
+  const handlePickBanner = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [3, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setEditBanner(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError("Pick Banner", error);
+      safeToast.error("Error", "Failed to pick image");
+    }
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    // Validate handle
+    const normalizedEditHandle = normalizeHandle(editHandle);
+    const currentHandle = profileData?.profile?.handle ?? "";
+    const currentHandleNormalized = currentHandle.startsWith("user_") ? "" : currentHandle;
+
+    if (normalizedEditHandle && normalizedEditHandle !== currentHandleNormalized) {
+      const validation = validateHandle(normalizedEditHandle);
+      if (!validation.valid) {
+        setHandleError(validation.error ?? "Invalid username");
+        return;
+      }
+    }
+
+    setHandleError(null);
+    setIsUploading(true);
+
+    try {
+      const updates: Record<string, unknown> = {};
+      const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
+
+      if (editName.trim() && editName !== currentDisplayName) {
+        updates.name = editName.trim();
+      }
+
+      // Upload avatar if local file
+      if (editImage && editImage !== session?.user?.image) {
+        if (editImage.startsWith("file://")) {
+          try {
+            const uploadResponse = await uploadImage(editImage, true);
+            updates.avatarUrl = uploadResponse.url;
+          } catch (uploadError) {
+            setIsUploading(false);
+            logError("Profile Photo Upload", uploadError);
+            safeToast.error("Upload Failed", "Failed to upload profile photo");
+            return;
+          }
+        } else {
+          updates.avatarUrl = editImage;
+        }
+      }
+
+      // Upload banner if local file
+      if (editBanner !== null) {
+        if (editBanner === "") {
+          updates.bannerPhotoUrl = null;
+        } else if (editBanner.startsWith("file://")) {
+          try {
+            const bannerResponse = await uploadBannerPhoto(editBanner);
+            updates.bannerPhotoUrl = bannerResponse.url;
+          } catch (bannerError) {
+            setIsUploading(false);
+            logError("Banner Upload", bannerError);
+            safeToast.error("Upload Failed", "Failed to upload banner photo");
+            return;
+          }
+        } else {
+          updates.bannerPhotoUrl = editBanner;
+        }
+      }
+
+      // Calendar bio
+      const currentCalendarBio = profileData?.profile?.calendarBio ?? "";
+      if (editCalendarBio !== currentCalendarBio) {
+        updates.calendarBio = editCalendarBio;
+      }
+
+      // Handle
+      if (normalizedEditHandle !== currentHandleNormalized) {
+        updates.handle = normalizedEditHandle;
+      }
+
+      // Theme — always include
+      updates.profileThemeId = editThemeId;
+
+      if (Object.keys(updates).length > 0) {
+        setIsUploading(false);
+        updateProfileMutation.mutate(updates);
+        if (editThemeId) {
+          trackAnalytics("profile_theme_saved", { themeId: editThemeId, userId: session?.user?.id });
+        }
+      } else {
+        setIsUploading(false);
+        router.back();
+      }
+    } catch (error) {
+      setIsUploading(false);
+      logError("EditProfile Save", error);
+      safeToast.error("Error", "Failed to save profile");
+    }
+  }, [editName, editImage, editBanner, editCalendarBio, editHandle, editThemeId, profileData, session, updateProfileMutation, router]);
+
+  const handleThemeSelect = useCallback((themeId: ThemeId | null) => {
+    Haptics.selectionAsync();
+    setEditThemeId(themeId);
+    if (themeId) {
+      trackAnalytics("profile_theme_selected_free", { themeId, userId: session?.user?.id });
+    }
+  }, [session]);
+
+  const handlePremiumUpsell = useCallback((themeId: ThemeId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    trackAnalytics("profile_theme_previewed_premium", { themeId, userId: session?.user?.id });
+    setUpsell({ visible: true, themeId });
+  }, [session]);
+
+  const isSaving = updateProfileMutation.isPending || isUploading;
+  const bannerPhotoUrl = (profileData?.profile as any)?.bannerPhotoUrl ?? null;
+  const displayBanner = editBanner !== null
+    ? (editBanner === "" ? null : editBanner)
+    : bannerPhotoUrl;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={[]}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Live theme background */}
+      {editThemeId && (
+        <ProfileThemeBackground themeId={editThemeId} />
+      )}
+
+      {/* Header */}
+      {/* ── Header bar with glass blur for legibility over themes ── */}
+      <View style={{ zIndex: 10 }}>
+        <BlurView
+          intensity={40}
+          tint={isDark ? "dark" : "light"}
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+          }}
+        />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingTop: insets.top + 4,
+            paddingHorizontal: 16,
+            paddingBottom: 8,
+          }}
+        >
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            style={{
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, textShadowColor: "rgba(0,0,0,0.4)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>Cancel</Text>
+          </Pressable>
+          <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.4)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
+            Edit Profile
+          </Text>
+          <Pressable
+            onPress={handleSave}
+            disabled={isSaving}
+            hitSlop={12}
+            style={{
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              opacity: isSaving ? 0.5 : 1,
+            }}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", textShadowColor: "rgba(0,0,0,0.4)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>Save</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Content */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 160,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Avatar ── */}
+          <View style={{ alignItems: "center", marginTop: 12, marginBottom: 20 }}>
+            <Pressable onPress={handlePickImage}>
+              <EntityAvatar
+                imageSource={editImage.startsWith("file://") ? { uri: editImage } : avatarSource}
+                initials={getProfileInitial({ profileData, session })}
+                size={88}
+                backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
+                foregroundColor={themeColor}
+                fallbackIcon="person"
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: themeColor,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 2,
+                  borderColor: colors.background,
+                }}
+              >
+                <Camera size={14} color="#FFF" />
+              </View>
+            </Pressable>
+          </View>
+
+          {/* ── Banner ── */}
+          <View
+            style={{
+              aspectRatio: 3,
+              width: "100%",
+              borderRadius: 14,
+              overflow: "hidden",
+              backgroundColor: isDark ? colors.surfaceElevated : "#F3F4F6",
+              marginBottom: 20,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            {displayBanner ? (
+              <ExpoImage
+                source={{
+                  uri: displayBanner.startsWith("file://")
+                    ? displayBanner
+                    : toCloudinaryTransformedUrl(displayBanner, CLOUDINARY_PRESETS.HERO_BANNER),
+                }}
+                style={{ flex: 1 }}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                <ImagePlus size={24} color={colors.textTertiary} />
+                <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 4 }}>
+                  Add Banner
+                </Text>
+              </View>
+            )}
+            {/* Banner actions overlay */}
+            <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 6 }}>
+              <Pressable
+                onPress={handlePickBanner}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ImagePlus size={14} color="#FFF" />
+              </Pressable>
+              {displayBanner && (
+                <Pressable
+                  onPress={() => {
+                    setEditBanner("");
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Trash2 size={14} color="#FFF" />
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {/* ── Fields ── */}
+          <View
+            style={{
+              backgroundColor: isDark ? "rgba(28,28,30,0.8)" : "rgba(255,255,255,0.88)",
+              borderRadius: 16,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+              marginBottom: 16,
+            }}
+          >
+            {/* Display Name */}
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
+              DISPLAY NAME
+            </Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor={colors.textTertiary}
+              style={{
+                color: colors.text,
+                fontSize: 16,
+                paddingVertical: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                marginBottom: 16,
+              }}
+            />
+
+            {/* Username */}
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
+              USERNAME
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ color: colors.textTertiary, fontSize: 16, marginRight: 2 }}>@</Text>
+              <TextInput
+                value={editHandle}
+                onChangeText={(text) => {
+                  setEditHandle(text.replace(/^@+/, "").toLowerCase());
+                  setHandleError(null);
+                }}
+                placeholder="username"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  flex: 1,
+                  color: colors.text,
+                  fontSize: 16,
+                  paddingVertical: 8,
+                }}
+              />
+            </View>
+            {handleError && (
+              <Text style={{ color: "#FF3B30", fontSize: 12, marginTop: 2 }}>{handleError}</Text>
+            )}
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+
+            {/* Calendar Bio */}
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
+              MY CALENDAR LOOKS LIKE...
+            </Text>
+            <TextInput
+              value={editCalendarBio}
+              onChangeText={(text) => setEditCalendarBio(text.slice(0, 300))}
+              placeholder="Busy weeks, chill weekends"
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={300}
+              style={{
+                color: colors.text,
+                fontSize: 16,
+                paddingVertical: 8,
+                minHeight: 48,
+              }}
+            />
+            <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: "right", marginTop: 2 }}>
+              {editCalendarBio.length}/300
+            </Text>
+          </View>
+
+          {/* ── Card Color ── */}
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ── Bottom Dock — Theme tab ── */}
+      {!keyboardVisible && (
+        <View
+          style={{
+            position: "absolute",
+            ...(isWide
+              ? { left: Math.max(40, (screenWidth - 400) / 2), right: Math.max(40, (screenWidth - 400) / 2) }
+              : { left: 0, right: 0, paddingHorizontal: 40 }),
+            bottom: insets.bottom + 8,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: isDark ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
+              borderRadius: 28,
+              paddingVertical: 6,
+              paddingHorizontal: 8,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.35 : 0.12,
+              shadowRadius: 16,
+              elevation: 16,
+              borderWidth: 0.5,
+              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            }}
+          >
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowThemeTray(!showThemeTray);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 8,
+                paddingHorizontal: 20,
+                borderRadius: 20,
+                backgroundColor: showThemeTray
+                  ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)")
+                  : "transparent",
+              }}
+            >
+              <Palette
+                size={18}
+                color={showThemeTray ? themeColor : (isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)")}
+              />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: showThemeTray ? themeColor : (isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)"),
+                }}
+              >
+                Theme
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── Theme Tray (above dock) ── */}
+      {showThemeTray && !keyboardVisible && (
+        <View
+          style={{
+            position: "absolute",
+            left: 12,
+            right: 12,
+            bottom: insets.bottom + 64,
+            zIndex: 50,
+          }}
+        >
+          <BlurView
+            intensity={isDark ? 60 : 50}
+            tint={isDark ? "dark" : "light"}
+            style={{
+              borderRadius: 22,
+              overflow: "hidden",
+              borderWidth: 0.5,
+              borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.18,
+              shadowRadius: 20,
+              elevation: 20,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: isDark ? "rgba(28,28,30,0.72)" : "rgba(255,255,255,0.78)",
+                padding: 14,
+                paddingTop: 16,
+              }}
+            >
+              {/* Handle bar */}
+              <View style={{ alignItems: "center", marginBottom: 10 }}>
+                <View
+                  style={{
+                    width: 32,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.12)",
+                  }}
+                />
+              </View>
+
+              <ThemePicker
+                themeIds={PROFILE_THEME_IDS}
+                selectedThemeId={editThemeId}
+                userIsPro={userIsPro}
+                themeColor={themeColor}
+                isDark={isDark}
+                onThemeSelect={handleThemeSelect}
+                onPremiumUpsell={handlePremiumUpsell}
+                layout="horizontal"
+              />
+            </View>
+          </BlurView>
+        </View>
+      )}
+
+      {/* Premium upsell */}
+      <PremiumUpsellSheet
+        visible={upsell.visible}
+        title="Premium Profile Theme"
+        subtitle="Unlock premium themes to personalize your profile"
+        analyticsShowEvent="profile_theme_upsell_shown"
+        analyticsUpgradeEvent="profile_theme_upsell_tapped"
+        analyticsProps={{ themeId: upsell.themeId, userId: session?.user?.id }}
+        onDismiss={() => setUpsell({ visible: false, themeId: null })}
+      />
+    </SafeAreaView>
+  );
+}

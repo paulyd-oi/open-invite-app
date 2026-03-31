@@ -211,6 +211,7 @@ export default function PublicProfileScreen() {
   // ── Profile theme ──
   const rawThemeId = user?.Profile?.profileThemeId;
   const publicProfileThemeId = isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null;
+  if (__DEV__ && user) devLog("[PUBLIC_PROFILE] profileThemeId:", rawThemeId, "resolved:", publicProfileThemeId);
 
   // Fetch owner's own events (self preview — NOT the foreign friend-events endpoint)
   const { data: eventsData } = useQuery({
@@ -366,12 +367,11 @@ export default function PublicProfileScreen() {
                       backgroundColor: colors.surface,
                       borderColor: colors.border,
                       borderWidth: 1,
-                      minHeight: pubBannerUri ? 220 : undefined,
                     }}
                   >
-                    {/* Banner as full-bleed background */}
+                    {/* Banner — canonical 3:1 aspect ratio */}
                     {pubBannerUri && (
-                      <>
+                      <View style={{ aspectRatio: 3, width: "100%" }}>
                         {/* INVARIANT_HERO_USES_TRANSFORM_SSOT — banner decoded via CLOUDINARY_PRESETS.HERO_BANNER */}
                         <ExpoImage
                           source={{ uri: toCloudinaryTransformedUrl(pubBannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
@@ -389,28 +389,25 @@ export default function PublicProfileScreen() {
                             backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
                           }}
                         />
-                      </>
+                        {/* Bottom legibility gradient */}
+                        <View
+                          pointerEvents="none"
+                          style={{
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 80,
+                            backgroundColor: isDark
+                              ? "rgba(0,0,0,0.35)"
+                              : "rgba(255,255,255,0.25)",
+                          }}
+                        />
+                      </View>
                     )}
 
-                    {/* Bottom legibility gradient */}
-                    {pubBannerUri && (
-                      <View
-                        pointerEvents="none"
-                        style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 80,
-                          backgroundColor: isDark
-                            ? "rgba(0,0,0,0.35)"
-                            : "rgba(255,255,255,0.25)",
-                        }}
-                      />
-                    )}
-
-                    {/* Content layer — pushed to bottom when banner present */}
-                    <View style={{ flex: 1, justifyContent: pubBannerUri ? "flex-end" : "flex-start", padding: pubBannerUri ? 12 : 24, alignItems: "center" }}>
+                    {/* Content layer */}
+                    <View style={{ padding: pubBannerUri ? 12 : 24, alignItems: "center", marginTop: pubBannerUri ? -40 : 0 }}>
                       {/* Avatar */}
                       <View style={{ marginBottom: pubBannerUri ? 8 : 0, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                         <EntityAvatar

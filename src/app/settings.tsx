@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   Switch,
   Platform,
   Linking,
@@ -18,7 +17,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -29,7 +27,6 @@ import {
   HelpCircle,
   Info,
   LogOut,
-  Camera,
   Check,
   Sun,
   Moon,
@@ -50,18 +47,12 @@ import {
   Phone,
   CalendarDays,
   Users,
-  Sparkles,
   Copy,
   Mail,
-  Plus,
-  X,
-  ImagePlus,
-  Trash2,
   RefreshCw,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -70,9 +61,6 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
-import { updateProfileAndSync } from "@/lib/profileSync";
-import { invalidateProfileMedia } from "@/lib/mediaInvalidation";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -86,13 +74,9 @@ import {
 } from "@/lib/revenuecatClient";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { performLogout } from "@/lib/logout";
-import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
 import { safeToast } from "@/lib/safeToast";
 import { qk } from "@/lib/queryKeys";
-import { toUserMessage, logError } from "@/lib/errors";
-import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
 import { Button } from "@/ui/Button";
-import { SettingsEditProfileSection } from "@/components/settings/SettingsEditProfileSection";
 import { SettingsThemeSection } from "@/components/settings/SettingsThemeSection";
 import { SettingsBirthdaySection } from "@/components/settings/SettingsBirthdaySection";
 import { SettingsWorkScheduleSection, type WorkScheduleDay, type WorkScheduleSettings } from "@/components/settings/SettingsWorkScheduleSection";
@@ -103,16 +87,13 @@ import { SettingsAdminPasscodeModal } from "@/components/settings/SettingsAdminP
 import { ReferralCounterSection } from "@/components/settings/ReferralCounterSection";
 import { SettingsProfileCard } from "@/components/settings/SettingsProfileCard";
 import { checkAdminStatus } from "@/lib/adminApi";
-import { useEntitlements, useRefreshProContract, usePremiumStatusContract, trackAnalytics } from "@/lib/entitlements";
+import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
 import { buildDiagnosticsBundle } from "@/lib/devDiagnosticsBundle";
 import { getDeadLetterCount, clearDeadLetterCount, loadQueue } from "@/lib/offlineQueue";
 import { replayQueue } from "@/lib/offlineSync";
-import { SettingsProfileAppearanceSection } from "@/components/settings/SettingsProfileAppearanceSection";
-import { PremiumUpsellSheet } from "@/components/paywall/PremiumUpsellSheet";
-import { isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -366,14 +347,8 @@ export default function SettingsScreen() {
     }
   };
 
-  const [showEditProfile, setShowEditProfile] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showThemeModePicker, setShowThemeModePicker] = useState(false);
-
-  // Profile style state
-  const [editProfileThemeId, setEditProfileThemeId] = useState<ThemeId | null>(null);
-  const [editProfileCardColor, setEditProfileCardColor] = useState<string | null>(null);
-  const [profileStyleUpsell, setProfileStyleUpsell] = useState<{ visible: boolean; themeId: ThemeId | null }>({ visible: false, themeId: null });
 
   // Confirm modal states
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -529,19 +504,6 @@ export default function SettingsScreen() {
   }, [passcodeInput, getAdminPasscode]);
   // =====================================================
 
-  // Profile editing states
-  const [editName, setEditName] = useState("");
-  const [editImage, setEditImage] = useState("");
-  const [editBanner, setEditBanner] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  // null = unchanged, "" = removed, "file://..." or "https://..." = new/existing
-  const [editCalendarBio, setEditCalendarBio] = useState("");
-  const [editHandle, setEditHandle] = useState("");
-  const [handleError, setHandleError] = useState<string | null>(null);
-
-  // Username change info modal
-  const [showUsernameInfoModal, setShowUsernameInfoModal] = useState(false);
-  const [hasShownUsernameInfo, setHasShownUsernameInfo] = useState(false);
 
   // Birthday states
   const [showBirthdaySection, setShowBirthdaySection] = useState(false);
@@ -723,27 +685,8 @@ export default function SettingsScreen() {
       setShowBirthdayToFriends(profileData.profile.showBirthdayToFriends);
       setHideBirthdays(profileData.profile.hideBirthdays);
       setOmitBirthdayYear(profileData.profile.omitBirthdayYear);
-      // Sync handle
-      if (profileData.profile.handle) {
-        // Don't show auto-generated handles (user_xxxxx)
-        const handle = profileData.profile.handle;
-        if (!handle.startsWith("user_")) {
-          setEditHandle(handle);
-        }
-      }
-      // Use shared helper for consistent precedence
-      const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
-      setEditName(displayName);
-      setEditImage(avatarUri || "");
-      // Sync calendarBio
-      setEditCalendarBio(profileData.profile.calendarBio || "");
-      // Sync profile theme
-      const rawThemeId = profileData.profile.profileThemeId;
-      setEditProfileThemeId(isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null);
-      setEditProfileCardColor(profileData.profile.profileCardColor ?? null);
     }
-    // P0: Phone sync removed - feature deprecated
-  }, [profileData, session]);
+  }, [profileData]);
 
   // Load avatar source with auth headers
   useEffect(() => {
@@ -754,76 +697,6 @@ export default function SettingsScreen() {
     };
     loadAvatar();
   }, [profileData, session]);
-
-  const updateProfileMutation = useMutation({
-    mutationFn: (data: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; phone?: string | null; handle?: string; adminBypassCooldown?: boolean }) =>
-      api.put<UpdateProfileResponse>("/api/profile", data),
-    onSuccess: async (response, variables) => {
-      if (__DEV__) {
-        devLog("[EditProfile] Save success", response);
-        devLog("[PROFILE_PHOTO]", "mutation_success", {
-          newAvatarUrl: (response.profile?.avatarUrl ?? variables?.avatarUrl)?.slice(0, 80),
-          variablesAvatarUrl: variables?.avatarUrl?.slice(0, 80),
-        });
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Update cache immediately with response + variables to ensure both profile and user are patched
-      queryClient.setQueryData(qk.profile(), (old: any) => ({
-        ...old,
-        profile: {
-          ...old?.profile,
-          ...response.profile,
-          // Backend stores name on user, not profile - patch it here for consistent reads
-          name: variables?.name ?? old?.profile?.name,
-          avatarUrl: response.profile?.avatarUrl ?? variables?.avatarUrl ?? old?.profile?.avatarUrl,
-          bannerPhotoUrl: variables?.bannerPhotoUrl !== undefined ? variables.bannerPhotoUrl : old?.profile?.bannerPhotoUrl,
-        },
-        user: {
-          ...old?.user,
-          name: variables?.name ?? old?.user?.name,
-          image: variables?.avatarUrl ?? old?.user?.image,
-        },
-      }));
-      
-      // Use centralized sync helper to refresh both Better Auth session and React Query cache
-      await updateProfileAndSync(queryClient);
-      // SSOT media invalidation — covers userProfile, profiles, friends
-      invalidateProfileMedia(queryClient);
-      if (__DEV__) devLog("[PROFILE_PHOTO]", "invalidation_fired", {
-        keys: ["qk.profile()", "qk.profiles()", "qk.friend.all()"],
-      });
-      setShowEditProfile(false);
-      setHandleError(null);
-      safeToast.success("Success", "Profile updated successfully");
-    },
-    onError: (error: unknown) => {
-      logError("EditProfile Save", error);
-      // Check for handle-specific errors
-      const errorMessage = error && typeof error === 'object' && 'message' in error
-        ? String(error.message)
-        : '';
-      const errorCode = error && typeof error === 'object' && 'code' in error
-        ? String((error as { code?: string }).code)
-        : '';
-
-      if (errorCode === "HANDLE_TAKEN" || errorMessage.includes("taken")) {
-        setHandleError("That username is already taken");
-        safeToast.error("Username Taken", "That username is already taken");
-      } else if (errorCode === "RESERVED" || errorMessage.includes("unavailable")) {
-        setHandleError("That username is unavailable");
-        safeToast.error("Username Unavailable", "That username is unavailable");
-      } else if (errorMessage.includes("Username")) {
-        setHandleError(errorMessage);
-        safeToast.error("Username Error", errorMessage);
-      } else {
-        const { title, message } = toUserMessage(error);
-        safeToast.error(title, message);
-      }
-    },
-  });
-
-  // P0: Phone number mutation REMOVED - feature deprecated
 
   const updateBirthdayMutation = useMutation({
     mutationFn: (data: { birthday?: string; showBirthdayToFriends?: boolean; hideBirthdays?: boolean; omitBirthdayYear?: boolean }) =>
@@ -837,51 +710,6 @@ export default function SettingsScreen() {
       safeToast.error("Save Failed", "Failed to update birthday settings");
     },
   });
-
-  const updateProfileStyleMutation = useMutation({
-    mutationFn: (data: { profileThemeId?: string | null; profileCardColor?: string | null }) =>
-      api.put<UpdateProfileResponse>("/api/profile", data),
-    onSuccess: (_res, variables) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: qk.profile() });
-      if (variables.profileThemeId !== undefined) {
-        trackAnalytics("profile_theme_saved", { themeId: variables.profileThemeId, userId: session?.user?.id });
-      }
-      if (variables.profileCardColor !== undefined) {
-        trackAnalytics("profile_card_color_saved", { cardColor: variables.profileCardColor, userId: session?.user?.id });
-      }
-      safeToast.success("Saved", "Profile style updated");
-    },
-    onError: () => {
-      safeToast.error("Save Failed", "Failed to update profile style");
-    },
-  });
-
-  const handleProfileThemeSelect = useCallback((themeId: ThemeId | null) => {
-    Haptics.selectionAsync();
-    setEditProfileThemeId(themeId);
-    if (themeId) {
-      trackAnalytics("profile_theme_selected_free", { themeId, userId: session?.user?.id });
-    }
-    updateProfileStyleMutation.mutate({ profileThemeId: themeId });
-  }, [updateProfileStyleMutation, session]);
-
-  const handleProfilePremiumUpsell = useCallback((themeId: ThemeId) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    trackAnalytics("profile_theme_previewed_premium", { themeId, userId: session?.user?.id });
-    setProfileStyleUpsell({ visible: true, themeId });
-  }, [session]);
-
-  const handleProfileUpsellDismiss = useCallback(() => {
-    setProfileStyleUpsell({ visible: false, themeId: null });
-  }, []);
-
-  const handleProfileCardColorChange = useCallback((color: string | null) => {
-    Haptics.selectionAsync();
-    setEditProfileCardColor(color);
-    trackAnalytics("profile_card_color_changed", { cardColor: color, userId: session?.user?.id });
-    updateProfileStyleMutation.mutate({ profileCardColor: color });
-  }, [updateProfileStyleMutation, session]);
 
   const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
@@ -949,177 +777,6 @@ export default function SettingsScreen() {
       case "light": return <Sun size={20} color={themeColor} />;
       case "dark": return <Moon size={20} color={themeColor} />;
       case "auto": return <Smartphone size={20} color={themeColor} />;
-    }
-  };
-
-  const handlePickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        if (__DEV__) {
-          devLog("[PROFILE_PHOTO]", "picker_result", {
-            width: asset.width,
-            height: asset.height,
-            aspect: asset.width && asset.height ? (asset.width / asset.height).toFixed(3) : "unknown",
-            uri: asset.uri?.slice(0, 80),
-          });
-        }
-        setEditImage(asset.uri);
-      }
-    } catch (error) {
-      logError("Pick Image", error);
-      const { title, message } = toUserMessage(error);
-      safeToast.error(title, message || "Failed to pick image. Please try again.");
-    }
-  };
-
-  const handlePickBanner = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [3, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        if (__DEV__) {
-          devLog('[P0_BANNER_UPLOAD]', 'picker_result', {
-            uri: asset.uri?.slice(0, 80),
-            width: asset.width,
-            height: asset.height,
-            fileSize: (asset as any).fileSize ?? 'unknown',
-            fileName: (asset as any).fileName ?? 'missing',
-            mimeType: (asset as any).mimeType ?? (asset as any).type ?? 'missing',
-          });
-        }
-        setEditBanner(asset.uri);
-      }
-    } catch (error) {
-      logError("Pick Banner", error);
-      const { title, message } = toUserMessage(error);
-      safeToast.error(title, message || "Failed to pick image. Please try again.");
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    // First validate handle if it was changed
-    const normalizedEditHandle = normalizeHandle(editHandle);
-    const currentHandle = profileData?.profile?.handle ?? "";
-    const currentHandleNormalized = currentHandle.startsWith("user_") ? "" : currentHandle;
-
-    if (normalizedEditHandle && normalizedEditHandle !== currentHandleNormalized) {
-      const validation = validateHandle(normalizedEditHandle);
-      if (!validation.valid) {
-        setHandleError(validation.error ?? "Invalid username");
-        return;
-      }
-    }
-
-    setHandleError(null);
-    setIsUploading(true);
-    if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_start");
-
-    try {
-      const updates: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; handle?: string; adminBypassCooldown?: boolean } = {};
-      const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
-      
-      // Handle name change
-      if (editName.trim() && editName !== currentDisplayName) {
-        updates.name = editName.trim();
-      }
-      
-      // Handle image change - upload if it's a local file URI
-      if (editImage && editImage !== session?.user?.image) {
-        if (editImage.startsWith("file://")) {
-          // Local file - need to upload first
-          try {
-            if (__DEV__) devLog("[PROFILE_PHOTO]", "upload_start", { uri: editImage.slice(0, 80) });
-            if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_locked", { type: "avatar" });
-            const uploadResponse = await uploadImage(editImage, true);
-            updates.avatarUrl = uploadResponse.url;
-            if (__DEV__) devLog("[PROFILE_PHOTO]", "upload_success", {
-              url: uploadResponse.url?.slice(0, 80),
-              publicId: uploadResponse.publicId,
-            });
-          } catch (uploadError) {
-            setIsUploading(false);
-            logError("Profile Photo Upload", uploadError);
-            safeToast.error("Upload Failed", "Failed to upload profile photo. Please try again.");
-            return; // Stop save if upload fails
-          }
-        } else {
-          // Already a URL - just use it
-          updates.avatarUrl = editImage;
-        }
-      }
-
-      // Handle banner change
-      if (editBanner !== null) {
-        if (editBanner === "") {
-          // User wants to remove the banner
-          updates.bannerPhotoUrl = null;
-          if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'banner_remove');
-        } else if (editBanner.startsWith("file://")) {
-          try {
-            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_start', { uri: editBanner.slice(0, 80) });
-            if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_locked", { type: "banner" });
-            const bannerResponse = await uploadBannerPhoto(editBanner);
-            updates.bannerPhotoUrl = bannerResponse.url;
-            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_success', { url: bannerResponse.url?.slice(0, 60) });
-          } catch (bannerError: any) {
-            setIsUploading(false);
-            logError("Banner Photo Upload", bannerError);
-            const errMsg = bannerError?.message || String(bannerError);
-            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_FAILED', { error: errMsg, status: bannerError?.status });
-            safeToast.error(
-              "Upload Failed",
-              __DEV__ ? `Banner upload error: ${errMsg}` : "Failed to upload banner photo. Please try again.",
-            );
-            return;
-          }
-        } else {
-          updates.bannerPhotoUrl = editBanner;
-        }
-      }
-      
-      // Always include calendarBio if it changed from the stored value
-      const currentCalendarBio = profileData?.profile?.calendarBio ?? "";
-      if (editCalendarBio !== currentCalendarBio) {
-        updates.calendarBio = editCalendarBio;
-      }
-      
-      // Include handle if it changed
-      if (normalizedEditHandle !== currentHandleNormalized) {
-        updates.handle = normalizedEditHandle;
-        // Admin can bypass cooldown restrictions
-        if (adminStatus?.isAdmin) {
-          updates.adminBypassCooldown = true;
-        }
-      }
-      
-      if (Object.keys(updates).length > 0) {
-        if (__DEV__) devLog("[EditProfile] Save payload:", updates);
-        if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_success");
-        setIsUploading(false);
-        updateProfileMutation.mutate(updates);
-      } else {
-        setIsUploading(false);
-        setShowEditProfile(false);
-      }
-    } catch (error) {
-      setIsUploading(false);
-      logError("EditProfile Save", error);
-      const { title, message } = toUserMessage(error);
-      safeToast.error(title, message || "Failed to save profile");
     }
   };
 
@@ -1293,61 +950,19 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Section */}
-        {!showEditProfile ? (
-          <SettingsProfileCard
-            avatarSource={avatarSource}
-            displayName={getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
-            colors={colors}
-            isDark={isDark}
-            themeColor={themeColor}
-            initials={getProfileInitial({ profileData, session })}
-            onAdminUnlockTap={handleAdminUnlockTap}
-            onEditProfile={() => {
-              if (__DEV__) devLog("[P0_SETTINGS_PROFILE_NAV] edit_profile triggered");
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
-              setEditName(displayName);
-              setEditImage(avatarUri || "");
-              setEditBanner(null);
-              setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
-              setShowEditProfile(true);
-            }}
-          />
-        ) : (
-          <SettingsEditProfileSection
-            editName={editName}
-            editImage={editImage}
-            editBanner={editBanner}
-            editCalendarBio={editCalendarBio}
-            editHandle={editHandle}
-            handleError={handleError}
-            isUploading={isUploading}
-            isSaving={updateProfileMutation.isPending}
-            userEmail={user?.email ?? null}
-            bannerPhotoUrl={(profileData?.profile as any)?.bannerPhotoUrl ?? null}
-            colors={colors}
-            isDark={isDark}
-            themeColor={themeColor}
-            onPickImage={handlePickImage}
-            onPickBanner={handlePickBanner}
-            onRemoveBanner={() => { setEditBanner(""); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            onSave={handleSaveProfile}
-            onCancel={() => setShowEditProfile(false)}
-            onEditNameChange={setEditName}
-            onEditHandleChange={(text) => {
-              const cleaned = text.replace(/^@+/, "").toLowerCase();
-              setEditHandle(cleaned);
-              setHandleError(null);
-            }}
-            onEditCalendarBioChange={(text) => setEditCalendarBio(text.slice(0, 300))}
-            onUsernameFocus={() => {
-              if (!hasShownUsernameInfo) {
-                setShowUsernameInfoModal(true);
-                setHasShownUsernameInfo(true);
-              }
-            }}
-          />
-        )}
+        <SettingsProfileCard
+          avatarSource={avatarSource}
+          displayName={getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
+          colors={colors}
+          isDark={isDark}
+          themeColor={themeColor}
+          initials={getProfileInitial({ profileData, session })}
+          onAdminUnlockTap={handleAdminUnlockTap}
+          onEditProfile={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/edit-profile");
+          }}
+        />
 
         {/* Theme Section */}
         <SettingsThemeSection
@@ -1368,20 +983,6 @@ export default function SettingsScreen() {
           }}
           onSaveThemeMode={handleSaveThemeMode}
           onSaveTheme={handleSaveTheme}
-        />
-
-        {/* Profile Style Section (theme + card color) */}
-        <SettingsProfileAppearanceSection
-          profileThemeId={editProfileThemeId}
-          profileCardColor={editProfileCardColor}
-          userIsPro={userIsPremium}
-          themeColor={themeColor}
-          isDark={isDark}
-          colors={colors}
-          onThemeSelect={handleProfileThemeSelect}
-          onPremiumUpsell={handleProfilePremiumUpsell}
-          onCardColorChange={handleProfileCardColorChange}
-          onSectionVisible={() => trackAnalytics("profile_theme_picker_opened", { userId: session?.user?.id })}
         />
 
         {/* Account Section */}
@@ -1804,45 +1405,6 @@ export default function SettingsScreen() {
 
       {/* P0: Remove Phone Confirm Modal REMOVED - feature deprecated */}
 
-      {/* Username Change Info Modal */}
-      <Modal
-        visible={showUsernameInfoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowUsernameInfoModal(false)}
-      >
-        <Pressable
-          className="flex-1 justify-center items-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowUsernameInfoModal(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            className="mx-6 rounded-2xl p-6"
-            style={{ backgroundColor: colors.surface, maxWidth: 320 }}
-          >
-            <Text className="text-lg font-bold text-center mb-3" style={{ color: colors.text }}>
-              Username Changes
-            </Text>
-            <Text className="text-sm text-center mb-5" style={{ color: colors.textSecondary }}>
-              {adminStatus?.isAdmin 
-                ? "As an admin, you can change your username without cooldown restrictions."
-                : "You can change your username up to 2 times every 30 days."
-              }
-            </Text>
-            <Button
-              variant="primary"
-              label="Got it"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowUsernameInfoModal(false);
-              }}
-              style={{ borderRadius: 12 }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       {/* Admin Unlock Passcode Modal */}
       <SettingsAdminPasscodeModal
         visible={showPasscodeModal}
@@ -1879,16 +1441,6 @@ export default function SettingsScreen() {
         />
       )}
 
-      {/* Profile theme premium upsell */}
-      <PremiumUpsellSheet
-        visible={profileStyleUpsell.visible}
-        title="Premium Profile Theme"
-        subtitle="Unlock premium themes to personalize your profile"
-        analyticsShowEvent="profile_theme_upsell_shown"
-        analyticsUpgradeEvent="profile_theme_upsell_tapped"
-        analyticsProps={{ themeId: profileStyleUpsell.themeId, userId: session?.user?.id }}
-        onDismiss={handleProfileUpsellDismiss}
-      />
     </SafeAreaView>
   );
 }
