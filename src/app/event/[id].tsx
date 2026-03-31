@@ -46,7 +46,6 @@ import {
   ChevronUp,
   Settings,
   UserCheck,
-  Pencil,
   MessageCircle,
   ImagePlus,
   Trash2,
@@ -109,7 +108,6 @@ import { SocialProofRow } from "@/components/event/SocialProofRow";
 import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { PhotoNudge } from "@/components/event/PhotoNudge";
-import { EditPhotoButton } from "@/components/event/EditPhotoButton";
 import { EventHeroNav } from "@/components/event/EventHeroNav";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
@@ -529,7 +527,6 @@ export default function EventDetailScreen() {
   // Hero micro-animation refs (title reveal + edit tap)
   const heroTitleOpacity = useRef(new RNAnimated.Value(0)).current;
   const heroTitleTranslateY = useRef(new RNAnimated.Value(6)).current;
-  const editScale = useRef(new RNAnimated.Value(1)).current;
   const heroLoadedUrl = useRef<string | null>(null);
 
   // [GROWTH_FUNNEL] Track page view — once per mount
@@ -2460,21 +2457,7 @@ export default function EventDetailScreen() {
               isDark={isDark}
               colors={colors}
               themeId={event.themeId ?? null}
-              editButton={
-                isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-                  <EditPhotoButton
-                    editScale={editScale}
-                    onPress={() => {
-                      if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
-                      RNAnimated.sequence([
-                        RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
-                        RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
-                      ]).start();
-                      setShowPhotoSheet(true);
-                    }}
-                  />
-                ) : undefined
-              }
+              editButton={undefined}
               photoNudge={
                 isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
                   <PhotoNudge
