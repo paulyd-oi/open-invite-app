@@ -4,9 +4,8 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { BackgroundImageLayer } from "@/components/BackgroundImageLayer";
-import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
-import { THEME_BACKGROUNDS, THEME_VIDEOS } from "@/lib/eventThemes";
+import { THEME_BACKGROUNDS } from "@/lib/eventThemes";
 import type { ThemeId, ThemeVisualStack } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 
@@ -115,17 +114,7 @@ export function CreatePreviewHero({
             </View>
           )}
 
-          {/* Looping video */}
-          {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-              <ThemeVideoLayer
-                source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
-                poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
-                opacity={previewTheme.visualStack.video.opacity}
-                isActive={true}
-              />
-            </View>
-          )}
+          {/* Video handled page-wide in create.tsx, not hero-scoped */}
 
           {/* Filter overlay */}
           {selectedThemeId && previewTheme.visualStack?.filter && (

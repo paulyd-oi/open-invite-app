@@ -9,11 +9,12 @@ import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import { trackEventCreated } from "@/lib/rateApp";
-import { resolveEventTheme, type ThemeId } from "@/lib/eventThemes";
+import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS, type ThemeId } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
+import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { CreateEditorHeader } from "@/components/create/CreateEditorHeader";
 import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
 import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
@@ -524,6 +525,18 @@ export default function CreateEventScreen() {
       {activeGradient && activeGradient.colors.length >= 2 && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <AnimatedGradientLayer config={activeGradient} />
+        </View>
+      )}
+
+      {/* ── Page-level video background (video themes only) ── */}
+      {selectedThemeId && previewTheme.visualStack?.video && THEME_VIDEOS[previewTheme.visualStack.video.source] && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <ThemeVideoLayer
+            source={THEME_VIDEOS[previewTheme.visualStack.video.source]}
+            poster={previewTheme.visualStack.video.poster ? THEME_BACKGROUNDS[previewTheme.visualStack.video.poster] : undefined}
+            opacity={previewTheme.visualStack.video.opacity}
+            isActive={true}
+          />
         </View>
       )}
 
