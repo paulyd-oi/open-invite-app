@@ -158,6 +158,12 @@ export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
   luau_bg: require("../../assets/theme-backgrounds/luau.png"),
   movie_night_v2_bg: require("../../assets/theme-backgrounds/movie_night_v2.png"),
   beach_day_bg: require("../../assets/theme-backgrounds/beach_day.png"),
+  gradient_warm_bg: require("../../assets/theme-backgrounds/gradient_warm.png"),
+  abstract_color_bg: require("../../assets/theme-backgrounds/abstract_color.png"),
+  fluid_dark_bg: require("../../assets/theme-backgrounds/fluid_dark.png"),
+  golden_hour_bg: require("../../assets/theme-backgrounds/golden_hour.png"),
+  rain_window_bg: require("../../assets/theme-backgrounds/rain_window.png"),
+  night_sky_bg: require("../../assets/theme-backgrounds/night_sky.png"),
 };
 
 // ─── Video Background Registry ───────────────────────────
@@ -169,6 +175,12 @@ export const THEME_VIDEOS: Record<string, number> = {
   bonfire_night_loop: require("../../assets/theme-videos/bonfire_night_loop.mp4"),
   beach_day_loop: require("../../assets/theme-videos/beach_day_loop.mp4"),
   party_night_loop: require("../../assets/theme-videos/party_night_loop.mp4"),
+  gradient_warm_loop: require("../../assets/theme-videos/gradient_warm_loop.mp4"),
+  abstract_color_loop: require("../../assets/theme-videos/abstract_color_loop.mp4"),
+  fluid_dark_loop: require("../../assets/theme-videos/fluid_dark_loop.mp4"),
+  golden_hour_loop: require("../../assets/theme-videos/golden_hour_loop.mp4"),
+  rain_window_loop: require("../../assets/theme-videos/rain_window_loop.mp4"),
+  night_sky_loop: require("../../assets/theme-videos/night_sky_loop.mp4"),
 };
 
 // ─── Lottie Effect Registry ─────────────────────────────
@@ -412,7 +424,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(190, 18, 60, 0.20)",
     pageTintLight: "rgba(190, 18, 60, 0.10)",
     chipAccent: "#BE123C",
-    visualStack: { gradient: { colors: ["rgba(26,10,16,0.50)", "rgba(190,18,60,0.38)", "rgba(212,175,55,0.18)", "rgba(22,8,12,0.50)"], speed: 2 }, particles: "rose_petals", shader: "bokeh", filter: "vignette" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(26,10,16,0.50)", "rgba(190,18,60,0.38)", "rgba(212,175,55,0.18)", "rgba(22,8,12,0.50)"], speed: 2 }, particles: "rose_petals", shader: "bokeh", filter: "vignette", video: { source: "golden_hour_loop", poster: "golden_hour_bg", opacity: 0.6 } },
   },
   celebration: {
     label: "Celebration",
@@ -425,7 +438,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255, 215, 0, 0.20)",
     pageTintLight: "rgba(255, 215, 0, 0.10)",
     chipAccent: "#FFD700",
-    visualStack: { gradient: { colors: ["rgba(10,14,42,0.50)", "rgba(255,215,0,0.35)", "rgba(239,68,68,0.22)", "rgba(8,10,35,0.50)"], speed: 3 }, particles: "firework_burst", lottie: "fireworks_scene", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.25 } },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(10,14,42,0.50)", "rgba(255,215,0,0.35)", "rgba(239,68,68,0.22)", "rgba(8,10,35,0.50)"], speed: 3 }, particles: "firework_burst", lottie: "fireworks_scene", shader: "shimmer", filter: "noise", image: { source: "celebration_bg", opacity: 0.25 }, video: { source: "gradient_warm_loop", poster: "gradient_warm_bg", opacity: 0.6 } },
   },
   valentines: {
     label: "Valentine's",
@@ -545,7 +559,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(255, 215, 0, 0.18)",
     pageTintLight: "rgba(255, 215, 0, 0.08)",
     chipAccent: "#FFD700",
-    visualStack: { gradient: { colors: ["rgba(10,10,24,0.50)", "rgba(255,215,0,0.35)", "rgba(168,85,247,0.22)", "rgba(8,8,20,0.50)"], speed: 3 }, particles: "nye_burst", filter: "vignette", image: { source: "new_years_eve_bg", opacity: 0.25 } },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(10,10,24,0.50)", "rgba(255,215,0,0.35)", "rgba(168,85,247,0.22)", "rgba(8,8,20,0.50)"], speed: 3 }, particles: "nye_burst", filter: "vignette", image: { source: "new_years_eve_bg", opacity: 0.25 }, video: { source: "night_sky_loop", poster: "night_sky_bg", opacity: 0.7 } },
   },
   awards_night: {
     label: "Awards Night",
@@ -571,7 +586,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 83, 9, 0.18)",
     pageTintLight: "rgba(180, 83, 9, 0.08)",
     chipAccent: "#B45309",
-    visualStack: { gradient: { colors: ["rgba(26,18,10,0.50)", "rgba(136,19,55,0.38)", "rgba(180,83,9,0.25)", "rgba(22,14,8,0.50)"], speed: 2 }, shader: "bokeh", particles: "date_night_glow", image: { source: "date_night_bg", opacity: 0.22 }, filter: "vignette" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(26,18,10,0.50)", "rgba(136,19,55,0.38)", "rgba(180,83,9,0.25)", "rgba(22,14,8,0.50)"], speed: 2 }, shader: "bokeh", particles: "date_night_glow", image: { source: "date_night_bg", opacity: 0.22 }, filter: "vignette", video: { source: "golden_hour_loop", poster: "golden_hour_bg", opacity: 0.65 } },
   },
   pool_party: {
     label: "Pool Party",
@@ -627,7 +643,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(180, 120, 60, 0.18)",
     pageTintLight: "rgba(180, 120, 60, 0.10)",
     chipAccent: "#B4783C",
-    visualStack: { gradient: { colors: ["rgba(26,16,8,0.50)", "rgba(180,120,60,0.38)", "rgba(100,60,20,0.25)", "rgba(22,12,5,0.50)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.25 }, filter: "vignette" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(26,16,8,0.50)", "rgba(180,120,60,0.38)", "rgba(100,60,20,0.25)", "rgba(22,12,5,0.50)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.25 }, filter: "vignette", video: { source: "rain_window_loop", poster: "rain_window_bg", opacity: 0.7 } },
   },
   movie_night: {
     label: "Movie Night",
@@ -640,7 +657,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100, 116, 139, 0.22)",
     pageTintLight: "rgba(100, 116, 139, 0.10)",
     chipAccent: "#64748B",
-    visualStack: { gradient: { colors: ["rgba(15,18,24,0.50)", "rgba(50,55,70,0.35)", "rgba(100,116,139,0.22)", "rgba(12,14,20,0.50)"], speed: 2 }, shader: "shimmer", particles: "projector_dust", image: { source: "movie_night_v2_bg", opacity: 0.20 }, filter: "film_grain" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(15,18,24,0.50)", "rgba(50,55,70,0.35)", "rgba(100,116,139,0.22)", "rgba(12,14,20,0.50)"], speed: 2 }, shader: "shimmer", particles: "projector_dust", image: { source: "movie_night_v2_bg", opacity: 0.20 }, filter: "film_grain", video: { source: "fluid_dark_loop", poster: "fluid_dark_bg", opacity: 0.65 } },
   },
 };
 
