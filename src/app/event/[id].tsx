@@ -19,7 +19,7 @@ import { Image as ExpoImage } from "expo-image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { getDiscussionPrompts, inferEventTags } from "@/lib/discussionPromptSSOT";
@@ -109,9 +109,6 @@ import { DiscussionCard } from "@/components/event/DiscussionCard";
 import { WhosComingCard } from "@/components/event/WhosComingCard";
 import { AboutCard } from "@/components/event/AboutCard";
 import { SocialProofRow } from "@/components/event/SocialProofRow";
-import { RsvpSuccessPrompt } from "@/components/event/RsvpSuccessPrompt";
-import { FindFriendsNudge } from "@/components/event/FindFriendsNudge";
-import { RsvpStatusDisplay } from "@/components/event/RsvpStatusDisplay";
 import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { PhotoNudge } from "@/components/event/PhotoNudge";
@@ -476,8 +473,6 @@ export default function EventDetailScreen() {
   const rsvpButtonAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: rsvpButtonScale.value }] }));
 
   // [RSVP_FRICTION] Inline success prompt state (once per event per session)
-  const [showRsvpSuccessPrompt, setShowRsvpSuccessPrompt] = useState(false);
-  const rsvpSuccessPromptFired = useRef(false);
 
   // [EVENT_LIVE_UI_2] Live chip state — shows briefly after RSVP or when recently active
   const [liveChipText, setLiveChipText] = useState<string | null>(null);
@@ -491,7 +486,6 @@ export default function EventDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
-  const [findFriendsNudgeDismissed, setFindFriendsNudgeDismissed] = useState(true); // default hidden until check
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
@@ -565,12 +559,6 @@ export default function EventDetailScreen() {
     });
   }, [id]);
 
-  // [GROWTH_FIND_FRIENDS] Check global dismiss state
-  useEffect(() => {
-    AsyncStorage.getItem("dismissedFindFriendsNudge").then((v) => {
-      setFindFriendsNudgeDismissed(v === "true");
-    });
-  }, []);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -1569,13 +1557,6 @@ export default function EventDetailScreen() {
           // Since choice is already locked, no other prompt can appear in the meantime
         }
 
-        // [GROWTH_V1] Always show inline success prompt for "going" — non-blocking card
-        // Coexists with modal prompts since it's inline, not a modal
-        if (status === "going" && !rsvpSuccessPromptFired.current) {
-          rsvpSuccessPromptFired.current = true;
-          setShowRsvpSuccessPrompt(true);
-          trackRsvpSuccessPromptShown({ source: "event" });
-        }
       }
     },
     onError: (error: any, _nextStatus, context) => {
@@ -2395,8 +2376,8 @@ export default function EventDetailScreen() {
     ? buildCustomThemeTokens(event.customThemeData)
     : resolveEventTheme(event.themeId);
 
-  // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility
-  const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest && myRsvpStatus !== "going";
+  // [GROWTH_STICKY_RSVP] Sticky bottom bar visibility — persists after RSVP
+  const showStickyRsvp = !isMyEvent && !event?.isBusy && !!event && !hasJoinRequest;
   const stickyBarHeight = 64 + insets.bottom;
 
   return (
@@ -2663,92 +2644,18 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
-        {!isMyEvent && !event?.isBusy && (hasJoinRequest || myRsvpStatus) && (
+        {/* ═══ JOIN REQUEST BANNER — only for pending join requests ═══ */}
+        {!isMyEvent && !event?.isBusy && hasJoinRequest && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-            {hasJoinRequest ? (
-              <ConfirmedAttendeeBanner
-                effectiveGoingCount={effectiveGoingCount}
-                attendees={attendeesList}
-                isDark={isDark}
-                colors={colors}
-              />
-            ) : (
-              <View style={{ marginBottom: 4 }}>
-                {/* [P0_RSVP] Proof log: Render RSVP state and count */}
-                {__DEV__ && (() => {
-                  devLog("[P0_RSVP]", "ui render", {
-                    eventId: id,
-                    myRsvpStatus,
-                    totalGoing,
-                    attendeesListCount: attendeesList.length,
-                    isPending: rsvpMutation.isPending,
-                  });
-                  return null;
-                })()}
-
-                {/* Current RSVP status — compact inline */}
-                {myRsvpStatus && (
-                  <RsvpStatusDisplay
-                    myRsvpStatus={myRsvpStatus}
-                    isPending={rsvpMutation.isPending}
-                    isDark={isDark}
-                    themeColor={themeColor}
-                    colors={colors}
-                    showRsvpOptions={showRsvpOptions}
-                    onToggleOptions={() => setShowRsvpOptions(!showRsvpOptions)}
-                    onShareWithFriends={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      trackRsvpShareClicked({
-                        eventId: event.id,
-                        surface: "rsvp_confirmation",
-                        visibility: event.visibility ?? "unknown",
-                        hasCircleId: !!event.circleId,
-                      });
-                      trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                      shareEvent({ ...event, location: locationDisplay ?? null });
-                    }}
-                  />
-                )}
-
-                {/* [GROWTH_V1] Inline success prompt — "Want to bring someone?" */}
-                {showRsvpSuccessPrompt && myRsvpStatus === "going" && (
-                  <RsvpSuccessPrompt
-                    isDark={isDark}
-                    colors={colors}
-                    onShare={() => {
-                      trackRsvpSuccessPromptTap({ source: "event" });
-                      trackInviteShared({ entity: "event", sourceScreen: "rsvp_success" });
-                      trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowRsvpSuccessPrompt(false);
-                      if (event) shareEvent({ ...event, location: locationDisplay ?? null });
-                    }}
-                    onDismiss={() => setShowRsvpSuccessPrompt(false)}
-                  />
-                )}
-
-                {/* [GROWTH_V1] Find Friends nudge — post-RSVP contacts import exposure */}
-                {!isMyEvent && myRsvpStatus === "going" && !showRsvpSuccessPrompt && !findFriendsNudgeDismissed && (
-                  <FindFriendsNudge
-                    isDark={isDark}
-                    colors={colors}
-                    onFind={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/find-friends" as any);
-                    }}
-                    onDismiss={async () => {
-                      setFindFriendsNudgeDismissed(true);
-                      await AsyncStorage.setItem("dismissedFindFriendsNudge", "true");
-                    }}
-                  />
-                )}
-
-                {/* Inline RSVP buttons removed — sticky bottom CTA is single source of truth for guest actions */}
-              </View>
-            )}
+            <ConfirmedAttendeeBanner
+              effectiveGoingCount={effectiveGoingCount}
+              attendees={attendeesList}
+              isDark={isDark}
+              colors={colors}
+            />
           </Animated.View>
         )}
+        {/* Inline RSVP status removed — sticky bottom bar is now single source of truth for guest RSVP state */}
 
         {/* HostToolsRow merged into HOST ACTION CARD above */}
 
@@ -2992,6 +2899,7 @@ export default function EventDetailScreen() {
           themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
           onRsvpInterested={() => handleRsvp("interested")}
+          onChangeRsvp={() => setShowRsvpOptions(!showRsvpOptions)}
         />
       )}
 
