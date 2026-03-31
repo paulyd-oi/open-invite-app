@@ -20,7 +20,6 @@ import {
   Dimensions,
   useWindowDimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import Animated, {
   Easing,
@@ -36,19 +35,16 @@ import {
   GestureDetector,
 } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronUp, ChevronDown, Crown, Lock, X } from "@/ui/icons";
+import { ChevronUp, ChevronDown, X } from "@/ui/icons";
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import {
   EVENT_THEMES,
-  isPremiumTheme,
-  isVideoTheme,
-  BASIC_THEME_IDS,
-  PREMIUM_THEME_IDS,
-  THEME_DISPLAY_ORDER,
+  getThemesForSurface,
   type ThemeId,
   type ThemeVisualStack,
 } from "@/lib/eventThemes";
+import { ThemePicker } from "@/components/customization/ThemePicker";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 import { useThemeBuilderStore } from "@/lib/themeBuilderStore";
 
@@ -56,9 +52,6 @@ import { useThemeBuilderStore } from "@/lib/themeBuilderStore";
 
 const TRAY_HEIGHT = 106;
 const STUDIO_HEIGHT_PCT = 0.54;
-const SWATCH_SIZE = 42;
-const SWATCH_RADIUS = 21;
-const SWATCH_GAP = 8;
 const BORDER_RADIUS = 22;
 const TIMING_CONFIG = { duration: 280, easing: Easing.out(Easing.cubic) };
 
@@ -283,7 +276,6 @@ export const ThemeTray = memo(function ThemeTray({
               themeColor={themeColor}
               isDark={isDark}
               userIsPro={userIsPro}
-              glassSecondary={glassSecondary}
               onSelectTheme={handleSelectTheme}
               onPremiumPreview={onPremiumPreview}
             />
@@ -296,21 +288,14 @@ export const ThemeTray = memo(function ThemeTray({
 
 // ─── Tray Content (Compact Mode) ────────────────────────────
 
-/** Display order for free themes (filtered from master display order) */
-const FREE_DISPLAY_ORDER = THEME_DISPLAY_ORDER.filter(
-  (id) => (BASIC_THEME_IDS as readonly string[]).includes(id),
-);
-/** Display order for premium themes */
-const PREMIUM_DISPLAY_ORDER = THEME_DISPLAY_ORDER.filter(
-  (id) => (PREMIUM_THEME_IDS as readonly string[]).includes(id),
-);
+/** All event-surface theme IDs for the compact swatch rail */
+const EVENT_THEME_IDS = getThemesForSurface("event");
 
 interface ThemeTrayContentProps {
   selectedThemeId: ThemeId | null;
   themeColor: string;
   isDark: boolean;
   userIsPro: boolean;
-  glassSecondary: string;
   onSelectTheme: (id: ThemeId | null) => void;
   onPremiumPreview?: (themeId: ThemeId) => void;
 }
@@ -320,163 +305,29 @@ function ThemeTrayContent({
   themeColor,
   isDark,
   userIsPro,
-  glassSecondary,
   onSelectTheme,
   onPremiumPreview,
 }: ThemeTrayContentProps) {
+  const handlePremiumUpsell = useCallback(
+    (themeId: ThemeId) => {
+      onPremiumPreview?.(themeId);
+    },
+    [onPremiumPreview],
+  );
+
   return (
     <View style={styles.trayBody}>
-      {/* Horizontal swatch rail — sectioned: Free | divider | Premium */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.compactRailContent}
-        style={styles.compactRail}
-      >
-        {/* Free themes */}
-        {FREE_DISPLAY_ORDER.map((tid) => {
-          const t = EVENT_THEMES[tid];
-          const selected = selectedThemeId === tid;
-          return (
-            <MiniCardSwatch
-              key={tid}
-              accentColor={t.backAccent}
-              bodyColor={t.backBgLight}
-              isSelected={selected}
-              isVideo={isVideoTheme(tid)}
-              themeColor={themeColor}
-              isDark={isDark}
-              onPress={() => onSelectTheme(selected ? null : tid)}
-            />
-          );
-        })}
-
-        {/* Section divider */}
-        <View style={{ justifyContent: "center", paddingHorizontal: 2 }}>
-          <View
-            style={{
-              width: 1,
-              height: 28,
-              backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
-              borderRadius: 1,
-            }}
-          />
-        </View>
-
-        {/* Premium themes */}
-        {PREMIUM_DISPLAY_ORDER.map((tid) => {
-          const t = EVENT_THEMES[tid];
-          const selected = selectedThemeId === tid;
-          const showBadge = !userIsPro;
-          return (
-            <MiniCardSwatch
-              key={tid}
-              accentColor={t.backAccent}
-              bodyColor={t.backBgLight}
-              isSelected={selected}
-              isVideo={isVideoTheme(tid)}
-              showCrown={showBadge}
-              themeColor={themeColor}
-              isDark={isDark}
-              onPress={() => {
-                if (!userIsPro) {
-                  // Preview the theme, then parent triggers upsell
-                  onPremiumPreview?.(tid);
-                  return;
-                }
-                onSelectTheme(selected ? null : tid);
-              }}
-            />
-          );
-        })}
-      </ScrollView>
+      <ThemePicker
+        themeIds={EVENT_THEME_IDS}
+        selectedThemeId={selectedThemeId}
+        userIsPro={userIsPro}
+        themeColor={themeColor}
+        isDark={isDark}
+        onThemeSelect={onSelectTheme}
+        onPremiumUpsell={handlePremiumUpsell}
+        layout="horizontal"
+      />
     </View>
-  );
-}
-
-// ─── Mini Card Swatch ────────────────────────────────────────
-
-function MiniCardSwatch({
-  accentColor,
-  bodyColor,
-  isSelected,
-  isVideo,
-  showCrown,
-  themeColor,
-  isDark,
-  onPress,
-}: {
-  accentColor: string;
-  bodyColor: string;
-  isSelected: boolean;
-  isVideo?: boolean;
-  showCrown?: boolean;
-  themeColor: string;
-  isDark: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <View
-        style={{
-          width: SWATCH_SIZE,
-          height: SWATCH_SIZE,
-          borderRadius: SWATCH_RADIUS,
-          overflow: "hidden",
-          borderWidth: isSelected ? 2.5 : 0.5,
-          borderColor: isSelected
-            ? themeColor
-            : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"),
-        }}
-      >
-        <LinearGradient
-          colors={[accentColor, bodyColor]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ flex: 1 }}
-        />
-      </View>
-      {/* Crown badge for premium themes (top-right) */}
-      {showCrown && (
-        <View
-          style={{
-            position: "absolute",
-            top: -2,
-            right: -2,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: "#FFD700",
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.3,
-            shadowRadius: 2,
-            elevation: 3,
-          }}
-        >
-          <Crown size={9} color="#000" />
-        </View>
-      )}
-      {isVideo && !showCrown && (
-        <View
-          style={{
-            position: "absolute",
-            top: 1,
-            right: 1,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: "rgba(0,0,0,0.55)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: "#fff", fontSize: 8, lineHeight: 12, marginLeft: 1 }}>▶</Text>
-        </View>
-      )}
-    </Pressable>
   );
 }
 
@@ -790,14 +641,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 14,
   },
-  compactRail: {
-    flexGrow: 0,
-  },
-  compactRailContent: {
-    gap: SWATCH_GAP,
-    paddingRight: 8,
-  },
-
   // Studio (expanded)
   studioBody: {
     flex: 1,

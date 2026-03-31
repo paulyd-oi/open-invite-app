@@ -1,4 +1,5 @@
 // contracts.ts
+// SYNC: This file has a backend copy at my-app-backend/src/shared/contracts.ts — keep both in sync.
 // Shared API contracts (schemas and types) used by both the server and the app.
 // Import in the app as: `import { type GetSampleResponse } from "@shared/contracts"`
 // Import in the server as: `import { postSampleRequestSchema } from "@shared/contracts"`
@@ -377,6 +378,8 @@ export const friendUserSchema = z.object({
     avatarUrl: z.string().nullable(),
     bannerUrl: z.string().nullable().optional(),
     bannerPhotoUrl: z.string().nullable().optional(),
+    profileThemeId: z.string().nullable().optional(),
+    profileCardColor: z.string().nullable().optional(),
   }).nullable().optional(),
   featuredBadge: z.object({
     badgeKey: z.string(),
@@ -609,6 +612,8 @@ export const getProfileResponseSchema = z.object({
     hideBirthdays: z.boolean(),
     omitBirthdayYear: z.boolean(),
     usernameLastChangedAt: z.string().nullable().optional(), // ISO timestamp
+    profileThemeId: z.string().nullable().optional(),
+    profileCardColor: z.string().nullable().optional(), // hex string, max 9 chars
   }).nullable(),
   user: z.object({
     id: z.string(),
@@ -622,6 +627,8 @@ export const getProfileResponseSchema = z.object({
       calendarBio: z.string().nullable(),
       avatarUrl: z.string().nullable(),
       bannerPhotoUrl: z.string().nullable().optional(),
+      profileThemeId: z.string().nullable().optional(),
+      profileCardColor: z.string().nullable().optional(),
     }).nullable().optional(),
   }).nullable(),
   badges: z.array(z.object({
@@ -655,6 +662,8 @@ export const updateProfileRequestSchema = z.object({
   showBirthdayToFriends: z.boolean().optional(),
   hideBirthdays: z.boolean().optional(),
   omitBirthdayYear: z.boolean().optional(),
+  profileThemeId: z.string().max(50).optional().nullable(),
+  profileCardColor: z.string().max(9).optional().nullable(), // hex string
 });
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 export const updateProfileResponseSchema = z.object({
@@ -670,6 +679,8 @@ export const updateProfileResponseSchema = z.object({
     showBirthdayToFriends: z.boolean(),
     hideBirthdays: z.boolean(),
     omitBirthdayYear: z.boolean(),
+    profileThemeId: z.string().nullable().optional(),
+    profileCardColor: z.string().nullable().optional(),
   }).nullable(),
 });
 export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>;

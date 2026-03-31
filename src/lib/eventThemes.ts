@@ -222,6 +222,9 @@ export const LOTTIE_EFFECTS: Record<string, LottieEffectEntry> = {
 
 // ─── Theme Tokens ────────────────────────────────────────
 
+/** Surface where a theme can be used */
+export type ThemeSurface = "event" | "profile";
+
 export interface EventThemeTokens {
   /** Display name in picker */
   label: string;
@@ -248,6 +251,8 @@ export interface EventThemeTokens {
   category?: "static" | "video";
   /** Composable visual layer stack */
   visualStack?: ThemeVisualStack;
+  /** Surfaces this theme is available on. Defaults to ['event'] if omitted. */
+  surfaces?: ThemeSurface[];
 }
 
 // ─── Theme Catalog ───────────────────────────────────────
@@ -266,6 +271,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "transparent",
     chipAccent: "#8E8E93",
     visualStack: { gradient: { colors: ["rgba(50,50,55,0.45)", "rgba(80,80,90,0.30)", "rgba(60,60,68,0.35)", "rgba(50,50,55,0.45)"], speed: 2 } },
+    surfaces: ["event", "profile"],
   },
   chill_hang: {
     label: "Chill Hang",
@@ -279,6 +285,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(20,184,166,0.14)",
     chipAccent: "#14B8A6",
     visualStack: { gradient: { colors: ["rgba(13,59,62,0.50)", "rgba(20,184,166,0.38)", "rgba(110,220,200,0.25)", "rgba(8,80,78,0.50)"], speed: 3 }, shader: "aurora", particles: "coastal_haze" },
+    surfaces: ["event", "profile"],
   },
   dinner_night: {
     label: "Dinner Night",
@@ -292,6 +299,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(255,152,0,0.12)",
     chipAccent: "#FF9800",
     visualStack: { gradient: { colors: ["rgba(38,28,16,0.50)", "rgba(255,180,90,0.35)", "rgba(180,83,9,0.25)", "rgba(45,25,10,0.50)"], speed: 2 }, particles: "candlelight", filter: "vignette" },
+    surfaces: ["event", "profile"],
   },
   game_night: {
     label: "Game Night",
@@ -359,6 +367,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(100,149,237,0.18)",
     chipAccent: "#6495ED",
     visualStack: { gradient: { colors: ["rgba(17,27,58,0.50)", "rgba(100,149,237,0.38)", "rgba(200,215,255,0.20)", "rgba(14,22,50,0.50)"], speed: 2 }, particles: "snowfall", shader: "shimmer", filter: "noise", image: { source: "winter_glow_bg", opacity: 0.25 } },
+    surfaces: ["event", "profile"],
   },
   game_day: {
     label: "Game Day",
@@ -412,6 +421,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(34, 197, 94, 0.14)",
     chipAccent: "#22C55E",
     visualStack: { gradient: { colors: ["rgba(10,31,16,0.50)", "rgba(34,197,94,0.35)", "rgba(244,163,188,0.22)", "rgba(8,25,12,0.50)"], speed: 3 }, particles: "cherry_blossom", filter: "noise", image: { source: "spring_bloom_bg", opacity: 0.25 } },
+    surfaces: ["event", "profile"],
   },
   romance_elegant: {
     label: "Romance",
@@ -426,6 +436,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     chipAccent: "#BE123C",
     category: "video",
     visualStack: { gradient: { colors: ["rgba(26,10,16,0.50)", "rgba(190,18,60,0.38)", "rgba(212,175,55,0.18)", "rgba(22,8,12,0.50)"], speed: 2 }, particles: "rose_petals", shader: "bokeh", filter: "vignette", video: { source: "gradient_warm_loop", poster: "gradient_warm_bg", opacity: 0.65 } },
+    surfaces: ["event", "profile"],
   },
   celebration: {
     label: "Celebration",
@@ -574,6 +585,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintLight: "rgba(212, 175, 55, 0.08)",
     chipAccent: "#D4AF37",
     visualStack: { gradient: { colors: ["rgba(14,12,8,0.50)", "rgba(212,175,55,0.38)", "rgba(255,235,180,0.18)", "rgba(10,8,5,0.50)"], speed: 2 }, shader: "shimmer", particles: "golden_sparkle", image: { source: "awards_night_bg", opacity: 0.22 }, filter: "vignette" },
+    surfaces: ["event", "profile"],
   },
   date_night: {
     label: "Date Night",
@@ -588,6 +600,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     chipAccent: "#B45309",
     category: "video",
     visualStack: { gradient: { colors: ["rgba(26,18,10,0.50)", "rgba(136,19,55,0.38)", "rgba(180,83,9,0.25)", "rgba(22,14,8,0.50)"], speed: 2 }, shader: "bokeh", particles: "date_night_glow", image: { source: "date_night_bg", opacity: 0.22 }, filter: "vignette", video: { source: "golden_hour_loop", poster: "golden_hour_bg", opacity: 0.65 } },
+    surfaces: ["event", "profile"],
   },
   pool_party: {
     label: "Pool Party",
@@ -645,6 +658,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     chipAccent: "#B4783C",
     category: "video",
     visualStack: { gradient: { colors: ["rgba(26,16,8,0.50)", "rgba(180,120,60,0.38)", "rgba(100,60,20,0.25)", "rgba(22,12,5,0.50)"], speed: 2 }, shader: "bokeh", particles: "candlelight", image: { source: "cozy_night_bg", opacity: 0.25 }, filter: "vignette", video: { source: "rain_window_loop", poster: "rain_window_bg", opacity: 0.7 } },
+    surfaces: ["event", "profile"],
   },
   movie_night: {
     label: "Movie Night",
@@ -659,6 +673,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     chipAccent: "#64748B",
     category: "video",
     visualStack: { gradient: { colors: ["rgba(15,18,24,0.50)", "rgba(50,55,70,0.35)", "rgba(100,116,139,0.22)", "rgba(12,14,20,0.50)"], speed: 2 }, shader: "shimmer", particles: "projector_dust", image: { source: "movie_night_v2_bg", opacity: 0.20 }, filter: "film_grain", video: { source: "fluid_dark_loop", poster: "fluid_dark_bg", opacity: 0.65 } },
+    surfaces: ["event", "profile"],
   },
 };
 
@@ -720,6 +735,19 @@ export function getVisibleThemePacks(
 }
 
 // ─── Helpers ─────────────────────────────────────────────
+
+/**
+ * Return theme IDs available for a given surface.
+ * 'event' returns ALL themes (no filtering — backwards compatible).
+ * 'profile' returns only themes tagged with surfaces: ["profile"].
+ */
+export function getThemesForSurface(surface: ThemeSurface): ThemeId[] {
+  if (surface === "event") return [...ALL_THEME_IDS];
+  return ALL_THEME_IDS.filter((id) => {
+    const theme = EVENT_THEMES[id];
+    return theme.surfaces?.includes(surface);
+  });
+}
 
 export function isValidThemeId(id: string | null | undefined): id is ThemeId {
   if (!id) return false;
