@@ -2965,7 +2965,7 @@ export default function EventDetailScreen() {
         onEdit={() => {
           setShowEventActionsSheet(false);
           Haptics.selectionAsync();
-          router.push(`/event/edit/${id}`);
+          router.push(`/create?editEventId=${id}&emoji=${encodeURIComponent(event?.emoji ?? "📅")}` as any);
         }}
         onDuplicate={() => {
           setShowEventActionsSheet(false);
