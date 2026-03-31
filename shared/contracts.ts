@@ -76,6 +76,8 @@ export const eventSchema = z.object({
   // Event Effects V1
   effectId: z.string().nullable().optional(),
   customEffectConfig: z.any().nullable().optional(),
+  // Card Color — explicit hex override for card backgrounds
+  cardColor: z.string().nullable().optional(),
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -232,6 +234,8 @@ export const createEventRequestSchema = z.object({
   // Event Effects V1
   effectId: z.string().nullable().optional(),
   customEffectConfig: z.any().nullable().optional(),
+  // Card Color — explicit hex override for card backgrounds (null = use theme default)
+  cardColor: z.string().max(9).nullable().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

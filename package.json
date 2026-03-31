@@ -140,6 +140,7 @@
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "react-test-renderer": "19.0.0",
+    "reanimated-color-picker": "^4.2.0",
     "reanimated-tab-view": "^0.4.0",
     "rn-emoji-keyboard": "^1.7.0",
     "tailwind-merge": "^3.2.0",

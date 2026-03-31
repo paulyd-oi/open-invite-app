@@ -17,9 +17,11 @@ import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
 import { CreateEditorHeader } from "@/components/create/CreateEditorHeader";
 import { CreatePreviewHero } from "@/components/create/CreatePreviewHero";
+import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { CreateBottomDock, type DockMode } from "@/components/create/CreateBottomDock";
 import { MotifOverlay } from "@/components/create/MotifOverlay";
 import { CreateCoverRow } from "@/components/create/CreateCoverRow";
+import { CardColorPicker } from "@/components/create/CardColorPicker";
 import { CreateFormFields } from "@/components/create/CreateFormFields";
 import { CreateLocationSection } from "@/components/create/CreateLocationSection";
 import { CreateDateTimeSection } from "@/components/create/CreateDateTimeSection";
@@ -193,6 +195,9 @@ export default function CreateEventScreen() {
   // Effect overlay state (independent of theme)
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const [customEffectConfig, setCustomEffectConfig] = useState<import("@/components/create/MotifOverlay").ParticleMotifConfig | null>(null);
+
+  // Card Color — explicit hex override for card backgrounds
+  const [cardColor, setCardColor] = useState<string | null>(null);
 
   // Bottom dock sheet state
   const [activeDockMode, setActiveDockMode] = useState<DockMode | null>(null);
@@ -467,6 +472,11 @@ export default function CreateEventScreen() {
       coverMedia.prefillCover(editEvent.eventPhotoUrl);
     }
 
+    // Card Color
+    if ((editEvent as any).cardColor) {
+      setCardColor((editEvent as any).cardColor);
+    }
+
     setIsEditLoaded(true);
   }, [isEditMode, editEvent, isEditLoaded]);
 
@@ -583,6 +593,8 @@ export default function CreateEventScreen() {
               : {}),
           }
         : {}),
+      // Card Color — explicit hex override
+      ...(cardColor ? { cardColor } : {}),
     };
     if (isEditMode) {
       updateMutation.mutate(createPayload as any);
@@ -664,16 +676,41 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <CreatePreviewHero
-            title={title}
-            selectedThemeId={selectedThemeId}
-            previewTheme={previewTheme}
-            selectedCustomTheme={selectedCustomTheme}
-            glassText={glassText}
-            glassSecondary={glassSecondary}
-            themed={themed}
-            coverImageUrl={coverMedia.selectedCoverItem?.url ?? coverMedia.bannerLocalUri}
+          <InviteFlipCard
+            title={title.trim() || "Your Event Title"}
+            imageUri={coverMedia.selectedCoverItem?.url ?? coverMedia.bannerLocalUri ?? null}
+            emoji={emoji}
+            countdownLabel={null}
+            dateLabel={startDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            timeLabel={startDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            locationDisplay={locationSearch.location || null}
+            goingCount={0}
+            attendeeAvatars={[]}
+            description={description.trim() || null}
+            hostName={session?.user?.name ?? null}
+            hostImageUrl={session?.user?.image ?? null}
+            isMyEvent={true}
+            capacity={hasCapacity && capacityInput ? parseInt(capacityInput, 10) || null : null}
+            currentGoing={0}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            themeId={selectedThemeId}
+            cardColor={cardColor}
           />
+
+          {/* Card Color Picker — below flip card preview */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <CardColorPicker
+              cardColor={cardColor}
+              onColorChange={setCardColor}
+              glassText={glassText}
+              glassSecondary={glassSecondary}
+              glassSurface={glassSurface}
+              glassBorder={glassBorder}
+              isDark={isDark}
+            />
+          </View>
 
           {isSmartMode && (
             <View

@@ -73,6 +73,9 @@ export interface InviteFlipCardProps {
   // Event Themes V1
   themeId?: string | null;
 
+  // Card Color — explicit hex override for card backgrounds (null = use theme default)
+  cardColor?: string | null;
+
   // Host edit button (rendered on front)
   editButton?: React.ReactNode;
 
@@ -112,6 +115,7 @@ export function InviteFlipCard({
   isDark,
   colors,
   themeId,
+  cardColor,
   editButton,
   photoNudge,
 }: InviteFlipCardProps) {
@@ -122,8 +126,8 @@ export function InviteFlipCard({
   // ── Card theme (always resolves — neutral fallback for unthemed events) ──
   const ct = useMemo(() => resolveEventTheme(themeId), [themeId]);
   const backAccent = ct.backAccent || themeColor;
-  const themedCardBg = isDark ? ct.backBgDark : ct.backBgLight;
-  const plaqueBg = isDark ? ct.backBgDark : ct.backBgLight;
+  const themedCardBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
+  const plaqueBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
 
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
