@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Check, Heart, Users, Share2 } from "@/ui/icons";
+import { Check, Heart, Users, Share2, X } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
   text: string;
@@ -22,6 +22,9 @@ interface StickyRsvpBarProps {
   onRsvpInterested: () => void;
   onChangeRsvp?: () => void;
   onShare?: () => void;
+  showChangeOptions?: boolean;
+  onRsvpNotGoing?: () => void;
+  onDismissChange?: () => void;
 }
 
 // Glass surface tokens
@@ -54,6 +57,9 @@ export function StickyRsvpBar({
   onRsvpInterested,
   onChangeRsvp,
   onShare,
+  showChangeOptions,
+  onRsvpNotGoing,
+  onDismissChange,
 }: StickyRsvpBarProps) {
   const saveGlass = isDark ? GLASS.save.dark : GLASS.save.light;
   const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
@@ -79,7 +85,68 @@ export function StickyRsvpBar({
           {effectiveGoingCount} going
         </Text>
       )}
-      {isConfirmed ? (
+      {isConfirmed && showChangeOptions ? (
+        <View style={{ opacity: isPending ? 0.6 : 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            {/* Going — already selected, tapping re-confirms and dismisses */}
+            <Pressable
+              onPress={onDismissChange}
+              disabled={isPending}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                borderRadius: 16,
+                backgroundColor: GLASS.imIn.bg,
+                borderWidth: 1,
+                borderColor: GLASS.imIn.border,
+              }}
+            >
+              <Check size={16} color="#FFFFFF" />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Going ✓</Text>
+            </Pressable>
+            {/* Save / Interested */}
+            <Pressable
+              onPress={onRsvpInterested}
+              disabled={isPending}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 18,
+                borderRadius: 16,
+                backgroundColor: saveGlass.bg,
+                borderWidth: 1,
+                borderColor: saveGlass.border,
+              }}
+            >
+              <Heart size={15} color={colors.text} />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Save</Text>
+            </Pressable>
+            {/* Can't make it */}
+            <Pressable
+              onPress={onRsvpNotGoing}
+              disabled={isPending}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 18,
+                borderRadius: 16,
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                borderWidth: 1,
+                borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)",
+              }}
+            >
+              <X size={15} color={colors.textTertiary} />
+            </Pressable>
+          </View>
+        </View>
+      ) : isConfirmed ? (
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <Pressable
             onPress={onChangeRsvp}

@@ -2898,9 +2898,12 @@ export default function EventDetailScreen() {
           colors={colors}
           themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
-          onRsvpInterested={() => handleRsvp("interested")}
-          onChangeRsvp={() => setShowRsvpOptions(!showRsvpOptions)}
+          onRsvpInterested={() => { handleRsvp("interested"); setShowRsvpOptions(false); }}
+          onChangeRsvp={() => setShowRsvpOptions(true)}
           onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
+          showChangeOptions={showRsvpOptions}
+          onRsvpNotGoing={() => { handleRsvp("not_going"); setShowRsvpOptions(false); }}
+          onDismissChange={() => setShowRsvpOptions(false)}
         />
       )}
 
