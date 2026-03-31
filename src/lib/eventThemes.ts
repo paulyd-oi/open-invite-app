@@ -157,6 +157,7 @@ export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
   spring_bloom_bg: require("../../assets/theme-backgrounds/spring_bloom.png"),
   luau_bg: require("../../assets/theme-backgrounds/luau.png"),
   movie_night_v2_bg: require("../../assets/theme-backgrounds/movie_night_v2.png"),
+  beach_day_bg: require("../../assets/theme-backgrounds/beach_day.png"),
 };
 
 // ─── Video Background Registry ───────────────────────────
@@ -165,6 +166,9 @@ export const THEME_BACKGROUNDS: Record<string, ImageSourcePropType> = {
 
 export const THEME_VIDEOS: Record<string, number> = {
   pool_party_loop: require("../../assets/theme-videos/pool_party_loop.mp4"),
+  bonfire_night_loop: require("../../assets/theme-videos/bonfire_night_loop.mp4"),
+  beach_day_loop: require("../../assets/theme-videos/beach_day_loop.mp4"),
+  party_night_loop: require("../../assets/theme-videos/party_night_loop.mp4"),
 };
 
 // ─── Lottie Effect Registry ─────────────────────────────
@@ -381,7 +385,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139, 92, 246, 0.30)",
     pageTintLight: "rgba(139, 92, 246, 0.14)",
     chipAccent: "#A855F7",
-    visualStack: { gradient: { colors: ["rgba(13,3,34,0.50)", "rgba(139,92,246,0.42)", "rgba(236,72,153,0.28)", "rgba(10,2,28,0.50)"], speed: 3 }, shader: "plasma", particles: "disco_pulse", image: { source: "party_night_bg", opacity: 0.20 }, filter: "color_shift" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(13,3,34,0.50)", "rgba(139,92,246,0.42)", "rgba(236,72,153,0.28)", "rgba(10,2,28,0.50)"], speed: 3 }, shader: "plasma", particles: "disco_pulse", image: { source: "party_night_bg", opacity: 0.20 }, filter: "color_shift", video: { source: "party_night_loop", poster: "party_night_bg", opacity: 0.6 } },
   },
   spring_bloom: {
     label: "Spring Bloom",
@@ -498,7 +503,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(217, 119, 6, 0.22)",
     pageTintLight: "rgba(217, 119, 6, 0.12)",
     chipAccent: "#D97706",
-    visualStack: { gradient: { colors: ["rgba(26,18,10,0.50)", "rgba(217,119,6,0.38)", "rgba(185,28,28,0.22)", "rgba(22,14,8,0.50)"], speed: 2 }, shader: "bokeh", particles: "fireflies", filter: "film_grain", image: { source: "bonfire_night_bg", opacity: 0.25 } },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(26,18,10,0.50)", "rgba(217,119,6,0.38)", "rgba(185,28,28,0.22)", "rgba(22,14,8,0.50)"], speed: 2 }, shader: "bokeh", particles: "fireflies", filter: "film_grain", image: { source: "bonfire_night_bg", opacity: 0.25 }, video: { source: "bonfire_night_loop", poster: "bonfire_night_bg", opacity: 0.65 } },
   },
   luau: {
     label: "Luau",
@@ -607,7 +613,8 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(245, 158, 11, 0.18)",
     pageTintLight: "rgba(245, 158, 11, 0.10)",
     chipAccent: "#F59E0B",
-    visualStack: { gradient: { colors: ["rgba(26,20,8,0.50)", "rgba(245,158,11,0.38)", "rgba(0,172,193,0.22)", "rgba(22,16,5,0.50)"], speed: 3 }, shader: "aurora", particles: "coastal_haze" },
+    category: "video",
+    visualStack: { gradient: { colors: ["rgba(26,20,8,0.50)", "rgba(245,158,11,0.38)", "rgba(0,172,193,0.22)", "rgba(22,16,5,0.50)"], speed: 3 }, shader: "aurora", particles: "coastal_haze", image: { source: "beach_day_bg", opacity: 0.25 }, video: { source: "beach_day_loop", poster: "beach_day_bg", opacity: 0.7 } },
   },
   cozy_night: {
     label: "Cozy Night",
