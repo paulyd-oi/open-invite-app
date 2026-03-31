@@ -2448,7 +2448,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
-        <View style={{ position: "relative" }}>
+        <View style={{ position: "relative", paddingTop: insets.top + 44 }}>
 
           {/* Floating invite card */}
           <Animated.View entering={FadeInDown.delay(30).springify()}>
