@@ -596,6 +596,7 @@ export default function CreateEventScreen() {
       // Card Color — explicit hex override
       ...(cardColor ? { cardColor } : {}),
     };
+    if (__DEV__) console.log("[CREATE_PAYLOAD] cardColor:", cardColor, "payload.cardColor:", (createPayload as any).cardColor);
     if (isEditMode) {
       updateMutation.mutate(createPayload as any);
       return;
