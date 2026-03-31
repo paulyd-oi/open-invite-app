@@ -527,6 +527,15 @@ export default function CreateEventScreen() {
         </View>
       )}
 
+      {/* ── Page-level particle/effect layer — renders behind all UI chrome ── */}
+      {selectedEffectId ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <MotifOverlay presetId={selectedEffectId} customConfig={customEffectConfig} intensity={0.70} />
+        </View>
+      ) : hasTheme ? (
+        <ThemeEffectLayer themeId={selectedThemeId} overrideVisualStack={selectedCustomTheme?.visualStack} />
+      ) : null}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -676,15 +685,6 @@ export default function CreateEventScreen() {
         themeColor={themeColor}
         onLayout={(h) => { if (h > 0 && h !== chromeHeight) setChromeHeight(h); }}
       />
-
-      {/* ── Particle layer — exclusive: effect overrides theme particles ── */}
-      {selectedEffectId ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <MotifOverlay presetId={selectedEffectId} customConfig={customEffectConfig} intensity={0.70} />
-        </View>
-      ) : hasTheme ? (
-        <ThemeEffectLayer themeId={selectedThemeId} overrideVisualStack={selectedCustomTheme?.visualStack} />
-      ) : null}
 
       {/* ── Bottom Editing Dock ── */}
       <CreateBottomDock

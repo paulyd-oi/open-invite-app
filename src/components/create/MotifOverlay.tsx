@@ -5,8 +5,6 @@
  * using the existing Skia Canvas + Reanimated particle engine.
  *
  * V2 engine changes:
- *   - Content-safe zone: top 80px and bottom 80px get reduced opacity (0.3×)
- *     so motifs never obscure title text or bottom dock controls.
  *   - Size ceiling: no motif exceeds MAX_MOTIF_RADIUS (28px radius = 56px diameter).
  *   - Density ceiling: no preset exceeds MAX_MOTIF_COUNT (14 particles).
  *
@@ -618,8 +616,6 @@ export const MotifOverlay = memo(function MotifOverlay({
     return (
       <View style={[styles.container, { opacity: intensity }]} pointerEvents="none">
         <CyclingLottie config={rawConfig} />
-        <View style={styles.safeZoneTop} />
-        <View style={styles.safeZoneBottom} />
       </View>
     );
   }
@@ -637,35 +633,13 @@ export const MotifOverlay = memo(function MotifOverlay({
             height={height}
           />
         </Canvas>
-        {/* Content-safe zone: darken top/bottom edges so motifs don't
-            obscure title text or bottom dock controls. */}
-        <View style={styles.safeZoneTop} />
-        <View style={styles.safeZoneBottom} />
       </View>
     </SkiaErrorBoundary>
   );
 });
 
-const SAFE_ZONE_HEIGHT = 80;
-
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-  },
-  safeZoneTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SAFE_ZONE_HEIGHT,
-    backgroundColor: "rgba(0,0,0,0.25)",
-  },
-  safeZoneBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SAFE_ZONE_HEIGHT,
-    backgroundColor: "rgba(0,0,0,0.25)",
   },
 });

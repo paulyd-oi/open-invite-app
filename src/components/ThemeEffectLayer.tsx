@@ -1073,7 +1073,7 @@ function seedParticles(config: EffectConfig, width: number, height: number): Par
 
     const speed = config.minSpeed + r() * (config.maxSpeed - config.minSpeed);
     const px = r() * width;
-    const py = r() * height;
+    const py = height * 0.12 + r() * height * 0.76;
 
     // Floating: random drift direction at ~40% of configured speed
     const driftAngle = r() * Math.PI * 2;
@@ -1252,11 +1252,11 @@ export const ParticleField = memo(function ParticleField({
           newX = p.x + p.driftDx * dt;
           newY = p.y + p.driftDy * dt;
 
-          // Wrap around all edges
+          // Wrap around all edges — re-enter away from screen edges to prevent haze accumulation
           if (newX > width + p.radius * 2) newX = -p.radius * 2;
           else if (newX < -p.radius * 2) newX = width + p.radius * 2;
-          if (newY > height + p.radius * 2) newY = -p.radius * 2;
-          else if (newY < -p.radius * 2) newY = height + p.radius * 2;
+          if (newY > height + p.radius * 2) newY = height * 0.15;
+          else if (newY < -p.radius * 2) newY = height * 0.85;
         } else if (mode === "swirl") {
           // Circular orbit around per-particle center
           const angle = p.swirlAngle + t * p.swirlAngularSpeed;
@@ -1267,9 +1267,9 @@ export const ParticleField = memo(function ParticleField({
           newY = p.y + p.speed * config.direction * dt;
 
           if (config.direction === 1 && newY > height + p.radius * 2) {
-            newY = -p.radius * 2;
+            newY = height * 0.15;
           } else if (config.direction === -1 && newY < -p.radius * 2) {
-            newY = height + p.radius * 2;
+            newY = height * 0.85;
           }
         }
       }
