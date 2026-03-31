@@ -20,6 +20,8 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { devLog } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { type FriendUser, type Event, type GetEventsResponse } from "@/shared/contracts";
+import { ProfileThemeBackground } from "@/components/ProfileThemeBackground";
+import { isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 
 // ── Owner-aware Calendar (shows event indicators when events available) ──
 function PreviewCalendar({
@@ -206,6 +208,10 @@ export default function PublicProfileScreen() {
 
   const user = data?.user;
 
+  // ── Profile theme ──
+  const rawThemeId = user?.Profile?.profileThemeId;
+  const publicProfileThemeId = isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null;
+
   // Fetch owner's own events (self preview — NOT the foreign friend-events endpoint)
   const { data: eventsData } = useQuery({
     queryKey: eventKeys.myEvents(),
@@ -284,6 +290,11 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
+      {/* Profile theme background */}
+      {publicProfileThemeId && (
+        <ProfileThemeBackground themeId={publicProfileThemeId} />
+      )}
+
       <Stack.Screen
         options={{
           title: "Public Profile",

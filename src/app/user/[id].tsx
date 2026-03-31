@@ -32,6 +32,8 @@ import {
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
+import { ProfileThemeBackground } from "@/components/ProfileThemeBackground";
+import { isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 
 
 // MoreHorizontal icon using Ionicons
@@ -493,6 +495,10 @@ export default function UserProfileScreen() {
   );
   usePreloadHeroBanners({ uris: heroUri ? [heroUri] : [], enabled: !!heroUri, max: 1 });
 
+  // ── Friend's profile theme ──
+  const rawFriendThemeId = user?.Profile?.profileThemeId;
+  const friendThemeId = isValidThemeId(rawFriendThemeId) ? rawFriendThemeId as ThemeId : null;
+
   // [P0_PROFILE_BANNER] DEV proof: banner rendering data for viewer profile
   useEffect(() => {
     if (__DEV__ && data) {
@@ -843,6 +849,11 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
+      {/* Profile theme background */}
+      {friendThemeId && (
+        <ProfileThemeBackground themeId={friendThemeId} />
+      )}
+
       <Stack.Screen
         options={{
           title: user?.name ?? "Profile",

@@ -103,13 +103,16 @@ import { SettingsAdminPasscodeModal } from "@/components/settings/SettingsAdminP
 import { ReferralCounterSection } from "@/components/settings/ReferralCounterSection";
 import { SettingsProfileCard } from "@/components/settings/SettingsProfileCard";
 import { checkAdminStatus } from "@/lib/adminApi";
-import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
+import { useEntitlements, useRefreshProContract, usePremiumStatusContract, trackAnalytics } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
 import { buildDiagnosticsBundle } from "@/lib/devDiagnosticsBundle";
 import { getDeadLetterCount, clearDeadLetterCount, loadQueue } from "@/lib/offlineQueue";
 import { replayQueue } from "@/lib/offlineSync";
+import { SettingsProfileAppearanceSection } from "@/components/settings/SettingsProfileAppearanceSection";
+import { PremiumUpsellSheet } from "@/components/paywall/PremiumUpsellSheet";
+import { isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -366,6 +369,11 @@ export default function SettingsScreen() {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showThemeModePicker, setShowThemeModePicker] = useState(false);
+
+  // Profile style state
+  const [editProfileThemeId, setEditProfileThemeId] = useState<ThemeId | null>(null);
+  const [editProfileCardColor, setEditProfileCardColor] = useState<string | null>(null);
+  const [profileStyleUpsell, setProfileStyleUpsell] = useState<{ visible: boolean; themeId: ThemeId | null }>({ visible: false, themeId: null });
 
   // Confirm modal states
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -729,6 +737,10 @@ export default function SettingsScreen() {
       setEditImage(avatarUri || "");
       // Sync calendarBio
       setEditCalendarBio(profileData.profile.calendarBio || "");
+      // Sync profile theme
+      const rawThemeId = profileData.profile.profileThemeId;
+      setEditProfileThemeId(isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null);
+      setEditProfileCardColor(profileData.profile.profileCardColor ?? null);
     }
     // P0: Phone sync removed - feature deprecated
   }, [profileData, session]);
@@ -825,6 +837,51 @@ export default function SettingsScreen() {
       safeToast.error("Save Failed", "Failed to update birthday settings");
     },
   });
+
+  const updateProfileStyleMutation = useMutation({
+    mutationFn: (data: { profileThemeId?: string | null; profileCardColor?: string | null }) =>
+      api.put<UpdateProfileResponse>("/api/profile", data),
+    onSuccess: (_res, variables) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: qk.profile() });
+      if (variables.profileThemeId !== undefined) {
+        trackAnalytics("profile_theme_saved", { themeId: variables.profileThemeId, userId: session?.user?.id });
+      }
+      if (variables.profileCardColor !== undefined) {
+        trackAnalytics("profile_card_color_saved", { cardColor: variables.profileCardColor, userId: session?.user?.id });
+      }
+      safeToast.success("Saved", "Profile style updated");
+    },
+    onError: () => {
+      safeToast.error("Save Failed", "Failed to update profile style");
+    },
+  });
+
+  const handleProfileThemeSelect = useCallback((themeId: ThemeId | null) => {
+    Haptics.selectionAsync();
+    setEditProfileThemeId(themeId);
+    if (themeId) {
+      trackAnalytics("profile_theme_selected_free", { themeId, userId: session?.user?.id });
+    }
+    updateProfileStyleMutation.mutate({ profileThemeId: themeId });
+  }, [updateProfileStyleMutation, session]);
+
+  const handleProfilePremiumUpsell = useCallback((themeId: ThemeId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    trackAnalytics("profile_theme_previewed_premium", { themeId, userId: session?.user?.id });
+    setProfileStyleUpsell({ visible: true, themeId });
+  }, [session]);
+
+  const handleProfileUpsellDismiss = useCallback(() => {
+    setProfileStyleUpsell({ visible: false, themeId: null });
+  }, []);
+
+  const handleProfileCardColorChange = useCallback((color: string | null) => {
+    Haptics.selectionAsync();
+    setEditProfileCardColor(color);
+    trackAnalytics("profile_card_color_changed", { cardColor: color, userId: session?.user?.id });
+    updateProfileStyleMutation.mutate({ profileCardColor: color });
+  }, [updateProfileStyleMutation, session]);
 
   const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
@@ -1311,6 +1368,20 @@ export default function SettingsScreen() {
           }}
           onSaveThemeMode={handleSaveThemeMode}
           onSaveTheme={handleSaveTheme}
+        />
+
+        {/* Profile Style Section (theme + card color) */}
+        <SettingsProfileAppearanceSection
+          profileThemeId={editProfileThemeId}
+          profileCardColor={editProfileCardColor}
+          userIsPro={userIsPremium}
+          themeColor={themeColor}
+          isDark={isDark}
+          colors={colors}
+          onThemeSelect={handleProfileThemeSelect}
+          onPremiumUpsell={handleProfilePremiumUpsell}
+          onCardColorChange={handleProfileCardColorChange}
+          onSectionVisible={() => trackAnalytics("profile_theme_picker_opened", { userId: session?.user?.id })}
         />
 
         {/* Account Section */}
@@ -1807,6 +1878,17 @@ export default function SettingsScreen() {
           onCopyReport={handleCopyReport}
         />
       )}
+
+      {/* Profile theme premium upsell */}
+      <PremiumUpsellSheet
+        visible={profileStyleUpsell.visible}
+        title="Premium Profile Theme"
+        subtitle="Unlock premium themes to personalize your profile"
+        analyticsShowEvent="profile_theme_upsell_shown"
+        analyticsUpgradeEvent="profile_theme_upsell_tapped"
+        analyticsProps={{ themeId: profileStyleUpsell.themeId, userId: session?.user?.id }}
+        onDismiss={handleProfileUpsellDismiss}
+      />
     </SafeAreaView>
   );
 }

@@ -47,6 +47,8 @@ import { buildProfileSharePayload } from "@/lib/shareSSOT";
 import { devLog } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
+import { ProfileThemeBackground } from "@/components/ProfileThemeBackground";
+import { isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 
 import {
   type GetFriendsResponse,
@@ -264,6 +266,10 @@ export default function ProfileScreen() {
   const rawBio = profileData?.profile?.calendarBio;
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
+
+  // ── Profile theme ──
+  const rawThemeId = profileData?.profile?.profileThemeId;
+  const profileThemeId = isValidThemeId(rawThemeId) ? rawThemeId as ThemeId : null;
 
   // ── Banner photo URL — SSOT via heroSSOT.resolveBannerUri ──
   const bannerUri = resolveBannerUri(profileData?.profile as Record<string, unknown> | null);
@@ -507,6 +513,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={[]}>
+
+      {/* ═══ Profile theme background ═══ */}
+      {profileThemeId && (
+        <ProfileThemeBackground themeId={profileThemeId} />
+      )}
 
       {/* ═══ Floating translucent top chrome ═══ */}
       <View

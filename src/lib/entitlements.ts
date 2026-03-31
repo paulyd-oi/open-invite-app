@@ -221,7 +221,16 @@ export type AnalyticsEvent =
   | "notification_nudge_shown"
   | "notification_nudge_dismissed"
   | "circle_mute_toggle"
-  | "circle_mute_bulk";
+  | "circle_mute_bulk"
+  | "profile_theme_picker_opened"
+  | "profile_theme_selected_free"
+  | "profile_theme_previewed_premium"
+  | "profile_theme_upsell_shown"
+  | "profile_theme_upsell_tapped"
+  | "profile_theme_upsell_dismissed"
+  | "profile_theme_saved"
+  | "profile_card_color_changed"
+  | "profile_card_color_saved";
 
 /**
 * Track analytics events (stub - can be connected to an analytics provider later)
