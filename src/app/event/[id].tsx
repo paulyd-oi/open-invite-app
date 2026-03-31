@@ -2900,6 +2900,7 @@ export default function EventDetailScreen() {
           onRsvpGoing={() => handleRsvp("going")}
           onRsvpInterested={() => handleRsvp("interested")}
           onChangeRsvp={() => setShowRsvpOptions(!showRsvpOptions)}
+          onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
         />
       )}
 

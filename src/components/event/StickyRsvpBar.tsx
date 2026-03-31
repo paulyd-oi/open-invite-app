@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Check, Heart, Users, RefreshCw } from "@/ui/icons";
+import { Check, Heart, Users, Share2 } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
   text: string;
@@ -21,6 +21,7 @@ interface StickyRsvpBarProps {
   onRsvpGoing: () => void;
   onRsvpInterested: () => void;
   onChangeRsvp?: () => void;
+  onShare?: () => void;
 }
 
 // Glass surface tokens
@@ -52,6 +53,7 @@ export function StickyRsvpBar({
   onRsvpGoing,
   onRsvpInterested,
   onChangeRsvp,
+  onShare,
 }: StickyRsvpBarProps) {
   const saveGlass = isDark ? GLASS.save.dark : GLASS.save.light;
   const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
@@ -79,23 +81,26 @@ export function StickyRsvpBar({
       )}
       {isConfirmed ? (
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <View style={{
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: 14,
-            borderRadius: 16,
-            backgroundColor: GLASS.imIn.bg,
-            borderWidth: 1,
-            borderColor: GLASS.imIn.border,
-          }}>
+          <Pressable
+            onPress={onChangeRsvp}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: GLASS.imIn.bg,
+              borderWidth: 1,
+              borderColor: GLASS.imIn.border,
+            }}
+          >
             <Check size={16} color="#FFFFFF" />
             <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>You're In</Text>
-          </View>
-          {onChangeRsvp && (
+          </Pressable>
+          {onShare && (
             <Pressable
-              onPress={onChangeRsvp}
+              onPress={onShare}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -108,8 +113,8 @@ export function StickyRsvpBar({
                 borderColor: saveGlass.border,
               }}
             >
-              <RefreshCw size={14} color={colors.text} />
-              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Change</Text>
+              <Share2 size={14} color={colors.text} />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
             </Pressable>
           )}
         </View>
