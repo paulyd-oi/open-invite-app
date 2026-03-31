@@ -83,6 +83,17 @@ export interface InviteFlipCardProps {
   photoNudge?: React.ReactNode;
 }
 
+// ─── Helpers ────────────────────────────────────────────
+
+/** WCAG relative-luminance check — returns black or white for best contrast. */
+function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+}
+
 // ─── Constants ───────────────────────────────────────────
 const FLIP_DURATION = 480;
 const FLIP_EASING = Easing.bezier(0.32, 0.0, 0.14, 1);
@@ -128,6 +139,12 @@ export function InviteFlipCard({
   const backAccent = ct.backAccent || themeColor;
   const themedCardBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
   const plaqueBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
+
+  // Auto-contrast text when cardColor overrides the surface
+  const contrastText = cardColor ? getTextColorForBg(cardColor) : null;
+  const cText = contrastText ?? colors.text;
+  const cSecondary = contrastText ? `${contrastText}B3` : colors.textSecondary; // 70% opacity
+  const cTertiary = contrastText ? `${contrastText}80` : colors.textTertiary;   // 50% opacity
 
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -279,7 +296,7 @@ export function InviteFlipCard({
                       style={{
                         fontSize: 24,
                         fontWeight: "800",
-                        color: colors.text,
+                        color: cText,
                         letterSpacing: -0.5,
                         lineHeight: 29,
                         marginBottom: 10,
@@ -291,12 +308,12 @@ export function InviteFlipCard({
 
                     {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                      <Calendar size={14} color={backAccent} />
+                      <Calendar size={14} color={contrastText ?? backAccent} />
                       <Text
                         style={{
                           fontSize: 14,
                           fontWeight: "600",
-                          color: colors.textSecondary,
+                          color: cSecondary,
                           marginLeft: 7,
                           letterSpacing: 0.1,
                         }}
@@ -336,7 +353,7 @@ export function InviteFlipCard({
                                 initials={a.name?.[0] ?? "?"}
                                 size={MINI_AV - 3}
                                 backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
-                                foregroundColor={colors.textSecondary}
+                                foregroundColor={cSecondary}
                               />
                             </View>
                           ))}
@@ -344,17 +361,17 @@ export function InviteFlipCard({
                       )}
                       {goingCount > 0 ? (
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: cText }}>
                             {goingCount} going
                           </Text>
                           {capacityText && (
-                            <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 6 }}>
+                            <Text style={{ fontSize: 12, color: cTertiary, marginLeft: 6 }}>
                               · {capacityText}
                             </Text>
                           )}
                         </View>
                       ) : (
-                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                        <Text style={{ fontSize: 13, color: cTertiary }}>
                           Be the first to RSVP
                         </Text>
                       )}
@@ -385,13 +402,13 @@ export function InviteFlipCard({
                   >
                     {/* ── Poster: title + details ── */}
 
-                    <Calendar size={40} color={`${backAccent}50`} style={{ marginBottom: 14 }} />
+                    <Calendar size={40} color={contrastText ? `${contrastText}50` : `${backAccent}50`} style={{ marginBottom: 14 }} />
 
                     <Text
                       style={{
                         fontSize: 32,
                         fontWeight: "800",
-                        color: colors.text,
+                        color: cText,
                         letterSpacing: -0.8,
                         lineHeight: 38,
                       }}
@@ -405,16 +422,16 @@ export function InviteFlipCard({
                       width: 32,
                       height: 3,
                       borderRadius: 1.5,
-                      backgroundColor: `${backAccent}50`,
+                      backgroundColor: contrastText ? `${contrastText}50` : `${backAccent}50`,
                       marginTop: 20,
                       marginBottom: 14,
                     }} />
 
                     {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                      <Calendar size={14} color={backAccent} />
+                      <Calendar size={14} color={contrastText ?? backAccent} />
                       <Text
-                        style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "600" }}
+                        style={{ fontSize: 14, color: cSecondary, marginLeft: 7, fontWeight: "600" }}
                         numberOfLines={1}
                       >
                         {compactDate} · {timeLabel}
@@ -424,9 +441,9 @@ export function InviteFlipCard({
                     {/* Location */}
                     {locationDisplay && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                        <MapPin size={14} color={backAccent} />
+                        <MapPin size={14} color={contrastText ?? backAccent} />
                         <Text
-                          style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "500" }}
+                          style={{ fontSize: 14, color: cSecondary, marginLeft: 7, fontWeight: "500" }}
                           numberOfLines={1}
                         >
                           {locationDisplay}
@@ -437,16 +454,16 @@ export function InviteFlipCard({
                     {/* Host attribution */}
                     {hostName && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: `${backAccent}30`, overflow: "hidden" }}>
+                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: contrastText ? `${contrastText}30` : `${backAccent}30`, overflow: "hidden" }}>
                           <EntityAvatar
                             photoUrl={hostImageUrl}
                             initials={hostName?.[0] ?? "?"}
                             size={22}
                             backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
-                            foregroundColor={backAccent}
+                            foregroundColor={contrastText ?? backAccent}
                           />
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginLeft: 7 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: cSecondary, marginLeft: 7 }}>
                           {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
@@ -456,13 +473,13 @@ export function InviteFlipCard({
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       {goingCount > 0 ? (
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Users size={13} color={STATUS.going.fg} />
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: STATUS.going.fg, marginLeft: 5 }}>
+                          <Users size={13} color={contrastText ?? STATUS.going.fg} />
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: contrastText ?? STATUS.going.fg, marginLeft: 5 }}>
                             {goingCount} going
                           </Text>
                         </View>
                       ) : (
-                        <Text style={{ fontSize: 12, color: colors.textTertiary }}>
+                        <Text style={{ fontSize: 12, color: cTertiary }}>
                           Be the first to join
                         </Text>
                       )}
@@ -484,8 +501,8 @@ export function InviteFlipCard({
                               fontWeight: "600",
                               color:
                                 countdownLabel === "Happening now"
-                                  ? STATUS.going.fg
-                                  : colors.textSecondary,
+                                  ? (contrastText ?? STATUS.going.fg)
+                                  : cSecondary,
                             }}
                           >
                             {countdownLabel}
@@ -763,8 +780,8 @@ export function InviteFlipCard({
       {/* Flip hint overlaying card bottom */}
       <Animated.View style={[{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }, hintStyle]}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <RefreshCw size={11} color={colors.textTertiary} />
-          <Text style={{ fontSize: 12, color: colors.textTertiary, fontWeight: "500", marginLeft: 5 }}>
+          <RefreshCw size={11} color={cTertiary} />
+          <Text style={{ fontSize: 12, color: cTertiary, fontWeight: "500", marginLeft: 5 }}>
             Tap for details
           </Text>
         </View>

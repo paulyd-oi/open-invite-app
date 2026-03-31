@@ -55,6 +55,15 @@ import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
 import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
 
+// ── Luminance contrast helper — returns black or white for readability on cardColor ──
+function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+}
+
 // ── Urgency helper — derives a human-readable time label from startTime ──
 function getUrgencyLabel(startTime: string): { label: string; tone: "soon" | "warm" | null } {
   const now = Date.now();
@@ -758,6 +767,9 @@ export default function DiscoverScreen() {
                 const cardTheme = resolveEventTheme(event.themeId);
                 const cardAccent = cardTheme.backAccent;
                 const plaqueBg = (event as any).cardColor || (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
+                const ccHex = (event as any).cardColor as string | undefined;
+                const ccText = ccHex ? getTextColorForBg(ccHex) : null;
+                const ccSecondary = ccText ? `${ccText}B3` : null;
 
                 return (
                   <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).duration(220)} style={{ marginBottom: 18 }}>
@@ -830,7 +842,7 @@ export default function DiscoverScreen() {
                           <Text
                             style={{
                               flex: 1,
-                              color: colors.text,
+                              color: ccText ?? colors.text,
                               fontSize: 18,
                               fontWeight: "700",
                               lineHeight: 24,
@@ -886,7 +898,7 @@ export default function DiscoverScreen() {
                         {/* DESCRIPTION (1-2 lines) */}
                         {event.description ? (
                           <Text
-                            style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "400", marginTop: 6, lineHeight: 18 }}
+                            style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 13, fontWeight: "400", marginTop: 6, lineHeight: 18 }}
                             numberOfLines={2}
                           >
                             {event.description}
@@ -922,8 +934,8 @@ export default function DiscoverScreen() {
                         }}>
                           {/* Left: date/time + "Looks clear" pill */}
                           <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 6 }}>
-                            <Calendar size={12} color={cardAccent ?? colors.textSecondary} />
-                            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
+                            <Calendar size={12} color={ccSecondary ?? cardAccent ?? colors.textSecondary} />
+                            <Text style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
                               {dateStr}, {timeStr}
                             </Text>
                             {/* [AVAILABILITY_V1] Calendar-fit chip — hidden on own events */}
