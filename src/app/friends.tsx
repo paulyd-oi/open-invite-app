@@ -691,7 +691,6 @@ export default function FriendsScreen() {
   // Circles (Planning) state
   const [showCreateCircle, setShowCreateCircle] = useState(false);
   const [friendsExpanded, setFriendsExpanded] = useState(true);
-  const [planningExpanded, setPlanningExpanded] = useState(true);
   const [requestsExpanded, setRequestsExpanded] = useState(true);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
 
@@ -771,7 +770,6 @@ export default function FriendsScreen() {
         if (stored) {
           const states = JSON.parse(stored);
           if (typeof states.friendsExpanded === "boolean") setFriendsExpanded(states.friendsExpanded);
-          if (typeof states.planningExpanded === "boolean") setPlanningExpanded(states.planningExpanded);
           if (typeof states.requestsExpanded === "boolean") setRequestsExpanded(states.requestsExpanded);
         }
       } catch (e) {
@@ -792,7 +790,7 @@ export default function FriendsScreen() {
       try {
         await AsyncStorage.setItem(
           "friends_section_states",
-          JSON.stringify({ friendsExpanded, planningExpanded, requestsExpanded })
+          JSON.stringify({ friendsExpanded, requestsExpanded })
         );
       } catch (e) {
         if (__DEV__) {
@@ -801,7 +799,7 @@ export default function FriendsScreen() {
       }
     };
     saveSectionStates();
-  }, [friendsExpanded, planningExpanded, requestsExpanded, sectionsLoaded]);
+  }, [friendsExpanded, requestsExpanded, sectionsLoaded]);
 
   // Pinned friendships
   const [pinnedFriendshipIds, setPinnedFriendshipIds] = useState<Set<string>>(new Set());
@@ -1472,8 +1470,6 @@ export default function FriendsScreen() {
         {friendsTab === 1 && (
           <FriendsChatsPane
             circles={circles}
-            planningExpanded={planningExpanded}
-            onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
             onCreateCirclePress={handleCreateCirclePress}
             byCircle={byCircle}
             onPinCircle={(id) => pinCircleMutation.mutate(id)}
