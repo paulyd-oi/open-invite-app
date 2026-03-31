@@ -44,6 +44,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
@@ -867,6 +868,20 @@ export default function DiscoverScreen() {
                             />
                           </Pressable>
                         </View>
+
+                        {/* Circle/group badge */}
+                        {event.circleName ? (
+                          <View style={{ flexDirection: "row", marginTop: 6 }}>
+                            <EventVisibilityBadge
+                              visibility={event.visibility}
+                              circleId={event.circleId}
+                              circleName={event.circleName}
+                              eventId={event.id}
+                              surface="discover_card"
+                              isDark={isDark}
+                            />
+                          </View>
+                        ) : null}
 
                         {/* DESCRIPTION (1-2 lines) */}
                         {event.description ? (
