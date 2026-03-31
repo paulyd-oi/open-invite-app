@@ -603,6 +603,18 @@ export default function UserProfileScreen() {
     return filtered;
   }, [allFriendCalendarEvents, minuteTick]);
 
+  // Date-filtered events for calendar tap
+  const calendarFilteredEvents = useMemo(() => {
+    if (!selectedCalendarDate) return friendEvents;
+    return allFriendCalendarEvents.filter(
+      e => new Date(e.startTime).toDateString() === selectedCalendarDate
+    );
+  }, [selectedCalendarDate, allFriendCalendarEvents, friendEvents]);
+
+  const calendarDateLabel = selectedCalendarDate
+    ? new Date(selectedCalendarDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
+
   // [P0_FRIEND_CAL_SOT] DEV proof: calendar vs open-invites event counts
   useEffect(() => {
     if (__DEV__ && friendEventsData) {
@@ -1084,37 +1096,25 @@ export default function UserProfileScreen() {
                 </Animated.View>
 
                 {/* Events Section */}
-                {(() => {
-                  const displayEvents = selectedCalendarDate
-                    ? friendEvents.filter(e => new Date(e.startTime).toDateString() === selectedCalendarDate)
-                    : friendEvents;
-                  const dateLabel = selectedCalendarDate
-                    ? new Date(selectedCalendarDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                    : null;
-                  return (
-                    <>
-                      <View className="flex-row items-center mb-3">
-                        <Calendar size={18} color="#4ECDC4" />
-                        <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                          {dateLabel ? `Events on ${dateLabel} (${displayEvents.length})` : `Open Invites (${friendEvents.length})`}
-                        </Text>
-                      </View>
+                <View className="flex-row items-center mb-3">
+                  <Calendar size={18} color="#4ECDC4" />
+                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                    {calendarDateLabel ? `Events on ${calendarDateLabel} (${calendarFilteredEvents.length})` : `Open Invites (${friendEvents.length})`}
+                  </Text>
+                </View>
 
-                      {displayEvents.length === 0 ? (
-                        <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-                          <Text className="text-4xl mb-3">{selectedCalendarDate ? "📅" : "🎉"}</Text>
-                          <Text className="text-center" style={{ color: colors.textSecondary }}>
-                            {selectedCalendarDate ? "No events on this date" : "No open invites from this friend yet"}
-                          </Text>
-                        </View>
-                      ) : (
-                        displayEvents.map((event: Event, index: number) => (
-                          <EventCard key={event.id} event={event} index={index} />
-                        ))
-                      )}
-                    </>
-                  );
-                })()}
+                {calendarFilteredEvents.length === 0 ? (
+                  <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
+                    <Text className="text-4xl mb-3">{selectedCalendarDate ? "📅" : "🎉"}</Text>
+                    <Text className="text-center" style={{ color: colors.textSecondary }}>
+                      {selectedCalendarDate ? "No events on this date" : "No open invites from this friend yet"}
+                    </Text>
+                  </View>
+                ) : (
+                  calendarFilteredEvents.map((event: Event, index: number) => (
+                    <EventCard key={event.id} event={event} index={index} />
+                  ))
+                )}
 
                 {/* [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes Section removed — /api/friends/:id/notes returns 404. */}
               </>
