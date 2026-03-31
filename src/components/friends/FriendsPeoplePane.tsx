@@ -171,8 +171,6 @@ export interface FriendsPeoplePaneProps {
   onRejectRequest: (requestId: string) => void;
   // Friends list (existing)
   filteredFriends: Friendship[];
-  friendsExpanded: boolean;
-  onToggleFriendsExpanded: () => void;
   viewMode: "list" | "detailed";
   onViewModeChange: (mode: "list" | "detailed") => void;
   isLoading: boolean;
@@ -196,8 +194,6 @@ export function FriendsPeoplePane({
   onAcceptRequest,
   onRejectRequest,
   filteredFriends,
-  friendsExpanded,
-  onToggleFriendsExpanded,
   viewMode,
   onViewModeChange,
   isLoading,
@@ -295,86 +291,58 @@ export function FriendsPeoplePane({
         </View>
       )}
 
-      {/* ── Friends List - Collapsible (existing) ────────────── */}
+      {/* ── Friends List ────────────── */}
       <View className="mb-2">
-        {/* Section Header Row */}
-        <Pressable
-          /* INVARIANT_ALLOW_INLINE_HANDLER */
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggleFriendsExpanded();
-          }}
-          className="flex-row items-center justify-between"
-        >
-          <View className="flex-row items-center">
-            <Users size={16} color="#4ECDC4" />
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-              Friends ({filteredFriends.length})
-            </Text>
-          </View>
-          {friendsExpanded ? (
-            <ChevronUp size={18} color={colors.textTertiary} />
-          ) : (
-            <ChevronDown size={18} color={colors.textTertiary} />
-          )}
-        </Pressable>
-
-        {/* View Mode Toggle & Filter - Only show when expanded */}
-        {friendsExpanded && (
-          <View className="flex-row items-center justify-between mt-2">
-            {/* View Mode Toggle */}
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
-              <Pressable
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onViewModeChange("list");
-                }}
-                className="flex-row items-center px-2.5 py-1 rounded-md"
+        {/* View Mode Toggle */}
+        <View className="flex-row items-center justify-between">
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onViewModeChange("list");
+              }}
+              className="flex-row items-center px-2.5 py-1 rounded-md"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ backgroundColor: viewMode === "list" ? colors.surface : "transparent" }}
+            >
+              <List size={14} color={viewMode === "list" ? themeColor : colors.textSecondary} />
+              <Text
+                className="text-xs font-medium ml-1"
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: viewMode === "list" ? colors.surface : "transparent" }}
+                style={{ color: viewMode === "list" ? themeColor : colors.textSecondary }}
               >
-                <List size={14} color={viewMode === "list" ? themeColor : colors.textSecondary} />
-                <Text
-                  className="text-xs font-medium ml-1"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ color: viewMode === "list" ? themeColor : colors.textSecondary }}
-                >
-                  List
-                </Text>
-              </Pressable>
-              <Pressable
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onViewModeChange("detailed");
-                }}
-                className="flex-row items-center px-2.5 py-1 rounded-md"
+                List
+              </Text>
+            </Pressable>
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onViewModeChange("detailed");
+              }}
+              className="flex-row items-center px-2.5 py-1 rounded-md"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ backgroundColor: viewMode === "detailed" ? colors.surface : "transparent" }}
+            >
+              <LayoutGrid size={14} color={viewMode === "detailed" ? themeColor : colors.textSecondary} />
+              <Text
+                className="text-xs font-medium ml-1"
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: viewMode === "detailed" ? colors.surface : "transparent" }}
+                style={{ color: viewMode === "detailed" ? themeColor : colors.textSecondary }}
               >
-                <LayoutGrid size={14} color={viewMode === "detailed" ? themeColor : colors.textSecondary} />
-                <Text
-                  className="text-xs font-medium ml-1"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ color: viewMode === "detailed" ? themeColor : colors.textSecondary }}
-                >
-                  Detailed
-                </Text>
-              </Pressable>
-            </View>
-            {/* [LEGACY_GROUPS_PURGED] Group Filter Button removed */}
+                Detailed
+              </Text>
+            </Pressable>
           </View>
-        )}
+        </View>
       </View>
 
-      {friendsExpanded && (
-        <Animated.View entering={FadeInDown.duration(200)}>
-          {isLoading ? (
-            <FriendsListSkeleton />
-          ) : filteredFriends.length === 0 ? (
+      <Animated.View entering={FadeInDown.duration(200)}>
+        {isLoading ? (
+          <FriendsListSkeleton />
+        ) : filteredFriends.length === 0 ? (
             <View className="py-12 items-center px-8">
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
@@ -429,7 +397,6 @@ export function FriendsPeoplePane({
             />
           )}
         </Animated.View>
-      )}
     </>
   );
 }
