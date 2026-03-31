@@ -42,6 +42,7 @@ import * as Haptics from "expo-haptics";
 import {
   EVENT_THEMES,
   isPremiumTheme,
+  isVideoTheme,
   THEME_DISPLAY_ORDER,
   type ThemeId,
   type ThemeVisualStack,
@@ -319,6 +320,7 @@ function ThemeTrayContent({
               bodyColor={t.backBgLight}
               isSelected={selected}
               locked={locked}
+              isVideo={isVideoTheme(tid)}
               themeColor={themeColor}
               isDark={isDark}
               onPress={() => {
@@ -343,6 +345,7 @@ function MiniCardSwatch({
   bodyColor,
   isSelected,
   locked,
+  isVideo,
   themeColor,
   isDark,
   onPress,
@@ -351,6 +354,7 @@ function MiniCardSwatch({
   bodyColor: string;
   isSelected: boolean;
   locked?: boolean;
+  isVideo?: boolean;
   themeColor: string;
   isDark: boolean;
   onPress: () => void;
@@ -388,6 +392,23 @@ function MiniCardSwatch({
           }}
         >
           <Lock size={9} color="rgba(255,255,255,0.8)" />
+        </View>
+      )}
+      {isVideo && !locked && (
+        <View
+          style={{
+            position: "absolute",
+            top: 1,
+            right: 1,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 8, lineHeight: 12, marginLeft: 1 }}>▶</Text>
         </View>
       )}
     </Pressable>

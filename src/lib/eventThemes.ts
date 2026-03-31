@@ -227,6 +227,9 @@ export interface EventThemeTokens {
   pageTintLight: string;
   /** Chip/badge accent */
   chipAccent: string;
+  /** Theme category — 'video' themes include a looping video background.
+   *  Omit or set 'static' for standard gradient/particle themes. */
+  category?: "static" | "video";
   /** Composable visual layer stack */
   visualStack?: ThemeVisualStack;
 }
@@ -575,6 +578,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(6, 182, 212, 0.26)",
     pageTintLight: "rgba(6, 182, 212, 0.14)",
     chipAccent: "#06B6D4",
+    category: "video",
     visualStack: { gradient: { colors: ["rgba(10,37,48,0.50)", "rgba(6,182,212,0.42)", "rgba(147,197,253,0.22)", "rgba(8,30,40,0.50)"], speed: 3 }, particles: "pool_shimmer", image: { source: "pool_party_bg", opacity: 0.28 }, video: { source: "pool_party_loop", poster: "pool_party_bg", opacity: 0.7 } },
   },
 
@@ -699,6 +703,10 @@ export function isValidThemeId(id: string | null | undefined): id is ThemeId {
 
 export function isPremiumTheme(id: ThemeId): boolean {
   return (PREMIUM_THEME_IDS as readonly string[]).includes(id);
+}
+
+export function isVideoTheme(id: ThemeId): boolean {
+  return EVENT_THEMES[id].category === "video";
 }
 
 /**
