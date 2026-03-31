@@ -28,12 +28,13 @@ const SCHEME = "open-invite";
 
 /**
  * Domains that must NEVER appear in user-facing share text.
- * Note: go.openinvite.cloud is the branded share domain and is ALLOWED.
- * The legacy OnRender hostname is retained only as a regression guard.
+ * Share links now use www.openinvite.cloud (matches AASA universal-link domain).
+ * go.openinvite.cloud was the legacy bridge domain (backend-served blank page).
  */
 const FORBIDDEN_DOMAINS = [
   "api.openinvite.cloud",
   "open-invite-api.onrender.com",
+  "go.openinvite.cloud",
 ] as const;
 
 // ── Referral param SSOT ──────────────────────────────────────────────────────
@@ -86,11 +87,13 @@ interface EventShareInput {
 
 /**
  * Build a universal link for an event (works in browsers AND deep-links into the app).
- * Format: ${SHARE_DOMAIN}/share/event/<id>
+ * Format: ${SHARE_DOMAIN}/event/<id>
+ * Points directly to the website event page — serves OG metadata, human-readable content,
+ * and triggers AASA universal-link interception on iOS when app is installed.
  * [P0_SHARE_ULINK]
  */
 export function getEventUniversalLink(eventId: string): string {
-  return `${SHARE_DOMAIN}/share/event/${eventId}`;
+  return `${SHARE_DOMAIN}/event/${eventId}`;
 }
 
 /**

@@ -10,8 +10,8 @@ import { devLog } from "./devLog";
 /** Canonical production API origin. */
 export const PRODUCTION_BACKEND_ORIGIN = "https://api.openinvite.cloud";
 
-/** Canonical branded universal-link/share domain. */
-export const SHARE_DOMAIN = "https://go.openinvite.cloud";
+/** Canonical branded share domain — must match AASA universal-link domain. */
+export const SHARE_DOMAIN = "https://www.openinvite.cloud";
 
 /** Canonical App Store ID. */
 export const APP_STORE_ID = "6757429210";
