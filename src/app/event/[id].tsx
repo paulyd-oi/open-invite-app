@@ -14,6 +14,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   Animated as RNAnimated,
+  ActionSheetIOS,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -416,7 +417,6 @@ export default function EventDetailScreen() {
   const [showInterestedUsers, setShowInterestedUsers] = useState(false);
   const [selectedReminders, setSelectedReminders] = useState<number[]>([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [showRsvpOptions, setShowRsvpOptions] = useState(false);
   const [showDeleteCommentConfirm, setShowDeleteCommentConfirm] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showRemoveRsvpConfirm, setShowRemoveRsvpConfirm] = useState(false);
@@ -1472,7 +1472,6 @@ export default function EventDetailScreen() {
       
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
-      setShowRsvpOptions(false);
 
       // [LIVE_ACTIVITY_V2] Auto-start on Going, end on un-RSVP, update otherwise
       if (event && Platform.OS === "ios") {
@@ -2898,12 +2897,14 @@ export default function EventDetailScreen() {
           colors={colors}
           themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
-          onRsvpInterested={() => { handleRsvp("interested"); setShowRsvpOptions(false); }}
-          onChangeRsvp={() => setShowRsvpOptions(true)}
+          onRsvpInterested={() => handleRsvp("interested")}
+          onChangeRsvp={() => {
+            ActionSheetIOS.showActionSheetWithOptions(
+              { options: ["Cancel", "Not Going"], cancelButtonIndex: 0, destructiveButtonIndex: 1 },
+              (index) => { if (index === 1) handleRsvp("not_going"); },
+            );
+          }}
           onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
-          showChangeOptions={showRsvpOptions}
-          onRsvpNotGoing={() => { handleRsvp("not_going"); setShowRsvpOptions(false); }}
-          onDismissChange={() => setShowRsvpOptions(false)}
         />
       )}
 
