@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 import { Check, Heart, Users, Share2 } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
@@ -61,8 +60,7 @@ export function StickyRsvpBar({
   const [showingChange, setShowingChange] = useState(false);
 
   return (
-    <Animated.View
-      entering={FadeInDown.duration(300).springify()}
+    <View
       pointerEvents="box-none"
       style={{
         position: "absolute",
@@ -255,6 +253,6 @@ export function StickyRsvpBar({
           </Pressable>
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }
