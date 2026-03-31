@@ -87,6 +87,21 @@ export function useCoverMedia() {
     setUploadingBanner(false);
   }, []);
 
+  /** Pre-fill with an existing event cover URL (no upload needed). */
+  const prefillCover = useCallback((url: string) => {
+    const item: CoverMediaItem = {
+      id: "existing-cover",
+      type: "image",
+      url,
+      thumbnailUrl: url,
+      source: "upload",
+    };
+    setSelectedCoverItem(item);
+    setBannerLocalUri(url);
+    setBannerUpload({ url, publicId: "" });
+    setUploadingBanner(false);
+  }, []);
+
   return {
     bannerLocalUri,
     bannerUpload,
@@ -98,5 +113,6 @@ export function useCoverMedia() {
     handlePickBanner,
     handleRemoveBanner,
     handleCoverSelect,
+    prefillCover,
   };
 }
