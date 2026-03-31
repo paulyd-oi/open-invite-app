@@ -127,6 +127,9 @@ interface PopularEvent {
     image: string | null;
     name: string | null;
   }>;
+  circleId?: string | null;
+  circleName?: string | null;
+  userId?: string;
 }
 
 type Lens = "ideas" | "events" | "saved";
@@ -136,10 +139,11 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "saved", label: "Saved" },
 ];
 
-type EventSort = "popular" | "soon";
+type EventSort = "popular" | "soon" | "group";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "popular", label: "Popular" },
   { key: "soon", label: "Soon" },
+  { key: "group", label: "Group" },
 ];
 
 export default function DiscoverScreen() {
@@ -396,8 +400,29 @@ export default function DiscoverScreen() {
     );
   }, [enrichedEvents]);
 
+  // Group events: circle/group-visibility events from own + attending data (sorted soonest-first)
+  const groupSorted = useMemo(() => {
+    const myEvents = myEventsData?.events ?? [];
+    const now = new Date();
+    const GROUP_VIS = ["circle_only", "specific_groups"];
+    return myEvents
+      .filter((e) => {
+        // Include events with circleId OR circle/group visibility
+        const isGroup = !!e.circleId || (e.visibility && GROUP_VIS.includes(e.visibility));
+        if (!isGroup) return false;
+        const effectiveTime = e.isRecurring && e.nextOccurrence ? new Date(e.nextOccurrence) : new Date(e.startTime);
+        return effectiveTime >= now;
+      })
+      .map((event) => {
+        const derivedCount = deriveAttendeeCount(event);
+        const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
+        return { ...event, attendeeCount };
+      })
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
+  }, [myEventsData?.events]);
+
   // Active Events feed based on sort control
-  const activeFeed = eventSort === "soon" ? soonSorted : popularSorted;
+  const activeFeed = eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
 
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
