@@ -38,7 +38,7 @@ import {
   GestureDetector,
 } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, X } from "@/ui/icons";
+import { ChevronDown, Crown, X } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import {
   MOTIF_PRESETS,
@@ -111,6 +111,7 @@ const MAX_EFFECT_COLORS = 5;
 interface EffectTrayProps {
   visible: boolean;
   selectedEffectId: string | null;
+  userIsPro: boolean;
   themeColor: string;
   isDark: boolean;
   glassText: string;
@@ -118,6 +119,10 @@ interface EffectTrayProps {
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
   onCustomEffect: (config: ParticleMotifConfig | null) => void;
+  /** Called when free user taps an effect — applies preview, then parent shows upsell */
+  onPremiumPreview?: (effectId: string) => void;
+  /** Called when free user tries to expand Effect Studio */
+  onStudioGate?: () => void;
   /** Dismiss the tray (called on outside-tap) */
   onClose: () => void;
 }
@@ -127,6 +132,7 @@ interface EffectTrayProps {
 export const EffectTray = memo(function EffectTray({
   visible,
   selectedEffectId,
+  userIsPro,
   themeColor,
   isDark,
   glassText,
@@ -134,6 +140,8 @@ export const EffectTray = memo(function EffectTray({
   glassTertiary,
   onSelectEffect,
   onCustomEffect,
+  onPremiumPreview,
+  onStudioGate,
   onClose,
 }: EffectTrayProps) {
   const insets = useSafeAreaInsets();
@@ -147,10 +155,16 @@ export const EffectTray = memo(function EffectTray({
 
   // ── Expand / Collapse ──
   const expand = useCallback(() => {
+    // Gate Effect Studio on Pro status
+    if (!userIsPro) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onStudioGate?.();
+      return;
+    }
     setExpanded(true);
     animHeight.value = withTiming(libraryHeight, TIMING_CONFIG);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [animHeight, libraryHeight]);
+  }, [animHeight, libraryHeight, userIsPro, onStudioGate]);
 
   const collapse = useCallback(() => {
     setExpanded(false);
@@ -283,10 +297,12 @@ export const EffectTray = memo(function EffectTray({
         ) : (
           <TrayContent
             selectedEffectId={selectedEffectId}
+            userIsPro={userIsPro}
             themeColor={themeColor}
             isDark={isDark}
             glassTertiary={glassTertiary}
             onSelectEffect={handleSelect}
+            onPremiumPreview={onPremiumPreview}
           />
         )}
       </Animated.View>
@@ -299,18 +315,22 @@ export const EffectTray = memo(function EffectTray({
 
 interface TrayContentProps {
   selectedEffectId: string | null;
+  userIsPro: boolean;
   themeColor: string;
   isDark: boolean;
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
+  onPremiumPreview?: (effectId: string) => void;
 }
 
 function TrayContent({
   selectedEffectId,
+  userIsPro,
   themeColor,
   isDark,
   glassTertiary,
   onSelectEffect,
+  onPremiumPreview,
 }: TrayContentProps) {
   return (
     <View style={styles.trayBody}>
@@ -320,6 +340,7 @@ function TrayContent({
         contentContainerStyle={styles.compactRailContent}
         style={styles.compactRail}
       >
+        {/* "None" swatch — always free */}
         <CompactSwatch
           effectId={null}
           isSelected={!selectedEffectId}
@@ -333,10 +354,17 @@ function TrayContent({
             key={id}
             effectId={id}
             isSelected={selectedEffectId === id}
+            showCrown={!userIsPro}
             themeColor={themeColor}
             isDark={isDark}
             glassTertiary={glassTertiary}
-            onSelect={onSelectEffect}
+            onSelect={(effectId) => {
+              if (!userIsPro && effectId) {
+                onPremiumPreview?.(effectId);
+                return;
+              }
+              onSelectEffect(effectId);
+            }}
           />
         ))}
       </ScrollView>
@@ -349,6 +377,7 @@ function TrayContent({
 interface CompactSwatchProps {
   effectId: string | null;
   isSelected: boolean;
+  showCrown?: boolean;
   themeColor: string;
   isDark: boolean;
   glassTertiary: string;
@@ -358,6 +387,7 @@ interface CompactSwatchProps {
 function CompactSwatch({
   effectId,
   isSelected,
+  showCrown,
   themeColor,
   isDark,
   glassTertiary,
@@ -395,6 +425,29 @@ function CompactSwatch({
           <Text style={{ fontSize: 14, color: glassTertiary }}>∅</Text>
         )}
       </View>
+      {/* Crown badge for premium effects */}
+      {showCrown && effectId && (
+        <View
+          style={{
+            position: "absolute",
+            top: -2,
+            right: -2,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: "#FFD700",
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.3,
+            shadowRadius: 2,
+            elevation: 3,
+          }}
+        >
+          <Crown size={9} color="#000" />
+        </View>
+      )}
     </Pressable>
   );
 }

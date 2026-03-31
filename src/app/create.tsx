@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated, trackCreateCompleted } from "@/analytics/analyticsEventsSSOT";
 import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -28,6 +28,7 @@ import { CreateDateTimeSection } from "@/components/create/CreateDateTimeSection
 import { CreateSheets } from "@/components/create/CreateSheets";
 import { EffectTray } from "@/components/create/EffectTray";
 import { ThemeTray } from "@/components/create/ThemeTray";
+import { PremiumUpsellSheet } from "@/components/paywall/PremiumUpsellSheet";
 import { safeParseDate, normalizeLocationString } from "@/components/create/placeSearch";
 import * as Haptics from "expo-haptics";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
@@ -206,6 +207,23 @@ export default function CreateEventScreen() {
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+
+  // ── Premium upsell sheet state ──
+  const [upsellSheet, setUpsellSheet] = useState<{
+    visible: boolean;
+    title: string;
+    subtitle: string;
+    analyticsShowEvent?: string;
+    analyticsUpgradeEvent?: string;
+    analyticsProps?: Record<string, unknown>;
+    /** ID to revert from on dismiss (theme or effect) */
+    revertThemeId?: ThemeId | null;
+    revertEffectId?: string | null;
+  }>({ visible: false, title: "", subtitle: "" });
+
+  /** Saved theme ID before premium preview (for revert) */
+  const preUpsellThemeRef = useRef<ThemeId | null>(null);
+  const preUpsellEffectRef = useRef<string | null>(null);
 
   // Edit mode loaded flag
   const [isEditLoaded, setIsEditLoaded] = useState(false);
@@ -504,6 +522,71 @@ export default function CreateEventScreen() {
   const handleCustomEffectConfig = useCallback((config: import("@/components/create/MotifOverlay").ParticleMotifConfig | null) => {
     setCustomEffectConfig(config);
     setSelectedEffectId(config ? "__custom__" : null);
+  }, []);
+
+  // ── Premium preview + upsell handlers ──
+
+  /** Free user tapped a premium theme — preview it, then show upsell after 500ms */
+  const handlePremiumThemePreview = useCallback((themeId: ThemeId) => {
+    preUpsellThemeRef.current = selectedThemeId;
+    // Apply preview immediately
+    setSelectedThemeId(themeId);
+    setSelectedCustomTheme(null);
+    // Show upsell after brief preview
+    setTimeout(() => {
+      setUpsellSheet({
+        visible: true,
+        title: "Premium Theme",
+        subtitle: "Unlock all 25 premium themes with Pro",
+        analyticsShowEvent: "premium_theme_upsell_shown",
+        analyticsUpgradeEvent: "premium_theme_upsell_tapped",
+        analyticsProps: { themeId },
+      });
+    }, 500);
+  }, [selectedThemeId]);
+
+  /** Free user tried to open Theme Studio */
+  const handleThemeStudioGate = useCallback(() => {
+    setUpsellSheet({
+      visible: true,
+      title: "Theme Studio",
+      subtitle: "Create custom gradients, shaders, and animations with Pro",
+      analyticsShowEvent: "premium_studio_upsell_shown",
+      analyticsUpgradeEvent: "premium_studio_upsell_tapped",
+    });
+  }, []);
+
+  /** Free user tapped an effect — preview it, then show upsell */
+  const handlePremiumEffectPreview = useCallback((effectId: string) => {
+    preUpsellEffectRef.current = selectedEffectId;
+    // Apply preview immediately
+    setSelectedEffectId(effectId);
+    // Show upsell after brief preview
+    setTimeout(() => {
+      setUpsellSheet({
+        visible: true,
+        title: "Premium Effect",
+        subtitle: "Add animated effects to your events with Pro",
+        analyticsShowEvent: "premium_effect_upsell_shown",
+        analyticsUpgradeEvent: "premium_effect_upsell_tapped",
+        analyticsProps: { effectId },
+      });
+    }, 500);
+  }, [selectedEffectId]);
+
+  /** Upsell dismissed — revert to pre-preview state */
+  const handleUpsellDismiss = useCallback(() => {
+    // Revert theme if we previewed one
+    if (preUpsellThemeRef.current !== undefined) {
+      setSelectedThemeId(preUpsellThemeRef.current);
+      preUpsellThemeRef.current = null;
+    }
+    // Revert effect if we previewed one
+    if (preUpsellEffectRef.current !== undefined) {
+      setSelectedEffectId(preUpsellEffectRef.current);
+      preUpsellEffectRef.current = null;
+    }
+    setUpsellSheet((s) => ({ ...s, visible: false }));
   }, []);
 
   const handleCreate = () => {
@@ -858,6 +941,7 @@ export default function CreateEventScreen() {
       <EffectTray
         visible={activeDockMode === "effect"}
         selectedEffectId={selectedEffectId}
+        userIsPro={userIsPro}
         themeColor={themeColor}
         isDark={isDark}
         glassText={glassText}
@@ -865,6 +949,16 @@ export default function CreateEventScreen() {
         glassTertiary={glassTertiary}
         onSelectEffect={handleEffectSelect}
         onCustomEffect={handleCustomEffectConfig}
+        onPremiumPreview={handlePremiumEffectPreview}
+        onStudioGate={() => {
+          setUpsellSheet({
+            visible: true,
+            title: "Effect Studio",
+            subtitle: "Create custom particle effects and animations with Pro",
+            analyticsShowEvent: "premium_effect_studio_upsell_shown",
+            analyticsUpgradeEvent: "premium_effect_studio_upsell_tapped",
+          });
+        }}
         onClose={() => setActiveDockMode(null)}
       />
 
@@ -882,7 +976,20 @@ export default function CreateEventScreen() {
         onSelectTheme={handleThemeSelect}
         onSelectCustomTheme={handleCustomThemeSelect}
         onOpenPaywall={(source) => { setPaywallContext("PREMIUM_THEME"); setShowPaywallModal(true); }}
+        onPremiumPreview={handlePremiumThemePreview}
+        onStudioGate={handleThemeStudioGate}
         onClose={() => setActiveDockMode(null)}
+      />
+
+      {/* ── Premium Upsell Sheet (shared across theme/studio/effect gates) ── */}
+      <PremiumUpsellSheet
+        visible={upsellSheet.visible}
+        title={upsellSheet.title}
+        subtitle={upsellSheet.subtitle}
+        analyticsShowEvent={upsellSheet.analyticsShowEvent}
+        analyticsUpgradeEvent={upsellSheet.analyticsUpgradeEvent}
+        analyticsProps={upsellSheet.analyticsProps}
+        onDismiss={handleUpsellDismiss}
       />
 
       <CreateSheets
