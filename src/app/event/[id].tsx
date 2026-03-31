@@ -2519,11 +2519,11 @@ export default function EventDetailScreen() {
         </View>
 
         {/* Breathing room between hero card and first content card */}
-        <View style={{ height: 16 }} />
+        <View style={{ height: 8 }} />
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 10 }}>
             <View style={{
               backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)",
               borderRadius: 16,
@@ -2665,7 +2665,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (hasJoinRequest || myRsvpStatus) && (
-          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 4 }}>
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 10 }}>
             {hasJoinRequest ? (
               <ConfirmedAttendeeBanner
                 effectiveGoingCount={effectiveGoingCount}
@@ -2755,7 +2755,7 @@ export default function EventDetailScreen() {
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         <AboutCard
           description={event.description}
@@ -2808,7 +2808,7 @@ export default function EventDetailScreen() {
         </View>{/* close About card */}
 
         {/* ═══ WHO'S COMING CARD ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         {/* ═══ Who's Coming / Social Proof ═══ */}
         <WhosComingCard
@@ -2833,7 +2833,7 @@ export default function EventDetailScreen() {
         </View>{/* close Who's Coming card */}
 
         {/* ═══ DISCUSSION CARD ═══ */}
-        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)", borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
         {/* Comments Section */}
         <DiscussionCard
