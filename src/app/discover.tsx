@@ -714,6 +714,7 @@ export default function DiscoverScreen() {
                 const rsvp = event.viewerRsvpStatus as string | null | undefined;
                 const saved = savedEvents.has(event.id) || rsvp === "interested" || rsvp === "maybe";
                 const hostName = event.user?.name?.split(" ")[0] ?? null;
+                const isMyEvent = event.user?.id === session?.user?.id;
                 const displayTime = event.nextOccurrence ?? event.startTime;
                 const dateStr = new Date(displayTime).toLocaleDateString([], {
                   weekday: "short", month: "short", day: "numeric",
@@ -852,8 +853,8 @@ export default function DiscoverScreen() {
                           </Text>
                         ) : null}
 
-                        {/* [FRIEND_BADGE] Host is a friend indicator */}
-                        {event.user?.id && friendHostUserIds.has(event.user.id) && (
+                        {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
+                        {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
                             <EntityAvatar
                               photoUrl={event.user.image}
@@ -864,7 +865,7 @@ export default function DiscoverScreen() {
                               fallbackIcon="person-outline"
                             />
                             <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
-                              Hosted by {hostName ?? "a friend"}
+                              {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
                             </Text>
                           </View>
                         )}
@@ -885,8 +886,8 @@ export default function DiscoverScreen() {
                             <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
                               {dateStr}, {timeStr}
                             </Text>
-                            {/* [AVAILABILITY_V1] Calendar-fit chip */}
-                            {availChip && (
+                            {/* [AVAILABILITY_V1] Calendar-fit chip — hidden on own events */}
+                            {availChip && !isMyEvent && (
                               <View style={{
                                 backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
                                 paddingHorizontal: 6,
@@ -907,7 +908,6 @@ export default function DiscoverScreen() {
                           {/* Right: attendee avatar stack (visual only) */}
                           {(() => {
                             const count = event.attendeeCount ?? 0;
-                            if (count === 0) return null;
 
                             // Build avatar list: attendeePreview (going RSVPs) first, then joinRequests, then host
                             const fromPreview = (event.attendeePreview ?? [])
@@ -928,6 +928,7 @@ export default function DiscoverScreen() {
                               if (!seen.has(a.id)) { seen.add(a.id); merged.push(a); }
                             }
 
+                            if (merged.length === 0 && count === 0) return null;
                             const displayed = merged.slice(0, 3);
                             const remaining = Math.max(0, count - displayed.length);
                             const AVSZ = 24;
