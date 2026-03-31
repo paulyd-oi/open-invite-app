@@ -55,8 +55,6 @@ export function CircleHeaderChrome({
         style={{
           paddingTop: insetsTop,
           overflow: "hidden",
-          borderBottomWidth: 0.5,
-          borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
         }}
       >
         <View className="flex-row items-center px-4 py-3">

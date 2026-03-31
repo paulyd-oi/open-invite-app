@@ -1819,7 +1819,7 @@ export default function CircleScreen() {
         <BlurView
           intensity={88}
           tint={isDark ? "dark" : "light"}
-          style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 19, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
+          style={{ position: "absolute", top: chromeHeight - 1, left: 0, right: 0, zIndex: 19, overflow: "hidden", borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
           onLayout={(e) => {
             const h = e.nativeEvent.layout.height;
             if (h !== calendarAreaHeight) setCalendarAreaHeight(h);
