@@ -801,6 +801,7 @@ export default function CreateEventScreen() {
         glassText={glassText}
         glassSecondary={glassSecondary}
         themeColor={themeColor}
+        title={isEditMode ? "Edit Event" : undefined}
         onLayout={(h) => { if (h > 0 && h !== chromeHeight) setChromeHeight(h); }}
       />
 

@@ -12,6 +12,7 @@ interface CreateEditorHeaderProps {
   glassText: string;
   glassSecondary: string;
   themeColor: string;
+  title?: string;
   onLayout?: (height: number) => void;
 }
 
@@ -23,6 +24,7 @@ export function CreateEditorHeader({
   glassText,
   glassSecondary,
   themeColor,
+  title,
   onLayout,
 }: CreateEditorHeaderProps) {
   const insets = useSafeAreaInsets();
@@ -83,7 +85,7 @@ export function CreateEditorHeader({
                 color: glassText,
               }}
             >
-              New Event
+              {title ?? "New Event"}
             </Text>
 
             {/* Save */}
