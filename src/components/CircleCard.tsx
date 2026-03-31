@@ -303,6 +303,15 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
     ? members.filter(m => m.userId !== currentUserId)
     : members;
 
+  // Dynamic chat display name: DMs show other person's name, groups use circle.name
+  const chatDisplayName = (() => {
+    if (circle.type === "dm" && currentUserId && members.length === 2) {
+      const other = members.find(m => m.userId !== currentUserId);
+      if (other?.user?.name) return other.user.name;
+    }
+    return circle.name;
+  })();
+
   // Circular arrangement: up to 5 members positioned around a ring
   const displayedMembers = avatarMembers.slice(0, 5);
   const AVATAR_CONTAINER = 48;
@@ -448,7 +457,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                   }}
                   numberOfLines={1}
                 >
-                  {circle.name}
+                  {chatDisplayName}
                 </Text>
               </View>
               <Text

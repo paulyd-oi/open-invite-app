@@ -1782,13 +1782,22 @@ export default function CircleScreen() {
   const members = circle!.members ?? [];
   const currentUserId = session!.user?.id;
 
+  // Dynamic chat display name: DMs show other person's name, groups use circle.name
+  const chatDisplayName = (() => {
+    if (circle!.type === "dm" && currentUserId && members.length === 2) {
+      const other = members.find(m => m.userId !== currentUserId);
+      if (other?.user?.name) return other.user.name;
+    }
+    return circle!.name;
+  })();
+
   return (
     <SafeAreaView className="flex-1" edges={[]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Floating BlurView header chrome — single glass surface for header + calendar */}
       <CircleHeaderChrome
-        circleName={circle.name}
+        circleName={chatDisplayName}
         circleEmoji={circle.emoji}
         circlePhotoUrl={circle.photoUrl}
         members={members}
