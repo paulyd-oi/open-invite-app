@@ -29,6 +29,7 @@ export function CardColorPicker({
 
   const handleColorSelect = useCallback(
     ({ hex }: { hex: string }) => {
+      if (__DEV__) console.log("[CARD_COLOR_PICKER] hex:", hex);
       onColorChange(hex);
     },
     [onColorChange],
@@ -128,7 +129,7 @@ export function CardColorPicker({
             {/* Color wheel */}
             <ColorPicker
               value={displayColor}
-              onComplete={handleColorSelect}
+              onCompleteJS={handleColorSelect}
               style={{ width: 240, gap: 16 }}
             >
               <HueCircular
