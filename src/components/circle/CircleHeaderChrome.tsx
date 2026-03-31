@@ -57,7 +57,6 @@ export function CircleHeaderChrome({
           overflow: "hidden",
           borderBottomWidth: 0.5,
           borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-          backgroundColor: isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.72)",
         }}
       >
         <View className="flex-row items-center px-4 py-3">

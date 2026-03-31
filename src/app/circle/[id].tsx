@@ -1811,215 +1811,9 @@ export default function CircleScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1, paddingTop: chromeHeight }}
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Calendar Toggle */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowCalendar(!showCalendar);
-            setCalendarCollapsedByKeyboard(false);
-          }}
-          className="flex-row items-center justify-center py-2 border-b"
-          style={{ borderColor: colors.border }}
-        >
-          <Calendar size={14} color={themeColor} />
-          <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>
-            {showCalendar ? "Hide" : "Show"} Calendar
-          </Text>
-          {showCalendar ? (
-            <ChevronUp size={14} color={themeColor} style={{ marginLeft: 4 }} />
-          ) : (
-            <ChevronDown size={14} color={themeColor} style={{ marginLeft: 4 }} />
-          )}
-        </Pressable>
-
-        {/* Mini Calendar */}
-        {showCalendar && circle.memberEvents && (() => {
-          const totalEvents = circle.memberEvents.reduce((sum, m) => sum + m.events.length, 0);
-          
-          if (totalEvents === 0) {
-            return (
-              <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3 pb-4">
-                <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface }}>
-                  <View
-                    className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                    style={{ backgroundColor: colors.surfaceElevated }}
-                  >
-                    <Calendar size={24} color={colors.textTertiary} />
-                  </View>
-                  <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
-                    Nothing planned yet
-                  </Text>
-                  <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
-                    Create the first event for this group
-                  </Text>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    label="Create Event"
-                    onPress={() => {
-                      router.push({
-                        pathname: "/create",
-                        params: { circleId: id },
-                      } as any);
-                    }}
-                  />
-                </View>
-              </Animated.View>
-            );
-          }
-          
-          return (
-            <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
-              <MiniCalendar
-                memberEvents={circle.memberEvents}
-                members={members}
-                themeColor={themeColor}
-                colors={colors}
-                isDark={isDark}
-                circleId={id!}
-                currentUserId={session?.user?.id ?? null}
-              />
-            </Animated.View>
-          );
-        })()}
-
-        {/* [P1_LIFECYCLE_UI] Finalized Chip + Completion Prompt */}
-        <CircleLifecycleChips
-          lifecycleState={lifecycleState}
-          lifecycleNote={lifecycleNote}
-          planLockNote={planLock?.note}
-          completionDismissed={completionDismissed}
-          colors={colors}
-          isDark={isDark}
-          onFinalizedChipPress={() => {
-            if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "chip_render");
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setPlanLockDraftNote(planLock?.note ?? "");
-            setShowPlanLockSheet(true);
-          }}
-          onRunItBack={() => {
-            if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
-            lifecycleMutation.mutate({ state: "planning" });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setCompletionDismissed(true);
-          }}
-          onDismissCompletion={() => setCompletionDismissed(true)}
-        />
-
-        {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
-        {availTonight && lifecycleState !== "finalized" && lifecycleState !== "completed" && (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "tap_open");
-              setShowAvailSheet(true);
-            }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderBottomWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-              gap: 10,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Tonight:</Text>
-            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free}</Text>
-            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy}</Text>
-            {(availTonight.tentative ?? 0) > 0 && (
-              <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative}</Text>
-            )}
-            <Text style={{ fontSize: 13, color: colors.text }}>{"\u26AA"} {availTonight.unknown}</Text>
-            <ChevronRight size={14} color={colors.textTertiary} />
-          </Pressable>
-        )}
-
-        {/* [P1_POLL_UI] Poll Strip — [P0_POLL_HIDDEN] gated off */}
-        {(() => {
-          const POLLS_ENABLED = false;
-          if (!POLLS_ENABLED) return null;
-          return polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
-            <Pressable
-              key={poll.id}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActivePollIdx(pIdx);
-                // [P0_MODAL_GUARD] Close other sheets FIRST, then open poll
-                // after a short delay. Two simultaneous Modals freeze iOS touch handling.
-                if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "poll_strip", to: "poll", ms: 350 });
-                setShowNotifySheet(false);
-                setShowPlanLockSheet(false);
-                setTimeout(() => {
-                  setShowPollSheet(true);
-                  if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "poll_strip", to: "poll", ms: 350 });
-                  if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
-                }, 350);
-              }}
-              style={{
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                borderBottomWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {poll.options.map((opt) => (
-                  <Pressable
-                    key={opt.id}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Haptics.selectionAsync();
-                      voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: 14,
-                      borderWidth: 1.5,
-                      borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
-                      backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
-                      gap: 4,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </Pressable>
-          ));
-        })()}
-
-        {/* [P1_NEXT_EVENT_ANCHOR] Collapsible next-event anchor */}
-        {nextCircleEvent && (
-          <CircleNextEventCard
-            event={nextCircleEvent}
-            expanded={upNextExpanded}
-            colors={colors}
-            isDark={isDark}
-            themeColor={themeColor}
-            onToggleExpand={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setUpNextExpanded((v) => !v);
-            }}
-            onNavigateToEvent={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/event/${nextCircleEvent.id}` as any);
-            }}
-          />
-        )}
-
         {/* Messages List */}
         <FlatList
           ref={flatListRef}
@@ -2028,7 +1822,7 @@ export default function CircleScreen() {
           initialNumToRender={15}
           maxToRenderPerBatch={10}
           windowSize={11}
-          contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -2040,36 +1834,243 @@ export default function CircleScreen() {
             <RefreshControl refreshing={false} onRefresh={refetch} tintColor={themeColor} />
           }
           ListHeaderComponent={
-            hasMoreOlder ? (
-              <View style={{ alignItems: "center", paddingVertical: 12 }}>
+            <View style={{ marginHorizontal: -16 }}>
+              {/* Calendar Toggle */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowCalendar(!showCalendar);
+                  setCalendarCollapsedByKeyboard(false);
+                }}
+                className="flex-row items-center justify-center py-2 border-b"
+                style={{ borderColor: colors.border }}
+              >
+                <Calendar size={14} color={themeColor} />
+                <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>
+                  {showCalendar ? "Hide" : "Show"} Calendar
+                </Text>
+                {showCalendar ? (
+                  <ChevronUp size={14} color={themeColor} style={{ marginLeft: 4 }} />
+                ) : (
+                  <ChevronDown size={14} color={themeColor} style={{ marginLeft: 4 }} />
+                )}
+              </Pressable>
+
+              {/* Mini Calendar */}
+              {showCalendar && circle.memberEvents && (() => {
+                const totalEvents = circle.memberEvents.reduce((sum, m) => sum + m.events.length, 0);
+
+                if (totalEvents === 0) {
+                  return (
+                    <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3 pb-4">
+                      <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface }}>
+                        <View
+                          className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                          style={{ backgroundColor: colors.surfaceElevated }}
+                        >
+                          <Calendar size={24} color={colors.textTertiary} />
+                        </View>
+                        <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
+                          Nothing planned yet
+                        </Text>
+                        <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
+                          Create the first event for this group
+                        </Text>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          label="Create Event"
+                          onPress={() => {
+                            router.push({
+                              pathname: "/create",
+                              params: { circleId: id },
+                            } as any);
+                          }}
+                        />
+                      </View>
+                    </Animated.View>
+                  );
+                }
+
+                return (
+                  <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
+                    <MiniCalendar
+                      memberEvents={circle.memberEvents}
+                      members={members}
+                      themeColor={themeColor}
+                      colors={colors}
+                      isDark={isDark}
+                      circleId={id!}
+                      currentUserId={session?.user?.id ?? null}
+                    />
+                  </Animated.View>
+                );
+              })()}
+
+              {/* [P1_LIFECYCLE_UI] Finalized Chip + Completion Prompt */}
+              <CircleLifecycleChips
+                lifecycleState={lifecycleState}
+                lifecycleNote={lifecycleNote}
+                planLockNote={planLock?.note}
+                completionDismissed={completionDismissed}
+                colors={colors}
+                isDark={isDark}
+                onFinalizedChipPress={() => {
+                  if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "chip_render");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPlanLockDraftNote(planLock?.note ?? "");
+                  setShowPlanLockSheet(true);
+                }}
+                onRunItBack={() => {
+                  if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
+                  lifecycleMutation.mutate({ state: "planning" });
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setCompletionDismissed(true);
+                }}
+                onDismissCompletion={() => setCompletionDismissed(true)}
+              />
+
+              {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
+              {availTonight && lifecycleState !== "finalized" && lifecycleState !== "completed" && (
                 <Pressable
-                  onPress={fetchOlderMessages}
-                  disabled={isLoadingEarlier}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "tap_open");
+                    setShowAvailSheet(true);
+                  }}
                   style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 16,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 6,
+                    justifyContent: "center",
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderBottomWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                    gap: 10,
                   }}
                 >
-                  {isLoadingEarlier ? (
-                    <>
-                      <ActivityIndicator size="small" color={colors.textTertiary} />
-                      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
-                        Loading earlier…
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
-                      Load earlier messages
-                    </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Tonight:</Text>
+                  <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free}</Text>
+                  <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy}</Text>
+                  {(availTonight.tentative ?? 0) > 0 && (
+                    <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative}</Text>
                   )}
+                  <Text style={{ fontSize: 13, color: colors.text }}>{"\u26AA"} {availTonight.unknown}</Text>
+                  <ChevronRight size={14} color={colors.textTertiary} />
                 </Pressable>
-              </View>
-            ) : null
+              )}
+
+              {/* [P1_POLL_UI] Poll Strip — [P0_POLL_HIDDEN] gated off */}
+              {(() => {
+                const POLLS_ENABLED = false;
+                if (!POLLS_ENABLED) return null;
+                return polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
+                  <Pressable
+                    key={poll.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setActivePollIdx(pIdx);
+                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "poll_strip", to: "poll", ms: 350 });
+                      setShowNotifySheet(false);
+                      setShowPlanLockSheet(false);
+                      setTimeout(() => {
+                        setShowPollSheet(true);
+                        if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "poll_strip", to: "poll", ms: 350 });
+                        if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
+                      }, 350);
+                    }}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderBottomWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                      {poll.options.map((opt) => (
+                        <Pressable
+                          key={opt.id}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.selectionAsync();
+                            voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 14,
+                            borderWidth: 1.5,
+                            borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
+                            backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
+                            gap: 4,
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </Pressable>
+                ));
+              })()}
+
+              {/* [P1_NEXT_EVENT_ANCHOR] Collapsible next-event anchor */}
+              {nextCircleEvent && (
+                <CircleNextEventCard
+                  event={nextCircleEvent}
+                  expanded={upNextExpanded}
+                  colors={colors}
+                  isDark={isDark}
+                  themeColor={themeColor}
+                  onToggleExpand={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setUpNextExpanded((v) => !v);
+                  }}
+                  onNavigateToEvent={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/event/${nextCircleEvent.id}` as any);
+                  }}
+                />
+              )}
+
+              {/* Load earlier messages */}
+              {hasMoreOlder && (
+                <View style={{ alignItems: "center", paddingVertical: 12, paddingHorizontal: 16 }}>
+                  <Pressable
+                    onPress={fetchOlderMessages}
+                    disabled={isLoadingEarlier}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 16,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    {isLoadingEarlier ? (
+                      <>
+                        <ActivityIndicator size="small" color={colors.textTertiary} />
+                        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                          Loading earlier…
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                        Load earlier messages
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            </View>
           }
           ListEmptyComponent={
             <View className="py-12 items-center">
