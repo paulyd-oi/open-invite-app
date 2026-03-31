@@ -49,9 +49,9 @@ import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import { getActiveEventCount } from "@/lib/softLimits";
-import { type CreateEventRequest, type CreateEventResponse, type GetCirclesResponse, type GetProfilesResponse, type GetEventsResponse } from "@/shared/contracts";
+import { type CreateEventRequest, type CreateEventResponse, type GetCirclesResponse, type GetProfilesResponse, type GetEventsResponse, type UpdateEventRequest, type UpdateEventResponse } from "@/shared/contracts";
 import { getPendingIcsImport } from "@/lib/deepLinks";
-import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
+import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate, getInvalidateAfterEventEdit } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
 
 // DEV-only: last create-event error receipt for inspection
@@ -67,7 +67,7 @@ export default function CreateEventScreen() {
   const params = useLocalSearchParams();
   const isSmartMode = params?.mode === "smart";
 
-  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam } = useLocalSearchParams<{
+  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam, editEventId } = useLocalSearchParams<{
     date?: string;
     template?: string;
     emoji?: string;
@@ -76,7 +76,9 @@ export default function CreateEventScreen() {
     circleId?: string;
     visibility?: string;
     endDate?: string;
+    editEventId?: string;
   }>();
+  const isEditMode = !!editEventId;
   const { themeColor, isDark, colors } = useTheme();
 
   const isCircleEvent = !!circleId;
@@ -200,6 +202,9 @@ export default function CreateEventScreen() {
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
+  // Edit mode loaded flag
+  const [isEditLoaded, setIsEditLoaded] = useState(false);
+
   // ── Entitlements ──
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
   const premiumStatus = usePremiumStatusContract();
@@ -284,6 +289,14 @@ export default function CreateEventScreen() {
   const myEvents = myEventsData?.events ?? [];
   const activeEventCount = getActiveEventCount(myEvents);
 
+  // ── Edit mode: fetch event data ──
+  const { data: editEventData } = useQuery({
+    queryKey: eventKeys.mine(),
+    queryFn: () => api.get<GetEventsResponse>("/api/events"),
+    enabled: isEditMode && isAuthedForNetwork(bootStatus, session),
+  });
+  const editEvent = editEventData?.events.find((e) => e.id === editEventId);
+
   // ── Mutation ──
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
@@ -353,6 +366,21 @@ export default function CreateEventScreen() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: UpdateEventRequest) =>
+      api.put<UpdateEventResponse>(`/api/events/${editEventId}`, data),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidateEventKeys(queryClient, getInvalidateAfterEventEdit(editEventId ?? ""), "event_update");
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      safeToast.success("Updated", "Your event has been updated.");
+      router.back();
+    },
+    onError: (error) => {
+      safeToast.error("Oops", "That didn't go through. Please try again.");
+    },
+  });
+
   // ── Handlers ──
   const handleFrequencyChange = (newFrequency: "once" | "weekly" | "monthly") => {
     if (newFrequency !== "once") {
@@ -368,6 +396,79 @@ export default function CreateEventScreen() {
     setFrequency(newFrequency);
     setShowFrequencyPicker(false);
   };
+
+  // ── Edit mode: pre-populate form state ──
+  useEffect(() => {
+    if (!isEditMode || !editEvent || isEditLoaded) return;
+
+    setTitle(editEvent.title);
+    setDescription(editEvent.description ?? "");
+    locationSearch.prefillLocation(editEvent.location ?? "");
+
+    setStartDate(new Date(editEvent.startTime));
+    if (editEvent.endTime) {
+      setEndDate(new Date(editEvent.endTime));
+      setUserModifiedEndTime(true);
+    }
+
+    // Visibility
+    const vis = editEvent.visibility as "all_friends" | "specific_groups" | "circle_only";
+    if (vis) setVisibility(vis);
+    if (editEvent.groupVisibility) {
+      setSelectedGroupIds(editEvent.groupVisibility.map((g) => g.groupId));
+    }
+
+    // Capacity
+    if (editEvent.capacity != null) {
+      setHasCapacity(true);
+      setCapacityInput(String(editEvent.capacity));
+    }
+
+    // Pitch In
+    if (editEvent.pitchInEnabled) {
+      setPitchInEnabled(true);
+      setPitchInAmount(editEvent.pitchInAmount ?? "");
+      setPitchInMethod((editEvent.pitchInMethod as "venmo" | "cashapp" | "paypal" | "other") ?? "venmo");
+      setPitchInHandle(editEvent.pitchInHandle ?? "");
+      setPitchInNote(editEvent.pitchInNote ?? "");
+    }
+
+    // What to Bring
+    if (editEvent.bringListEnabled && editEvent.bringListItems?.length) {
+      setBringListEnabled(true);
+      setBringListItems(editEvent.bringListItems.map((i: { label: string }) => i.label));
+    }
+
+    // Theme
+    const evtThemeId = (editEvent as any).themeId;
+    if (evtThemeId && evtThemeId !== "custom") {
+      setSelectedThemeId(evtThemeId);
+    }
+    if ((editEvent as any).customThemeData) {
+      setSelectedCustomTheme({
+        id: "custom_existing",
+        name: (editEvent as any).customThemeData.name ?? "Custom",
+        visualStack: (editEvent as any).customThemeData.visualStack ?? {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Effect
+    if ((editEvent as any).effectId) {
+      setSelectedEffectId((editEvent as any).effectId);
+    }
+    if ((editEvent as any).customEffectConfig) {
+      setCustomEffectConfig((editEvent as any).customEffectConfig);
+    }
+
+    // Cover image — renders in hero preview
+    if (editEvent.eventPhotoUrl) {
+      coverMedia.prefillCover(editEvent.eventPhotoUrl);
+    }
+
+    setIsEditLoaded(true);
+  }, [isEditMode, editEvent, isEditLoaded]);
 
   const handleDockMode = useCallback((mode: DockMode) => {
     setActiveDockMode((prev) => (prev === mode ? null : mode));
@@ -396,7 +497,7 @@ export default function CreateEventScreen() {
   }, []);
 
   const handleCreate = () => {
-    if (createMutation.isPending) return;
+    if (createMutation.isPending || updateMutation.isPending) return;
     if (!guardEmailVerification(session)) return;
     if (coverMedia.uploadingBanner) {
       safeToast.warning("Please Wait", "Cover photo is still uploading.");
@@ -483,6 +584,10 @@ export default function CreateEventScreen() {
           }
         : {}),
     };
+    if (isEditMode) {
+      updateMutation.mutate(createPayload as any);
+      return;
+    }
     createMutation.mutate(createPayload);
   };
 
@@ -667,10 +772,10 @@ export default function CreateEventScreen() {
               <Button
                 testID="create-submit-event"
                 variant="primary"
-                label={createMutation.isPending ? "Creating..." : "Create Invite"}
+                label={isEditMode ? (updateMutation.isPending ? "Saving..." : "Save Changes") : (createMutation.isPending ? "Creating..." : "Create Invite")}
                 onPress={handleCreate}
-                disabled={createMutation.isPending}
-                loading={createMutation.isPending}
+                disabled={isEditMode ? updateMutation.isPending : createMutation.isPending}
+                loading={isEditMode ? updateMutation.isPending : createMutation.isPending}
                 style={{
                   borderRadius: 12,
                   paddingVertical: 14,
@@ -691,7 +796,7 @@ export default function CreateEventScreen() {
       <CreateEditorHeader
         onCancel={() => router.back()}
         onSave={handleCreate}
-        isPending={createMutation.isPending}
+        isPending={isEditMode ? updateMutation.isPending : createMutation.isPending}
         themed={themed}
         glassText={glassText}
         glassSecondary={glassSecondary}
