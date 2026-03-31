@@ -378,193 +378,196 @@ export default function EditProfileScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           contentContainerStyle={{
-            paddingHorizontal: 20,
             paddingBottom: 160,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Avatar ── */}
-          <View style={{ alignItems: "center", marginTop: 12, marginBottom: 20 }}>
-            <Pressable onPress={handlePickImage}>
-              <EntityAvatar
-                imageSource={editImage.startsWith("file://") ? { uri: editImage } : avatarSource}
-                initials={getProfileInitial({ profileData, session })}
-                size={88}
-                backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
-                foregroundColor={themeColor}
-                fallbackIcon="person"
-              />
+          {/* ═══ Profile Card (mirrors live profile card structure) ═══ */}
+          <View
+            className="rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              marginHorizontal: 20,
+              marginTop: 8,
+            }}
+          >
+            {/* ── Banner (3:1) with edit overlay ── */}
+            <Pressable onPress={handlePickBanner}>
               <View
                 style={{
-                  position: "absolute",
-                  bottom: 0,
-                  right: 0,
-                  width: 30,
-                  height: 30,
-                  borderRadius: 15,
-                  backgroundColor: themeColor,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 2,
-                  borderColor: colors.background,
+                  aspectRatio: 3,
+                  width: "100%",
+                  backgroundColor: isDark ? colors.surfaceElevated : "#F3F4F6",
                 }}
               >
-                <Camera size={14} color="#FFF" />
+                {displayBanner ? (
+                  <ExpoImage
+                    source={{
+                      uri: displayBanner.startsWith("file://")
+                        ? displayBanner
+                        : toCloudinaryTransformedUrl(displayBanner, CLOUDINARY_PRESETS.HERO_BANNER),
+                    }}
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <ImagePlus size={24} color={colors.textTertiary} />
+                    <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 4 }}>
+                      Tap to add banner
+                    </Text>
+                  </View>
+                )}
+                {/* Subtle tint */}
+                {displayBanner && (
+                  <View style={{
+                    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
+                  }} />
+                )}
+                {/* Bottom legibility gradient */}
+                {displayBanner && (
+                  <View pointerEvents="none" style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0, height: 60,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.25)",
+                  }} />
+                )}
+                {/* Banner action icons */}
+                <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 6 }}>
+                  <View style={{
+                    width: 28, height: 28, borderRadius: 14,
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    <ImagePlus size={14} color="#FFF" />
+                  </View>
+                  {displayBanner && (
+                    <Pressable
+                      onPress={() => {
+                        setEditBanner("");
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={{
+                        width: 28, height: 28, borderRadius: 14,
+                        backgroundColor: "rgba(0,0,0,0.5)",
+                        alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Trash2 size={14} color="#FFF" />
+                    </Pressable>
+                  )}
+                </View>
               </View>
             </Pressable>
-          </View>
 
-          {/* ── Banner ── */}
-          <View
-            style={{
-              aspectRatio: 3,
-              width: "100%",
-              borderRadius: 14,
-              overflow: "hidden",
-              backgroundColor: isDark ? colors.surfaceElevated : "#F3F4F6",
-              marginBottom: 20,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            {displayBanner ? (
-              <ExpoImage
-                source={{
-                  uri: displayBanner.startsWith("file://")
-                    ? displayBanner
-                    : toCloudinaryTransformedUrl(displayBanner, CLOUDINARY_PRESETS.HERO_BANNER),
-                }}
-                style={{ flex: 1 }}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                <ImagePlus size={24} color={colors.textTertiary} />
-                <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 4 }}>
-                  Add Banner
-                </Text>
-              </View>
-            )}
-            {/* Banner actions overlay */}
-            <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 6 }}>
-              <Pressable
-                onPress={handlePickBanner}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <ImagePlus size={14} color="#FFF" />
-              </Pressable>
-              {displayBanner && (
-                <Pressable
-                  onPress={() => {
-                    setEditBanner("");
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
+            {/* ── Avatar overlapping banner bottom (centered) ── */}
+            <View style={{ alignItems: "center", marginTop: -44, zIndex: 2 }}>
+              <Pressable onPress={handlePickImage}>
+                <View style={{ shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+                  <EntityAvatar
+                    imageSource={editImage.startsWith("file://") ? { uri: editImage } : avatarSource}
+                    initials={getProfileInitial({ profileData, session })}
+                    size={80}
+                    backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
+                    foregroundColor={themeColor}
+                    fallbackIcon="person"
+                  />
+                </View>
+                <View
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor: "rgba(0,0,0,0.5)",
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 26,
+                    height: 26,
+                    borderRadius: 13,
+                    backgroundColor: themeColor,
                     alignItems: "center",
                     justifyContent: "center",
+                    borderWidth: 2,
+                    borderColor: colors.surface,
                   }}
                 >
-                  <Trash2 size={14} color="#FFF" />
-                </Pressable>
-              )}
+                  <Camera size={12} color="#FFF" />
+                </View>
+              </Pressable>
             </View>
-          </View>
 
-          {/* ── Fields ── */}
-          <View
-            style={{
-              backgroundColor: isDark ? "rgba(28,28,30,0.8)" : "rgba(255,255,255,0.88)",
-              borderRadius: 16,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: colors.border,
-              marginBottom: 16,
-            }}
-          >
-            {/* Display Name */}
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
-              DISPLAY NAME
-            </Text>
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Your name"
-              placeholderTextColor={colors.textTertiary}
-              style={{
-                color: colors.text,
-                fontSize: 16,
-                paddingVertical: 8,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-                marginBottom: 16,
-              }}
-            />
-
-            {/* Username */}
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
-              USERNAME
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ color: colors.textTertiary, fontSize: 16, marginRight: 2 }}>@</Text>
+            {/* ── Fields card (glass panel matching live profile) ── */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+              {/* Display Name */}
               <TextInput
-                value={editHandle}
-                onChangeText={(text) => {
-                  setEditHandle(text.replace(/^@+/, "").toLowerCase());
-                  setHandleError(null);
-                }}
-                placeholder="username"
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Your name"
                 placeholderTextColor={colors.textTertiary}
-                autoCapitalize="none"
-                autoCorrect={false}
+                textAlign="center"
                 style={{
-                  flex: 1,
                   color: colors.text,
-                  fontSize: 16,
-                  paddingVertical: 8,
+                  fontSize: 20,
+                  fontWeight: "700",
+                  paddingVertical: 6,
+                  letterSpacing: -0.3,
                 }}
               />
+
+              {/* Username */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 14 }}>@</Text>
+                <TextInput
+                  value={editHandle}
+                  onChangeText={(text) => {
+                    setEditHandle(text.replace(/^@+/, "").toLowerCase());
+                    setHandleError(null);
+                  }}
+                  placeholder="username"
+                  placeholderTextColor={colors.textTertiary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textAlign="center"
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                    paddingVertical: 4,
+                  }}
+                />
+              </View>
+              {handleError && (
+                <Text style={{ color: "#FF3B30", fontSize: 12, marginTop: 2, textAlign: "center" }}>{handleError}</Text>
+              )}
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+
+              {/* Calendar Bio */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 6 }}>
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
+                  My calendar looks like...
+                </Text>
+              </View>
+              <TextInput
+                value={editCalendarBio}
+                onChangeText={(text) => setEditCalendarBio(text.slice(0, 300))}
+                placeholder="Busy weeks, chill weekends"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                maxLength={300}
+                textAlign="center"
+                style={{
+                  color: colors.text,
+                  fontSize: 15,
+                  paddingVertical: 4,
+                  minHeight: 40,
+                }}
+              />
+              <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: "right", marginTop: 2 }}>
+                {editCalendarBio.length}/300
+              </Text>
             </View>
-            {handleError && (
-              <Text style={{ color: "#FF3B30", fontSize: 12, marginTop: 2 }}>{handleError}</Text>
-            )}
-            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
-
-            {/* Calendar Bio */}
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
-              MY CALENDAR LOOKS LIKE...
-            </Text>
-            <TextInput
-              value={editCalendarBio}
-              onChangeText={(text) => setEditCalendarBio(text.slice(0, 300))}
-              placeholder="Busy weeks, chill weekends"
-              placeholderTextColor={colors.textTertiary}
-              multiline
-              maxLength={300}
-              style={{
-                color: colors.text,
-                fontSize: 16,
-                paddingVertical: 8,
-                minHeight: 48,
-              }}
-            />
-            <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: "right", marginTop: 2 }}>
-              {editCalendarBio.length}/300
-            </Text>
           </View>
-
-          {/* ── Card Color ── */}
         </ScrollView>
       </KeyboardAvoidingView>
 
