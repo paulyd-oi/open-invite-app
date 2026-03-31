@@ -167,6 +167,11 @@ export function useLocationSearch() {
     setLocationQuery(location);
   }, [location]);
 
+  const prefillLocation = useCallback((loc: string) => {
+    setLocation(loc);
+    setLocationQuery(loc);
+  }, []);
+
   return {
     location,
     setLocation,
@@ -183,5 +188,6 @@ export function useLocationSearch() {
     handleClearPlace,
     handleCloseSearch,
     handleOpenSearch,
+    prefillLocation,
   };
 }
