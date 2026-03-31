@@ -330,7 +330,7 @@ export default function CircleScreen() {
 
   // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
   const [chromeHeight, setChromeHeight] = useState(0);
-  const [calendarAreaHeight, setCalendarAreaHeight] = useState(0);
+  const [calendarAreaHeight, setCalendarAreaHeight] = useState(340);
   const [showCalendar, setShowCalendar] = useState(true);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
