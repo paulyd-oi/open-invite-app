@@ -85,7 +85,7 @@ import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { buildEventSharePayload, buildEventSmsBody, buildEventReminderText, getEventUniversalLink } from "@/lib/shareSSOT";
+import { buildEventSharePayload, buildEventSmsBody, getEventUniversalLink } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -2560,27 +2560,7 @@ export default function EventDetailScreen() {
                   }}
                 >
                   <Share2 size={14} color="#FFFFFF" />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>More</Text>
-                </Pressable>
-              </View>
-
-              {/* Persistent host tool — Reminder */}
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    const reminderText = buildEventReminderText(buildShareInput({ ...event, location: locationDisplay ?? null }));
-                    try { await Clipboard.setStringAsync(reminderText); } catch {}
-                    safeToast.success("Reminder copied");
-                  }}
-                  style={{
-                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                    paddingVertical: 10, borderRadius: 12,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <Copy size={14} color={colors.text} />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Reminder</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>Share</Text>
                 </Pressable>
               </View>
 
