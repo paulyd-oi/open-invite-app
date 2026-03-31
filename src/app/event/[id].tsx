@@ -2450,25 +2450,6 @@ export default function EventDetailScreen() {
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
         <View style={{ position: "relative" }}>
 
-          {/* Nav bar — glass-effect over atmosphere */}
-          <EventHeroNav
-            hasPhoto={!!(eventBannerUri && event.eventPhotoUrl)}
-            screenWidth={screenWidth}
-            topInset={insets.top}
-            colors={colors}
-            onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
-            onOpenOptions={() => {
-              Haptics.selectionAsync();
-              if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
-                eventId: id,
-                isImported: !!event?.isImported,
-                isBusy: !!event?.isBusy,
-                isMyEvent,
-              });
-              setShowEventActionsSheet(true);
-            }}
-          />
-
           {/* Floating invite card */}
           <Animated.View entering={FadeInDown.delay(30).springify()}>
             <InviteFlipCard
@@ -2975,6 +2956,27 @@ export default function EventDetailScreen() {
         })()}
 
       </KeyboardAwareScrollView>
+
+      {/* Persistent header controls — fixed above scroll content */}
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0 }} pointerEvents="box-none">
+        <EventHeroNav
+          hasPhoto={!!(eventBannerUri && event.eventPhotoUrl)}
+          screenWidth={screenWidth}
+          topInset={insets.top}
+          colors={colors}
+          onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+          onOpenOptions={() => {
+            Haptics.selectionAsync();
+            if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
+              eventId: id,
+              isImported: !!event?.isImported,
+              isBusy: !!event?.isBusy,
+              isMyEvent,
+            });
+            setShowEventActionsSheet(true);
+          }}
+        />
+      </View>
 
       {/* [GROWTH_STICKY_RSVP] Floating bottom RSVP bar for guests */}
       {showStickyRsvp && (
