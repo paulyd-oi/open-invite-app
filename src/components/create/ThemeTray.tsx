@@ -42,7 +42,7 @@ import * as Haptics from "expo-haptics";
 import {
   EVENT_THEMES,
   isPremiumTheme,
-  ALL_THEME_IDS,
+  THEME_DISPLAY_ORDER,
   type ThemeId,
   type ThemeVisualStack,
 } from "@/lib/eventThemes";
@@ -306,7 +306,7 @@ function ThemeTrayContent({
         contentContainerStyle={styles.compactRailContent}
         style={styles.compactRail}
       >
-        {ALL_THEME_IDS.map((tid) => {
+        {THEME_DISPLAY_ORDER.map((tid) => {
           const t = EVENT_THEMES[tid];
           const selected = selectedThemeId === tid;
           const premium = isPremiumTheme(tid);

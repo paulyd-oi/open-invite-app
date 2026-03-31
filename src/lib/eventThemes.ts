@@ -51,6 +51,41 @@ export const PREMIUM_THEME_IDS = [
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
 export type ThemeId = (typeof ALL_THEME_IDS)[number];
 
+/** Swatch display order — hue progression for the theme picker tray.
+ *  Neutral first, then warm→cool rainbow, darks/browns last. */
+export const THEME_DISPLAY_ORDER: ThemeId[] = [
+  "neutral",          // gray #8E8E93
+  "fourth_of_july",   // red #B22234
+  "romance_elegant",  // crimson #BE123C
+  "luau",             // coral #FB7185
+  "birthday_bash",    // red-orange #FF6B4A
+  "fall_harvest",     // orange #D4763B
+  "dinner_night",     // orange #FF9800
+  "bonfire_night",    // amber #D97706
+  "beach_day",        // amber #F59E0B
+  "anniversary",      // gold #C9A84C
+  "awards_night",     // gold #D4AF37
+  "celebration",      // gold #FFD700
+  "graduation",       // gold #FFD700
+  "new_years_eve",    // gold #FFD700
+  "garden_party",     // lime #84CC16
+  "game_day",         // green #43A047
+  "spring_bloom",     // green #22C55E
+  "chill_hang",       // teal #14B8A6
+  "summer_splash",    // cyan #00ACC1
+  "pool_party",       // cyan #06B6D4
+  "winter_glow",      // blue #6495ED
+  "spring_brunch",    // lavender #A78BFA
+  "easter",           // lavender #A78BFA
+  "game_night",       // purple #8B5CF6
+  "party_night",      // purple #A855F7
+  "valentines",       // pink #EC4899
+  "worship_night",    // brown #9C7C63
+  "date_night",       // brown #B45309
+  "cozy_night",       // brown #B4783C
+  "movie_night",      // slate #64748B
+];
+
 // ─── Curated Theme Packs (picker merchandising) ──────────
 
 export interface ThemePack {
