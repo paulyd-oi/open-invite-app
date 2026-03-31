@@ -100,6 +100,7 @@ export const ThemeVideoLayer = memo(function ThemeVideoLayer({
       <VideoView
         player={player}
         style={styles.video}
+        contentFit="cover"
         nativeControls={false}
         allowsFullscreen={false}
         allowsPictureInPicture={false}
