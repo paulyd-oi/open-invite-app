@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Check, Heart, Users, Share2 } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
@@ -25,12 +26,17 @@ interface StickyRsvpBarProps {
 
 // Glass surface tokens
 const GLASS = {
-  imIn: {
+  going: {
     bg: "#22C55E",
     border: "rgba(255,255,255,0.25)",
     shadow: { color: "#22C55E", opacity: 0.35, radius: 8, offset: { width: 0, height: 3 } },
   },
-  save: {
+  cantGo: {
+    bg: "#EF4444",
+    border: "rgba(255,255,255,0.25)",
+    shadow: { color: "#EF4444", opacity: 0.25, radius: 8, offset: { width: 0, height: 3 } },
+  },
+  muted: {
     dark: { bg: "rgba(255,255,255,0.12)", border: "rgba(255,255,255,0.15)" },
     light: { bg: "rgba(255,255,255,0.60)", border: "rgba(0,0,0,0.08)" },
   },
@@ -39,6 +45,8 @@ const GLASS = {
     light: { bg: "rgba(0,0,0,0.04)", border: "rgba(0,0,0,0.06)" },
   },
 } as const;
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function StickyRsvpBar({
   effectiveGoingCount,
@@ -54,10 +62,19 @@ export function StickyRsvpBar({
   onRsvpNotGoing,
   onShare,
 }: StickyRsvpBarProps) {
-  const saveGlass = isDark ? GLASS.save.dark : GLASS.save.light;
+  const mutedGlass = isDark ? GLASS.muted.dark : GLASS.muted.light;
   const fullGlass = isDark ? GLASS.full.dark : GLASS.full.light;
   const isConfirmed = myRsvpStatus === "going";
-  const [showingChange, setShowingChange] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+
+  // Close floating options when RSVP status changes (mutation completed)
+  const prevStatus = useRef(myRsvpStatus);
+  useEffect(() => {
+    if (prevStatus.current !== myRsvpStatus) {
+      setShowOptions(false);
+      prevStatus.current = myRsvpStatus;
+    }
+  }, [myRsvpStatus]);
 
   return (
     <View
@@ -70,92 +87,146 @@ export function StickyRsvpBar({
         paddingBottom: bottomInset + 8,
         paddingTop: 10,
         paddingHorizontal: 16,
-        // Transparent container — buttons carry the visual weight
       }}
     >
+      {/* Tap-outside backdrop to dismiss floating options */}
+      {showOptions && (
+        <Pressable
+          onPress={() => setShowOptions(false)}
+          style={{
+            position: "absolute",
+            top: -2000,
+            left: -100,
+            right: -100,
+            bottom: 0,
+          }}
+        />
+      )}
+
       {effectiveGoingCount > 0 && (
         <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textTertiary, textAlign: "center", marginBottom: 6 }}>
           {effectiveGoingCount} going
         </Text>
       )}
-      {isConfirmed && showingChange ? (
-        /* ── Change-RSVP row: "Not Going" + "Never mind" ── */
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, opacity: isPending ? 0.6 : 1 }}>
-          <Pressable
-            onPress={() => { onRsvpNotGoing?.(); setShowingChange(false); }}
-            disabled={isPending}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 14,
-              borderRadius: 16,
-              backgroundColor: isDark ? "rgba(239,68,68,0.20)" : "rgba(239,68,68,0.12)",
-              borderWidth: 1,
-              borderColor: isDark ? "rgba(239,68,68,0.35)" : "rgba(239,68,68,0.25)",
-            }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: "700", color: "#EF4444" }}>Not Going</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowingChange(false)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 14,
-              paddingHorizontal: 20,
-              borderRadius: 16,
-              backgroundColor: saveGlass.bg,
-              borderWidth: 1,
-              borderColor: saveGlass.border,
-            }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Never mind</Text>
-          </Pressable>
-        </View>
-      ) : isConfirmed ? (
-        /* ── Confirmed row: "You're In" + "Share" ── */
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <Pressable
-            onPress={() => setShowingChange(true)}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 14,
-              borderRadius: 16,
-              backgroundColor: GLASS.imIn.bg,
-              borderWidth: 1,
-              borderColor: GLASS.imIn.border,
-            }}
-          >
-            <Check size={16} color="#FFFFFF" />
-            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>You're In</Text>
-          </Pressable>
-          {onShare && (
-            <Pressable
-              onPress={onShare}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 14,
-                paddingHorizontal: 20,
-                borderRadius: 16,
-                backgroundColor: saveGlass.bg,
-                borderWidth: 1,
-                borderColor: saveGlass.border,
-              }}
-            >
-              <Share2 size={14} color={colors.text} />
-              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
-            </Pressable>
+
+      {/* ── Floating response options (fade in above bar) ── */}
+      {showOptions && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            marginBottom: 10,
+          }}
+        >
+          {isConfirmed ? (
+            /* Post-RSVP options: "Change to Can't go" + "Never mind" */
+            <>
+              <AnimatedPressable
+                onPress={() => { onRsvpNotGoing?.(); }}
+                disabled={isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 24,
+                  backgroundColor: GLASS.cantGo.bg,
+                  borderWidth: 1,
+                  borderColor: GLASS.cantGo.border,
+                  shadowColor: GLASS.cantGo.shadow.color,
+                  shadowOffset: GLASS.cantGo.shadow.offset,
+                  shadowOpacity: GLASS.cantGo.shadow.opacity,
+                  shadowRadius: GLASS.cantGo.shadow.radius,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                {isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>Can't go</Text>
+                )}
+              </AnimatedPressable>
+              <AnimatedPressable
+                onPress={() => setShowOptions(false)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 24,
+                  backgroundColor: mutedGlass.bg,
+                  borderWidth: 1,
+                  borderColor: mutedGlass.border,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Never mind</Text>
+              </AnimatedPressable>
+            </>
+          ) : (
+            /* Pre-RSVP options: "I'm going" + "Can't go" */
+            <>
+              <AnimatedPressable
+                onPress={onRsvpGoing}
+                disabled={isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 24,
+                  backgroundColor: GLASS.going.bg,
+                  borderWidth: 1,
+                  borderColor: GLASS.going.border,
+                  shadowColor: GLASS.going.shadow.color,
+                  shadowOffset: GLASS.going.shadow.offset,
+                  shadowOpacity: GLASS.going.shadow.opacity,
+                  shadowRadius: GLASS.going.shadow.radius,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                {isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>I'm going</Text>
+                )}
+              </AnimatedPressable>
+              <AnimatedPressable
+                onPress={() => { onRsvpNotGoing?.(); }}
+                disabled={isPending}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 24,
+                  backgroundColor: GLASS.cantGo.bg,
+                  borderWidth: 1,
+                  borderColor: GLASS.cantGo.border,
+                  shadowColor: GLASS.cantGo.shadow.color,
+                  shadowOffset: GLASS.cantGo.shadow.offset,
+                  shadowOpacity: GLASS.cantGo.shadow.opacity,
+                  shadowRadius: GLASS.cantGo.shadow.radius,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>Can't go</Text>
+              </AnimatedPressable>
+            </>
           )}
-        </View>
-      ) : isFull ? (
+        </Animated.View>
+      )}
+
+      {/* ── Main bar buttons ── */}
+      {isFull && !isConfirmed ? (
+        /* Full event — disabled "Full" + Save */
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <View style={{
             flex: 1,
@@ -182,9 +253,9 @@ export function StickyRsvpBar({
               paddingVertical: 13,
               paddingHorizontal: 20,
               borderRadius: 16,
-              backgroundColor: saveGlass.bg,
+              backgroundColor: mutedGlass.bg,
               borderWidth: 1,
-              borderColor: saveGlass.border,
+              borderColor: mutedGlass.border,
             }}
           >
             <Heart size={16} color={colors.text} />
@@ -193,7 +264,52 @@ export function StickyRsvpBar({
             </Text>
           </Pressable>
         </View>
+      ) : isConfirmed ? (
+        /* Post-RSVP: "Going ✓" (green) + "Share" */
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <Pressable
+            onPress={() => setShowOptions(!showOptions)}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: GLASS.going.bg,
+              borderWidth: 1,
+              borderColor: GLASS.going.border,
+              shadowColor: GLASS.going.shadow.color,
+              shadowOffset: GLASS.going.shadow.offset,
+              shadowOpacity: GLASS.going.shadow.opacity,
+              shadowRadius: GLASS.going.shadow.radius,
+            }}
+          >
+            <Check size={16} color="#FFFFFF" />
+            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Going ✓</Text>
+          </Pressable>
+          {onShare && (
+            <Pressable
+              onPress={onShare}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 16,
+                backgroundColor: mutedGlass.bg,
+                borderWidth: 1,
+                borderColor: mutedGlass.border,
+              }}
+            >
+              <Share2 size={14} color={colors.text} />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
+            </Pressable>
+          )}
+        </View>
       ) : (
+        /* Pre-RSVP: "Going?" (muted) + "Save" */
         <View style={{
           flexDirection: "row",
           alignItems: "center",
@@ -201,9 +317,8 @@ export function StickyRsvpBar({
           gap: 12,
           opacity: isPending ? 0.6 : 1,
         }}>
-          {/* I'm In — green glass, primary weight */}
           <Pressable
-            onPress={onRsvpGoing}
+            onPress={() => setShowOptions(!showOptions)}
             disabled={isPending}
             style={{
               flex: 1,
@@ -212,25 +327,13 @@ export function StickyRsvpBar({
               justifyContent: "center",
               paddingVertical: 14,
               borderRadius: 16,
-              backgroundColor: GLASS.imIn.bg,
+              backgroundColor: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.07)",
               borderWidth: 1,
-              borderColor: GLASS.imIn.border,
-              shadowColor: GLASS.imIn.shadow.color,
-              shadowOffset: GLASS.imIn.shadow.offset,
-              shadowOpacity: GLASS.imIn.shadow.opacity,
-              shadowRadius: GLASS.imIn.shadow.radius,
+              borderColor: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.10)",
             }}
           >
-            {isPending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Check size={16} color="#FFFFFF" />
-                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>I'm In</Text>
-              </>
-            )}
+            <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text, letterSpacing: 0.2 }}>Going?</Text>
           </Pressable>
-          {/* Save — glass secondary */}
           <Pressable
             onPress={onRsvpInterested}
             disabled={isPending}
@@ -241,9 +344,9 @@ export function StickyRsvpBar({
               paddingVertical: 14,
               paddingHorizontal: 20,
               borderRadius: 16,
-              backgroundColor: saveGlass.bg,
+              backgroundColor: mutedGlass.bg,
               borderWidth: 1,
-              borderColor: saveGlass.border,
+              borderColor: mutedGlass.border,
             }}
           >
             <Heart size={16} color={colors.text} />
