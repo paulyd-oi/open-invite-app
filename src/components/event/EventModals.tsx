@@ -87,6 +87,7 @@ export interface EventModalsProps {
     onDuplicate: () => void;
     onChangePhoto: () => void;
     onShare: () => void;
+    onShareFlyer?: () => void;
     onToggleLiveActivity: () => void;
     onReport: () => void;
     onOpenColorPicker: () => void;

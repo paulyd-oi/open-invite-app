@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
-import { Pencil, Copy, Camera, Share2, Bell, AlertTriangle, Palette, Trash2 } from "@/ui/icons";
+import { Pencil, Copy, Camera, Share2, Bell, AlertTriangle, Palette, Trash2, ImagePlus } from "@/ui/icons";
 import { STATUS } from "@/ui/tokens";
 import BottomSheet from "@/components/BottomSheet";
 
@@ -38,6 +38,7 @@ interface EventActionsSheetProps {
   onDuplicate: () => void;
   onChangePhoto: () => void;
   onShare: () => void;
+  onShareFlyer?: () => void;
   onToggleLiveActivity: () => void;
   onReport: () => void;
   onOpenColorPicker: () => void;
@@ -105,6 +106,7 @@ export function EventActionsSheet({
   onDuplicate,
   onChangePhoto,
   onShare,
+  onShareFlyer,
   onToggleLiveActivity,
   onReport,
   onOpenColorPicker,
@@ -156,14 +158,26 @@ export function EventActionsSheet({
 
         {/* Share - available to everyone (unless busy block) */}
         {!isBusy && (
-          <ActionRow
-            icon={<Share2 size={20} color={themeColor} />}
-            label="Share Event"
-            onPress={onShare}
-            isDark={isDark}
-            themeColor={themeColor}
-            colors={colors}
-          />
+          <>
+            <ActionRow
+              icon={<Share2 size={20} color={themeColor} />}
+              label="Share Event"
+              onPress={onShare}
+              isDark={isDark}
+              themeColor={themeColor}
+              colors={colors}
+            />
+            {onShareFlyer && (
+              <ActionRow
+                icon={<ImagePlus size={20} color={themeColor} />}
+                label="Share Flyer"
+                onPress={onShareFlyer}
+                isDark={isDark}
+                themeColor={themeColor}
+                colors={colors}
+              />
+            )}
+          </>
         )}
 
         {/* Lock Screen Updates — iOS live activity toggle */}

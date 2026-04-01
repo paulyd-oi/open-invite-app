@@ -53,6 +53,7 @@ import { EventDetailErrorState } from "@/components/event/EventDetailErrorState"
 import { HostActionCard } from "@/components/event/HostActionCard";
 import { ThemeBackgroundLayers } from "@/components/event/ThemeBackgroundLayers";
 import { EventModals } from "@/components/event/EventModals";
+import { ShareFlyerSheet } from "@/components/event/ShareFlyerSheet";
 import { useSaveEvent } from "@/hooks/useSaveEvent";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
@@ -147,6 +148,7 @@ export default function EventDetailScreen() {
 
   // Event Actions Sheet state
   const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
+  const [showShareFlyerSheet, setShowShareFlyerSheet] = useState(false);
 
   // Attendees modal state (P0: Who's Coming)
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
@@ -2479,6 +2481,11 @@ export default function EventDetailScreen() {
             Haptics.selectionAsync();
             shareEvent({ ...event, location: locationDisplay ?? null });
           },
+          onShareFlyer: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => setShowShareFlyerSheet(true), 350);
+          },
           onToggleLiveActivity: async () => {
             if (liveActivityActive) {
               await endLiveActivity(event.id);
@@ -2622,6 +2629,33 @@ export default function EventDetailScreen() {
             safeToast.error("Failed to remove photo");
           }
         }}
+      />
+
+      {/* Share Flyer Sheet */}
+      <ShareFlyerSheet
+        visible={showShareFlyerSheet}
+        onClose={() => setShowShareFlyerSheet(false)}
+        flyerData={(() => {
+          const shareInput = buildShareInput({ ...event, location: locationDisplay ?? null });
+          return {
+            title: shareInput.title,
+            dateStr: shareInput.dateStr,
+            timeStr: shareInput.timeStr,
+            location: event.hideWebLocation ? null : (locationDisplay ?? null),
+            hostName: event.user?.name ?? null,
+            coHostNames: (event.hostIds ?? [])
+              .filter((hid: string) => hid !== event.user?.id)
+              .map((hid: string) => attendeesList.find((a: AttendeeInfo) => a.id === hid)?.name)
+              .filter((n): n is string => !!n),
+            coverImageUrl: event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"
+              ? event.eventPhotoUrl
+              : null,
+            themeColor,
+          };
+        })()}
+        hasCoverImage={!!event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"}
+        isDark={isDark}
+        themeColor={themeColor}
       />
     </SafeAreaView>
   );
