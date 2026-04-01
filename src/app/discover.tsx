@@ -170,7 +170,6 @@ export default function DiscoverScreen() {
   const queryClient = useQueryClient();
 
   // ── For You: save state + toast ──
-  const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
   const [showSavedToast, setShowSavedToast] = useState(false);
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -188,8 +187,6 @@ export default function DiscoverScreen() {
     mutationFn: (eventId: string) =>
       postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
     onSuccess: (_data, eventId) => {
-      setSavedEvents((prev) => new Set(prev).add(eventId));
-      // [INVALIDATION_GAPS_V1] Use SSOT helper instead of ad-hoc 2-key invalidation
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       flashSavedToast();
@@ -440,10 +437,10 @@ export default function DiscoverScreen() {
     return enrichedEvents
       .filter((e) => {
         if (getEffectiveTime(e) < now) return false; // filter past
-        return savedEvents.has(e.id) || e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe";
+        return e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe";
       })
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [enrichedEvents, savedEvents]);
+  }, [enrichedEvents]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
@@ -747,7 +744,7 @@ export default function DiscoverScreen() {
               renderItem={({ item: event, index }) => {
                 const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
                 const rsvp = event.viewerRsvpStatus as string | null | undefined;
-                const saved = savedEvents.has(event.id) || rsvp === "interested" || rsvp === "maybe";
+                const saved = rsvp === "interested" || rsvp === "maybe";
                 const hostName = event.user?.name?.split(" ")[0] ?? null;
                 const isMyEvent = event.user?.id === session?.user?.id;
                 const displayTime = event.nextOccurrence ?? event.startTime;
