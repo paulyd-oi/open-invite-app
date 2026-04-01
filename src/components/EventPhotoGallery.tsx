@@ -176,7 +176,13 @@ export function EventPhotoGallery({
     if (__DEV__) {
       devLog('[P1_MEDIA_UPLOAD]', 'choose photo tapped', { eventId });
     }
-    
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      safeToast.error("Permission needed", "Please allow photo access in Settings");
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,

@@ -168,6 +168,11 @@ export default function EditProfileScreen() {
   // ── Handlers ──
   const handlePickImage = useCallback(async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        safeToast.error("Permission needed", "Please allow photo access in Settings");
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
@@ -185,6 +190,11 @@ export default function EditProfileScreen() {
 
   const handlePickBanner = useCallback(async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        safeToast.error("Permission needed", "Please allow photo access in Settings");
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,

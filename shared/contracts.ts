@@ -145,6 +145,13 @@ export const eventSchema = z.object({
   showGuestCount: z.boolean().optional(),
   showLocationPreRsvp: z.boolean().optional(),
   hideWebLocation: z.boolean().optional(),
+  // Guest RSVPs from web (no auth) — included in event detail response
+  guestRsvps: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.string(),
+    createdAt: z.string(),
+  })).optional(),
 });
 export type Event = z.infer<typeof eventSchema>;
 

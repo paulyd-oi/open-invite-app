@@ -3,26 +3,17 @@ import {
   View,
   Text,
   Pressable,
-  TextInput,
   Linking,
   Platform,
   ActivityIndicator,
-  Modal,
-  Share,
-  Switch,
   Dimensions,
   StyleSheet,
   useWindowDimensions,
   Animated as RNAnimated,
 } from "react-native";
-import { Image as ExpoImage } from "expo-image";
-import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
-import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackRsvpCompleted, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
-import { getDiscussionPrompts, inferEventTags } from "@/lib/discussionPromptSSOT";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -31,70 +22,21 @@ import { StatusBar } from "expo-status-bar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import {
-  MapPin,
-  Clock,
-  Users,
-  Compass,
-  UserPlus,
-  Check,
-  Calendar,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Settings,
-  UserCheck,
-  MessageCircle,
-  ImagePlus,
-  Trash2,
-  Share2,
-  AlertTriangle,
-  Heart,
-  Bell,
-  Copy,
-  Star,
-  NotebookPen,
-  CalendarCheck,
-  RefreshCw,
-  Lock,
-  MoreHorizontal,
-  Palette,
-  Camera,
-  HandCoins,
-  ListChecks,
-} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
-import BottomSheet from "@/components/BottomSheet";
-import { UserListRow } from "@/components/UserListRow";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import * as ExpoCalendar from "expo-calendar";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
-import { EntityAvatar } from "@/components/EntityAvatar";
-import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
-import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { buildEventSharePayload, buildEventSmsBody, getEventUniversalLink } from "@/lib/shareSSOT";
+import { buildEventSmsBody, getEventUniversalLink } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
-import { Button } from "@/ui/Button";
-import { RADIUS } from "@/ui/layout";
-import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
-import { ReportModal } from "@/components/event/ReportModal";
-import { CalendarSyncModal } from "@/components/event/CalendarSyncModal";
-import { ColorPickerSheet } from "@/components/event/ColorPickerSheet";
-import { PhotoUploadSheet } from "@/components/event/PhotoUploadSheet";
-import { AttendeesSheet } from "@/components/event/AttendeesSheet";
-import { EventActionsSheet } from "@/components/event/EventActionsSheet";
 import { BusyBlockGate } from "@/components/event/BusyBlockGate";
 import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate";
 import { StickyRsvpBar } from "@/components/event/StickyRsvpBar";
@@ -104,14 +46,16 @@ import { EventSettingsAccordion } from "@/components/event/EventSettingsAccordio
 import { DiscussionCard } from "@/components/event/DiscussionCard";
 import { WhosComingCard } from "@/components/event/WhosComingCard";
 import { AboutCard } from "@/components/event/AboutCard";
-import { SocialProofRow } from "@/components/event/SocialProofRow";
-import { RsvpButtonGroup } from "@/components/event/RsvpButtonGroup";
 import { ConfirmedAttendeeBanner } from "@/components/event/ConfirmedAttendeeBanner";
 import { PhotoNudge } from "@/components/event/PhotoNudge";
 import { EventHeroNav } from "@/components/event/EventHeroNav";
+import { EventDetailErrorState } from "@/components/event/EventDetailErrorState";
+import { HostActionCard } from "@/components/event/HostActionCard";
+import { ThemeBackgroundLayers } from "@/components/event/ThemeBackgroundLayers";
+import { EventModals } from "@/components/event/EventModals";
+import { useSaveEvent } from "@/hooks/useSaveEvent";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
-import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   type GetEventsResponse,
   type Event,
@@ -122,16 +66,10 @@ import {
   type SendFriendRequestResponse,
   type RsvpStatusMutation,
 } from "@/shared/contracts";
-import { EventReminderPicker } from "@/components/EventReminderPicker";
-import { EventPhotoGallery } from "@/components/EventPhotoGallery";
-// [P0_DEMO_LEAK] EventCategoryBadge import removed - category field unsupported by create/edit UI
-import { EventSummaryModal } from "@/components/EventSummaryModal";
-import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
-import { PostValueInvitePrompt, canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
-import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
+import { canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
+import { canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 import { setPendingRsvpIntent, type PendingRsvpStatus } from "@/lib/pendingRsvp";
-// MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
   isEventSynced,
@@ -139,7 +77,6 @@ import {
   requestCalendarPermissions,
 } from "@/lib/calendarSync";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
-import { COLOR_PALETTE } from "@/lib/eventColorOverrides";
 import { wrapRace } from "@/lib/devStress";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { getAttributionContext } from "@/lib/attribution";
@@ -155,236 +92,13 @@ import {
   logRsvpMismatch,
 } from "@/lib/eventQueryKeys";
 import { invalidateEventMedia } from "@/lib/mediaInvalidation";
-import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
-import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
+import { resolveBannerUri } from "@/lib/heroSSOT";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
-import { resolveEventTheme, buildCustomThemeTokens, THEME_VIDEOS, THEME_BACKGROUNDS } from "@/lib/eventThemes";
-import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
-import { MotifOverlay } from "@/components/create/MotifOverlay";
-import { ThemeFilterLayer } from "@/components/ThemeFilterLayer";
-import { ThemeVideoLayer } from "@/components/ThemeVideoLayer";
-import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
+import { resolveEventTheme, buildCustomThemeTokens } from "@/lib/eventThemes";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
-
-// Helper to open event location using the shared utility
-// Accepts pre-computed query + optional event for lat/lng coords.
-const openEventLocation = (query: string, event?: any, eventId?: string) => {
-  try {
-    const lat = event?.lat ?? event?.latitude;
-    const lng = event?.lng ?? event?.longitude;
-
-    if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
-      openMaps({ lat: Number(lat), lng: Number(lng), label: query });
-    } else {
-      openMaps({ query });
-    }
-  } catch (error: any) {
-    if (__DEV__) {
-      devError("[P0_EVENT_LOCATION_OPEN_FAIL]", { eventId, locationQuery: query, error: error?.message ?? error });
-    }
-  }
-};
-
-// Helper to format date for calendar URLs
-const formatDateForCalendar = (date: Date): string => {
-  return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-};
-
-// Helper to open Google Calendar with event details
-const openGoogleCalendar = (event: { title: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
-  const startDate = new Date(event.startTime);
-  // Default to 1 hour event if no end time
-  const endDate = event.endTime ? new Date(event.endTime) : new Date(startDate.getTime() + 60 * 60 * 1000);
-
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: event.title,
-    dates: `${formatDateForCalendar(startDate)}/${formatDateForCalendar(endDate)}`,
-  });
-
-  if (event.description) {
-    params.append("details", event.description);
-  }
-  if (event.location) {
-    params.append("location", event.location);
-  }
-
-  const url = `https://calendar.google.com/calendar/render?${params.toString()}`;
-  Linking.openURL(url);
-};
-
-// Helper to add event to device calendar (Apple Calendar on iOS)
-const addToDeviceCalendar = async (event: { title: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }, showToast: typeof safeToast) => {
-  try {
-    // Request calendar permissions
-    const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
-
-    if (status !== "granted") {
-      showToast.warning("Permission Required", "Please allow calendar access in Settings to add events.");
-      Linking.openSettings();
-      return;
-    }
-
-    const startDate = new Date(event.startTime);
-    // Default to 1 hour event if no end time
-    const endDate = event.endTime ? new Date(event.endTime) : new Date(startDate.getTime() + 60 * 60 * 1000);
-
-    // Get available calendars
-    const calendars = await ExpoCalendar.getCalendarsAsync(ExpoCalendar.EntityTypes.EVENT);
-
-    // On iOS, try to get the default calendar first
-    let targetCalendar: typeof calendars[0] | undefined;
-
-    if (Platform.OS === "ios") {
-      try {
-        const defaultCalendar = await ExpoCalendar.getDefaultCalendarAsync();
-        if (defaultCalendar?.id) {
-          targetCalendar = calendars.find(c => c.id === defaultCalendar.id);
-        }
-      } catch (e) {
-      }
-    }
-
-    // If no default calendar found, try to find iCloud calendar
-    if (!targetCalendar) {
-      targetCalendar = calendars.find(
-        (cal) => cal.allowsModifications && cal.source?.name === "iCloud"
-      );
-    }
-
-    // If no iCloud, try primary calendar
-    if (!targetCalendar) {
-      targetCalendar = calendars.find(
-        (cal) => cal.allowsModifications && cal.isPrimary
-      );
-    }
-
-    // If still no calendar, find any modifiable calendar
-    if (!targetCalendar) {
-      targetCalendar = calendars.find((cal) => cal.allowsModifications);
-    }
-
-    if (!targetCalendar) {
-      showToast.error("No Calendar Found", "Please set up at least one calendar on your device.");
-      return;
-    }
-
-    // Create the event
-    const eventId = await ExpoCalendar.createEventAsync(targetCalendar.id, {
-      title: event.title,
-      startDate: startDate,
-      endDate: endDate,
-      location: event.location ?? undefined,
-      notes: event.description ?? undefined,
-      alarms: [{ relativeOffset: -30 }], // Reminder 30 minutes before
-    });
-
-    showToast.success("Event Added!", `Added to your ${targetCalendar.title} calendar.`);
-  } catch (error: any) {
-    devError("Error adding to calendar:", error);
-
-    // Check if it's a permission error
-    if (error?.message?.includes("permission") || error?.code === "E_MISSING_PERMISSION") {
-      showToast.warning("Permission Required", "Calendar access is required. Please enable it in Settings.");
-      Linking.openSettings();
-    } else {
-      showToast.error("Oops", "That didn't go through. Please try again.");
-    }
-  }
-};
-
-// Build EventShareInput from raw event data (shared by all share surfaces)
-const buildShareInput = (event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
-  const startDate = new Date(event.startTime);
-  const endDate = event.endTime ? new Date(event.endTime) : null;
-  const dateStr = startDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-  const timeStr = endDate
-    ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-    : startDate.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-  return { id: event.id, title: event.title, emoji: event.emoji, dateStr, timeStr, location: event.location, description: event.description };
-};
-
-// Helper to share event via native share sheet
-const shareEvent = async (event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
-  try {
-    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
-    const payload = buildEventSharePayload(buildShareInput(event));
-
-    trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
-    await Share.share({
-      message: payload.message,
-      title: event.title,
-      url: payload.url,
-    });
-  } catch (error) {
-    devError("Error sharing event:", error);
-  }
-};
-
-// [P1_EVENT_400] EventDetailErrorState: Deterministic error UI component
-interface EventDetailErrorStateProps {
-  title: string;
-  subtitle: string;
-  onBack: () => void;
-  onRetry?: () => void;
-  testID?: string;
-  themeColor: string;
-  colors: any;
-}
-
-const EventDetailErrorState: React.FC<EventDetailErrorStateProps> = ({
-  title,
-  subtitle,
-  onBack,
-  onRetry,
-  testID = "event-detail-error",
-  themeColor,
-  colors,
-}) => {
-  return (
-    <SafeAreaView testID={testID} className="flex-1" style={{ backgroundColor: colors.background }}>
-      <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
-      <View className="flex-1 items-center justify-center px-8">
-        <View
-          className="w-20 h-20 rounded-full items-center justify-center mb-6"
-          style={{ backgroundColor: colors.surfaceElevated }}
-        >
-          <AlertTriangle size={40} color={colors.textTertiary} />
-        </View>
-        <Text className="text-xl font-bold text-center mb-3" style={{ color: colors.text }}>
-          {title}
-        </Text>
-        <Text className="text-center mb-8" style={{ color: colors.textSecondary }}>
-          {subtitle}
-        </Text>
-        <View className="flex-row gap-3">
-          <Button
-            variant="secondary"
-            label="Back"
-            onPress={onBack}
-            style={{ flex: 1 }}
-          />
-          {onRetry && (
-            <Button
-              variant="primary"
-              label="Try Again"
-              onPress={onRetry}
-              style={{ flex: 1 }}
-            />
-          )}
-        </View>
-      </View>
-    </SafeAreaView>
-  );
-};
+import { openEventLocation, openGoogleCalendar, addToDeviceCalendar, buildShareInput, shareEvent, formatTimeAgo, deriveLocationDisplay, deriveDateLabels } from "@/lib/eventDetailUtils";
+import { getEventDetailTheme } from "@/lib/eventDetailThemes";
 
 export default function EventDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
@@ -1226,7 +940,7 @@ export default function EventDetailScreen() {
   const derivedCount = deriveAttendeeCount(event);
 
   // Guest RSVPs from event detail response (Phase 1 — no additional fetch)
-  const guestRsvps = (event as any)?.guestRsvps as Array<{ id: string; name: string; status: string; createdAt: string }> | undefined;
+  const guestRsvps = event?.guestRsvps;
   const guestGoingList = (guestRsvps ?? []).filter((g) => g.status === "going");
   const guestNotGoingList = (guestRsvps ?? []).filter((g) => g.status === "not_going");
   const guestGoingCount = guestGoingList.length;
@@ -1289,6 +1003,9 @@ export default function EventDetailScreen() {
   const rawRsvpStatus = myRsvpData?.status;
   // Normalize: "maybe" → "interested", "invited" → null (pending RSVP, show controls)
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
+
+  // Shared save/unsave hook — MUST be above all early returns for stable hook order
+  const saveEvent = useSaveEvent({ eventId: id ?? "", viewerRsvpStatus: myRsvpStatus });
 
   // [LIVE_ACTIVITY_AUTO_ON] Keep ref in sync with latest derived values.
   // The useFocusEffect callback reads from this ref (declared above early returns).
@@ -1942,6 +1659,7 @@ export default function EventDetailScreen() {
   };
 
   const handlePostComment = () => {
+    if (createCommentMutation.isPending) return;
     if (!commentText.trim() && !commentImage) return;
 
     createCommentMutation.mutate({
@@ -2029,22 +1747,6 @@ export default function EventDetailScreen() {
     } finally {
       setIsSubmittingReport(false);
     }
-  };
-
-  // Format relative time
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
   };
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
@@ -2226,154 +1928,21 @@ export default function EventDetailScreen() {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // EVENT DETAIL THEMES — keyed map, only "default" renders today.
-  // Future themes (warm, midnight) are real entries, not rendered.
-  // ═══════════════════════════════════════════════════════════════
-  const EVENT_DETAIL_THEMES = {
-    default: {
-      heroGradientColors: isDark
-        ? (["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.88)"] as const)
-        : (["transparent", "rgba(0,0,0,0.12)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.78)"] as const),
-      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
-      heroWashColors: isDark ? HERO_WASH.dark.colors : HERO_WASH.light.colors,
-      heroWashLocations: isDark ? HERO_WASH.dark.locations : HERO_WASH.light.locations,
-      heroFallbackBg: isDark ? colors.surface : "#FAFAFA",
-      accentPrimary: STATUS.going.fg,
-      accentSecondary: STATUS.interested.fg,
-      chipTone: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
-      sectionTint: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
-    },
-    warm: {
-      heroGradientColors: isDark
-        ? (["transparent", "rgba(30,15,0,0.35)", "rgba(30,15,0,0.6)", "rgba(20,10,0,0.88)"] as const)
-        : (["transparent", "rgba(40,20,0,0.1)", "rgba(40,20,0,0.35)", "rgba(30,15,0,0.72)"] as const),
-      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
-      heroWashColors: isDark
-        ? (["rgba(40,25,15,0.6)", "rgba(0,0,0,0)"] as const)
-        : (["rgba(255,245,230,0.9)", "rgba(255,255,255,0)"] as const),
-      heroWashLocations: [0, 1] as const,
-      heroFallbackBg: isDark ? "#1A1410" : "#FFF8F0",
-      accentPrimary: "#F59E0B",
-      accentSecondary: "#EC4899",
-      chipTone: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.06)",
-      sectionTint: isDark ? "rgba(245,158,11,0.04)" : "rgba(245,158,11,0.02)",
-    },
-    midnight: {
-      heroGradientColors: isDark
-        ? (["transparent", "rgba(10,10,30,0.4)", "rgba(10,10,30,0.65)", "rgba(5,5,20,0.92)"] as const)
-        : (["transparent", "rgba(15,15,40,0.15)", "rgba(15,15,40,0.45)", "rgba(10,10,30,0.8)"] as const),
-      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
-      heroWashColors: isDark
-        ? (["rgba(15,15,45,0.7)", "rgba(0,0,0,0)"] as const)
-        : (["rgba(230,230,255,0.9)", "rgba(255,255,255,0)"] as const),
-      heroWashLocations: [0, 1] as const,
-      heroFallbackBg: isDark ? "#0D0D1A" : "#F0F0FF",
-      accentPrimary: "#818CF8",
-      accentSecondary: "#A78BFA",
-      chipTone: isDark ? "rgba(129,140,248,0.1)" : "rgba(129,140,248,0.06)",
-      sectionTint: isDark ? "rgba(129,140,248,0.04)" : "rgba(129,140,248,0.02)",
-    },
-  } as const;
+  const ET = getEventDetailTheme(isDark, colors).default;
 
-  const ET = EVENT_DETAIL_THEMES.default;
-
-  const originalStartDate = new Date(event.startTime);
-  // For recurring events, use nextOccurrence for display dates and countdown
-  const displayStartTime = (event as any).nextOccurrence ?? event.startTime;
-  const startDate = new Date(displayStartTime);
-  const endDate = event.endTime ? new Date(event.endTime) : null;
-  const dateLabel = startDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-  // Show time range if endTime exists — use original time-of-day with display date
-  const timeLabel = endDate
-    ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-    : startDate.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-
-  // [EVENT_LIVE_UI] Countdown label — recalculates on focus (no ticking timer)
-  const countdownLabel = (() => {
-    const now = new Date();
-    const duration = endDate ? endDate.getTime() - originalStartDate.getTime() : 2 * 60 * 60 * 1000;
-    const eventEnd = new Date(startDate.getTime() + duration);
-    // Recurring events with a future nextOccurrence are never "Ended"
-    if (now > eventEnd && !(event as any).nextOccurrence) return "Ended";
-    if (now > eventEnd) return ""; // recurring — next occurrence is computed, skip stale label
-    if (now >= startDate && now <= eventEnd) return "Happening now";
-    const diffMs = startDate.getTime() - now.getTime();
-    const totalMinutes = Math.floor(diffMs / 60000);
-    const days = Math.floor(totalMinutes / 1440);
-    const hours = Math.floor((totalMinutes % 1440) / 60);
-    const minutes = totalMinutes % 60;
-    const isToday = startDate.toDateString() === now.toDateString();
-    if (isToday) {
-      if (hours > 0) return `Today \u2022 Starts in ${hours}h ${minutes}m`;
-      return `Today \u2022 Starts in ${minutes}m`;
-    }
-    if (days > 0 && hours > 0) return `Starts in ${days}d ${hours}h`;
-    if (days > 0) return `Starts in ${days}d`;
-    return `Starts in ${hours}h ${minutes}m`;
-  })();
+  const { originalStartDate, startDate, endDate, dateLabel, timeLabel, countdownLabel } = deriveDateLabels(event);
 
   if (__DEV__) {
     devLog("[EVENT_LIVE_UI]", "countdown", { countdownLabel, eventId: event.id.slice(0, 8) });
   }
 
   // [P0_EVENT_LOCATION_NORMALIZE] Derive locationDisplay (UI) + locationQuery (maps).
-  // Dedup rule: if one string contains the other, keep the longer one.
-  const _ev = event as any;
-  const _str = (v: unknown): string | null =>
-    typeof v === "string" && v.trim() ? v.trim() : null;
+  const { locationDisplay, locationQuery } = deriveLocationDisplay(event);
 
-  const _rawLocation  = _str(event.location);
-  const _rawName      = _str(_ev.locationName);
-  const _rawAddress   = _str(_ev.address);
-  const _rawPlace     = _str(_ev.placeName);
-  const _rawVenue     = _str(_ev.venueName);
-
-  // Collapse repeated commas / excess whitespace in any raw value
-  const _clean = (s: string): string =>
-    s.replace(/,{2,}/g, ",").replace(/\s{2,}/g, " ").replace(/^[,\s]+|[,\s]+$/g, "");
-
-  let locationDisplay: string | null = null;
-  let locationQuery: string | null = null;
-
-  // Priority: if we have a name AND an address, compose "Name — Address" with dedup.
-  const _name = _rawName ?? _rawPlace ?? _rawVenue;
-  const _addr = _rawAddress;
-
-  if (_name && _addr) {
-    // Dedup: if one fully contains the other, keep the longer one
-    const nameLC = _name.toLowerCase();
-    const addrLC = _addr.toLowerCase();
-    if (addrLC.includes(nameLC)) {
-      locationDisplay = _clean(_addr);
-    } else if (nameLC.includes(addrLC)) {
-      locationDisplay = _clean(_name);
-    } else {
-      locationDisplay = _clean(`${_name} \u2014 ${_addr}`);
-    }
-  } else if (_rawLocation) {
-    locationDisplay = _clean(_rawLocation);
-  } else {
-    locationDisplay = _name ? _clean(_name) : _addr ? _clean(_addr) : null;
-  }
-
-  // Query for maps: prefer raw address (best geocoding), else fall back to display
-  locationQuery = _addr ?? locationDisplay;
-
-  // [P0_EVENT_LOCATION_NORMALIZE] DEV-only proof log
   if (__DEV__) {
     devLog("[P0_EVENT_LOCATION_NORMALIZE]", {
       eventId: event.id,
       rawLocation: event.location,
-      rawLocationName: _ev.locationName,
-      rawAddress: _ev.address,
       locationDisplay,
       locationQuery,
     });
@@ -2410,43 +1979,13 @@ export default function EventDetailScreen() {
       <Stack.Screen options={{ headerShown: false, headerTransparent: true, contentStyle: { backgroundColor: "transparent" } }} />
       <StatusBar style={isDark ? "light" : "dark"} />
 
-      {/* Animated gradient background (custom themes + catalog themes with gradient) */}
-      {pageTheme.visualStack?.gradient && pageTheme.visualStack.gradient.colors.length >= 2 && (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <AnimatedGradientLayer config={pageTheme.visualStack.gradient} />
-        </View>
-      )}
-
-      {/* Looping video background — behind particles and content */}
-      {pageTheme.visualStack?.video && THEME_VIDEOS[pageTheme.visualStack.video.source] && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-          <ThemeVideoLayer
-            source={THEME_VIDEOS[pageTheme.visualStack.video.source]}
-            poster={pageTheme.visualStack.video.poster ? THEME_BACKGROUNDS[pageTheme.visualStack.video.poster] : undefined}
-            opacity={pageTheme.visualStack.video.opacity}
-            isActive={true}
-          />
-        </View>
-      )}
-
-      {/* Particle layer — effectId overrides theme particles to avoid double-rendering.
-           Theme gradient/video/filter still render normally; only particles are suppressed. */}
-      {event.effectId ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <MotifOverlay
-            presetId={event.effectId}
-            customConfig={event.customEffectConfig ?? undefined}
-            intensity={0.70}
-          />
-        </View>
-      ) : (
-        <ThemeEffectLayer themeId={event.themeId} overrideVisualStack={event.customThemeData?.visualStack} />
-      )}
-
-      {/* Atmospheric filter overlay — after particles, before content */}
-      {pageTheme.visualStack?.filter && (
-        <ThemeFilterLayer filter={pageTheme.visualStack.filter} />
-      )}
+      <ThemeBackgroundLayers
+        pageTheme={pageTheme}
+        effectId={event.effectId}
+        customEffectConfig={event.customEffectConfig}
+        themeId={event.themeId}
+        customThemeData={event.customThemeData}
+      />
 
       <KeyboardAwareScrollView
         className="flex-1"
@@ -2517,93 +2056,34 @@ export default function EventDetailScreen() {
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-            <View style={{
-              backgroundColor: cardSurfaceBg,
-              borderRadius: 16,
-              padding: 14,
-              borderWidth: 1,
-              borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)",
-            }}>
-              {/* Header — persistent host action hub */}
-              <View style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Your event is live</Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>Invite people to get responses</Text>
-              </View>
-
-              {/* Invite actions — Copy Link, Text, More */}
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                <Pressable
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    const link = getEventUniversalLink(event.id);
-                    await Clipboard.setStringAsync(link);
-                    safeToast.success("Link copied");
-                  }}
-                  style={{
-                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                    paddingVertical: 10, borderRadius: 12,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <Copy size={14} color={colors.text} />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Copy Link</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
-                    Linking.openURL(`sms:${Platform.OS === "ios" ? "&" : "?"}body=${encodeURIComponent(body)}`);
-                  }}
-                  style={{
-                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                    paddingVertical: 10, borderRadius: 12,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
-                >
-                  <MessageCircle size={14} color={colors.text} />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Text</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                    shareEvent({ ...event, location: locationDisplay ?? null });
-                  }}
-                  style={{
-                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                    paddingVertical: 10, borderRadius: 12,
-                    backgroundColor: themeColor,
-                  }}
-                >
-                  <Share2 size={14} color="#FFFFFF" />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>Share</Text>
-                </Pressable>
-              </View>
-
-              {/* Coordination summaries — bring list + pitch in */}
-              {(!!event?.bringListEnabled && (event?.bringListItems ?? []).length > 0 || !!event?.pitchInEnabled && !!event?.pitchInHandle) && (
-                <View style={{ marginTop: 10 }}>
-                  {!!event?.bringListEnabled && (event?.bringListItems ?? []).length > 0 && (
-                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
-                      <ListChecks size={13} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
-                        What to bring: {(event.bringListItems ?? []).filter((i: any) => !!i.claimedByUserId).length}/{(event.bringListItems ?? []).length} claimed
-                      </Text>
-                    </View>
-                  )}
-                  {!!event?.pitchInEnabled && !!event?.pitchInHandle && (
-                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
-                      <HandCoins size={13} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
-                        Pitch In: {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : ""} @{event.pitchInHandle}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
+            <HostActionCard
+              isDark={isDark}
+              colors={colors}
+              themeColor={themeColor}
+              bringListEnabled={event?.bringListEnabled}
+              bringListItems={event?.bringListItems ?? []}
+              pitchInEnabled={event?.pitchInEnabled}
+              pitchInHandle={event?.pitchInHandle}
+              pitchInMethod={event?.pitchInMethod}
+              onCopyLink={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                const link = getEventUniversalLink(event.id);
+                await Clipboard.setStringAsync(link);
+                safeToast.success("Link copied");
+              }}
+              onText={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
+                Linking.openURL(`sms:${Platform.OS === "ios" ? "&" : "?"}body=${encodeURIComponent(body)}`);
+              }}
+              onShare={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                shareEvent({ ...event, location: locationDisplay ?? null });
+              }}
+            />
           </Animated.View>
         )}
 
@@ -2655,8 +2135,12 @@ export default function EventDetailScreen() {
           onCopyPitchInHandle={async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             const handle = (event.pitchInMethod === 'venmo' || event.pitchInMethod === 'cashapp') ? `@${event.pitchInHandle}` : event.pitchInHandle!;
-            try { await Clipboard.setStringAsync(handle); } catch {}
-            safeToast.success('Copied to clipboard');
+            try {
+              await Clipboard.setStringAsync(handle);
+              safeToast.success('Copied to clipboard');
+            } catch {
+              safeToast.error("Copy failed", "Please try again");
+            }
           }}
           bringListEnabled={event.bringListEnabled}
           bringListItems={event.bringListItems ?? []}
@@ -2866,16 +2350,16 @@ export default function EventDetailScreen() {
           colors={colors}
           themeColor={themeColor}
           onRsvpGoing={() => handleRsvp("going")}
-          onRsvpInterested={() => handleRsvp("interested")}
+          onRsvpInterested={() => saveEvent.toggleSave()}
           onRsvpNotGoing={() => handleRsvp("not_going")}
           onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
         />
       )}
 
-      <CalendarSyncModal
-        visible={showSyncModal}
-        colors={colors}
-        onClose={() => setShowSyncModal(false)}
+      <EventModals
+        // Calendar sync
+        showSyncModal={showSyncModal}
+        onCloseSyncModal={() => setShowSyncModal(false)}
         onGoogleCalendar={() => {
           setShowSyncModal(false);
           openGoogleCalendar({ ...event, location: locationDisplay ?? null });
@@ -2884,12 +2368,11 @@ export default function EventDetailScreen() {
           setShowSyncModal(false);
           addToDeviceCalendar({ ...event, location: locationDisplay ?? null }, safeToast);
         }}
-      />
+        colors={colors}
 
-      {/* Event Summary Modal */}
-      <EventSummaryModal
-        visible={showSummaryModal}
-        onClose={() => setShowSummaryModal(false)}
+        // Event Summary
+        showSummaryModal={showSummaryModal}
+        onCloseSummaryModal={() => setShowSummaryModal(false)}
         eventId={event.id}
         eventTitle={event.title}
         eventEmoji={event.emoji}
@@ -2897,230 +2380,186 @@ export default function EventDetailScreen() {
         attendeeCount={event.joinRequests?.filter((r) => r.status === "accepted").length ?? 0}
         existingSummary={event.summary}
         existingRating={event.summaryRating}
-      />
 
-      <ConfirmModal
-        visible={showDeleteCommentConfirm}
-        title="Delete Comment"
-        message="Are you sure you want to delete this comment?"
-        confirmText="Delete"
-        isDestructive
-        onConfirm={confirmDeleteComment}
-        onCancel={() => {
+        // Confirm modals
+        showDeleteCommentConfirm={showDeleteCommentConfirm}
+        onConfirmDeleteComment={confirmDeleteComment}
+        onCancelDeleteComment={() => {
           setShowDeleteCommentConfirm(false);
           setCommentToDelete(null);
         }}
-      />
-
-      <ConfirmModal
-        visible={showRemoveRsvpConfirm}
-        title="Remove RSVP?"
-        message="You can RSVP again anytime."
-        confirmText="Remove"
-        cancelText="Keep RSVP"
-        isDestructive
-        onConfirm={confirmRemoveRsvp}
-        onCancel={() => setShowRemoveRsvpConfirm(false)}
-      />
-
-      <ConfirmModal
-        visible={showDeleteEventConfirm}
-        title="Delete Event"
-        message="This will permanently delete the event for everyone. This can't be undone."
-        confirmText="Delete"
-        isDestructive
-        onConfirm={() => {
+        showRemoveRsvpConfirm={showRemoveRsvpConfirm}
+        onConfirmRemoveRsvp={confirmRemoveRsvp}
+        onCancelRemoveRsvp={() => setShowRemoveRsvpConfirm(false)}
+        showDeleteEventConfirm={showDeleteEventConfirm}
+        onConfirmDeleteEvent={() => {
+          if (deleteEventMutation.isPending) return;
           setShowDeleteEventConfirm(false);
           deleteEventMutation.mutate();
         }}
-        onCancel={() => setShowDeleteEventConfirm(false)}
-      />
-
-      {/* [IMPORTED_EVENT] Remove imported event confirmation */}
-      <ConfirmModal
-        visible={showRemoveImportedConfirm}
-        title="Remove from Open Invite"
-        message="This removes the event from Open Invite only. Your device calendar won't be affected."
-        confirmText="Remove"
-        isDestructive
-        onConfirm={() => {
+        onCancelDeleteEvent={() => setShowDeleteEventConfirm(false)}
+        showRemoveImportedConfirm={showRemoveImportedConfirm}
+        onConfirmRemoveImported={() => {
+          if (deleteEventMutation.isPending) return;
           if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_confirmed", { eventId: id });
           setShowRemoveImportedConfirm(false);
           deleteEventMutation.mutate();
         }}
-        onCancel={() => setShowRemoveImportedConfirm(false)}
-      />
+        onCancelRemoveImported={() => setShowRemoveImportedConfirm(false)}
 
-      {/* Prompt arbitration: exactly one modal per RSVP success */}
-      <FirstRsvpNudge
-        visible={rsvpPromptChoice === "first_rsvp_nudge"}
-        onPrimary={handleFirstRsvpNudgePrimary}
-        onSecondary={handleFirstRsvpNudgeSecondary}
-        onDismiss={handleFirstRsvpNudgeDismiss}
-      />
+        // RSVP prompt arbitration
+        rsvpPromptChoice={rsvpPromptChoice}
+        onFirstRsvpNudgePrimary={handleFirstRsvpNudgePrimary}
+        onFirstRsvpNudgeSecondary={handleFirstRsvpNudgeSecondary}
+        onFirstRsvpNudgeDismiss={handleFirstRsvpNudgeDismiss}
+        onPostValueInviteClose={handlePostValueInviteClose}
+        onNotificationPromptClose={() => setRsvpPromptChoice("none")}
+        sessionUserId={session?.user?.id}
 
-      <PostValueInvitePrompt
-        visible={rsvpPromptChoice === "post_value_invite"}
-        surface="rsvp"
-        onClose={handlePostValueInviteClose}
-      />
-
-      <NotificationPrePromptModal
-        visible={rsvpPromptChoice === "notification"}
-        onClose={() => setRsvpPromptChoice("none")}
-        userId={session?.user?.id}
-      />
-
-      <EventActionsSheet
-        visible={showEventActionsSheet}
-        isMyEvent={isMyEvent}
-        isBusy={!!event?.isBusy}
-        isImported={!!event?.isImported}
-        hasEventPhoto={!!event?.eventPhotoUrl}
-        isBusyBlock={isBusyBlock}
-        currentColorOverride={currentColorOverride}
-        myRsvpStatus={myRsvpStatus}
-        liveActivity={(() => {
-          // Use display-aware start (nextOccurrence for recurring) and compute end via duration
-          const effectiveStartMs = startDate.getTime();
-          const dur = endDate ? endDate.getTime() - originalStartDate.getTime() : 3600000;
-          const effectiveEndMs = effectiveStartMs + dur;
-          const now = Date.now();
-          const hasEnded = now > effectiveEndMs;
-          const startsWithin4h = effectiveStartMs - now < 4 * 3600000;
-          const canToggle = liveActivitySupported && startsWithin4h;
-          const subtitle = liveActivityActive
-            ? "On \u2014 tracking countdown"
-            : canToggle
-              ? "Off \u2014 tap to start"
-              : !liveActivitySupported
-                ? "Requires latest app update"
-                : "Available closer to event start";
-          return { active: liveActivityActive, supported: liveActivitySupported, subtitle, canToggle, hasEnded };
-        })()}
-        isDark={isDark}
-        themeColor={themeColor}
-        colors={colors}
-        onClose={() => setShowEventActionsSheet(false)}
-        onEdit={() => {
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          router.push(`/create?editEventId=${id}&emoji=${encodeURIComponent(event?.emoji ?? "📅")}` as any);
-        }}
-        onDuplicate={() => {
-          setShowEventActionsSheet(false);
-          handleDuplicateEvent();
-        }}
-        onChangePhoto={() => {
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          setTimeout(() => launchEventPhotoPicker(), 350);
-        }}
-        onShare={() => {
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          shareEvent({ ...event, location: locationDisplay ?? null });
-        }}
-        onToggleLiveActivity={async () => {
-          if (liveActivityActive) {
-            await endLiveActivity(event.id);
-            setLiveActivityActive(false);
-            liveActivityManuallyDismissed.current = true;
-            safeToast.success("Stopped", "Lock Screen updates off");
-          } else {
-            const ok = await startLiveActivity({
-              eventId: event.id,
-              eventTitle: event.title,
-              startTime: event.startTime,
-              endTime: event.endTime,
-              locationName: locationDisplay,
-              rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
-              emoji: event.emoji,
-              goingCount: effectiveGoingCount,
-              themeAccentColor: resolveEventTheme(event.themeId).backAccent,
-            });
-            if (ok) {
-              setLiveActivityActive(true);
-              liveActivityManuallyDismissed.current = false;
-              safeToast.success("Started", "Tracking on Lock Screen");
+        // Event Actions Sheet
+        showEventActionsSheet={showEventActionsSheet}
+        eventActionsProps={{
+          isMyEvent,
+          isBusy: !!event?.isBusy,
+          isImported: !!event?.isImported,
+          hasEventPhoto: !!event?.eventPhotoUrl,
+          isBusyBlock,
+          currentColorOverride,
+          myRsvpStatus,
+          liveActivity: (() => {
+            const effectiveStartMs = startDate.getTime();
+            const dur = endDate ? endDate.getTime() - originalStartDate.getTime() : 3600000;
+            const effectiveEndMs = effectiveStartMs + dur;
+            const now = Date.now();
+            const hasEnded = now > effectiveEndMs;
+            const startsWithin4h = effectiveStartMs - now < 4 * 3600000;
+            const canToggle = liveActivitySupported && startsWithin4h;
+            const subtitle = liveActivityActive
+              ? "On \u2014 tracking countdown"
+              : canToggle
+                ? "Off \u2014 tap to start"
+                : !liveActivitySupported
+                  ? "Requires latest app update"
+                  : "Available closer to event start";
+            return { active: liveActivityActive, supported: liveActivitySupported, subtitle, canToggle, hasEnded };
+          })(),
+          isDark,
+          themeColor,
+          colors,
+          onClose: () => setShowEventActionsSheet(false),
+          onEdit: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            router.push(`/create?editEventId=${id}&emoji=${encodeURIComponent(event?.emoji ?? "📅")}` as any);
+          },
+          onDuplicate: () => {
+            setShowEventActionsSheet(false);
+            handleDuplicateEvent();
+          },
+          onChangePhoto: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => launchEventPhotoPicker(), 350);
+          },
+          onShare: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            shareEvent({ ...event, location: locationDisplay ?? null });
+          },
+          onToggleLiveActivity: async () => {
+            if (liveActivityActive) {
+              await endLiveActivity(event.id);
+              setLiveActivityActive(false);
+              liveActivityManuallyDismissed.current = true;
+              safeToast.success("Stopped", "Lock Screen updates off");
             } else {
-              safeToast.error("Couldn't start", "Check Live Activities in Settings");
+              const ok = await startLiveActivity({
+                eventId: event.id,
+                eventTitle: event.title,
+                startTime: event.startTime,
+                endTime: event.endTime,
+                locationName: locationDisplay,
+                rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
+                emoji: event.emoji,
+                goingCount: effectiveGoingCount,
+                themeAccentColor: resolveEventTheme(event.themeId).backAccent,
+              });
+              if (ok) {
+                setLiveActivityActive(true);
+                liveActivityManuallyDismissed.current = false;
+                safeToast.success("Started", "Tracking on Lock Screen");
+              } else {
+                safeToast.error("Couldn't start", "Check Live Activities in Settings");
+              }
             }
-          }
-          setShowEventActionsSheet(false);
+            setShowEventActionsSheet(false);
+          },
+          onReport: () => {
+            setShowEventActionsSheet(false);
+            handleReportEvent();
+          },
+          onOpenColorPicker: () => {
+            if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "event_actions", to: "color", ms: 350 });
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => {
+              setShowColorPicker(true);
+              if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "event_actions", to: "color", ms: 350 });
+            }, 350);
+          },
+          onDelete: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => setShowDeleteEventConfirm(true), 350);
+          },
+          onRemoveImported: () => {
+            if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_pressed", { eventId: id });
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => setShowRemoveImportedConfirm(true), 350);
+          },
         }}
-        onReport={() => {
-          setShowEventActionsSheet(false);
-          handleReportEvent();
-        }}
-        onOpenColorPicker={() => {
-          if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "event_actions", to: "color", ms: 350 });
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          setTimeout(() => {
-            setShowColorPicker(true);
-            if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "event_actions", to: "color", ms: 350 });
-          }, 350);
-        }}
-        onDelete={() => {
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          setTimeout(() => setShowDeleteEventConfirm(true), 350);
-        }}
-        onRemoveImported={() => {
-          if (__DEV__) devLog("[IMPORTED_EVENT]", "remove_pressed", { eventId: id });
-          setShowEventActionsSheet(false);
-          Haptics.selectionAsync();
-          setTimeout(() => setShowRemoveImportedConfirm(true), 350);
-        }}
-      />
 
-      <ReportModal
-        visible={showReportModal}
+        // Report Modal
+        showReportModal={showReportModal}
         selectedReportReason={selectedReportReason}
         reportDetails={reportDetails}
         isSubmittingReport={isSubmittingReport}
         themeColor={themeColor}
-        colors={colors}
-        onClose={() => setShowReportModal(false)}
-        onSelectReason={setSelectedReportReason}
-        onChangeDetails={setReportDetails}
-        onSubmit={submitEventReport}
-        onCancel={() => {
+        onCloseReport={() => setShowReportModal(false)}
+        onSelectReportReason={setSelectedReportReason}
+        onChangeReportDetails={setReportDetails}
+        onSubmitReport={submitEventReport}
+        onCancelReport={() => {
           setShowReportModal(false);
           setSelectedReportReason(null);
           setReportDetails("");
         }}
-      />
 
-      <AttendeesSheet
-        visible={showAttendeesModal}
-        isLoading={isLoadingAttendees}
-        hasError={!!attendeesError}
-        isPrivacyDenied={attendeesPrivacyDenied}
-        attendees={attendeesList}
+        // Attendees Sheet
+        showAttendeesModal={showAttendeesModal}
+        isLoadingAttendees={isLoadingAttendees}
+        hasAttendeesError={!!attendeesError}
+        attendeesPrivacyDenied={attendeesPrivacyDenied}
+        attendeesList={attendeesList}
         guestGoingList={showGuestList ? guestGoingList : []}
         effectiveGoingCount={effectiveGoingCount}
         hostUserId={event?.user?.id}
         isDark={isDark}
-        themeColor={themeColor}
-        colors={colors}
-        onClose={() => {
+        onCloseAttendees={() => {
           setShowAttendeesModal(false);
           if (__DEV__) devLog('[P1_WHO_COMING_SHEET]', 'close', { eventId: id });
         }}
-        onRetry={() => attendeesQuery.refetch()}
+        onRetryAttendees={() => attendeesQuery.refetch()}
         onPressAttendee={(userId) => {
           setShowAttendeesModal(false);
           router.push(`/user/${userId}` as any);
         }}
-      />
 
-      <ColorPickerSheet
-        visible={showColorPicker}
+        // Color Picker Sheet
+        showColorPicker={showColorPicker}
         currentColorOverride={currentColorOverride}
-        colors={colors}
-        onClose={() => setShowColorPicker(false)}
+        onCloseColorPicker={() => setShowColorPicker(false)}
         onSelectColor={async (color) => {
           if (!id) return;
           if (isBusyBlock) {
@@ -3148,19 +2587,14 @@ export default function EventDetailScreen() {
             safeToast.error("Save Failed", "Failed to reset color");
           }
         }}
-      />
 
-      <PhotoUploadSheet
-        visible={showPhotoSheet}
+        // Photo Upload Sheet
+        showPhotoSheet={showPhotoSheet}
         hasExistingPhoto={!!event?.eventPhotoUrl}
         uploadingPhoto={uploadingPhoto}
-        themeColor={themeColor}
-        colors={colors}
-        onClose={() => setShowPhotoSheet(false)}
+        onClosePhotoSheet={() => setShowPhotoSheet(false)}
         onUploadPhoto={async () => {
           setShowPhotoSheet(false);
-          // Wait for sheet dismiss animation before opening picker
-          // Prevents iOS gesture/touch blocker overlay freeze
           await new Promise(r => setTimeout(r, 300));
           launchEventPhotoPicker();
         }}

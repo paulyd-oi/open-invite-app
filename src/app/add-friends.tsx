@@ -111,7 +111,7 @@ export default function FindFriendsScreen() {
   });
 
   const handleAddFriend = (userId: string) => {
-    if (sentRequests.has(userId)) return;
+    if (sentRequests.has(userId) || sendRequestMutation.isPending) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     sendRequestMutation.mutate(userId);
   };

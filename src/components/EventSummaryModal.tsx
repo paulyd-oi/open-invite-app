@@ -25,6 +25,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { api } from "@/lib/api";
+import { safeToast } from "@/lib/safeToast";
 import { useTheme } from "@/lib/ThemeContext";
 import { SCRIM } from "@/ui/tokens";
 import { type UpdateEventSummaryResponse } from "@/shared/contracts";
@@ -180,6 +181,9 @@ export function EventSummaryModal({
       queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
       onClose();
     },
+    onError: () => {
+      safeToast.error("Couldn't save", "Please try again");
+    },
   });
 
   const dismissMutation = useMutation({
@@ -190,6 +194,9 @@ export function EventSummaryModal({
       // P0 FIX: Invalidate specific event instead of wildcard
       queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
       onClose();
+    },
+    onError: () => {
+      safeToast.error("Couldn't dismiss", "Please try again");
     },
   });
 
