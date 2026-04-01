@@ -135,34 +135,39 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 
 ## 3. Sprint Items (Phase 2+)
 
-### 3.1 Discover Card Headline Placement — Phase 2
+### 3.1 Discover Card + Event Detail Content Hierarchy — Phase 2 ✅
 
-**Current behavior:** eventHook displays as a gradient overlay on the Discover card image zone.
-**Target behavior:** Move headline from cover overlay to card body text area.
-**Files:**
-- `src/app/discover.tsx` (~1152 lines) — Discover card rendering with LinearGradient overlay
+**Previous behavior:** eventHook displayed as gradient overlay on Discover card image zone; description shown in card body.
+**New behavior:** eventHook shown as italic teaser in card body (where description was); description removed from Discover card front entirely. On InviteFlipCard, front = headline teaser, back = description/details (was already correct — no change needed).
 
-### 3.2 Event Detail Front-of-Card Content — Phase 2
+**Files changed:**
+- `src/app/discover.tsx` — Removed LinearGradient overlay from image zone, replaced description with headline in card body
+- `src/components/InviteFlipCard.tsx` — No content hierarchy changes needed (already correct)
 
-**Current behavior:** eventHook shown on InviteFlipCard front face.
-**Target behavior:** Review whether headline vs description is the right content on the card front.
-**Files:**
-- `src/components/InviteFlipCard.tsx` (781 lines)
+**Web divergence:** `openinvite-website/src/components/EventCard.tsx` still shows eventHook as italic subtitle below title. Web update deferred to later phase.
 
-### 3.3 Card Color Softening — Phase 2
+### 3.2 Card Color Softening — Phase 2 ✅
 
-**Current behavior:** Custom picker colors on event cards are too saturated.
-**Target behavior:** Soften/desaturate custom colors for better readability.
-**Files:**
-- `src/lib/eventThemes.ts` — theme token resolver
-- `src/components/InviteFlipCard.tsx` — card rendering
+**Previous behavior:** User-picked custom hex colors rendered at full saturation — visually harsh.
+**New behavior:** Custom cardColor blended 40% toward white at render time via `softenColor()`. Theme-derived colors unchanged.
 
-### 3.4 Frequency Setting Removal or Relocation — Phase 2
+**Files changed:**
+- `src/lib/softenColor.ts` — NEW: reusable blend utility (`softenColor(hex, blend=0.4)`)
+- `src/app/discover.tsx` — Applied softening to `plaqueBg` and `ccHex` contrast computation
+- `src/components/InviteFlipCard.tsx` — Applied softening to `themedCardBg`, `plaqueBg`, `contrastText`
 
-**Current behavior:** Frequency setting appears at top of Settings sheet.
-**Target behavior:** Remove or relocate to reduce Settings sheet complexity.
-**Files:**
-- `src/components/create/SettingsSheetContent.tsx:162-225` — Frequency section
+**Invariants:** Stored hex value unchanged. Softening is presentation-layer only. Same input → same output (deterministic). Theme catalog colors NOT affected.
+
+### 3.3 Frequency Removal from Create/Edit UI — Phase 2 ✅
+
+**Previous behavior:** Frequency dropdown (Once/Weekly/Monthly) at top of Settings sheet.
+**New behavior:** Frequency UI removed entirely. State variable retained as `"once"` default so save contract sends `isRecurring: false, recurrence: undefined` without changes.
+
+**Files changed:**
+- `src/components/create/SettingsSheetContent.tsx` — Removed frequency props, FREQUENCY_OPTIONS constant, and entire Frequency UI section. Removed unused `RefreshCw`/`ChevronDown` icon imports.
+- `src/app/create.tsx` — Removed `showFrequencyPicker` state, `handleFrequencyChange` handler, and frequency-related settingsProps. Kept `frequency` state (defaults to `"once"`) for save payload.
+
+**Invariants:** Existing recurring events are unaffected — their recurrence data is stored and rendered as before. Backend recurrence logic untouched. Calendar recurrence rendering untouched. Only the create/edit UI surface removed.
 
 ### 3.5 Activity Feed Image Wiring + Notification Dedup — Phase 3
 
@@ -202,7 +207,7 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 |-------|--------|--------|
 | 1A | Settings sheet freeze + SSOT | Complete |
 | 1B | Swipe bleed-through, Pin icon, Chat pinned event | Complete |
-| 2 | Headline placement, card content, color softening, frequency | Queued |
+| 2 | Headline placement, card content, color softening, frequency | Complete |
 | 3 | Activity feed, friend notifications, subscription table, profile stats | Queued |
 
 ---

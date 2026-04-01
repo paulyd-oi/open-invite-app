@@ -29,6 +29,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { RADIUS } from "@/ui/layout";
 import { STATUS } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
+import { softenColor } from "@/lib/softenColor";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -141,11 +142,12 @@ export function InviteFlipCard({
   // ── Card theme (always resolves — neutral fallback for unthemed events) ──
   const ct = useMemo(() => resolveEventTheme(themeId), [themeId]);
   const backAccent = ct.backAccent || themeColor;
-  const themedCardBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
-  const plaqueBg = cardColor || (isDark ? ct.backBgDark : ct.backBgLight);
+  const softCardColor = cardColor ? softenColor(cardColor) : null;
+  const themedCardBg = softCardColor || (isDark ? ct.backBgDark : ct.backBgLight);
+  const plaqueBg = softCardColor || (isDark ? ct.backBgDark : ct.backBgLight);
 
   // Auto-contrast text when cardColor overrides the surface
-  const contrastText = cardColor ? getTextColorForBg(cardColor) : null;
+  const contrastText = softCardColor ? getTextColorForBg(softCardColor) : null;
   const cText = contrastText ?? colors.text;
   const cSecondary = contrastText ? `${contrastText}B3` : colors.textSecondary; // 70% opacity
   const cTertiary = contrastText ? `${contrastText}80` : colors.textTertiary;   // 50% opacity

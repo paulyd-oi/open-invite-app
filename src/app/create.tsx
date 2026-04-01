@@ -134,7 +134,6 @@ export default function CreateEventScreen() {
   });
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [sendNotification, setSendNotification] = useState(true);
 
   // Capacity state
@@ -421,20 +420,7 @@ export default function CreateEventScreen() {
   });
 
   // ── Handlers ──
-  const handleFrequencyChange = (newFrequency: "once" | "weekly" | "monthly") => {
-    if (newFrequency !== "once") {
-      const check = canCreateEvent(entitlements, true);
-      if (!check.allowed && check.context) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setPaywallContext(check.context);
-        setShowPaywallModal(true);
-        setFrequency("once");
-        return;
-      }
-    }
-    setFrequency(newFrequency);
-    setShowFrequencyPicker(false);
-  };
+
 
   // ── Edit mode: pre-populate form state ──
   useEffect(() => {
@@ -1044,11 +1030,6 @@ export default function CreateEventScreen() {
         onCloseDock={() => setActiveDockMode(null)}
         settingsProps={{
           isCircleEvent,
-          frequency,
-          showFrequencyPicker,
-          onToggleFrequencyPicker: () => setShowFrequencyPicker((p) => !p),
-          onFrequencyChange: handleFrequencyChange,
-          startDate,
           visibility,
           onSetVisibility: setVisibility,
           selectedGroupIds,
