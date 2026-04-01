@@ -21,10 +21,11 @@ import {
   Clock,
   Shield,
   Settings,
-  Cake,
   Layers,
   BookOpen,
   Gift,
+  Palette,
+  Share2,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -167,7 +168,7 @@ export default function HelpFAQScreen() {
         },
         {
           title: "Recurring Events",
-          description: "Recurring events are planned as a Pro feature in a future update. For now, recurring events are available to everyone.",
+          description: "Set up events that repeat on a schedule.",
           howItWorks: [
             "When creating an event, enable 'Repeat'",
             "Choose frequency: Weekly or Monthly",
@@ -527,21 +528,21 @@ export default function HelpFAQScreen() {
           title: "Edit Profile",
           description: "Customize how others see you on Open Invite.",
           howItWorks: [
-            "Go to Settings and tap your profile",
-            "Change your display name",
-            "Upload a new profile photo",
-            "Write a calendar bio (e.g., 'Busy weekdays, free weekends')",
-            "Add social media links",
+            "Go to your profile and tap 'Edit Profile'",
+            "Change your display name and bio",
+            "Upload a profile photo or banner image",
+            "Choose a profile theme for your page",
+            "See a live preview as you make changes",
           ],
         },
         {
-          title: "Theme Customization",
+          title: "App Theme",
           description: "Personalize the app's look and feel.",
           howItWorks: [
             "Go to Settings > Appearance",
             "Choose theme mode: Light, Dark, or Auto (follows system)",
-            "Select your accent color from 8 beautiful options",
-            "Colors affect buttons, highlights, and UI elements",
+            "Select your accent color from 9 options",
+            "Colors affect buttons, highlights, and UI elements throughout the app",
           ],
         },
         {
@@ -575,6 +576,113 @@ export default function HelpFAQScreen() {
             "Track events attended",
             "View your longest streak",
             "Compare with friends",
+          ],
+        },
+      ],
+    },
+    {
+      id: "customization",
+      title: "Customization",
+      icon: <Palette size={22} color="#FF9800" />,
+      iconColor: "#FF9800",
+      features: [
+        {
+          title: "Event Themes",
+          description: "Choose from 30 themes to set the mood for your event.",
+          howItWorks: [
+            "When creating or editing an event, tap the theme selector",
+            "Browse 5 free basic themes and 25 premium themes",
+            "Each theme includes a unique gradient, colors, and atmosphere",
+            "Premium themes require a Pro subscription",
+            "The theme is visible to everyone viewing the event",
+          ],
+        },
+        {
+          title: "Premium Effects",
+          description: "Add animated visual effects to your event page.",
+          howItWorks: [
+            "Available with a Pro subscription",
+            "When creating an event, tap the effects selector",
+            "Choose from particle effects, shaders, and animations",
+            "Effects play on the event detail page for all viewers",
+          ],
+        },
+        {
+          title: "Theme Studio",
+          description: "Build your own custom themes with Pro.",
+          howItWorks: [
+            "Go to the Theme Studio from the create event screen",
+            "Customize gradients, shaders, and particle effects",
+            "Preview your theme in real time",
+            "Save and apply to any event",
+          ],
+        },
+        {
+          title: "Card Color",
+          description: "Customize the card color on your event in the feed.",
+          howItWorks: [
+            "When creating or editing an event, tap 'Card Color'",
+            "Choose a color that stands out in the social feed",
+            "Text color adjusts automatically for readability",
+          ],
+        },
+        {
+          title: "Profile Themes",
+          description: "Personalize your profile with a unique look.",
+          howItWorks: [
+            "Go to your profile and tap 'Edit Profile'",
+            "Select a profile theme from 10 curated options",
+            "Upload a custom profile banner image",
+            "Your theme is visible when friends view your profile",
+          ],
+        },
+        {
+          title: "Subscription Tiers",
+          description: "Free and Pro plans for every type of planner.",
+          howItWorks: [
+            "Free: Unlimited event hosting, 5 basic themes, no effects",
+            "Pro: 25 premium themes, premium effects, Theme Studio",
+            "Founder Special: $30/year for life (first 1,000 users)",
+            "Manage your subscription in Settings > Subscription",
+          ],
+        },
+      ],
+    },
+    {
+      id: "sharing",
+      title: "Sharing & Guest Access",
+      icon: <Share2 size={22} color="#2196F3" />,
+      iconColor: "#2196F3",
+      features: [
+        {
+          title: "Share Events",
+          description: "Send event links to anyone, even people without the app.",
+          howItWorks: [
+            "Open an event and tap the share button",
+            "A web link is generated for your event",
+            "Share via Messages, WhatsApp, email, or any app",
+            "Recipients see a full event page in their browser",
+          ],
+        },
+        {
+          title: "Guest RSVP",
+          description: "People without the app can RSVP from the web.",
+          howItWorks: [
+            "Share your event link with anyone",
+            "They can tap 'Going' or 'Can\u2019t Make It' on the web page",
+            "They enter their name and optionally their email",
+            "Guest RSVPs appear in your attendee list",
+          ],
+        },
+        {
+          title: "Privacy Controls",
+          description: "Control what guests and visitors see on your event page.",
+          howItWorks: [
+            "When creating an event, open Privacy & Display settings",
+            "Toggle 'Show Guest List' to hide or show attendee names",
+            "Toggle 'Show Guest Count' to hide or show the going count",
+            "Toggle 'Show Location Before RSVP' to gate the address",
+            "Toggle 'Hide Location on Web' to hide it entirely from the web page",
           ],
         },
       ],
@@ -627,12 +735,12 @@ export default function HelpFAQScreen() {
       features: [
         {
           title: "Event Visibility Controls",
-          description: "Choose who can see your events.",
+          description: "Choose who can see your events and what they see.",
           howItWorks: [
-            "When creating events, set visibility",
-            "All Friends: Everyone in your friend list sees it",
-            "Select Groups: Only chosen groups see it",
-            "Private: Only you and invited attendees",
+            "When creating events, set audience visibility (All Friends, Groups, or Private)",
+            "Open Privacy & Display settings for fine-grained control",
+            "Hide the guest list, guest count, or location from the web page",
+            "Gate the location behind RSVP so only confirmed guests see the address",
           ],
         },
         {

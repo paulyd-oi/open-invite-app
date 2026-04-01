@@ -43,7 +43,6 @@ import {
   ExternalLink,
   Gift,
   Share2,
-  BookOpen,
   Phone,
   CalendarDays,
   Users,
@@ -1261,16 +1260,6 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(250).springify()} className="mx-4 mt-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUPPORT</Text>
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            <SettingItem
-              icon={<BookOpen size={20} color={themeColor} />}
-              title="Get Started Guide"
-              subtitle="Learn how to use Open Invite"
-              isDark={isDark}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/onboarding");
-              }}
-            />
             <SettingItem
               icon={<HelpCircle size={20} color="#45B7D1" />}
               title="Help & FAQ"

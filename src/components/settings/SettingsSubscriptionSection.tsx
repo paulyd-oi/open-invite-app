@@ -46,10 +46,10 @@ export function SettingsSubscriptionSection({
           </View>
           <View className="flex-1">
             <Text style={{ color: colors.text }} className="text-base font-medium">
-              {userIsPremium ? "Subscription" : "Plan"}
+              {userIsPremium ? "Founder Pro" : "Free Plan"}
             </Text>
             <Text style={{ color: colors.textSecondary }} className="text-sm">
-              {userIsPremium ? "Thank you for your support!" : "Free"}
+              {userIsPremium ? "All premium themes, effects & more" : "Unlimited events, 5 basic themes"}
             </Text>
           </View>
           {!userIsPremium && <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>}
