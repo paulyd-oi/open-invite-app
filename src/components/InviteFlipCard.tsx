@@ -55,6 +55,7 @@ export interface InviteFlipCardProps {
   hostName: string | null;
   hostImageUrl: string | null;
   coHostNames?: string[];
+  eventHook?: string | null;
   isMyEvent: boolean;
   capacity: number | null;
   currentGoing: number;
@@ -121,6 +122,7 @@ export function InviteFlipCard({
   hostName,
   hostImageUrl,
   coHostNames = [],
+  eventHook,
   isMyEvent,
   capacity,
   currentGoing,
@@ -472,6 +474,16 @@ export function InviteFlipCard({
                         </Text>
                       </View>
                     )}
+
+                    {/* Event hook tagline */}
+                    {eventHook ? (
+                      <Text
+                        style={{ fontSize: 13, fontWeight: "500", fontStyle: "italic", color: cSecondary, marginBottom: 8 }}
+                        numberOfLines={2}
+                      >
+                        {eventHook}
+                      </Text>
+                    ) : null}
 
                     {/* Social proof + countdown */}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

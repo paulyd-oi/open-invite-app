@@ -140,6 +140,7 @@ interface PopularEvent {
   circleId?: string | null;
   circleName?: string | null;
   userId?: string;
+  eventHook?: string | null;
 }
 
 type Lens = "ideas" | "events" | "saved";
@@ -828,6 +829,23 @@ export default function DiscoverScreen() {
                             }}>
                               {urgency.label}
                             </Text>
+                          </View>
+                        ) : null}
+
+                        {/* Event Hook overlay — bottom of image zone */}
+                        {event.eventHook ? (
+                          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+                            <LinearGradient
+                              colors={["transparent", "rgba(0,0,0,0.65)"]}
+                              style={{ paddingTop: 28, paddingBottom: 10, paddingHorizontal: 14 }}
+                            >
+                              <Text
+                                style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700", textAlign: "center" }}
+                                numberOfLines={1}
+                              >
+                                {event.eventHook}
+                              </Text>
+                            </LinearGradient>
                           </View>
                         ) : null}
                       </View>

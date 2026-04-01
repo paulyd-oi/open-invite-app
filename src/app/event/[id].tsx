@@ -2034,6 +2034,7 @@ export default function EventDetailScreen() {
                 .filter((hid: string) => hid !== event.user?.id)
                 .map((hid: string) => attendeesList.find((a: AttendeeInfo) => a.id === hid)?.name)
                 .filter((n): n is string => !!n)}
+              eventHook={event.eventHook}
 
               isMyEvent={isMyEvent}
               capacity={eventMeta.capacity}

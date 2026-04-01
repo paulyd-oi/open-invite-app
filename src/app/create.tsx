@@ -148,6 +148,9 @@ export default function CreateEventScreen() {
   // Cost Per Person state
   const [costPerPerson, setCostPerPerson] = useState("");
 
+  // Event Hook state (short tagline for Discover card)
+  const [eventHook, setEventHook] = useState("");
+
   // Pitch In V1 state
   const [pitchInEnabled, setPitchInEnabled] = useState(false);
   const [pitchInAmount, setPitchInAmount] = useState("");
@@ -516,6 +519,9 @@ export default function CreateEventScreen() {
     if (editEvent.costPerPerson) {
       setCostPerPerson(editEvent.costPerPerson);
     }
+    if (editEvent.eventHook) {
+      setEventHook(editEvent.eventHook);
+    }
 
     setShowGuestList(editEvent.showGuestList ?? true);
     setShowGuestCount(editEvent.showGuestCount ?? true);
@@ -675,6 +681,7 @@ export default function CreateEventScreen() {
       capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
       rsvpDeadline: hasRsvpDeadline ? rsvpDeadlineDate.toISOString() : null,
       costPerPerson: costPerPerson.trim() || null,
+      eventHook: eventHook.trim() || null,
       reflectionEnabled: false,
       ...(pitchInEnabled && pitchInHandle.trim() ? {
         pitchInEnabled: true,
@@ -1056,6 +1063,8 @@ export default function CreateEventScreen() {
           onSetRsvpDeadlineDate: setRsvpDeadlineDate,
           costPerPerson,
           onSetCostPerPerson: setCostPerPerson,
+          eventHook,
+          onSetEventHook: setEventHook,
           pitchInEnabled,
           onSetPitchInEnabled: setPitchInEnabled,
           pitchInAmount,

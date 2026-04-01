@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,15 @@ const FREQUENCY_OPTIONS = [
   { value: "once", label: "One Time", icon: "📆" },
   { value: "weekly", label: "Weekly", icon: "🔄" },
   { value: "monthly", label: "Monthly", icon: "📅" },
+];
+
+const HOOK_PLACEHOLDERS = [
+  "Rooftop views & good vibes",
+  "BYOB and board games",
+  "Last hangout before summer!",
+  "Beginner-friendly, all welcome",
+  "Live DJ + potluck dinner",
+  "Dress code: all white",
 ];
 
 interface SettingsSheetContentProps {
@@ -77,6 +86,10 @@ interface SettingsSheetContentProps {
   // Cost Per Person
   costPerPerson: string;
   onSetCostPerPerson: (v: string) => void;
+
+  // Event Hook
+  eventHook: string;
+  onSetEventHook: (v: string) => void;
 
   // Pitch In
   pitchInEnabled: boolean;
@@ -131,6 +144,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
     hasCapacity, onSetHasCapacity, capacityInput, onSetCapacityInput,
     hasRsvpDeadline, onSetHasRsvpDeadline, rsvpDeadlineDate, onSetRsvpDeadlineDate,
     costPerPerson, onSetCostPerPerson,
+    eventHook, onSetEventHook,
     pitchInEnabled, onSetPitchInEnabled, pitchInAmount, onSetPitchInAmount,
     pitchInMethod, onSetPitchInMethod, pitchInHandle, onSetPitchInHandle,
     pitchInNote, onSetPitchInNote,
@@ -143,6 +157,15 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
   } = props;
 
   const router = require("expo-router").useRouter();
+
+  // Rotating placeholder for eventHook input
+  const [hookPlaceholderIdx, setHookPlaceholderIdx] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHookPlaceholderIdx((i) => (i + 1) % HOOK_PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <ScrollView
@@ -331,6 +354,30 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
           </Text>
         </View>
       )}
+
+      {/* ── Event Hook ── */}
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Event Hook</Text>
+        <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+          <TextInput
+            value={eventHook}
+            onChangeText={(t) => onSetEventHook(t.slice(0, 60))}
+            placeholder={HOOK_PLACEHOLDERS[hookPlaceholderIdx]}
+            placeholderTextColor={glassTertiary}
+            style={{ fontSize: 14, color: glassText }}
+            maxLength={60}
+            multiline={false}
+          />
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginHorizontal: 2 }}>
+          <Text style={{ color: glassTertiary, fontSize: 11 }}>
+            Short tagline shown on the Discover card.
+          </Text>
+          <Text style={{ color: eventHook.length >= 55 ? "#EF4444" : glassTertiary, fontSize: 11 }}>
+            {eventHook.length}/60
+          </Text>
+        </View>
+      </View>
 
       {/* ── Capacity ── */}
       <View style={{ marginBottom: 16 }}>
