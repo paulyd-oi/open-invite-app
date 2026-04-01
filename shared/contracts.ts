@@ -55,28 +55,37 @@ export const eventSchema = z.object({
   endTime: z.string().nullable(),
   isRecurring: z.boolean(),
   recurrence: z.string().nullable(),
-  nextOccurrence: z.string().nullable().optional(), // Next future occurrence for recurring events (legacy only — null for bounded series)
-  seriesId: z.string().nullable().optional(), // Links bounded recurring occurrences (null for legacy/non-recurring)
-  seriesIndex: z.number().nullable().optional(), // 0-based position within series
+  nextOccurrence: z.string().nullable().optional(), // Next future occurrence for recurring events (legacy only)
+  seriesId: z.string().nullable().optional(),
+  seriesIndex: z.number().nullable().optional(),
   effectiveStartTime: z.string().optional(), // Concrete start time for display/sorting (accounts for recurrence)
   effectiveEndTime: z.string().nullable().optional(), // Concrete end time for display/gating (accounts for recurrence)
   visibility: z.string(),
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
-  isBusy: z.boolean().optional(), // Mark as busy/work time - hidden from social feed, shown greyed
+  // Capacity fields
+  capacity: z.number().nullable().optional(), // Max attendees (null = unlimited)
+  goingCount: z.number().optional(), // Current count of GOING RSVPs
+  isFull: z.boolean().optional(), // Computed: capacity != null && goingCount >= capacity
+  viewerRsvpStatus: z.enum(["going", "interested", "maybe", "not_going"]).nullable().optional(), // Requesting user's RSVP
+  viewerColor: z.string().nullable().optional(), // Viewer-scoped color override
+  // Co-hosts
+  hostIds: z.array(z.string()).optional(), // Additional users who can edit/manage
+  // Busy/Work toggle
+  isBusy: z.boolean().optional(),
+  // Calendar import
   isImported: z.boolean().optional(), // true for device-calendar imports — excluded from hosting quota, read-only
-  hostIds: z.array(z.string()).optional(), // Co-host user IDs who can edit the event
   // Host-only summary fields (only returned to event host)
   summary: z.string().nullable().optional(), // Host's reflection notes
   summaryRating: z.number().nullable().optional(), // 1-5 star rating
   summaryNotifiedAt: z.string().nullable().optional(), // When host was notified
-  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
-  // Event Themes V1
-  themeId: z.string().nullable().optional(),
-  customThemeData: z.any().nullable().optional(),
-  // Event Effects V1
-  effectId: z.string().nullable().optional(),
-  customEffectConfig: z.any().nullable().optional(),
+  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event
+  // Event Photo Lite
+  eventPhotoPublicId: z.string().nullable().optional(),
+  eventPhotoUrl: z.string().nullable().optional(),
+  // Event Memory Photo
+  eventMemoryPhotoUrl: z.string().nullable().optional(),
+  eventMemoryPhotoPublicId: z.string().nullable().optional(),
   // Card Color — explicit hex override for card backgrounds
   cardColor: z.string().nullable().optional(),
   userId: z.string(),
@@ -85,15 +94,9 @@ export const eventSchema = z.object({
   user: z.object({
     id: z.string(),
     name: z.string().nullable(),
-    email: z.string().nullable(),
+    email: z.string().nullable().optional(),
     image: z.string().nullable(),
-    featuredBadge: z.object({
-      badgeKey: z.string(),
-      name: z.string(),
-      description: z.string(),
-      tierColor: z.string(),
-    }).nullable().optional(),
-  }).optional(),
+  }).nullable().optional(),
   groupVisibility: z.array(z.object({
     groupId: z.string(),
     group: z.object({
@@ -113,31 +116,20 @@ export const eventSchema = z.object({
       image: z.string().nullable(),
     }),
   })).optional(),
-  // Attendee preview: first 5 "going" users for avatar stacks on cards
-  attendeePreview: z.array(z.object({
-    id: z.string(),
-    image: z.string().nullable(),
-    name: z.string().nullable(),
-  })).optional(),
-  // Event Photo Lite (single cover photo, privacy-enforced server-side)
-  eventPhotoUrl: z.string().nullable().optional(),
-  eventPhotoPublicId: z.string().nullable().optional(),
-  // Capacity fields (server-computed)
-  capacity: z.number().nullable().optional(), // Max guests (null = unlimited)
-  goingCount: z.number().optional(), // Number of confirmed attendees
-  isFull: z.boolean().optional(), // True if goingCount >= capacity
-  viewerRsvpStatus: z.enum(["going", "not_going", "interested", "maybe"]).nullable().optional(), // Current viewer's RSVP
-  // Circle event metadata (present when visibility is circle_only)
-  circleId: z.string().nullable().optional(), // Circle this event belongs to
-  circleName: z.string().nullable().optional(), // Human-readable circle name for UI labels
-  // Pitch In V1 — external payment link for cost sharing
+  // Event Themes V1
+  themeId: z.string().nullable().optional(),
+  customThemeData: z.any().nullable().optional(),
+  // Event Effects V1
+  effectId: z.string().nullable().optional(),
+  customEffectConfig: z.any().nullable().optional(),
+  // Pitch In V1
   pitchInEnabled: z.boolean().optional(),
-  pitchInTone: z.enum(["optional", "suggested"]).nullable().optional(),
-  pitchInAmount: z.string().nullable().optional(), // Display string e.g. "$10", "£5"
-  pitchInMethod: z.enum(["venmo", "cashapp", "paypal", "other"]).nullable().optional(),
-  pitchInHandle: z.string().nullable().optional(), // Username/handle for the payment method
-  pitchInNote: z.string().nullable().optional(), // Host note e.g. "for food & drinks"
-  // What to Bring V2 — lightweight claim system
+  pitchInTone: z.string().nullable().optional(),
+  pitchInAmount: z.string().nullable().optional(),
+  pitchInMethod: z.string().nullable().optional(),
+  pitchInHandle: z.string().nullable().optional(),
+  pitchInNote: z.string().nullable().optional(),
+  // What to Bring V2
   bringListEnabled: z.boolean().optional(),
   bringListItems: z.array(z.object({
     id: z.string(),
@@ -145,16 +137,10 @@ export const eventSchema = z.object({
     claimedByUserId: z.string().nullable().optional(),
     claimedByName: z.string().nullable().optional(),
   })).optional(),
-  // Guest RSVPs (web event page — no email/phone/token exposed)
-  // SYNC: Must match guestRsvpItemSchema in backend contracts + publicEvents.ts serialization
-  guestRsvps: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    status: z.string(),
-    createdAt: z.string(),
-  })).optional(),
-  // Guest RSVP privacy flags (raw booleans — app decides UI logic)
-  // SYNC: Must match event model privacy booleans in prisma/schema.prisma
+  // Circle event metadata (present when visibility is circle_only)
+  circleId: z.string().nullable().optional(),
+  circleName: z.string().nullable().optional(),
+  // Privacy & Display — control guest/location visibility on web
   showGuestList: z.boolean().optional(),
   showGuestCount: z.boolean().optional(),
   showLocationPreRsvp: z.boolean().optional(),
@@ -162,13 +148,43 @@ export const eventSchema = z.object({
 });
 export type Event = z.infer<typeof eventSchema>;
 
-// ── Reusable sub-types extracted from schemas ──────────────────────
 /** Canonical visibility values accepted by create/update and returned by read. */
 export type EventVisibility = "all_friends" | "specific_groups" | "circle_only" | "open_invite" | "private";
 /** RSVP status values the viewer can set (outbound mutations). */
 export type RsvpStatusMutation = "going" | "interested" | "not_going";
 /** RSVP status values the server may return (includes legacy "maybe"). */
 export type RsvpStatusResponse = "going" | "interested" | "not_going" | "maybe";
+
+// Event Themes V1 — allowed theme IDs (5 free + 25 premium)
+export const ALLOWED_THEME_IDS = [
+  // Free essentials (5)
+  "neutral", "chill_hang", "dinner_night", "game_night", "worship_night",
+  // Premium — Celebration Pack
+  "birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day",
+  "new_years_eve", "awards_night",
+  // Premium — Romance Pack
+  "valentines", "romance_elegant", "date_night", "anniversary",
+  // Premium — Spring Pack
+  "spring_bloom", "garden_party", "spring_brunch", "easter",
+  // Premium — Summer Pack
+  "summer_splash", "bonfire_night", "luau", "pool_party", "beach_day",
+  // Premium — Seasonal / Mood Pack
+  "fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night",
+  // Custom — user-created themes
+  "custom",
+] as const;
+export type ThemeId = typeof ALLOWED_THEME_IDS[number];
+
+export const PREMIUM_THEME_IDS: readonly ThemeId[] = [
+  "birthday_bash", "celebration", "graduation", "fourth_of_july", "game_day",
+  "new_years_eve", "awards_night",
+  "valentines", "romance_elegant", "date_night", "anniversary",
+  "spring_bloom", "garden_party", "spring_brunch", "easter",
+  "summer_splash", "bonfire_night", "luau", "pool_party", "beach_day",
+  "fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night",
+] as const;
+
+const themeIdSchema = z.enum(ALLOWED_THEME_IDS).nullable().optional();
 
 // ============================================
 // Guest RSVP (web event page, no auth)
@@ -210,7 +226,6 @@ export type GetEventsResponse = z.infer<typeof getEventsResponseSchema>;
 
 // GET /api/events/feed - Get activity feed (friends' open events)
 // Supports pagination: ?limit=N&cursor=ID
-// Response always includes nextCursor (null when no more pages)
 export const getEventsFeedResponseSchema = z.object({
   events: z.array(eventSchema),
   nextCursor: z.string().nullable().optional(), // null = no more pages
@@ -247,51 +262,51 @@ export const createEventRequestSchema = z.object({
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().optional(),
-  nextOccurrence: z.string().nullable().optional(),
-  seriesId: z.string().nullable().optional(),
-  seriesIndex: z.number().nullable().optional(),
-  effectiveStartTime: z.string().optional(),
-  effectiveEndTime: z.string().nullable().optional(),
   visibility: z.enum(["all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
   groupIds: z.array(z.string()).optional(), // Required if visibility is specific_groups
   circleId: z.string().optional(), // Required if visibility is circle_only
   isPrivateCircleEvent: z.boolean().optional(), // If true, shows as "busy" to non-circle members
   sendNotification: z.boolean().optional(), // Whether to notify friends about this event
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
-  capacity: z.number().min(1).nullable().optional(), // Max guests (null = unlimited)
+  capacity: z.number().int().positive().nullable().optional(), // Max attendees (null = unlimited)
   // Pitch In V1
   pitchInEnabled: z.boolean().optional(),
   pitchInTone: z.enum(["optional", "suggested"]).optional(),
-  pitchInAmount: z.string().optional(), // Display string e.g. "$10", "£5"
+  pitchInAmount: z.string().optional(),
   pitchInMethod: z.enum(["venmo", "cashapp", "paypal", "other"]).optional(),
-  pitchInHandle: z.string().optional(), // Username/handle for the payment method
-  pitchInNote: z.string().optional(), // Host note
+  pitchInHandle: z.string().optional(),
+  pitchInNote: z.string().optional(),
   // What to Bring V2
   bringListEnabled: z.boolean().optional(),
   bringListItems: z.array(z.object({
     id: z.string(),
     label: z.string(),
+    claimedByUserId: z.string().nullable().optional(),
+    claimedByName: z.string().nullable().optional(),
   })).optional(),
   // Event cover photo (optional, uploaded before create)
   eventPhotoUrl: z.string().optional(),
   eventPhotoPublicId: z.string().optional(),
   // Event Themes V1
-  themeId: z.string().nullable().optional(),
+  themeId: themeIdSchema,
   customThemeData: z.any().nullable().optional(),
   // Event Effects V1
   effectId: z.string().nullable().optional(),
   customEffectConfig: z.any().nullable().optional(),
-  // Card Color — explicit hex override for card backgrounds (null = use theme default)
+  // Card Color — explicit hex override for card backgrounds
   cardColor: z.string().max(9).nullable().optional(),
   // Privacy & Display — control guest/location visibility on web
   showGuestList: z.boolean().optional(),
   showGuestCount: z.boolean().optional(),
   showLocationPreRsvp: z.boolean().optional(),
   hideWebLocation: z.boolean().optional(),
+  // Offline idempotency — client-generated unique key to prevent duplicate creation on replay
+  idempotencyKey: z.string().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({
   event: eventSchema,
+  requestId: z.string().optional(),
 });
 export type CreateEventResponse = z.infer<typeof createEventResponseSchema>;
 
@@ -308,6 +323,19 @@ export const deleteEventResponseSchema = z.object({
   success: z.boolean(),
 });
 export type DeleteEventResponse = z.infer<typeof deleteEventResponseSchema>;
+
+// GET /api/events/:id - Friend-boundary restricted response (403)
+// Invariant: restricted:true implies host.id is always present (non-empty).
+export const eventFriendBoundaryResponseSchema = z.object({
+  error: z.string(),
+  restricted: z.literal(true),
+  host: z.object({
+    id: z.string().min(1),  // MUST be non-empty — derived from event FK, never relation
+    name: z.string().nullable(),
+    image: z.string().nullable(),
+  }),
+});
+export type EventFriendBoundaryResponse = z.infer<typeof eventFriendBoundaryResponseSchema>;
 
 // POST /api/events/:id/join - Request to join event
 export const joinEventRequestSchema = z.object({
@@ -335,6 +363,7 @@ export type UpdateJoinResponse = z.infer<typeof updateJoinResponseSchema>;
 
 // ============================================
 // Open Invite - Event Summary (Host Reflection)
+// Note: backend endpoint exists but schema not in backend contracts.ts
 // ============================================
 
 // PUT /api/events/:id/summary - Update event summary (host only)
@@ -367,6 +396,40 @@ export const getPendingSummariesResponseSchema = z.object({
   })),
 });
 export type GetPendingSummariesResponse = z.infer<typeof getPendingSummariesResponseSchema>;
+
+// ============================================
+// Open Invite - RSVP
+// ============================================
+
+// POST /api/events/:id/rsvp - Set RSVP status
+export const rsvpRequestSchema = z.object({
+  status: z.enum(["going", "interested", "maybe", "not_going"]),
+});
+export type RsvpRequest = z.infer<typeof rsvpRequestSchema>;
+
+export const rsvpResponseSchema = z.object({
+  success: z.boolean(),
+  rsvpStatus: z.enum(["going", "interested", "maybe", "not_going"]),
+  previousStatus: z.enum(["going", "interested", "maybe", "not_going"]).nullable().optional(),
+  event: z.object({
+    capacity: z.number().nullable(),
+    goingCount: z.number(),
+    isFull: z.boolean(),
+  }),
+  _meta: z.object({
+    serverTs: z.string(),
+    entityVersion: z.string(),
+    requestId: z.string(),
+  }),
+});
+export type RsvpResponse = z.infer<typeof rsvpResponseSchema>;
+
+// DELETE /api/events/:id/rsvp - Remove RSVP
+export const rsvpDeleteResponseSchema = z.object({
+  success: z.boolean(),
+  previousStatus: z.string().nullable(),
+});
+export type RsvpDeleteResponse = z.infer<typeof rsvpDeleteResponseSchema>;
 
 // ============================================
 // Open Invite - Event Comments
@@ -433,9 +496,10 @@ export const friendUserSchema = z.object({
     profileCardColor: z.string().nullable().optional(),
   }).nullable().optional(),
   featuredBadge: z.object({
-    badgeKey: z.string(),
+    achievementId: z.string(),
     name: z.string(),
-    description: z.string(),
+    emoji: z.string(),
+    tier: z.string(),
     tierColor: z.string(),
   }).nullable().optional(),
 });
@@ -620,7 +684,6 @@ export const notificationSchema = z.object({
   body: z.string(),
   data: z.string().nullable(),
   read: z.boolean(),
-  seen: z.boolean(),
   createdAt: z.string(),
 });
 export type Notification = z.infer<typeof notificationSchema>;
@@ -692,9 +755,10 @@ export const getProfileResponseSchema = z.object({
     grantedAt: z.string(),
   })),
   featuredBadge: z.object({
-    badgeKey: z.string(),
+    achievementId: z.string(),
     name: z.string(),
-    description: z.string(),
+    emoji: z.string(),
+    tier: z.string(),
     tierColor: z.string(),
   }).nullable().optional(),
 });
@@ -705,8 +769,14 @@ export const updateProfileRequestSchema = z.object({
   handle: z.string().min(3).max(30).optional(),
   bio: z.string().max(200).optional(),
   calendarBio: z.string().max(300).optional(),
-  avatarUrl: z.string().url().optional(),
-  bannerPhotoUrl: z.string().url().optional().nullable(),
+  avatarUrl: z.string().refine(
+    (val) => val.startsWith('/') || val.startsWith('http://') || val.startsWith('https://'),
+    { message: 'Avatar URL must be a relative path starting with / or a full URL' }
+  ).optional(),
+  bannerPhotoUrl: z.string().refine(
+    (val) => val.startsWith('/') || val.startsWith('http://') || val.startsWith('https://'),
+    { message: 'Banner URL must be a relative path starting with / or a full URL' }
+  ).optional().nullable(),
   name: z.string().min(1).optional(),
   phone: z.string().max(20).optional().nullable(), // Phone number for friend search
   birthday: z.string().optional(), // ISO date string
@@ -755,8 +825,6 @@ export const searchUserResultSchema = z.object({
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   handle: z.string().nullable(),
-  bio: z.string().nullable().optional(),
-  calendarBio: z.string().nullable().optional(),
   mutualCount: z.number().optional(),
   isFriend: z.boolean().optional(),
 });
@@ -1072,14 +1140,7 @@ export type GetSuggestionsFeedResponse = z.infer<typeof getSuggestionsFeedRespon
 // Activity item object
 export const activityItemSchema = z.object({
   id: z.string(),
-  type: z.enum([
-    "event_created",
-    "event_joined",
-    "event_commented",
-    "photo_added",
-    "business_event_attending",
-    "business_event_interested",
-  ]),
+  type: z.enum(["event_created", "event_joined", "event_commented", "photo_added"]),
   timestamp: z.string(),
   user: z.object({
     id: z.string(),
@@ -1099,13 +1160,6 @@ export const activityItemSchema = z.object({
   }),
   content: z.string().optional(), // For comments
   imageUrl: z.string().optional(), // For photos
-  isBusinessEvent: z.boolean().optional(), // For business events
-  business: z.object({
-    id: z.string(),
-    name: z.string(),
-    handle: z.string(),
-    logoUrl: z.string().nullable(),
-  }).optional(), // For business events
 });
 export type ActivityItem = z.infer<typeof activityItemSchema>;
 
@@ -1677,7 +1731,7 @@ export const businessProfileSchema = z.object({
 });
 export type BusinessProfile = z.infer<typeof businessProfileSchema>;
 
-export const profileSchema = z.union([personalProfileSchema, businessProfileSchema]);
+export const profileSchema = personalProfileSchema;
 export type Profile = z.infer<typeof profileSchema>;
 
 // GET /api/profiles - Get all profiles

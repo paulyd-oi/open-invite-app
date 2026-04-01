@@ -29,7 +29,6 @@ export function CardColorPicker({
 
   const handleColorSelect = useCallback(
     ({ hex }: { hex: string }) => {
-      if (__DEV__) console.log("[CARD_COLOR_PICKER] hex:", hex);
       onColorChange(hex);
     },
     [onColorChange],

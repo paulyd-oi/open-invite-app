@@ -4,12 +4,8 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Switch,
   Platform,
   Linking,
-  Modal,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -21,34 +17,22 @@ import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ChevronLeft,
-  Palette,
   Bell,
   Shield,
   HelpCircle,
   Info,
   LogOut,
-  Check,
   Sun,
   Moon,
   Smartphone,
   UserX,
-  Cake,
-  ChevronDown,
-  Briefcase,
-  Clock,
   Crown,
   RotateCcw,
   FileText,
   Scale,
   ExternalLink,
   Gift,
-  Share2,
-  Phone,
   CalendarDays,
-  Users,
-  Copy,
-  Mail,
-  RefreshCw,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";

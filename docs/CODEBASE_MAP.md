@@ -112,7 +112,7 @@ Two layers:
 | `create/MotifOverlay.tsx` | 671 | Skia animated motif overlay: petals, hearts, decorative shapes |
 | `EventPhotoGallery.tsx` | 665 | Photo gallery: upload, delete, lightbox, download |
 | `activity/ActivityFeed.tsx` | 634 | Paginated notification feed: mark-read, infinite scroll, skeleton |
-| `create/SettingsSheetContent.tsx` | 608 | Create settings: visibility, recurrence, capacity, circle, notifications |
+| `create/SettingsSheetContent.tsx` | 684 | Create settings: visibility, recurrence, capacity, circle, notifications, privacy & display toggles |
 | `create/CoverMediaPickerSheet.tsx` | 545 | Cover media picker: Featured, GIFs, My Uploads tabs |
 | `FeedCalendar.tsx` | 524 | Monthly calendar grid for Social tab with day-agenda sheet |
 | `CircleCard.tsx` | 506 | Swipeable circle card: pin, mute, leave actions |
@@ -163,7 +163,7 @@ Two layers:
 | `EmptyState.tsx` | 326 | Animated empty state with pulsing icon and optional CTA |
 | `event/DiscussionCard.tsx` | 313 | Event discussion: text posts, image attachments, prompts |
 | `BottomNavigation.tsx` | 302 | Floating island tab bar: badges, avatar, spring press |
-| `event/WhosComingCard.tsx` | 298 | Attendees preview: avatar stack, interested, full sheet trigger |
+| `event/WhosComingCard.tsx` | 400 | Attendees preview: avatar stack, interested, guest RSVP section, full sheet trigger |
 | `WelcomeModal.tsx` | 294 | First-login modal adapting to email verification status |
 | `CreateCircleModal.tsx` | 294 | Circle creation: name, emoji, member selection |
 | `event/EventActionsSheet.tsx` | 281 | Event actions: edit, duplicate, share, photo, report, delete |
@@ -202,7 +202,7 @@ Two layers:
 | `Toast.tsx` | 168 | In-app toast: success, info, warning, error |
 | `ReconnectReminder.tsx` | 165 | Reconnect-with-friends horizontal scroll |
 | `EntityAvatar.tsx` | 165 | SSOT avatar: photo, emoji, initials, icon fallback |
-| `event/AttendeesSheet.tsx` | 164 | Full attendee list bottom sheet |
+| `event/AttendeesSheet.tsx` | 203 | Full attendee list bottom sheet with guest rows |
 | `ShareApp.tsx` | 163 | Share-the-app button/panel (icon, compact, full) |
 | `event/StickyRsvpBar.tsx` | 161 | Sticky bottom RSVP bar for non-host viewers |
 | `event/RsvpButtonGroup.tsx` | 156 | Going/Interested/Not Going pill buttons |
@@ -330,7 +330,7 @@ Two layers:
 | `exactAppleAuthBootstrap.ts` | 293 | Apple auth post-backend bootstrap: token recovery, cookie, barrier |
 | `smartMicrocopy.ts` | 291 | Deterministic daily microcopy SSOT for Ideas deck |
 | `eventQueryKeys.ts` | 287 | Event React Query keys + effectiveAttendeeCount + invalidation |
-| `shareSSOT.ts` | 285 | Share links/messages: custom scheme, branded domain, App Store URL |
+| `shareSSOT.ts` | 288 | Share links: www.openinvite.cloud/event/:id, FORBIDDEN_DOMAINS guard, App Store URL |
 | `sharedAppleAuth.ts` | 284 | Shared Apple Sign-In for welcome + login screens |
 | `refreshAfterMutation.ts` | 279 | Post-mutation query invalidation contract |
 | `notifications.ts` | 278 | Push registration, channel setup, token getter |
@@ -459,6 +459,106 @@ Two layers:
 | `cn.ts` | 6 | clsx + tailwind-merge utility |
 | `useClientOnlyValue.ts` | 4 | Native no-op: always returns client value |
 | `useColorScheme.ts` | 1 | Re-export useColorScheme from React Native |
+
+---
+
+## Recent Systems (Sprint 2026-03)
+
+### Guest RSVP System
+Non-users can RSVP from the web event page without the app.
+
+| File | Purpose |
+|------|---------|
+| `my-app-backend/prisma/schema.prisma` | `GuestRsvp` model: name, email, status, token, eventId |
+| `my-app-backend/src/routes/publicEvents.ts` | POST `/api/events/:id/rsvp/guest` — create/update guest RSVP; GET `/api/events/:id/public` — includes guestRsvps array, respects x-guest-token for location reveal |
+| `src/components/event/WhosComingCard.tsx` | 400 lines — renders "Guests" section with guest badge for web RSVPs |
+| `src/components/event/AttendeesSheet.tsx` | 203 lines — full attendee list includes guest rows |
+| `shared/contracts.ts` | GuestRsvpItem type, guestRsvps on event response schema |
+
+### Privacy System
+Per-event privacy controls for guest list, count, location, and web visibility.
+
+| File | Purpose |
+|------|---------|
+| `my-app-backend/prisma/schema.prisma` | 4 booleans on Event: showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation |
+| `my-app-backend/src/routes/publicEvents.ts` | Enforces privacy flags in public event serialization + post-RSVP location reveal |
+| `src/components/create/SettingsSheetContent.tsx` | 684 lines — Privacy & Display toggles in create/edit settings sheet |
+| `src/app/create.tsx` | Privacy booleans in form state, included in create/update payload |
+| `shared/contracts.ts` | Privacy booleans on createEventRequestSchema and eventSchema |
+
+### Profile Themes & Edit Profile
+Dedicated edit profile page with live preview, profile themes, and banner customization.
+
+| File | Purpose |
+|------|---------|
+| `src/app/edit-profile.tsx` | 710 lines — WYSIWYG edit profile page: name, bio, banner, avatar, profile theme |
+| `src/components/ProfileThemeBackground.tsx` | 62 lines — profile theme gradient background renderer |
+| `src/components/customization/ThemePicker.tsx` | 255 lines — shared theme picker used for profile themes |
+| `my-app-backend/prisma/schema.prisma` | profileThemeId + profileCardColor on Profile model |
+
+### Card Color System
+Custom event card colors in the social feed.
+
+| File | Purpose |
+|------|---------|
+| `src/components/create/CardColorPicker.tsx` | 200 lines — color picker for event card color on create page |
+| `src/components/InviteFlipCard.tsx` | 781 lines — applies cardColor with auto-contrast text (luminance-based) |
+| `shared/contracts.ts` | card_color on event create/update request, cardColor on event response |
+
+### Share Link Architecture
+Events are shared as web links that open a full event page with OG metadata.
+
+| File | Purpose |
+|------|---------|
+| `src/lib/shareSSOT.ts` | 288 lines — SSOT share link builder: www.openinvite.cloud/event/:id, FORBIDDEN_DOMAINS guard |
+| `src/lib/deepLinks.ts` | 439 lines — deep link router with backward compat for old go.openinvite.cloud domain |
+| `my-app-backend/src/routes/sharePages.ts` | 301 redirect for humans from old share URLs; OG HTML for crawlers |
+
+### Premium Gating
+Themes, effects, and Theme Studio are gated behind Pro subscription.
+
+| File | Purpose |
+|------|---------|
+| `src/components/paywall/PremiumUpsellSheet.tsx` | 218 lines — reusable premium gate bottom sheet |
+| `src/lib/entitlements.ts` | 946 lines — SSOT plan-based feature gating |
+| `src/app/paywall.tsx` | 777 lines — RevenueCat paywall with tier comparison |
+
+### Web Event Page (openinvite-website repo)
+Public event page at www.openinvite.cloud/event/:id with guest RSVP flow.
+
+| File | Purpose |
+|------|---------|
+| `app/event/[id]/page.tsx` | Server component: data fetch, OG metadata, theme resolution |
+| `src/components/EventPageClient.tsx` | Client orchestrator: grid layout, RSVP state, post-RSVP re-fetch, mobile sticky CTA |
+| `src/components/EventCard.tsx` | Event detail card: title, date, location (privacy-aware), host, guests, RSVP children |
+| `src/components/RsvpSection.tsx` | Guest RSVP form: going/not_going, name, email, localStorage token persistence |
+| `src/components/GuestPreview.tsx` | Social proof: avatar strip, "N Going", privacy flag enforcement |
+| `src/components/AppDownloadCta.tsx` | App download CTA with deep link + App Store fallback |
+| `app/event/[id]/loading.tsx` | Skeleton shimmer loading state |
+| `app/globals.css` | Responsive grid layout, sticky RSVP bar, skeleton animation |
+
+### Find Friends Consolidation
+Old separate Find Friends + Add Friends pages consolidated into single unified page.
+
+| File | Purpose |
+|------|---------|
+| `src/app/find-friends.tsx` → `src/app/add-friends.tsx` | Single page wrapping FriendDiscoverySurface |
+| `src/components/FriendDiscoverySurface.tsx` | 689 lines — SSOT discovery: contacts import, search, suggestions |
+
+### Dynamic Chat Names
+1-on-1 DM headers show the other person's name instead of generic circle name.
+
+| File | Purpose |
+|------|---------|
+| `src/app/circle/[id].tsx` | 2937 lines — DM header logic derives display name from members list |
+
+### Create/Edit SSOT
+Create page is the single source of truth for both creating and editing events.
+
+| File | Purpose |
+|------|---------|
+| `src/app/create.tsx` | 813 lines — create + edit mode via `editEventId` param, prefills from GET, branches submit to POST/PUT |
+| `src/app/event/edit/[id].tsx` | 962 lines — thin redirect to `/create?editEventId=:id` |
 
 ---
 

@@ -9,7 +9,7 @@ import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import { trackEventCreated } from "@/lib/rateApp";
-import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS, type ThemeId } from "@/lib/eventThemes";
+import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS, isValidThemeId, type ThemeId } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
@@ -469,26 +469,26 @@ export default function CreateEventScreen() {
     }
 
     // Theme
-    const evtThemeId = (editEvent as any).themeId;
-    if (evtThemeId && evtThemeId !== "custom") {
+    const evtThemeId = editEvent.themeId;
+    if (evtThemeId && evtThemeId !== "custom" && isValidThemeId(evtThemeId)) {
       setSelectedThemeId(evtThemeId);
     }
-    if ((editEvent as any).customThemeData) {
+    if (editEvent.customThemeData) {
       setSelectedCustomTheme({
         id: "custom_existing",
-        name: (editEvent as any).customThemeData.name ?? "Custom",
-        visualStack: (editEvent as any).customThemeData.visualStack ?? {},
+        name: editEvent.customThemeData.name ?? "Custom",
+        visualStack: editEvent.customThemeData.visualStack ?? {},
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
 
     // Effect
-    if ((editEvent as any).effectId) {
-      setSelectedEffectId((editEvent as any).effectId);
+    if (editEvent.effectId) {
+      setSelectedEffectId(editEvent.effectId);
     }
-    if ((editEvent as any).customEffectConfig) {
-      setCustomEffectConfig((editEvent as any).customEffectConfig);
+    if (editEvent.customEffectConfig) {
+      setCustomEffectConfig(editEvent.customEffectConfig);
     }
 
     // Cover image — renders in hero preview
@@ -497,15 +497,15 @@ export default function CreateEventScreen() {
     }
 
     // Card Color
-    if ((editEvent as any).cardColor) {
-      setCardColor((editEvent as any).cardColor);
+    if (editEvent.cardColor) {
+      setCardColor(editEvent.cardColor);
     }
 
     // Privacy & Display
-    setShowGuestList((editEvent as any).showGuestList ?? true);
-    setShowGuestCount((editEvent as any).showGuestCount ?? true);
-    setShowLocationPreRsvp((editEvent as any).showLocationPreRsvp ?? false);
-    setHideWebLocation((editEvent as any).hideWebLocation ?? false);
+    setShowGuestList(editEvent.showGuestList ?? true);
+    setShowGuestCount(editEvent.showGuestCount ?? true);
+    setShowLocationPreRsvp(editEvent.showLocationPreRsvp ?? false);
+    setHideWebLocation(editEvent.hideWebLocation ?? false);
 
     setIsEditLoaded(true);
   }, [isEditMode, editEvent, isEditLoaded]);
@@ -696,7 +696,6 @@ export default function CreateEventScreen() {
       showLocationPreRsvp,
       hideWebLocation,
     };
-    if (__DEV__) console.log("[CREATE_PAYLOAD] cardColor:", cardColor, "payload.cardColor:", (createPayload as any).cardColor);
     if (isEditMode) {
       updateMutation.mutate(createPayload as any);
       return;

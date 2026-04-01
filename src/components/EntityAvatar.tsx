@@ -6,10 +6,6 @@ import { EventPhotoEmoji } from "./EventPhotoEmoji";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { devLog } from "@/lib/devLog";
 
-if (__DEV__) {
-  // eslint-disable-next-line no-console
-  console.log('[P1_EXPO_IMAGE_ENABLED] EntityAvatar using expo-image');
-}
 
 export interface EntityAvatarProps {
   /** Remote image URL (actor avatar or event cover photo) */

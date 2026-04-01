@@ -66,12 +66,6 @@ export function FriendDiscoverySurface({
   onFriendAdded,
   children,
 }: FriendDiscoverySurfaceProps) {
-  // *** PROOF LOG: Component entry - ALWAYS LOG ***
-  console.log(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
-  if (__DEV__) {
-    devLog(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
-  }
-
   const { colors, isDark } = useTheme();
   const networkStatus = useNetworkStatus();
   const { data: session } = useSession();
@@ -99,9 +93,7 @@ export function FriendDiscoverySurface({
   const enabled = isAuthedForNetwork(bootStatus, session, { allowOnboarding: true });
   const themeColor = "#3B82F6";
 
-  // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
   const sessionUserId = session?.user?.id || 'none';
-  const onboardingAllowed = bootStatus === "onboarding" && !!sessionUserId;
 
   // *** SESSION CONTRACT VALIDATION ***
   if (bootStatus === "authed" && !sessionUserId) {
@@ -111,15 +103,7 @@ export function FriendDiscoverySurface({
       userId: sessionUserId,
       userEmail: session?.user?.email ?? "none",
     };
-    console.log(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
-    if (__DEV__) {
-      devLog(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
-    }
-  }
-  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline} onboardingAllowed=${onboardingAllowed}`);
-
-  if (__DEV__) {
-    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline} onboardingAllowed=${onboardingAllowed}`);
+    devLog(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
   }
 
   // DEV: Proof logs for friend discovery debugging
@@ -172,23 +156,12 @@ export function FriendDiscoverySurface({
   });
 
   // ── Friend suggestions (people you may know + default suggestions) ──
-  console.log(`[FRIEND_DISCOVERY_QUERY_FIRE suggestions] enabled=${enabled}`);
-  if (__DEV__) {
-    devLog(`[FRIEND_DISCOVERY_QUERY_FIRE suggestions] enabled=${enabled}`);
-  }
-
   const { data: suggestionsData, isLoading: suggestionsLoading, refetch: refetchSuggestions } = useQuery({
     queryKey: ["friendSuggestions"],
     queryFn: async () => {
-      console.log(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
-      if (__DEV__) {
-        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
-      }
+      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
       const result = await api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions");
-      console.log(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
-      if (__DEV__) {
-        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
-      }
+      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
       return result;
     },
     enabled,
@@ -434,17 +407,7 @@ export function FriendDiscoverySurface({
                     ? `${user.mutualCount} mutual friend${user.mutualCount !== 1 ? "s" : ""}`
                     : null;
 
-                  // *** PROOF LOGS ***
-                  if (index === 0) {
-                    const bioPresent = !!user.bio;
-                    const calendarBioPresent = !!user.calendarBio;
-                    const chosenField = user.calendarBio ? 'calendarBio' : user.bio ? 'bio' : user.mutualCount > 0 ? 'mutualCount' : 'none';
-                    console.log(`[SEARCH_ROW_RENDER_FIELDS] id=${user.id} name=${user.name} handle=${user.handle} bioPresent=${bioPresent} calendarBioPresent=${calendarBioPresent} chosenPreviewField=${chosenField}`);
-                    console.log(`[SEARCH_ROW_PRESS_READY] id=${user.id} hasOnPress=true routeTarget=${profileRoute}`);
-                  }
-
                   const handleRowPress = () => {
-                    console.log(`[SEARCH_ROW_NAVIGATE] id=${user.id} route=${profileRoute}`);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push(profileRoute as any);
                   };
