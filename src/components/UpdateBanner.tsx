@@ -72,7 +72,7 @@ export function UpdateBanner() {
   // App Store URL — uses SSOT constant; Android fallback kept inline
   const storeUrl = Platform.OS === "ios"
     ? APP_STORE_URL
-    : "https://play.google.com/store/apps/details?id=com.openinvite.app";
+    : "https://play.google.com/store/apps/details?id=com.vibecode.openinvite.x0qi5wk";
 
   const handleUpdate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

@@ -2554,7 +2554,7 @@ export default function EventDetailScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                     const body = buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }));
-                    Linking.openURL(`sms:&body=${encodeURIComponent(body)}`);
+                    Linking.openURL(`sms:${Platform.OS === "ios" ? "&" : "?"}body=${encodeURIComponent(body)}`);
                   }}
                   style={{
                     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
