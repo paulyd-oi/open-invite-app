@@ -216,9 +216,16 @@ export default function AccountSettingsScreen() {
     try {
       await api.delete<{ success: boolean }>("/api/privacy/account");
       safeToast.success("Account Deleted", "Your account has been permanently deleted.");
-      await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
+      try {
+        await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
+      } catch {
+        // Account is deleted; if logout fails, force navigation to clean state
+        router.replace("/" as any);
+      }
     } catch {
       safeToast.error("Delete Failed", "Failed to delete account. Please try again.");
+      setShowDeleteAccountConfirm(false);
+      setShowFinalDeleteConfirm(false);
     } finally {
       setIsDeletingAccount(false);
     }

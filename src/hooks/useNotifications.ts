@@ -454,6 +454,7 @@ export function useNotifications() {
         return;
       }
       await AsyncStorage.setItem(throttleKey, Date.now().toString());
+      lastRegisteredUserId = userId ?? null;
       devLog(`[P0_PUSH_REG] THROTTLE_MARKED userId=${userId?.substring(0, 8)}...`);
     } catch {
       // Ignore storage errors

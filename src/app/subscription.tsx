@@ -734,14 +734,18 @@ export default function SubscriptionScreen() {
         )}
 
         {/* Manage Subscription Link */}
-        {isPremium && !isLifetime && Platform.OS === "ios" && (
+        {isPremium && !isLifetime && (
           <Animated.View entering={FadeInDown.delay(500).springify()} className="mx-4 mt-4">
             <Button
               variant="secondary"
-              label="Manage in App Store"
+              label={Platform.OS === "ios" ? "Manage in App Store" : "Manage Subscription"}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Linking.openURL("https://apps.apple.com/account/subscriptions");
+                Linking.openURL(
+                  Platform.OS === "ios"
+                    ? "https://apps.apple.com/account/subscriptions"
+                    : "https://play.google.com/store/account/subscriptions"
+                );
               }}
               leftIcon={<ExternalLink size={18} color={colors.buttonSecondaryText} />}
               style={{ borderRadius: 16, paddingVertical: 14 }}

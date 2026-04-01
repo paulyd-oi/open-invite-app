@@ -612,6 +612,10 @@ export default function CreateEventScreen() {
       safeToast.warning("Missing Title", "Please enter a title for your event.");
       return;
     }
+    if (!isEditMode && startDate < new Date()) {
+      safeToast.warning("Invalid Date", "Event start time must be in the future.");
+      return;
+    }
     if (endDate <= startDate) {
       safeToast.warning("Invalid Time", "End time must be after start time.");
       return;

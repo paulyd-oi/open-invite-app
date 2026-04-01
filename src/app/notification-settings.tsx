@@ -330,8 +330,12 @@ export default function NotificationSettingsScreen() {
       }
     }
     
-    // Update preference in backend
-    updatePreference("pushEnabled", value);
+    // Update preference in backend — await so toggle reflects actual state
+    try {
+      await updateMutation.mutateAsync({ pushEnabled: value });
+    } catch {
+      safeToast.error("Update Failed", "Could not update notification preference. Please try again.");
+    }
   };
 
   // Fetch preferences

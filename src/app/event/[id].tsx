@@ -2379,6 +2379,17 @@ export default function EventDetailScreen() {
     });
   }
 
+  // [LB-1] Location privacy: hide full location from non-eligible viewers
+  // when host has set showLocationPreRsvp to false (default).
+  // Eligible: host, co-host, or user who has RSVP'd going/interested.
+  const locationHiddenByPrivacy =
+    event.showLocationPreRsvp === false &&
+    !isMyEvent &&
+    myRsvpStatus !== "going" &&
+    myRsvpStatus !== "interested";
+  const effectiveLocationDisplay = locationHiddenByPrivacy ? null : locationDisplay;
+  const effectiveLocationQuery = locationHiddenByPrivacy ? null : locationQuery;
+
   // Hero banner URI — maps event photo → hero surface (no schema change)
   const eventBannerUri = resolveBannerUri({
     bannerPhotoUrl: event?.eventPhotoUrl ?? null,
@@ -2458,7 +2469,7 @@ export default function EventDetailScreen() {
               countdownLabel={countdownLabel}
               dateLabel={dateLabel}
               timeLabel={timeLabel}
-              locationDisplay={locationDisplay}
+              locationDisplay={effectiveLocationDisplay}
               goingCount={effectiveGoingCount}
               attendeeAvatars={(() => {
                 const hostId = event?.user?.id;
@@ -2620,10 +2631,10 @@ export default function EventDetailScreen() {
           description={event.description}
           descriptionExpanded={descriptionExpanded}
           onToggleDescription={() => setDescriptionExpanded(!descriptionExpanded)}
-          locationDisplay={locationDisplay}
+          locationDisplay={effectiveLocationDisplay}
           onGetDirections={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            openEventLocation(locationQuery ?? locationDisplay ?? "", event, event.id);
+            openEventLocation(effectiveLocationQuery ?? effectiveLocationDisplay ?? "", event, event.id);
           }}
           isMyEvent={isMyEvent}
           isBusy={event.isBusy ?? false}
