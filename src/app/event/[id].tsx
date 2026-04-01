@@ -1432,6 +1432,11 @@ export default function EventDetailScreen() {
       safeToast.warning("Full", "This invite is full.");
       return;
     }
+    // Guard: block attendance RSVPs when deadline has passed
+    if (status === "going" && event?.rsvpDeadline && new Date(event.rsvpDeadline) < new Date()) {
+      safeToast.warning("RSVPs Closed", "The RSVP deadline for this event has passed.");
+      return;
+    }
     // Show confirmation modal when removing RSVP
     if (status === "not_going" && myRsvpStatus && myRsvpStatus !== "not_going") {
       setShowRemoveRsvpConfirm(true);
@@ -2023,6 +2028,11 @@ export default function EventDetailScreen() {
               description={event.description ?? null}
               hostName={event.user?.name ?? null}
               hostImageUrl={event.user?.image ?? null}
+              coHostNames={(event.hostIds ?? [])
+                .filter((hid: string) => hid !== event.user?.id)
+                .map((hid: string) => attendeesList.find((a: AttendeeInfo) => a.id === hid)?.name)
+                .filter((n): n is string => !!n)}
+
               isMyEvent={isMyEvent}
               capacity={eventMeta.capacity}
               currentGoing={effectiveGoingCount}
@@ -2127,6 +2137,8 @@ export default function EventDetailScreen() {
             router.push(`/circle/${event.circleId}` as any);
           }}
           eventMeta={eventMeta}
+          rsvpDeadline={event.rsvpDeadline}
+          costPerPerson={event.costPerPerson}
           pitchInEnabled={event.pitchInEnabled}
           pitchInHandle={event.pitchInHandle}
           pitchInMethod={event.pitchInMethod}
@@ -2342,6 +2354,7 @@ export default function EventDetailScreen() {
         <StickyRsvpBar
           effectiveGoingCount={effectiveGoingCount}
           isFull={eventMeta.isFull}
+          isDeadlinePassed={!!event.rsvpDeadline && new Date(event.rsvpDeadline) < new Date()}
           myRsvpStatus={myRsvpStatus}
           isPending={rsvpMutation.isPending}
           isDark={isDark}

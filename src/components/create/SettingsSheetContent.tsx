@@ -6,8 +6,10 @@ import {
   Pressable,
   TextInput,
   Switch,
+  Platform,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   RefreshCw,
   ChevronDown,
@@ -66,6 +68,16 @@ interface SettingsSheetContentProps {
   capacityInput: string;
   onSetCapacityInput: (v: string) => void;
 
+  // RSVP Deadline
+  hasRsvpDeadline: boolean;
+  onSetHasRsvpDeadline: (v: boolean) => void;
+  rsvpDeadlineDate: Date;
+  onSetRsvpDeadlineDate: (v: Date) => void;
+
+  // Cost Per Person
+  costPerPerson: string;
+  onSetCostPerPerson: (v: string) => void;
+
   // Pitch In
   pitchInEnabled: boolean;
   onSetPitchInEnabled: (v: boolean) => void;
@@ -117,6 +129,8 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
     visibility, onSetVisibility, circles, selectedGroupIds, onToggleGroup,
     sendNotification, onSetSendNotification,
     hasCapacity, onSetHasCapacity, capacityInput, onSetCapacityInput,
+    hasRsvpDeadline, onSetHasRsvpDeadline, rsvpDeadlineDate, onSetRsvpDeadlineDate,
+    costPerPerson, onSetCostPerPerson,
     pitchInEnabled, onSetPitchInEnabled, pitchInAmount, onSetPitchInAmount,
     pitchInMethod, onSetPitchInMethod, pitchInHandle, onSetPitchInHandle,
     pitchInNote, onSetPitchInNote,
@@ -367,6 +381,61 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
             </View>
           </View>
         )}
+      </View>
+
+      {/* ── RSVP Deadline ── */}
+      <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>RSVP Deadline</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>RSVPs close after this date.</Text>
+          </View>
+          <Switch
+            value={hasRsvpDeadline}
+            onValueChange={(value) => {
+              Haptics.selectionAsync();
+              onSetHasRsvpDeadline(value);
+              if (value && !rsvpDeadlineDate) {
+                // Default to event start minus 1 day
+                onSetRsvpDeadlineDate(new Date());
+              }
+            }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={hasRsvpDeadline ? themeColor : glassTertiary}
+          />
+        </View>
+        {hasRsvpDeadline && (
+          <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+            <DateTimePicker
+              value={rsvpDeadlineDate}
+              mode="datetime"
+              display={Platform.OS === "ios" ? "compact" : "default"}
+              minimumDate={new Date()}
+              onChange={(_, selectedDate) => {
+                if (selectedDate) onSetRsvpDeadlineDate(selectedDate);
+              }}
+              themeVariant={isDark ? "dark" : "light"}
+            />
+          </View>
+        )}
+      </View>
+
+      {/* ── Cost Per Person ── */}
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Cost Per Person</Text>
+        <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+          <TextInput
+            value={costPerPerson}
+            onChangeText={onSetCostPerPerson}
+            placeholder="e.g. $20, Free, BYOB"
+            placeholderTextColor={glassTertiary}
+            style={{ fontSize: 14, color: glassText }}
+            maxLength={100}
+          />
+        </View>
+        <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 4, marginLeft: 2 }}>
+          Shown on the event page for guests to see.
+        </Text>
       </View>
 
       {/* ── Pitch In ── */}

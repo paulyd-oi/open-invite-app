@@ -63,6 +63,7 @@ export const eventSchema = z.object({
   visibility: z.string(),
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
+  costPerPerson: z.string().nullable().optional(), // Display-only cost info e.g. "$20", "Free"
   // Capacity fields
   capacity: z.number().nullable().optional(), // Max attendees (null = unlimited)
   goingCount: z.number().optional(), // Current count of GOING RSVPs
@@ -276,6 +277,8 @@ export const createEventRequestSchema = z.object({
   sendNotification: z.boolean().optional(), // Whether to notify friends about this event
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
   capacity: z.number().int().positive().nullable().optional(), // Max attendees (null = unlimited)
+  rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
+  costPerPerson: z.string().max(100).nullable().optional(), // Display-only cost info e.g. "$20", "Free"
   // Pitch In V1
   pitchInEnabled: z.boolean().optional(),
   pitchInTone: z.enum(["optional", "suggested"]).optional(),

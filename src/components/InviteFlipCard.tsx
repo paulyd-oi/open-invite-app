@@ -54,6 +54,7 @@ export interface InviteFlipCardProps {
   description: string | null;
   hostName: string | null;
   hostImageUrl: string | null;
+  coHostNames?: string[];
   isMyEvent: boolean;
   capacity: number | null;
   currentGoing: number;
@@ -119,6 +120,7 @@ export function InviteFlipCard({
   description,
   hostName,
   hostImageUrl,
+  coHostNames = [],
   isMyEvent,
   capacity,
   currentGoing,
@@ -464,7 +466,9 @@ export function InviteFlipCard({
                           />
                         </View>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: cSecondary, marginLeft: 7 }}>
-                          {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
+                          {isMyEvent ? "Your event" : coHostNames.length > 0
+                            ? `Hosted by ${hostFirst} & ${coHostNames.map(n => n.split(" ")[0]).join(", ")}`
+                            : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
                     )}
@@ -597,7 +601,9 @@ export function InviteFlipCard({
                         Hosted by
                       </Text>
                       <Text style={{ fontSize: 17, fontWeight: "700", color: colors.text }}>
-                        {isMyEvent ? "You" : hostName}
+                        {isMyEvent ? "You" : coHostNames.length > 0
+                          ? `${hostName.split(" ")[0]} & ${coHostNames.map(n => n.split(" ")[0]).join(", ")}`
+                          : hostName}
                       </Text>
                     </View>
                   </View>

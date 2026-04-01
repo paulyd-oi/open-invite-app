@@ -11,6 +11,7 @@ interface StickyRsvpBarColors {
 interface StickyRsvpBarProps {
   effectiveGoingCount: number;
   isFull: boolean;
+  isDeadlinePassed?: boolean;
   myRsvpStatus: string | null;
   isPending: boolean;
   isDark: boolean;
@@ -51,6 +52,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export function StickyRsvpBar({
   effectiveGoingCount,
   isFull,
+  isDeadlinePassed = false,
   myRsvpStatus,
   isPending,
   isDark,
@@ -272,8 +274,8 @@ export function StickyRsvpBar({
       )}
 
       {/* ── Main bar buttons ── */}
-      {isFull && !isConfirmed ? (
-        /* Full event — disabled "Full" + Save */
+      {(isFull || isDeadlinePassed) && !isConfirmed ? (
+        /* Full or deadline-passed event — disabled label + Save */
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <View style={{
             flex: 1,
@@ -288,7 +290,9 @@ export function StickyRsvpBar({
             opacity: 0.6,
           }}>
             <Users size={16} color={colors.textTertiary} />
-            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
+            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>
+              {isDeadlinePassed ? "RSVPs Closed" : "Full"}
+            </Text>
           </View>
           <Pressable
             onPress={onRsvpInterested}

@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Compass, ArrowRight, Users, Lock, ChevronRight, HandCoins, Copy, ListChecks, Check } from "@/ui/icons";
+import { Compass, ArrowRight, Users, Lock, ChevronRight, HandCoins, Copy, ListChecks, Check, Clock } from "@/ui/icons";
 import { STATUS } from "@/ui/tokens";
 import { RADIUS } from "@/ui/layout";
 
@@ -41,6 +41,10 @@ interface AboutCardProps {
   onOpenCircle: () => void;
   // Capacity
   eventMeta: EventMeta;
+  // RSVP Deadline
+  rsvpDeadline: string | null | undefined;
+  // Cost Per Person
+  costPerPerson: string | null | undefined;
   // Pitch In
   pitchInEnabled: boolean | null | undefined;
   pitchInHandle: string | null | undefined;
@@ -74,6 +78,8 @@ export function AboutCard({
   circleId,
   onOpenCircle,
   eventMeta,
+  rsvpDeadline,
+  costPerPerson,
   pitchInEnabled,
   pitchInHandle,
   pitchInMethod,
@@ -204,6 +210,36 @@ export function AboutCard({
             </View>
           );
         })()}
+
+        {/* RSVP Deadline */}
+        {rsvpDeadline && (() => {
+          const deadline = new Date(rsvpDeadline);
+          const isPast = deadline < new Date();
+          const deadlineColor = isPast ? STATUS.destructive.fg : STATUS.soon.fg;
+          return (
+            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+              <Clock size={16} color={deadlineColor} />
+              <Text style={{ fontSize: 13, marginLeft: 8, color: isPast ? STATUS.destructive.fg : colors.textSecondary }}>
+                {isPast ? "RSVPs Closed" : `RSVPs close ${deadline.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${deadline.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+              </Text>
+              {isPast && (
+                <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8, backgroundColor: STATUS.destructive.bgSoft }}>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: STATUS.destructive.fg }}>Closed</Text>
+                </View>
+              )}
+            </View>
+          );
+        })()}
+
+        {/* Cost Per Person */}
+        {costPerPerson && (
+          <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+            <HandCoins size={16} color={themeColor} />
+            <Text style={{ fontSize: 13, marginLeft: 8, color: colors.textSecondary }}>
+              {costPerPerson}
+            </Text>
+          </View>
+        )}
       </Animated.View>
 
       {/* ═══ PITCH IN V1 — Payment handle display ═══ */}

@@ -141,6 +141,13 @@ export default function CreateEventScreen() {
   const [hasCapacity, setHasCapacity] = useState(false);
   const [capacityInput, setCapacityInput] = useState("");
 
+  // RSVP Deadline state
+  const [hasRsvpDeadline, setHasRsvpDeadline] = useState(false);
+  const [rsvpDeadlineDate, setRsvpDeadlineDate] = useState<Date>(new Date());
+
+  // Cost Per Person state
+  const [costPerPerson, setCostPerPerson] = useState("");
+
   // Pitch In V1 state
   const [pitchInEnabled, setPitchInEnabled] = useState(false);
   const [pitchInAmount, setPitchInAmount] = useState("");
@@ -502,6 +509,14 @@ export default function CreateEventScreen() {
     }
 
     // Privacy & Display
+    if (editEvent.rsvpDeadline) {
+      setHasRsvpDeadline(true);
+      setRsvpDeadlineDate(new Date(editEvent.rsvpDeadline));
+    }
+    if (editEvent.costPerPerson) {
+      setCostPerPerson(editEvent.costPerPerson);
+    }
+
     setShowGuestList(editEvent.showGuestList ?? true);
     setShowGuestCount(editEvent.showGuestCount ?? true);
     setShowLocationPreRsvp(editEvent.showLocationPreRsvp ?? false);
@@ -658,6 +673,8 @@ export default function CreateEventScreen() {
       recurrence: isRecurring ? frequency : undefined,
       sendNotification,
       capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
+      rsvpDeadline: hasRsvpDeadline ? rsvpDeadlineDate.toISOString() : null,
+      costPerPerson: costPerPerson.trim() || null,
       reflectionEnabled: false,
       ...(pitchInEnabled && pitchInHandle.trim() ? {
         pitchInEnabled: true,
@@ -1033,6 +1050,12 @@ export default function CreateEventScreen() {
           onSetHasCapacity: setHasCapacity,
           capacityInput,
           onSetCapacityInput: setCapacityInput,
+          hasRsvpDeadline,
+          onSetHasRsvpDeadline: setHasRsvpDeadline,
+          rsvpDeadlineDate,
+          onSetRsvpDeadlineDate: setRsvpDeadlineDate,
+          costPerPerson,
+          onSetCostPerPerson: setCostPerPerson,
           pitchInEnabled,
           onSetPitchInEnabled: setPitchInEnabled,
           pitchInAmount,
