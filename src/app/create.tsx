@@ -880,9 +880,12 @@ export default function CreateEventScreen() {
                 description={description}
                 onTitleChange={setTitle}
                 onDescriptionChange={setDescription}
+                eventHook={eventHook}
+                onEventHookChange={setEventHook}
                 glassSurface={glassSurface}
                 glassBorder={glassBorder}
                 glassText={glassText}
+                glassSecondary={glassSecondary}
                 glassTertiary={glassTertiary}
               />
             </Animated.View>
@@ -1063,8 +1066,6 @@ export default function CreateEventScreen() {
           onSetRsvpDeadlineDate: setRsvpDeadlineDate,
           costPerPerson,
           onSetCostPerPerson: setCostPerPerson,
-          eventHook,
-          onSetEventHook: setEventHook,
           pitchInEnabled,
           onSetPitchInEnabled: setPitchInEnabled,
           pitchInAmount,

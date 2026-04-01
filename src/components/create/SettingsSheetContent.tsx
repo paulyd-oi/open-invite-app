@@ -7,6 +7,7 @@ import {
   TextInput,
   Switch,
   Platform,
+  InteractionManager,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -29,15 +30,6 @@ const FREQUENCY_OPTIONS = [
   { value: "once", label: "One Time", icon: "📆" },
   { value: "weekly", label: "Weekly", icon: "🔄" },
   { value: "monthly", label: "Monthly", icon: "📅" },
-];
-
-const HOOK_PLACEHOLDERS = [
-  "Rooftop views & good vibes",
-  "BYOB and board games",
-  "Last hangout before summer!",
-  "Beginner-friendly, all welcome",
-  "Live DJ + potluck dinner",
-  "Dress code: all white",
 ];
 
 interface SettingsSheetContentProps {
@@ -86,10 +78,6 @@ interface SettingsSheetContentProps {
   // Cost Per Person
   costPerPerson: string;
   onSetCostPerPerson: (v: string) => void;
-
-  // Event Hook
-  eventHook: string;
-  onSetEventHook: (v: string) => void;
 
   // Pitch In
   pitchInEnabled: boolean;
@@ -144,7 +132,6 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
     hasCapacity, onSetHasCapacity, capacityInput, onSetCapacityInput,
     hasRsvpDeadline, onSetHasRsvpDeadline, rsvpDeadlineDate, onSetRsvpDeadlineDate,
     costPerPerson, onSetCostPerPerson,
-    eventHook, onSetEventHook,
     pitchInEnabled, onSetPitchInEnabled, pitchInAmount, onSetPitchInAmount,
     pitchInMethod, onSetPitchInMethod, pitchInHandle, onSetPitchInHandle,
     pitchInNote, onSetPitchInNote,
@@ -158,13 +145,12 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
 
   const router = require("expo-router").useRouter();
 
-  // Rotating placeholder for eventHook input
-  const [hookPlaceholderIdx, setHookPlaceholderIdx] = useState(0);
+  // Defer heavy below-fold sections until after the sheet open animation settles.
+  // This eliminates the 5-7s freeze caused by mounting all sections in one frame.
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    const interval = setInterval(() => {
-      setHookPlaceholderIdx((i) => (i + 1) % HOOK_PLACEHOLDERS.length);
-    }, 3000);
-    return () => clearInterval(interval);
+    const handle = InteractionManager.runAfterInteractions(() => setReady(true));
+    return () => handle.cancel();
   }, []);
 
   return (
@@ -355,29 +341,8 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
         </View>
       )}
 
-      {/* ── Event Hook ── */}
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Event Hook</Text>
-        <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-          <TextInput
-            value={eventHook}
-            onChangeText={(t) => onSetEventHook(t.slice(0, 60))}
-            placeholder={HOOK_PLACEHOLDERS[hookPlaceholderIdx]}
-            placeholderTextColor={glassTertiary}
-            style={{ fontSize: 14, color: glassText }}
-            maxLength={60}
-            multiline={false}
-          />
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginHorizontal: 2 }}>
-          <Text style={{ color: glassTertiary, fontSize: 11 }}>
-            Short tagline shown on the Discover card.
-          </Text>
-          <Text style={{ color: eventHook.length >= 55 ? "#EF4444" : glassTertiary, fontSize: 11 }}>
-            {eventHook.length}/60
-          </Text>
-        </View>
-      </View>
+      {/* Below-fold sections — deferred until after sheet open animation */}
+      {ready && (<>
 
       {/* ── Capacity ── */}
       <View style={{ marginBottom: 16 }}>
@@ -795,6 +760,8 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
           </Pressable>
         </View>
       )}
+
+      </>)}
     </ScrollView>
   );
 }
