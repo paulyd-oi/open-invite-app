@@ -283,8 +283,8 @@ const FriendCard = React.memo(function FriendCard({
 
   const panGesture = Gesture.Pan()
     .enabled(!!onPin)
-    .activeOffsetX([-12, 12])
-    .failOffsetY([-10, 10])
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-14, 14])
     .onUpdate((event) => {
       // Clamp to [-ACTION_WIDTH_PX, +ACTION_WIDTH_PX] (defense-in-depth)
       const clamped = Math.max(-ACTION_WIDTH_PX, Math.min(OPEN_RIGHT_PX, event.translationX));
@@ -465,8 +465,8 @@ const FriendListItem = React.memo(function FriendListItem({
   
   const panGesture = Gesture.Pan()
     .enabled(!!onPin)
-    .activeOffsetX([-12, 12])
-    .failOffsetY([-10, 10])
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-14, 14])
     .onUpdate((event) => {
       // Clamp to [-ACTION_WIDTH_PX, +ACTION_WIDTH_PX] (defense-in-depth)
       const clamped = Math.max(-ACTION_WIDTH_PX, Math.min(OPEN_RIGHT_PX, event.translationX));

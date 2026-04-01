@@ -267,8 +267,8 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
   }, [circle.id, circle.name]);
 
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-12, 12])
-    .failOffsetY([-10, 10])
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-14, 14])
     .onUpdate((event) => {
       // Clamp to [-OPEN_LEFT_PX, OPEN_RIGHT_PX]
       translateX.value = Math.max(-OPEN_LEFT_PX, Math.min(OPEN_RIGHT_PX, event.translationX));

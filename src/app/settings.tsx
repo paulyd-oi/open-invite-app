@@ -1075,7 +1075,7 @@ export default function SettingsScreen() {
                   </View>
                   <View className="flex-1">
                     <Text style={{ color: colors.text }} className="text-base font-medium">Go Premium</Text>
-                    <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited friends & events</Text>
+                    <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock premium themes, effects & more</Text>
                   </View>
                   <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
                     <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>

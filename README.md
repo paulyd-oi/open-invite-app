@@ -767,29 +767,22 @@ You can also customize the accent color from 8 color options in Settings > Appea
 The app offers a freemium model with RevenueCat integration:
 
 **Free Tier:**
-- Up to 10 friends
-- Up to 5 events per month
-- Basic event creation
-- No smart notifications
-
-**Launch Pricing (First 3 Months):**
-- 2-week FREE trial for all new users
-- **Early Bird Annual**: $10/year (Year 1 only)
-- **Investor Subscription**: $60 lifetime (limited time offer)
-
-**Regular Pricing (After Launch):**
-- **Annual**: $40/year
-- **Lifetime Member**: $99.99 one-time
-
-**Premium Features:**
+- Unlimited event hosting
 - Unlimited friends
-- Unlimited events
-- Smart notifications
-- Priority support
-- Friend Groups
-- Who's Free feature
-- Work Schedule sync
-- Notes for friends
+- 5 basic themes
+- No effects
+
+**Pro Tier:**
+- Everything in Free
+- 25 premium themes
+- Premium effects
+- Theme Studio
+- Extended "Who's Free" (90 days)
+- Unlimited circles & friend notes
+
+**Founder Special:**
+- $30/yr for life (first 1K users)
+- Church code `tablesandaltars` (10K redemptions, free first year)
 
 Access subscription options from **Settings > Subscription** or the paywall screen.
 

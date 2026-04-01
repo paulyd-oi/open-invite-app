@@ -38,29 +38,32 @@
 - Power, scale, insights, and hosting capabilities are paid
 - **Virality Rule:** If Pro user hosts event/owns circle, all participants get Pro-level features
 
-### FREE TIER Limits
-| Feature | Limit |
-|---------|-------|
-| Active events | Unlimited |
+### FREE TIER
+| Feature | Included |
+|---------|----------|
+| Event hosting | Unlimited |
+| Friends | Unlimited |
+| Event themes | 5 basic |
+| Effects | No |
 | "Who's Free?" | 7 days ahead |
-| Friend notes | 5 max |
 | Circles | 2 max |
 | Circle members | 15 max |
+| Friend notes | 5 max |
 | Upcoming birthdays | 7 days |
 | Event history | Last 30 days |
-| Achievements | Basic badges only |
 
-### PRO TIER Unlocks
+### PRO TIER
 | Feature | Pro Benefit |
 |---------|-------------|
-| Active events | Unlimited |
+| Event themes | 25 premium |
+| Premium effects | Yes |
+| Theme Studio | Yes |
 | "Who's Free?" | 90 days ahead |
-| Friend notes | Unlimited |
 | Circles | Unlimited |
 | Circle members | Unlimited |
+| Friend notes | Unlimited |
 | Upcoming birthdays | 90 days |
 | Event history | Full + analytics |
-| Achievements | Full system |
 
 ### Referral Rewards
 | Referrals | Reward |

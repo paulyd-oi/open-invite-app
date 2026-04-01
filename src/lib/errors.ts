@@ -21,7 +21,7 @@ function createEventUserCopy(
   isCircle: boolean,
 ): { message: string; hint: string } {
   if (code === "HOST_LIMIT_REACHED") {
-    return { message: "Event limit reached", hint: "Upgrade to create more events." };
+    return { message: "Hosting limit reached", hint: "Upgrade to Pro for premium features." };
   }
 
   if (status === 401 || status === 403) {
