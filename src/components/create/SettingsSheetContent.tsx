@@ -7,7 +7,6 @@ import {
   TextInput,
   Switch,
   Platform,
-  InteractionManager,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -145,12 +144,14 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
 
   const router = require("expo-router").useRouter();
 
-  // Defer heavy below-fold sections until after the sheet open animation settles.
-  // This eliminates the 5-7s freeze caused by mounting all sections in one frame.
+  // Defer heavy below-fold sections until after the Modal slide animation settles.
+  // InteractionManager doesn't track native Modal animations, so we use a fixed
+  // timeout matching the slide duration (~350ms) to avoid mounting everything in
+  // the same frame burst that caused the 5-7s freeze.
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => setReady(true));
-    return () => handle.cancel();
+    const timer = setTimeout(() => setReady(true), 350);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
