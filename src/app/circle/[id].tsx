@@ -331,6 +331,7 @@ export default function CircleScreen() {
   const [chromeHeight, setChromeHeight] = useState(340);
   const [showCalendar, setShowCalendar] = useState(true);
   const [upNextExpanded, setUpNextExpanded] = useState(false);
+  const [nextEventCardHeight, setNextEventCardHeight] = useState(0);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [createEventVisibility, setCreateEventVisibility] = useState<"open_invite" | "circle_only">("circle_only");
   const [showAddMembers, setShowAddMembers] = useState(false);
@@ -1889,6 +1890,33 @@ export default function CircleScreen() {
           })()}
       </CircleHeaderChrome>
 
+      {/* [P1_NEXT_EVENT_ANCHOR] Sticky next-event card — stays visible above messages */}
+      {nextCircleEvent && (
+        <View
+          style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 9 }}
+          onLayout={(e) => {
+            const h = Math.round(e.nativeEvent.layout.height);
+            if (h !== nextEventCardHeight) setNextEventCardHeight(h);
+          }}
+        >
+          <CircleNextEventCard
+            event={nextCircleEvent}
+            expanded={upNextExpanded}
+            colors={colors}
+            isDark={isDark}
+            themeColor={themeColor}
+            onToggleExpand={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setUpNextExpanded((v) => !v);
+            }}
+            onNavigateToEvent={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(`/event/${nextCircleEvent.id}` as any);
+            }}
+          />
+        </View>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -1902,7 +1930,7 @@ export default function CircleScreen() {
           initialNumToRender={15}
           maxToRenderPerBatch={10}
           windowSize={11}
-          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight, paddingBottom: 8 }}
+          contentContainerStyle={{ padding: 16, paddingTop: chromeHeight + (nextCircleEvent ? nextEventCardHeight : 0), paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -2028,24 +2056,7 @@ export default function CircleScreen() {
                 ));
               })()}
 
-              {/* [P1_NEXT_EVENT_ANCHOR] Collapsible next-event anchor */}
-              {nextCircleEvent && (
-                <CircleNextEventCard
-                  event={nextCircleEvent}
-                  expanded={upNextExpanded}
-                  colors={colors}
-                  isDark={isDark}
-                  themeColor={themeColor}
-                  onToggleExpand={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setUpNextExpanded((v) => !v);
-                  }}
-                  onNavigateToEvent={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/event/${nextCircleEvent.id}` as any);
-                  }}
-                />
-              )}
+              {/* [P1_NEXT_EVENT_ANCHOR] Moved to sticky overlay outside FlatList */}
 
               {/* Load earlier messages */}
               {hasMoreOlder && (

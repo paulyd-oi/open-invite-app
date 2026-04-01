@@ -83,6 +83,8 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 
 **Fix approach:** Add an explicit opaque background to the `Animated.View` card wrapper (line 368) so the action layer is fully covered at rest.
 
+**Implementation (Phase 1B):** Added `backgroundColor: colors.background` to the `Animated.View` style array. Changed the inner `Pressable` backgroundColor to only apply the tinted overlay when `unreadCount > 0` (using `undefined` instead of `colors.background` for the default case, since the parent now provides the opaque base).
+
 ---
 
 ### 2.3 Pin Icon Ugly + Badly Positioned — Phase 1B
@@ -102,6 +104,8 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 - FriendCard: green circle (20×20), Pin icon 10px, positioned `-top-1 -right-1` on avatar
 
 **Fix approach:** Unify both badges to a consistent size (18×18), slightly larger Pin icon (10px), and consistent positioning. Both use the `Pin` icon from `@/ui/icons` (lucide) which is clean. The issue is just sizing — make both match the FriendCard's slightly larger treatment, and both use the same positioning.
+
+**Implementation (Phase 1B):** Both CircleCard and FriendCard now use `width: 18, height: 18` with `Pin size={10}` and `className="absolute -top-0.5 -right-0.5"`. Consistent green (#10B981 / STATUS.going.fg) circle badge.
 
 ---
 
@@ -125,7 +129,7 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 
 **Fix approach:** Move `CircleNextEventCard` out of the `ListHeaderComponent` and render it as an absolutely positioned overlay below the header chrome. Increase `paddingTop` on the FlatList to account for the card height. The card should only appear when `nextCircleEvent` exists.
 
-**Complexity assessment:** Medium — requires coordinating the card position with the header chrome height and ensuring it doesn't overlap message content. If the card height is dynamic (expanded/collapsed), the FlatList padding needs to update accordingly. May require Phase 2 if dynamic height coordination proves too complex.
+**Implementation (Phase 1B):** Moved `CircleNextEventCard` out of `ListHeaderComponent` into an absolutely positioned overlay at `top: chromeHeight, zIndex: 9`. Added `nextEventCardHeight` state measured via `onLayout`. FlatList `paddingTop` now includes `nextEventCardHeight` when the card exists. Card remains collapsible/expandable — layout measurement updates automatically. When no next event exists, `nextEventCardHeight` contribution is 0.
 
 ---
 
@@ -196,8 +200,8 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 
 | Phase | Issues | Status |
 |-------|--------|--------|
-| 1A | Settings sheet freeze + SSOT | In Progress |
-| 1B | Swipe bleed-through, Pin icon, Chat pinned event | Queued |
+| 1A | Settings sheet freeze + SSOT | Complete |
+| 1B | Swipe bleed-through, Pin icon, Chat pinned event | Complete |
 | 2 | Headline placement, card content, color softening, frequency | Queued |
 | 3 | Activity feed, friend notifications, subscription table, profile stats | Queued |
 
