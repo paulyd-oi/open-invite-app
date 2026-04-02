@@ -99,6 +99,9 @@ export const AnalyticsEvent = {
   SHARE_TRIGGERED: "share_triggered",
   CREATE_COMPLETED: "create_completed",
 
+  // Phase 6C — Flip-to-reveal gating
+  EVENT_REVEALED: "event_revealed",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -841,5 +844,12 @@ export function trackCreateCompleted(props: {
   userId: string | null;
 }): void {
   track(AnalyticsEvent.CREATE_COMPLETED, props);
+}
+
+export function trackEventRevealed(props: {
+  eventId: string;
+  userId: string | null;
+}): void {
+  track(AnalyticsEvent.EVENT_REVEALED, props);
 }
 
