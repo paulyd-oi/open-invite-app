@@ -18,6 +18,12 @@ const NETWORK_STATE_KEY = "network_state_cache";
 let globalIsOnline = true;
 const listeners = new Set<(isOnline: boolean) => void>();
 
+// Grace period: after a manual refresh() sets online, suppress the passive
+// listener from overriding back to offline for a short window.  This prevents
+// a race where NetInfo.fetch() triggers addEventListener with isInternetReachable
+// still false while isConnected is already true.
+let manualRefreshUntil = 0;
+
 /**
  * Initialize network monitoring (call once at app startup)
  */
@@ -28,6 +34,16 @@ export function initNetworkMonitoring() {
 
     // Only notify if state changed
     if (online !== globalIsOnline) {
+      // If a manual refresh recently declared us online, don't let the passive
+      // listener override back to offline (isInternetReachable lags behind
+      // isConnected on reconnect, causing a brief false→true→false flicker).
+      if (!online && Date.now() < manualRefreshUntil) {
+        if (__DEV__) {
+          devLog("[NetworkStatus] Passive listener suppressed during manual-refresh grace period");
+        }
+        return;
+      }
+
       const wasOffline = !globalIsOnline;
       globalIsOnline = online;
 
@@ -119,6 +135,11 @@ export function useNetworkStatus(): {
     // background→foreground or slow reconnect even when connected)
     const online = !!state.isConnected;
     globalIsOnline = online;
+    // Prevent the passive addEventListener callback from immediately
+    // overriding this result while isInternetReachable catches up.
+    if (online) {
+      manualRefreshUntil = Date.now() + 3000;
+    }
     // Notify all global subscribers, not just this hook instance
     listeners.forEach((listener) => listener(online));
     if (mountedRef.current) {

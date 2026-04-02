@@ -161,8 +161,8 @@ export function FriendCard({
               />
               {isPinned && (
                 <View
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
-                  style={{ backgroundColor: "#10B981" }}
+                  className="absolute -top-0.5 -right-0.5 rounded-full items-center justify-center"
+                  style={{ width: 18, height: 18, backgroundColor: "#10B981" }}
                 >
                   <Pin size={10} color="#fff" />
                 </View>

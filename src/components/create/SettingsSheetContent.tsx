@@ -7,13 +7,10 @@ import {
   TextInput,
   Switch,
   Platform,
-  InteractionManager,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  RefreshCw,
-  ChevronDown,
   Check,
   Compass,
   Users,
@@ -26,11 +23,6 @@ import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import * as Haptics from "expo-haptics";
 import type { Circle } from "@/shared/contracts";
 
-const FREQUENCY_OPTIONS = [
-  { value: "once", label: "One Time", icon: "📆" },
-  { value: "weekly", label: "Weekly", icon: "🔄" },
-  { value: "monthly", label: "Monthly", icon: "📅" },
-];
 
 interface SettingsSheetContentProps {
   // Style props
@@ -44,13 +36,8 @@ interface SettingsSheetContentProps {
   isDark: boolean;
   colors: { background: string; separator: string; text: string; textSecondary: string; textTertiary: string; border: string; surface: string };
 
-  // Frequency
-  frequency: "once" | "weekly" | "monthly";
-  showFrequencyPicker: boolean;
-  startDate: Date;
+  // Circle context
   isCircleEvent: boolean;
-  onFrequencyChange: (f: "once" | "weekly" | "monthly") => void;
-  onToggleFrequencyPicker: () => void;
 
   // Visibility
   visibility: "all_friends" | "specific_groups" | "circle_only";
@@ -125,8 +112,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
   const {
     themed, glassSurface, glassBorder, glassText, glassSecondary, glassTertiary,
     themeColor, isDark, colors,
-    frequency, showFrequencyPicker, startDate, isCircleEvent,
-    onFrequencyChange, onToggleFrequencyPicker,
+    isCircleEvent,
     visibility, onSetVisibility, circles, selectedGroupIds, onToggleGroup,
     sendNotification, onSetSendNotification,
     hasCapacity, onSetHasCapacity, capacityInput, onSetCapacityInput,
@@ -145,12 +131,14 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
 
   const router = require("expo-router").useRouter();
 
-  // Defer heavy below-fold sections until after the sheet open animation settles.
-  // This eliminates the 5-7s freeze caused by mounting all sections in one frame.
+  // Defer heavy below-fold sections until after the Modal slide animation settles.
+  // InteractionManager doesn't track native Modal animations, so we use a fixed
+  // timeout matching the slide duration (~350ms) to avoid mounting everything in
+  // the same frame burst that caused the 5-7s freeze.
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => setReady(true));
-    return () => handle.cancel();
+    const timer = setTimeout(() => setReady(true), 350);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -159,71 +147,6 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
       keyboardShouldPersistTaps="handled"
     >
-      {/* ── Frequency ── */}
-      {!isCircleEvent && (
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Frequency</Text>
-          <Pressable
-            onPress={onToggleFrequencyPicker}
-            style={{
-              borderRadius: 12,
-              padding: 14,
-              backgroundColor: glassSurface,
-              borderWidth: 1,
-              borderColor: glassBorder,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <RefreshCw size={18} color={themeColor} />
-                <Text style={{ color: glassText, marginLeft: 10, fontWeight: "500" }}>
-                  {FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label}
-                </Text>
-              </View>
-              <ChevronDown size={20} color={glassTertiary} />
-            </View>
-          </Pressable>
-
-          {showFrequencyPicker && (
-            <View style={{ borderRadius: 12, padding: 8, marginTop: 8, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-              {FREQUENCY_OPTIONS.map((option) => (
-                <Pressable
-                  key={option.value}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    onFrequencyChange(option.value as "once" | "weekly" | "monthly");
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    padding: 10,
-                    borderRadius: 8,
-                    marginBottom: 2,
-                    backgroundColor: frequency === option.value ? `${themeColor}15` : "transparent",
-                  }}
-                >
-                  <Text style={{ fontSize: 18, marginRight: 10 }}>{option.icon}</Text>
-                  <Text style={{ flex: 1, fontWeight: "500", color: frequency === option.value ? themeColor : glassText }}>
-                    {option.label}
-                  </Text>
-                  {frequency === option.value && <Check size={20} color={themeColor} />}
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {frequency !== "once" && (
-            <View style={{ borderRadius: 12, padding: 10, marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: `${themeColor}15` }}>
-              <RefreshCw size={16} color={themeColor} />
-              <Text style={{ color: themeColor, marginLeft: 8, fontSize: 13 }}>
-                Repeats {frequency} starting{" "}
-                {startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
       {/* ── Visibility ── */}
       <View style={{ marginBottom: 16 }}>
         <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Who's Invited?</Text>

@@ -26,7 +26,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp, FadeOutUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
+import { softenColor } from "@/lib/softenColor";
 import { Image as ExpoImage } from "expo-image";
 
 import { useSession } from "@/lib/useSession";
@@ -764,8 +764,9 @@ export default function DiscoverScreen() {
                 const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
                 const cardTheme = resolveEventTheme(event.themeId);
                 const cardAccent = cardTheme.backAccent;
-                const plaqueBg = (event as any).cardColor || (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
-                const ccHex = (event as any).cardColor as string | undefined;
+                const rawCardColor = (event as any).cardColor as string | undefined;
+                const plaqueBg = rawCardColor ? softenColor(rawCardColor) : (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
+                const ccHex = rawCardColor ? softenColor(rawCardColor) : undefined;
                 const ccText = ccHex ? getTextColorForBg(ccHex) : null;
                 const ccSecondary = ccText ? `${ccText}B3` : null;
 
@@ -832,22 +833,7 @@ export default function DiscoverScreen() {
                           </View>
                         ) : null}
 
-                        {/* Event Hook overlay — bottom of image zone */}
-                        {event.eventHook ? (
-                          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
-                            <LinearGradient
-                              colors={["transparent", "rgba(0,0,0,0.65)"]}
-                              style={{ paddingTop: 28, paddingBottom: 10, paddingHorizontal: 14 }}
-                            >
-                              <Text
-                                style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700", textAlign: "center" }}
-                                numberOfLines={1}
-                              >
-                                {event.eventHook}
-                              </Text>
-                            </LinearGradient>
-                          </View>
-                        ) : null}
+                        {/* Event Hook overlay removed — headline now in card body */}
                       </View>
 
                       {/* ── Themed content panel ── */}
@@ -910,13 +896,13 @@ export default function DiscoverScreen() {
                           </View>
                         ) : null}
 
-                        {/* DESCRIPTION (1-2 lines) */}
-                        {event.description ? (
+                        {/* Headline teaser (replaces description on card front) */}
+                        {event.eventHook ? (
                           <Text
-                            style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 13, fontWeight: "400", marginTop: 6, lineHeight: 18 }}
+                            style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 13, fontWeight: "500", fontStyle: "italic", marginTop: 6, lineHeight: 18 }}
                             numberOfLines={2}
                           >
-                            {event.description}
+                            {event.eventHook}
                           </Text>
                         ) : null}
 

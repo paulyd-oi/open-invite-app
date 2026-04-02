@@ -127,6 +127,19 @@ function buildNotificationCopy(
 
 // ── NotificationCard ───────────────────────────────────────────
 
+// Deterministic color from a string — maps to a compact palette
+const INITIALS_PALETTE = [
+  "#4ECDC4", "#FF6B6B", "#45B7D1", "#F7DC6F", "#BB8FCE",
+  "#82E0AA", "#F0B27A", "#85C1E9", "#F1948A", "#A3E4D7",
+];
+function initialsColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return INITIALS_PALETTE[Math.abs(hash) % INITIALS_PALETTE.length];
+}
+
 function NotificationCard({
   notification,
   index,
@@ -140,27 +153,30 @@ function NotificationCard({
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
   const parsed = parseNotificationData(notification);
-  const { actorName, actorAvatarUrl, eventEmoji } = parsed;
+  const { actorName, actorAvatarUrl, eventEmoji, eventTitle } = parsed;
   const copy = buildNotificationCopy(notification, parsed);
 
   const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith("http");
-  const isEventType = ["event_invite", "event_reminder", "event_join", "event_comment"].includes(notification.type);
-  const resolvedEmoji = eventEmoji || (isEventType ? "📅" : undefined);
-  const hasEventEmoji = !hasAvatar && !!resolvedEmoji;
-  const hasActorInitials = !hasAvatar && !hasEventEmoji && !!actorName && actorName.length > 0;
+  // Only use emoji if backend explicitly provided one (no default "📅")
+  const hasEventEmoji = !hasAvatar && !!eventEmoji;
+
+  // Unified initials fallback: actorName → eventTitle → notification title → "?"
+  const initialsSource = actorName || eventTitle || notification.title || "?";
+  const initialsText = getInitials(initialsSource);
+  const hasInitials = !hasAvatar && !hasEventEmoji;
 
   if (__DEV__) {
-    const avatarSource = hasAvatar ? "actorAvatar" : hasEventEmoji ? (eventEmoji ? "eventEmoji" : "eventDefault") : hasActorInitials ? "actorInitials" : "typeIcon";
+    const avatarSource = hasAvatar ? "actorAvatar" : hasEventEmoji ? "eventEmoji" : "initials";
     devLog("[P1_ACTIVITY_AVATAR]", {
       notificationType: notification.type,
       avatarSource,
-      hasEventEmoji: !!eventEmoji,
-      resolvedEmoji: resolvedEmoji ?? null,
+      initialsSource: initialsSource.slice(0, 20),
     });
   }
 
   const categoryTint = notification.read ? colors.surface : config.color + "08";
   const categoryBorder = notification.read ? "transparent" : config.color + "20";
+  const bgColor = hasAvatar ? colors.surface : hasEventEmoji ? config.color + "15" : initialsColor(initialsSource) + "20";
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).springify()}>
@@ -176,25 +192,18 @@ function NotificationCard({
           borderColor: categoryBorder,
         }}
       >
-        {/* Avatar or Icon — SSOT via EntityAvatar */}
+        {/* Avatar — priority: photo → emoji → initials */}
         <View style={{ position: "relative" }}>
           <EntityAvatar
             photoUrl={hasAvatar ? actorAvatarUrl : undefined}
-            emoji={hasEventEmoji ? resolvedEmoji : undefined}
-            initials={hasActorInitials ? getInitials(actorName!) : undefined}
-            fallbackIcon={config.iconName}
+            emoji={hasEventEmoji ? eventEmoji : undefined}
+            initials={hasInitials ? initialsText : undefined}
             size={44}
-            backgroundColor={
-              hasAvatar
-                ? colors.surface
-                : hasEventEmoji
-                  ? config.color + "15"
-                  : config.color + "20"
-            }
-            foregroundColor={config.color}
+            backgroundColor={bgColor}
+            foregroundColor={hasInitials ? initialsColor(initialsSource) : config.color}
             emojiStyle={{ fontSize: 22 }}
           />
-          {/* Type badge overlay */}
+          {/* Type badge overlay — shown when main slot is photo or emoji */}
           {(hasAvatar || hasEventEmoji) && (
             <View
               style={{
@@ -332,6 +341,21 @@ function PaginationFooter({ colors }: { colors: { textTertiary: string } }) {
 // ── Notification target resolver ───────────────────────────────
 
 function resolveNotificationTarget(notification: Notification): string | null {
+  // Friend-related types → navigate to friends tab (userId may not be in data)
+  if (notification.type === "friend_request" || notification.type === "friend_accepted") {
+    let data: Record<string, unknown> = {};
+    try {
+      data = notification.data ? JSON.parse(notification.data) : {};
+    } catch { /* fallback below */ }
+
+    const userId = data.userId || data.senderId || data.actorId;
+    if (userId && typeof userId === "string") {
+      return `/user/${userId}`;
+    }
+    // Fallback: open friends tab so user can see pending requests
+    return "/friends";
+  }
+
   let data: Record<string, unknown> = {};
   try {
     data = notification.data ? JSON.parse(notification.data) : {};
@@ -350,6 +374,58 @@ function resolveNotificationTarget(notification: Notification): string | null {
   }
 
   return null;
+}
+
+// ── Content-based dedup ──────────────────────────────────────
+// Backend may create multiple notifications with different IDs for the same
+// event action (e.g., two "New Event" notifs for the same eventId). The
+// id-based dedup in usePaginatedNotifications doesn't catch these.
+// This dedup uses type + eventId + dayBucket as the key, keeping the most
+// recent entry. Notifications without an eventId are never collapsed.
+
+function contentDedup(notifications: Notification[]): Notification[] {
+  const seen = new Map<string, Notification>();
+  const result: Notification[] = [];
+
+  for (const n of notifications) {
+    let data: Record<string, unknown> = {};
+    try {
+      data = n.data ? JSON.parse(n.data) : {};
+    } catch { /* keep notification as-is */ }
+
+    const eventId = (typeof data.eventId === "string") ? data.eventId : null;
+
+    // For reminders: collapse ALL reminders for the same event into ONE row.
+    // Key on eventId if available; otherwise fall back to title with time
+    // suffix stripped (e.g. "Reminder: Beach BBQ — In 30 min" → "Reminder: Beach BBQ").
+    if (n.type === "event_reminder" || n.type === "reminder") {
+      const titleKey = eventId ?? n.title.replace(/\s*[—–\-]\s*(In\s+)?\d+.*$/i, "").trim();
+      const key = `reminder:${titleKey}`;
+      if (!seen.has(key)) {
+        seen.set(key, n);
+        result.push(n);
+      }
+      // else: already have a more recent reminder for this event, skip
+      continue;
+    }
+
+    if (!eventId) {
+      // No eventId and not a reminder — can't content-dedup, always include
+      result.push(n);
+      continue;
+    }
+
+    // For other event types: collapse same type+eventId within same calendar day
+    const day = n.createdAt.slice(0, 10); // "YYYY-MM-DD"
+    const key = `${n.type}:${eventId}:${day}`;
+    if (!seen.has(key)) {
+      seen.set(key, n);
+      result.push(n);
+    }
+    // else: duplicate for same event+type+day, skip
+  }
+
+  return result;
 }
 
 // ── Filter definitions ────────────────────────────────────────
@@ -406,20 +482,23 @@ export function ActivityFeed({ embedded = false, emptyComponent }: ActivityFeedP
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  // [NOTIFICATIONS] Filter notifications by active filter
+  // [NOTIFICATIONS] Content dedup → type filter → display list
   const filteredNotifications = useMemo(() => {
-    const typeSet = FILTER_TYPE_MAP[activeFilter];
-    const all = uniqueNotifications;
-    const filtered = typeSet ? all.filter(n => typeSet.has(n.type)) : all;
+    // Step 1: Content-based dedup (collapse same type+eventId+day, collapse stacked reminders)
+    const deduped = contentDedup(uniqueNotifications);
 
-    if (__DEV__ && all.length > 0) {
-      // Compute type distribution
+    // Step 2: Apply active filter
+    const typeSet = FILTER_TYPE_MAP[activeFilter];
+    const filtered = typeSet ? deduped.filter(n => typeSet.has(n.type)) : deduped;
+
+    if (__DEV__ && uniqueNotifications.length > 0) {
       const typeCounts: Record<string, number> = {};
-      for (const n of all) {
+      for (const n of uniqueNotifications) {
         typeCounts[n.type] = (typeCounts[n.type] ?? 0) + 1;
       }
       devLog('[NOTIFICATIONS]', {
-        total: all.length,
+        total: uniqueNotifications.length,
+        afterDedup: deduped.length,
         activeFilter,
         displayed: filtered.length,
         typeCounts,
@@ -522,7 +601,11 @@ export function ActivityFeed({ embedded = false, emptyComponent }: ActivityFeedP
     const target = resolveNotificationTarget(notification);
     trackNotifsEngagement({ action: "tap_item", routeTargeted: !!target });
     if (target) {
-      router.push(target as any);
+      try {
+        router.push(target as any);
+      } catch {
+        safeToast.info("Unavailable", "This request is no longer available.");
+      }
     } else {
       safeToast.info("Unavailable", "This item is no longer available.");
       if (__DEV__) {

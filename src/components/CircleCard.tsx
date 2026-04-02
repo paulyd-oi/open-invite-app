@@ -365,14 +365,14 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
 
       {/* Inbox row */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View style={animatedCardStyle}>
+        <Animated.View style={[animatedCardStyle, { backgroundColor: colors.background }]}>
           <Pressable
             onPress={handlePress}
             className="flex-row items-center py-2.5 px-1"
             style={{
               backgroundColor: unreadCount > 0 && !circle.isMuted
                 ? (isDark ? themeColor + "08" : themeColor + "06")
-                : colors.background,
+                : undefined,
             }}
           >
             {/* LEFT — Avatar cluster */}
@@ -427,10 +427,10 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               {/* Pinned badge */}
               {circle.isPinned && (
                 <View
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
-                  style={{ backgroundColor: STATUS.going.fg }}
+                  className="absolute -top-0.5 -right-0.5 rounded-full items-center justify-center"
+                  style={{ width: 18, height: 18, backgroundColor: STATUS.going.fg }}
                 >
-                  <Pin size={8} color="#fff" />
+                  <Pin size={10} color="#fff" />
                 </View>
               )}
               {/* [P0_CIRCLE_MUTE_POLISH] Muted indicator */}
