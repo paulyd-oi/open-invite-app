@@ -253,7 +253,7 @@ export default function CreateSettingsPage() {
         <View style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Limit number of guests</Text>
+              <Text style={{ color: glassText, fontSize: 13, fontWeight: "500" }}>Limit number of guests</Text>
               <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Once full, RSVPs close automatically.</Text>
             </View>
             <Switch
@@ -302,7 +302,7 @@ export default function CreateSettingsPage() {
         <View style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>RSVP Deadline</Text>
+              <Text style={{ color: glassText, fontSize: 13, fontWeight: "500" }}>RSVP Deadline</Text>
               <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>RSVPs close after this date.</Text>
             </View>
             <Switch
@@ -335,7 +335,7 @@ export default function CreateSettingsPage() {
         <View style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Cost Per Person</Text>
+              <Text style={{ color: glassText, fontSize: 13, fontWeight: "500" }}>Cost Per Person</Text>
               <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Shown on the event page for guests to see.</Text>
             </View>
             <Switch
@@ -368,7 +368,7 @@ export default function CreateSettingsPage() {
         <View style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Pitch In</Text>
+              <Text style={{ color: glassText, fontSize: 13, fontWeight: "500" }}>Pitch In</Text>
               <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Let guests chip in for costs.</Text>
             </View>
             <Switch
@@ -478,7 +478,7 @@ export default function CreateSettingsPage() {
         <View style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>What to bring</Text>
+              <Text style={{ color: glassText, fontSize: 13, fontWeight: "500" }}>What to bring</Text>
               <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Guests can claim items to bring.</Text>
             </View>
             <Switch

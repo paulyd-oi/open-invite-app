@@ -260,6 +260,11 @@ export function EventListItem({
     onColorChange?.(event.id, color);
   };
 
+  const handleCopyEvent = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/create?copyEventId=${event.id}` as any);
+  };
+
   const handleToggleBusy = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onToggleBusy?.(event.id, !event.isBusy);
@@ -592,6 +597,13 @@ export function EventListItem({
           <ContextMenu.ItemTitle>Sync to Calendar</ContextMenu.ItemTitle>
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <ContextMenu.ItemIcon ios={{ name: "calendar.badge.plus" }} />
+        </ContextMenu.Item>
+
+        {/* Copy Event */}
+        <ContextMenu.Item key="copy" onSelect={handleCopyEvent}>
+          <ContextMenu.ItemTitle>Copy Event</ContextMenu.ItemTitle>
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <ContextMenu.ItemIcon ios={{ name: "doc.on.doc" }} />
         </ContextMenu.Item>
 
         {/* Change Color - Available on ALL events (viewer-local cosmetic only, no backend write) */}

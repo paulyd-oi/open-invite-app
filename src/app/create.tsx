@@ -71,7 +71,7 @@ export default function CreateEventScreen() {
   const params = useLocalSearchParams();
   const isSmartMode = params?.mode === "smart";
 
-  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam, editEventId } = useLocalSearchParams<{
+  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam, editEventId, copyEventId } = useLocalSearchParams<{
     date?: string;
     template?: string;
     emoji?: string;
@@ -81,8 +81,10 @@ export default function CreateEventScreen() {
     visibility?: string;
     endDate?: string;
     editEventId?: string;
+    copyEventId?: string;
   }>();
   const isEditMode = !!editEventId;
+  const isCopyMode = !!copyEventId;
   const { themeColor, isDark, colors } = useTheme();
 
   const isCircleEvent = !!circleId;
@@ -361,13 +363,14 @@ export default function CreateEventScreen() {
   const myEvents = myEventsData?.events ?? [];
   const activeEventCount = getActiveEventCount(myEvents);
 
-  // ── Edit mode: fetch event data ──
+  // ── Edit/Copy mode: fetch event data ──
   const { data: editEventData } = useQuery({
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: isEditMode && isAuthedForNetwork(bootStatus, session),
+    enabled: (isEditMode || isCopyMode) && isAuthedForNetwork(bootStatus, session),
   });
   const editEvent = editEventData?.events.find((e) => e.id === editEventId);
+  const copyEvent = editEventData?.events.find((e) => e.id === copyEventId);
 
   // ── Mutation ──
   const createMutation = useMutation({
@@ -550,6 +553,119 @@ export default function CreateEventScreen() {
 
     setIsEditLoaded(true);
   }, [isEditMode, editEvent, isEditLoaded]);
+
+  // ── Copy mode: pre-populate from source event with fresh date/time ──
+  const [isCopyLoaded, setIsCopyLoaded] = useState(false);
+  useEffect(() => {
+    if (!isCopyMode || !copyEvent || isCopyLoaded) return;
+
+    setTitle(copyEvent.title);
+    setDescription(copyEvent.description ?? "");
+    locationSearch.prefillLocation(copyEvent.location ?? "");
+
+    // Date/time: keep same time-of-day but move to today or tomorrow
+    const origStart = new Date(copyEvent.startTime);
+    const now = new Date();
+    const newStart = new Date(now);
+    newStart.setHours(origStart.getHours(), origStart.getMinutes(), 0, 0);
+    // If that time already passed today, push to tomorrow
+    if (newStart.getTime() <= now.getTime()) {
+      newStart.setDate(newStart.getDate() + 1);
+    }
+    setStartDate(newStart);
+
+    // Preserve original duration
+    if (copyEvent.endTime) {
+      const origEnd = new Date(copyEvent.endTime);
+      const durationMs = origEnd.getTime() - origStart.getTime();
+      setEndDate(new Date(newStart.getTime() + durationMs));
+      setUserModifiedEndTime(true);
+    }
+
+    // Visibility
+    const vis = copyEvent.visibility as "all_friends" | "specific_groups" | "circle_only";
+    if (vis) setVisibility(vis);
+    if (copyEvent.groupVisibility) {
+      setSelectedGroupIds(copyEvent.groupVisibility.map((g) => g.groupId));
+    }
+
+    // Capacity
+    if (copyEvent.capacity != null) {
+      setHasCapacity(true);
+      setCapacityInput(String(copyEvent.capacity));
+    }
+
+    // Pitch In
+    if (copyEvent.pitchInEnabled) {
+      setPitchInEnabled(true);
+      setPitchInAmount(copyEvent.pitchInAmount ?? "");
+      setPitchInMethod((copyEvent.pitchInMethod as "venmo" | "cashapp" | "paypal" | "other") ?? "venmo");
+      setPitchInHandle(copyEvent.pitchInHandle ?? "");
+      setPitchInNote(copyEvent.pitchInNote ?? "");
+    }
+
+    // What to Bring
+    if (copyEvent.bringListEnabled && copyEvent.bringListItems?.length) {
+      setBringListEnabled(true);
+      setBringListItems(copyEvent.bringListItems.map((i: { label: string }) => i.label));
+    }
+
+    // Theme
+    const evtThemeId = copyEvent.themeId;
+    if (evtThemeId && evtThemeId !== "custom" && isValidThemeId(evtThemeId)) {
+      setSelectedThemeId(evtThemeId);
+    }
+    if (copyEvent.customThemeData) {
+      setSelectedCustomTheme({
+        id: "custom_existing",
+        name: copyEvent.customThemeData.name ?? "Custom",
+        visualStack: copyEvent.customThemeData.visualStack ?? {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Effect
+    if (copyEvent.effectId) {
+      setSelectedEffectId(copyEvent.effectId);
+    }
+    if (copyEvent.customEffectConfig) {
+      setCustomEffectConfig(copyEvent.customEffectConfig);
+    }
+
+    // Cover image
+    if (copyEvent.eventPhotoUrl) {
+      coverMedia.prefillCover(copyEvent.eventPhotoUrl);
+    }
+
+    // Card Color
+    if (copyEvent.cardColor) {
+      setCardColor(copyEvent.cardColor);
+    }
+
+    // Privacy & Display
+    if (copyEvent.rsvpDeadline) {
+      setHasRsvpDeadline(true);
+      // Reset deadline relative to new start
+      const origDeadline = new Date(copyEvent.rsvpDeadline);
+      const deadlineOffset = origDeadline.getTime() - origStart.getTime();
+      const newDeadline = new Date(newStart.getTime() + deadlineOffset);
+      setRsvpDeadlineDate(newDeadline > now ? newDeadline : newStart);
+    }
+    if (copyEvent.costPerPerson) {
+      setCostPerPerson(copyEvent.costPerPerson);
+    }
+    if (copyEvent.eventHook) {
+      setEventHook(copyEvent.eventHook);
+    }
+
+    setShowGuestList(copyEvent.showGuestList ?? true);
+    setShowGuestCount(copyEvent.showGuestCount ?? true);
+    setShowLocationPreRsvp(copyEvent.showLocationPreRsvp ?? false);
+    setHideWebLocation(copyEvent.hideWebLocation ?? false);
+
+    setIsCopyLoaded(true);
+  }, [isCopyMode, copyEvent, isCopyLoaded]);
 
   const handleDockMode = useCallback((mode: DockMode) => {
     if (mode === "settings") {
