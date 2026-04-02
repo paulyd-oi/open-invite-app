@@ -95,7 +95,10 @@ import {
 import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri } from "@/lib/heroSSOT";
+import { BlurView } from "expo-blur";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
+import { isEventRevealed, markEventRevealed } from "@/lib/revealGate";
+import { trackEventRevealed } from "@/analytics/analyticsEventsSSOT";
 import { resolveEventTheme, buildCustomThemeTokens } from "@/lib/eventThemes";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus, cleanupExpiredActivities } from "@/lib/liveActivity";
 import { openEventLocation, openGoogleCalendar, addToDeviceCalendar, buildShareInput, shareEvent, formatTimeAgo, deriveLocationDisplay, deriveDateLabels } from "@/lib/eventDetailUtils";
@@ -197,6 +200,9 @@ export default function EventDetailScreen() {
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
+
+  // ── Flip-to-reveal gate (Phase 6C) ──
+  const [contentRevealed, setContentRevealed] = useState(() => isEventRevealed(id as string));
 
   // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
   const pageViewFired = useRef(false);
@@ -2044,6 +2050,11 @@ export default function EventDetailScreen() {
               colors={colors}
               themeId={event.themeId ?? null}
               cardColor={(event as any)?.cardColor ?? null}
+              onFirstFlip={() => {
+                setContentRevealed(true);
+                markEventRevealed(id as string);
+                trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
+              }}
               editButton={undefined}
               photoNudge={
                 isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
@@ -2065,6 +2076,24 @@ export default function EventDetailScreen() {
 
         {/* Breathing room between hero card and first content card */}
         <View style={{ height: 8 }} />
+
+        {/* ═══ FLIP-TO-REVEAL GATE (Phase 6C) ═══ */}
+        {/* Hosts always see content; guests see blur until first card flip */}
+        <View style={{ position: "relative" }}>
+        {!isMyEvent && !contentRevealed && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
+            <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <Animated.View entering={FadeIn.duration(300)} style={{ alignItems: "center", paddingHorizontal: 32 }}>
+                <Text style={{ color: colors.text, fontSize: 17, fontWeight: "600", textAlign: "center", marginBottom: 6 }}>
+                  Flip the card to reveal
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>
+                  Tap the invite card above to see event details
+                </Text>
+              </Animated.View>
+            </BlurView>
+          </View>
+        )}
 
         {/* ═══ HOST ACTION CARD — unified invite + tools ═══ */}
         {isMyEvent && !event?.isBusy && (
@@ -2328,6 +2357,8 @@ export default function EventDetailScreen() {
             />
           );
         })()}
+
+        </View>{/* close flip-to-reveal gate wrapper */}
 
       </KeyboardAwareScrollView>
 

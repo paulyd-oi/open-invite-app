@@ -11,7 +11,7 @@
  * Proof tag: [EVENT_DETAIL_V5_FLIP_CARD]
  */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -84,6 +84,9 @@ export interface InviteFlipCardProps {
 
   // Photo nudge (rendered on front, no-photo only)
   photoNudge?: React.ReactNode;
+
+  // Called on the first flip (front → back)
+  onFirstFlip?: () => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -134,6 +137,7 @@ export function InviteFlipCard({
   cardColor,
   editButton,
   photoNudge,
+  onFirstFlip,
 }: InviteFlipCardProps) {
   const { width: screenWidth } = useWindowDimensions();
   const isWide = screenWidth >= 768;
@@ -152,14 +156,20 @@ export function InviteFlipCard({
   const cSecondary = contrastText ? `${contrastText}B3` : colors.textSecondary; // 70% opacity
   const cTertiary = contrastText ? `${contrastText}80` : colors.textTertiary;   // 50% opacity
 
+  const hasCalledFirstFlip = useRef(false);
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const target = flipProgress.value < 0.5 ? 1 : 0;
+    // Fire onFirstFlip on the first front→back flip
+    if (target === 1 && !hasCalledFirstFlip.current) {
+      hasCalledFirstFlip.current = true;
+      onFirstFlip?.();
+    }
     flipProgress.value = withTiming(target, {
       duration: FLIP_DURATION,
       easing: FLIP_EASING,
     });
-  }, [flipProgress]);
+  }, [flipProgress, onFirstFlip]);
 
   // Front face (0→90° visible)
   const frontStyle = useAnimatedStyle(() => {
