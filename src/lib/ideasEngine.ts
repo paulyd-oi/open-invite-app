@@ -28,7 +28,8 @@ export type IdeaCategory =
   | "activity_repeat"
   | "low_rsvp"
   | "birthday"
-  | "timing";
+  | "timing"
+  | "new_friend";
 
 export interface IdeaCard {
   id: string;
@@ -99,11 +100,19 @@ export interface IdeasReconnect {
   avatarUrl?: string | null;
 }
 
+export interface IdeasNewFriend {
+  friendId: string;
+  friendName: string | null;
+  avatarUrl?: string | null;
+  addedDaysAgo: number; // days since friendship created
+}
+
 export interface IdeasContext {
   reconnects: IdeasReconnect[];
   birthdays: IdeasBirthday[];
   upcomingFriendEvents: IdeasEvent[];
   myRecentEvents: IdeasMyEvent[];
+  newFriends?: IdeasNewFriend[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -629,6 +638,96 @@ function ruleActivityRepeat(
   return cards;
 }
 
+// ─── Rule E: Seasonal/Timely ───────────────────────────
+
+const SEASONAL_SUGGESTIONS: Array<{
+  title: string;
+  subtitle: string;
+  draftMessage: string;
+  months?: number[]; // 0=Jan..11=Dec — empty means year-round
+  days?: number[];   // 0=Sun..6=Sat — empty means any day
+}> = [
+  // Weekend energy
+  { title: "It's the weekend — plan something!", subtitle: "Rally the crew.", draftMessage: "Who's down to hang this weekend?", days: [5, 6] },
+  { title: "Sunday funday?", subtitle: "End the weekend right.", draftMessage: "Anyone free for a chill Sunday hang?", days: [0] },
+  // Weeknight
+  { title: "Midweek hangout?", subtitle: "Break up the week.", draftMessage: "Want to grab dinner this week?", days: [2, 3] },
+  // Seasonal
+  { title: "Beach day with friends?", subtitle: "Make the most of summer.", draftMessage: "Beach day this weekend?", months: [5, 6, 7] },
+  { title: "Backyard BBQ this weekend?", subtitle: "Fire up the grill.", draftMessage: "BBQ at mine this weekend — you in?", months: [5, 6, 7, 8] },
+  { title: "Fall bonfire night?", subtitle: "S'mores + friends = perfect.", draftMessage: "Bonfire night? I'll bring the s'mores.", months: [9, 10] },
+  { title: "Holiday get-together?", subtitle: "Tis the season.", draftMessage: "Holiday party before break?", months: [11, 0] },
+  { title: "Host a game night this week", subtitle: "Low-effort, high-fun.", draftMessage: "Game night at mine — who's in?" },
+  { title: "Movie night with the crew?", subtitle: "Pick a flick, invite friends.", draftMessage: "Movie night this week?" },
+  { title: "Potluck dinner?", subtitle: "Everyone brings something.", draftMessage: "Potluck this weekend — bring your specialty?" },
+  { title: "Grab brunch this weekend?", subtitle: "Start the day right.", draftMessage: "Brunch plans this weekend?", days: [0, 6] },
+  { title: "Workout buddy session?", subtitle: "Better together.", draftMessage: "Want to hit the gym / go for a run together?" },
+];
+
+function ruleTimely(todayKey: string): IdeaCard[] {
+  const now = new Date();
+  const month = now.getMonth();
+  const day = now.getDay();
+
+  // Filter to suggestions that match current month and day
+  const eligible = SEASONAL_SUGGESTIONS.filter((s) => {
+    if (s.months && s.months.length > 0 && !s.months.includes(month)) return false;
+    if (s.days && s.days.length > 0 && !s.days.includes(day)) return false;
+    return true;
+  });
+
+  if (eligible.length === 0) return [];
+
+  // Pick 2 deterministically based on day-of-year
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000);
+  const picked: typeof eligible = [];
+  for (let i = 0; i < Math.min(2, eligible.length); i++) {
+    const idx = (dayOfYear + i * 7) % eligible.length;
+    if (!picked.includes(eligible[idx]!)) picked.push(eligible[idx]!);
+  }
+
+  return picked.map((s, i) => ({
+    id: `timing_${s.title.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 30)}_${todayKey}`,
+    category: "timing" as IdeaCategory,
+    archetype: "explore" as IdeaArchetype,
+    title: s.title,
+    subtitle: s.subtitle,
+    draftMessage: s.draftMessage,
+    score: 55 + i,
+  }));
+}
+
+// ─── Rule F: New friend (no shared events yet) ────────
+
+function ruleNewFriend(
+  newFriends: IdeasNewFriend[],
+  todayKey: string,
+): IdeaCard[] {
+  const cards: IdeaCard[] = [];
+  for (const nf of newFriends) {
+    if (nf.addedDaysAgo > 30) continue; // only recent adds
+    const name = firstName(nf.friendName);
+    const chips: string[] = [];
+    if (nf.addedDaysAgo <= 1) chips.push("Just added");
+    else if (nf.addedDaysAgo <= 7) chips.push("Added this week");
+    else chips.push(`Added ${nf.addedDaysAgo}d ago`);
+
+    cards.push({
+      id: `new_friend_${nf.friendId}_${todayKey}`,
+      category: "new_friend",
+      archetype: "reconnect" as IdeaArchetype,
+      friendId: nf.friendId,
+      title: `Hang out with ${name}?`,
+      subtitle: "You haven't hung out yet — plan something!",
+      draftMessage: `Hey ${name}! Want to grab coffee or something soon?`,
+      score: 70 + Math.max(0, 14 - nf.addedDaysAgo),
+      friendAvatarUrl: nf.avatarUrl,
+      contextChips: chips.length > 0 ? chips.slice(0, 2) : undefined,
+    });
+  }
+  return cards;
+}
+
 // ─── Habit engine (pattern detection + reinforcement) ────
 
 /**
@@ -878,17 +977,19 @@ export function generateIdeas(
   const ruleBCards = ruleLowRsvp(context.upcomingFriendEvents, todayKey);
   const ruleCCards = ruleBirthday(context.birthdays, todayKey);
   const ruleDCards = ruleActivityRepeat(context.myRecentEvents, todayKey);
+  const ruleECards = ruleTimely(todayKey);
+  const ruleFCards = ruleNewFriend(context.newFriends ?? [], todayKey);
 
   if (__DEV__) {
     devLog(
-      `[P1_IDEAS_ENGINE] inputs: reconnects=${context.reconnects.length} birthdays=${context.birthdays.length} friendEvents=${context.upcomingFriendEvents.length} myEvents=${context.myRecentEvents.length}`,
+      `[P1_IDEAS_ENGINE] inputs: reconnects=${context.reconnects.length} birthdays=${context.birthdays.length} friendEvents=${context.upcomingFriendEvents.length} myEvents=${context.myRecentEvents.length} newFriends=${(context.newFriends ?? []).length}`,
     );
     devLog(
-      `[P1_IDEAS_ENGINE] cards per rule: A_reconnect=${ruleACards.length} B_lowRsvp=${ruleBCards.length} C_birthday=${ruleCCards.length} D_repeat=${ruleDCards.length}`,
+      `[P1_IDEAS_ENGINE] cards per rule: A_reconnect=${ruleACards.length} B_lowRsvp=${ruleBCards.length} C_birthday=${ruleCCards.length} D_repeat=${ruleDCards.length} E_timely=${ruleECards.length} F_newFriend=${ruleFCards.length}`,
     );
   }
 
-  let allCards = [...ruleACards, ...ruleBCards, ...ruleCCards, ...ruleDCards];
+  let allCards = [...ruleACards, ...ruleBCards, ...ruleCCards, ...ruleDCards, ...ruleECards, ...ruleFCards];
 
   // P1_SCORE: snapshot baseline scores for breakdown
   const _baseScores = new Map(allCards.map(c => [c.id, c.score]));

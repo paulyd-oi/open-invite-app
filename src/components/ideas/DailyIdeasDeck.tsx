@@ -179,6 +179,7 @@ const CATEGORY_ACCENT: Record<string, string> = {
   birthday: "#F59E0B",
   activity_repeat: "#8B5CF6",
   timing: "#10B981",
+  new_friend: "#06B6D4",
 };
 
 const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
@@ -187,6 +188,7 @@ const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
   birthday: { label: "Birthday", Icon: Gift },
   activity_repeat: { label: "Repeat", Icon: Repeat },
   timing: { label: "Idea", Icon: Sparkles },
+  new_friend: { label: "New Friend", Icon: Users },
 };
 
 const HERO_H = 100;
@@ -812,6 +814,16 @@ export function DailyIdeasDeck({
 
     const myId = (session as any)?.user?.id as string | undefined;
 
+    // Derive new friends: added recently with zero hangouts
+    const newFriends = (reconnectData?.suggestions ?? [])
+      .filter((s) => s.hangoutCount === 0 && s.daysSinceHangout <= 30)
+      .map((s) => ({
+        friendId: s.friend.id,
+        friendName: s.friend.name,
+        avatarUrl: s.friend.image,
+        addedDaysAgo: s.daysSinceHangout,
+      }));
+
     const context: IdeasContext = {
       reconnects: (reconnectData?.suggestions ?? []).map((s) => ({
         friendId: s.friend.id,
@@ -842,6 +854,7 @@ export function DailyIdeasDeck({
         title: ev.title,
         startTime: ev.startTime,
       })),
+      newFriends,
     };
 
     // Build birthday proximity map for context boosts
