@@ -46,6 +46,7 @@ import {
   UserPlus,
   Pencil,
 } from "@/ui/icons";
+import { STATUS } from "@/ui/tokens";
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -340,7 +341,7 @@ const FriendCard = React.memo(function FriendCard({
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className="w-14 h-14 rounded-2xl items-center justify-center"
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: '#10B981' }}
+            style={{ backgroundColor: STATUS.going.fg }}
           >
             <Pin size={20} color="#fff" />
           </Pressable>
@@ -355,22 +356,24 @@ const FriendCard = React.memo(function FriendCard({
             style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
     >
         <View className="flex-row items-start">
-          {/* Pin indicator */}
-          {isPinned && (
-            <View className="absolute top-3 right-3">
-              <Pin size={14} color={themeColor} />
-            </View>
-          )}
-          
-          <EntityAvatar
-            photoUrl={friend.image}
-            initials={friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
-            size={48}
-            backgroundColor={friend.image ? colors.avatarBg : themeColor + "20"}
-            foregroundColor={themeColor}
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ marginRight: 12 }}
-          />
+          {/* Avatar + pinned badge */}
+          <View style={{ position: "relative", marginRight: 12 }}>
+            <EntityAvatar
+              photoUrl={friend.image}
+              initials={friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
+              size={48}
+              backgroundColor={friend.image ? colors.avatarBg : themeColor + "20"}
+              foregroundColor={themeColor}
+            />
+            {isPinned && (
+              <View
+                className="absolute -top-0.5 -right-0.5 items-center justify-center"
+                style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: STATUS.going.fg }}
+              >
+                <Pin size={10} color="#fff" />
+              </View>
+            )}
+          </View>
           <View className="flex-1">
             <View className="flex-row items-center flex-nowrap gap-1.5">
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -521,7 +524,7 @@ const FriendListItem = React.memo(function FriendListItem({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               className="w-14 h-14 rounded-2xl items-center justify-center"
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={{ backgroundColor: '#10B981' }}
+              style={{ backgroundColor: STATUS.going.fg }}
             >
               <Pin size={20} color="#fff" />
             </Pressable>
@@ -535,6 +538,7 @@ const FriendListItem = React.memo(function FriendListItem({
             style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
           >
             {/* Main row — SSOT UserRow (friends list) */}
+            <View style={{ position: "relative" }}>
             <UserRow
               avatarUri={friend.image}
               handle={friend.Profile?.handle}
@@ -549,12 +553,7 @@ const FriendListItem = React.memo(function FriendListItem({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/friend/${friendship.id}` as any);
               }}
-              leftAccessory={isPinned ? (
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                <View style={{ marginRight: 6 }}>
-                  <Pin size={14} color={themeColor} />
-                </View>
-              ) : undefined}
+              leftAccessory={undefined}
               rightAccessory={
                 <Pressable
                   /* INVARIANT_ALLOW_INLINE_HANDLER */
@@ -570,6 +569,16 @@ const FriendListItem = React.memo(function FriendListItem({
                 </Pressable>
               }
             />
+            {/* Pinned badge — overlays avatar (matches CircleCard exactly) */}
+            {isPinned && (
+              <View
+                pointerEvents="none"
+                style={{ position: "absolute", top: 6, left: 34, width: 18, height: 18, borderRadius: 9, backgroundColor: STATUS.going.fg, alignItems: "center", justifyContent: "center" }}
+              >
+                <Pin size={10} color="#fff" />
+              </View>
+            )}
+            </View>
 
             {/* Expandable calendar section */}
             <Animated.View style={calendarStyle}>
