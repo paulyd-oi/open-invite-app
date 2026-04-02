@@ -988,7 +988,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Event Performance (premium-gated) ═══ */}
-        {userIsPremium && eventPerformance && (stats?.hostedCount ?? 0) > 0 && (
+        {userIsPremium && (eventPerformance || (stats?.hostedCount ?? 0) > 0) && (
           <Animated.View entering={FadeInDown.delay(140).duration(240)} className="mb-4">
             <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
               EVENT PERFORMANCE
@@ -1000,10 +1000,10 @@ export default function ProfileScreen() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.border }}
               >
                 <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                  {StringSafe(eventPerformance.totalRsvpsReceived)}
+                  {StringSafe(eventPerformance?.totalRsvpsReceived ?? stats?.attendedCount ?? 0)}
                 </Text>
                 <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                  Total RSVPs
+                  {eventPerformance ? "Total RSVPs" : "Events Attended"}
                 </Text>
               </View>
               <View
@@ -1011,21 +1011,21 @@ export default function ProfileScreen() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.border }}
               >
                 <Text className="text-2xl font-bold" style={{ color: "#F39C12" }}>
-                  {StringSafe(eventPerformance.avgRsvpsPerEvent)}
+                  {StringSafe(eventPerformance?.avgRsvpsPerEvent ?? stats?.hostedCount ?? 0)}
                 </Text>
                 <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                  Avg per Event
+                  {eventPerformance ? "Avg per Event" : "Events Hosted"}
                 </Text>
               </View>
             </View>
 
             {/* Top events list */}
-            {eventPerformance.topEvents.length > 0 && (
+            {(eventPerformance?.topEvents?.length ?? 0) > 0 && (
               <View
                 className="rounded-xl border overflow-hidden"
                 style={{ backgroundColor: colors.surface, borderColor: colors.border }}
               >
-                {eventPerformance.topEvents.map((topEvent, idx) => (
+                {(eventPerformance?.topEvents ?? []).map((topEvent, idx) => (
                   <Pressable
                     key={topEvent.id}
                     className="flex-row items-center px-4 py-3"

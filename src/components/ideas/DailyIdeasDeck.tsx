@@ -70,7 +70,7 @@ import {
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshAfterCircleCreate } from "@/lib/refreshAfterMutation";
-import type { GetCirclesResponse, GetEventsResponse, GetFriendBirthdaysResponse } from "@/shared/contracts";
+import type { GetCirclesResponse, GetEventsResponse, GetFriendBirthdaysResponse, GetFriendsResponse } from "@/shared/contracts";
 
 import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -179,6 +179,7 @@ const CATEGORY_ACCENT: Record<string, string> = {
   birthday: "#F59E0B",
   activity_repeat: "#8B5CF6",
   timing: "#10B981",
+  new_friend: "#6366F1",
 };
 
 const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
@@ -187,6 +188,7 @@ const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
   birthday: { label: "Birthday", Icon: Gift },
   activity_repeat: { label: "Repeat", Icon: Repeat },
   timing: { label: "Idea", Icon: Sparkles },
+  new_friend: { label: "New Friend", Icon: Users },
 };
 
 const HERO_H = 100;
@@ -672,6 +674,14 @@ export function DailyIdeasDeck({
     staleTime: 60000,
   });
 
+  // Friends list (for new-friend idea cards)
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled,
+    staleTime: 60000,
+  });
+
   // Circles list (for accept → chat flow)
   const { data: circlesData } = useQuery({
     queryKey: circleKeys.all(),
@@ -841,7 +851,21 @@ export function DailyIdeasDeck({
       myRecentEvents: (myEventsData?.events ?? []).map((ev) => ({
         title: ev.title,
         startTime: ev.startTime,
+        eventPhotoUrl: (ev as any).eventPhotoUrl as string | null | undefined,
+        emoji: ev.emoji ?? null,
       })),
+      newFriends: (friendsData?.friends ?? [])
+        .map((f) => {
+          const addedMs = new Date(f.createdAt).getTime();
+          const daysAgo = Math.floor((Date.now() - addedMs) / 86_400_000);
+          return {
+            friendId: f.friendId,
+            friendName: f.friend.name,
+            avatarUrl: f.friend.image,
+            addedDaysAgo: daysAgo,
+          };
+        })
+        .filter((f) => f.addedDaysAgo <= 14),
     };
 
     // Build birthday proximity map for context boosts
@@ -906,7 +930,7 @@ export function DailyIdeasDeck({
       getDeckStorageKey(),
       JSON.stringify({ deck: newDeck, index: 0 }),
     ).catch(() => {});
-  }, [storageChecked, ideasReady, reconnectData, birthdayData, feedEventsData, myEventsData, session]);
+  }, [storageChecked, ideasReady, reconnectData, birthdayData, feedEventsData, myEventsData, friendsData, session]);
 
   // ── Accept handler: route depends on card category ──
   const handleAccept = useCallback(async () => {

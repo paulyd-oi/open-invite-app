@@ -43,7 +43,8 @@ export type IdeaArchetype =
   | "birthday"
   | "repeat_activity"
   | "explore"
-  | "support_friend";
+  | "support_friend"
+  | "new_friend";
 
 export type ScoreBreakdown = {
   base: number;
@@ -62,6 +63,7 @@ const ARCHETYPE_CONFIG: Record<IdeaArchetype, { base: number }> = {
   repeat_activity: { base: 65 },
   explore: { base: 55 },
   support_friend: { base: 70 },
+  new_friend: { base: 80 },
 };
 
 /**
@@ -267,6 +269,7 @@ export function applyArchetypeSpacing<
 const ARCHETYPE_BASE_CONFIDENCE: Record<IdeaArchetype, number> = {
   birthday: 0.85,
   join_event: 0.8,
+  new_friend: 0.75,
   support_friend: 0.7,
   repeat_activity: 0.7,
   reconnect: 0.65,

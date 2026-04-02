@@ -60,6 +60,7 @@ function parseNotificationData(notification: Notification): {
   eventTitle?: string;
   eventId?: string;
   eventEmoji?: string;
+  eventCoverUrl?: string;
   userId?: string;
   commentId?: string;
 } {
@@ -72,6 +73,7 @@ function parseNotificationData(notification: Notification): {
       eventTitle: data.eventTitle || data.title,
       eventId: data.eventId,
       eventEmoji: data.eventEmoji,
+      eventCoverUrl: data.eventCoverUrl || data.coverUrl || data.eventPhotoUrl,
       userId: data.userId || data.senderId || data.actorId,
       commentId: data.commentId,
     };
@@ -153,20 +155,25 @@ function NotificationCard({
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
   const parsed = parseNotificationData(notification);
-  const { actorName, actorAvatarUrl, eventEmoji, eventTitle } = parsed;
+  const { actorName, actorAvatarUrl, eventEmoji, eventTitle, eventCoverUrl } = parsed;
   const copy = buildNotificationCopy(notification, parsed);
 
+  // Avatar priority: actorAvatarUrl → eventCoverUrl → eventEmoji → initials
   const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith("http");
+  const hasCoverPhoto = !hasAvatar && !!eventCoverUrl && eventCoverUrl.startsWith("http");
+  // Use cover photo URL as avatar for event notifications when no actor avatar
+  const resolvedPhotoUrl = hasAvatar ? actorAvatarUrl : hasCoverPhoto ? eventCoverUrl : undefined;
+  const hasPhoto = hasAvatar || hasCoverPhoto;
   // Only use emoji if backend explicitly provided one (no default "📅")
-  const hasEventEmoji = !hasAvatar && !!eventEmoji;
+  const hasEventEmoji = !hasPhoto && !!eventEmoji;
 
   // Unified initials fallback: actorName → eventTitle → notification title → "?"
   const initialsSource = actorName || eventTitle || notification.title || "?";
   const initialsText = getInitials(initialsSource);
-  const hasInitials = !hasAvatar && !hasEventEmoji;
+  const hasInitials = !hasPhoto && !hasEventEmoji;
 
   if (__DEV__) {
-    const avatarSource = hasAvatar ? "actorAvatar" : hasEventEmoji ? "eventEmoji" : "initials";
+    const avatarSource = hasAvatar ? "actorAvatar" : hasCoverPhoto ? "eventCover" : hasEventEmoji ? "eventEmoji" : "initials";
     devLog("[P1_ACTIVITY_AVATAR]", {
       notificationType: notification.type,
       avatarSource,
@@ -176,7 +183,7 @@ function NotificationCard({
 
   const categoryTint = notification.read ? colors.surface : config.color + "08";
   const categoryBorder = notification.read ? "transparent" : config.color + "20";
-  const bgColor = hasAvatar ? colors.surface : hasEventEmoji ? config.color + "15" : initialsColor(initialsSource) + "20";
+  const bgColor = hasPhoto ? colors.surface : hasEventEmoji ? config.color + "15" : initialsColor(initialsSource) + "20";
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).springify()}>
@@ -195,7 +202,7 @@ function NotificationCard({
         {/* Avatar — priority: photo → emoji → initials */}
         <View style={{ position: "relative" }}>
           <EntityAvatar
-            photoUrl={hasAvatar ? actorAvatarUrl : undefined}
+            photoUrl={resolvedPhotoUrl}
             emoji={hasEventEmoji ? eventEmoji : undefined}
             initials={hasInitials ? initialsText : undefined}
             size={44}
@@ -204,7 +211,7 @@ function NotificationCard({
             emojiStyle={{ fontSize: 22 }}
           />
           {/* Type badge overlay — shown when main slot is photo or emoji */}
-          {(hasAvatar || hasEventEmoji) && (
+          {(hasPhoto || hasEventEmoji) && (
             <View
               style={{
                 position: "absolute",

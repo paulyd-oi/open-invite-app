@@ -28,7 +28,8 @@ export type IdeaCategory =
   | "activity_repeat"
   | "low_rsvp"
   | "birthday"
-  | "timing";
+  | "timing"
+  | "new_friend";
 
 export interface IdeaCard {
   id: string;
@@ -83,6 +84,8 @@ export interface IdeasEvent {
 export interface IdeasMyEvent {
   title: string;
   startTime: string; // ISO
+  eventPhotoUrl?: string | null;
+  emoji?: string | null;
 }
 
 export interface IdeasBirthday {
@@ -99,11 +102,19 @@ export interface IdeasReconnect {
   avatarUrl?: string | null;
 }
 
+export interface IdeasNewFriend {
+  friendId: string;
+  friendName: string | null;
+  avatarUrl?: string | null;
+  addedDaysAgo: number;
+}
+
 export interface IdeasContext {
   reconnects: IdeasReconnect[];
   birthdays: IdeasBirthday[];
   upcomingFriendEvents: IdeasEvent[];
   myRecentEvents: IdeasMyEvent[];
+  newFriends?: IdeasNewFriend[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -598,7 +609,7 @@ function ruleActivityRepeat(
   const cards: IdeaCard[] = [];
   const todayMs = new Date(todayKey).getTime();
 
-  const titleMap = new Map<string, { title: string; lastDate: string }>();
+  const titleMap = new Map<string, { title: string; lastDate: string; eventPhotoUrl?: string | null }>();
   for (const ev of myEvents) {
     const key = ev.title.toLowerCase().trim();
     if (!key) continue;
@@ -607,11 +618,11 @@ function ruleActivityRepeat(
       !existing ||
       new Date(ev.startTime).getTime() > new Date(existing.lastDate).getTime()
     ) {
-      titleMap.set(key, { title: ev.title, lastDate: ev.startTime });
+      titleMap.set(key, { title: ev.title, lastDate: ev.startTime, eventPhotoUrl: ev.eventPhotoUrl });
     }
   }
 
-  for (const [, { title, lastDate }] of titleMap) {
+  for (const [, { title, lastDate, eventPhotoUrl }] of titleMap) {
     const diffDays =
       (todayMs - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24);
     if (diffDays < 7 || diffDays > 30) continue;
@@ -624,8 +635,100 @@ function ruleActivityRepeat(
       subtitle: "You've done this before.",
       draftMessage: `Want to do ${title} again this week?`,
       score: 60,
+      eventPhotoUrl: eventPhotoUrl ?? undefined,
     });
   }
+  return cards;
+}
+
+// ─── Rule E: Timing / seasonal suggestions ──────────────
+
+/** Curated seasonal + day-of-week suggestions. */
+const TIMING_SUGGESTIONS: {
+  id: string;
+  title: string;
+  subtitle: string;
+  draft: string;
+  months?: number[]; // 0-11
+  days?: number[];   // 0=Sun..6=Sat
+}[] = [
+  // Weekend suggestions (Fri-Sun)
+  { id: "weekend_brunch", title: "Weekend brunch?", subtitle: "Perfect day for it.", draft: "Want to grab brunch this weekend?", days: [5, 6, 0] },
+  { id: "weekend_hike", title: "Go for a hike this weekend", subtitle: "Get outside while the weather's nice.", draft: "Want to do a hike this weekend?", days: [5, 6, 0] },
+  { id: "weekend_game_night", title: "Host a game night", subtitle: "Weekends are made for this.", draft: "Game night this weekend? I'll host!", days: [5, 6, 0] },
+  // Weekday suggestions (Mon-Thu)
+  { id: "weekday_coffee", title: "Grab a quick coffee", subtitle: "A midweek catch-up.", draft: "Coffee this week? Quick 30 min catch-up?", days: [1, 2, 3, 4] },
+  { id: "weekday_lunch", title: "Lunch break together?", subtitle: "Break up the workweek.", draft: "Lunch together this week?", days: [1, 2, 3, 4] },
+  // Summer (Jun-Aug)
+  { id: "summer_bbq", title: "Host a summer BBQ", subtitle: "Make the most of the weather.", draft: "BBQ at my place this weekend? 🔥", months: [5, 6, 7] },
+  { id: "summer_beach", title: "Beach day trip", subtitle: "Summer's here — soak it up.", draft: "Beach day this weekend?", months: [5, 6, 7] },
+  // Fall (Sep-Nov)
+  { id: "fall_bonfire", title: "Bonfire night", subtitle: "Perfect weather for it.", draft: "Bonfire this weekend? I'll bring s'mores.", months: [8, 9, 10] },
+  // Winter (Dec-Feb)
+  { id: "winter_movie", title: "Cozy movie night", subtitle: "Perfect stay-in weather.", draft: "Movie night at mine? I'll make hot chocolate.", months: [11, 0, 1] },
+  { id: "holiday_party", title: "Plan a holiday get-together", subtitle: "'Tis the season.", draft: "Holiday get-together soon?", months: [11] },
+  // Spring (Mar-May)
+  { id: "spring_picnic", title: "Picnic in the park", subtitle: "Spring is here — get outside.", draft: "Picnic in the park this weekend?", months: [2, 3, 4] },
+];
+
+function ruleTiming(todayKey: string): IdeaCard[] {
+  const now = new Date(todayKey);
+  const month = now.getMonth();
+  const day = now.getDay();
+
+  const eligible = TIMING_SUGGESTIONS.filter((s) => {
+    if (s.months && !s.months.includes(month)) return false;
+    if (s.days && !s.days.includes(day)) return false;
+    return true;
+  });
+
+  // Pick up to 2 timing cards per day (deterministic by date)
+  const seed = month * 31 + now.getDate();
+  const picked = eligible
+    .sort((a, b) => {
+      const ha = (a.id.charCodeAt(0) * 31 + seed) % 97;
+      const hb = (b.id.charCodeAt(0) * 31 + seed) % 97;
+      return ha - hb;
+    })
+    .slice(0, 2);
+
+  return picked.map((s) => ({
+    id: `timing_${s.id}_${todayKey}`,
+    category: "timing" as IdeaCategory,
+    archetype: "explore" as IdeaArchetype,
+    title: s.title,
+    subtitle: s.subtitle,
+    draftMessage: s.draft,
+    score: 50,
+  }));
+}
+
+// ─── Rule F: New friend ─────────────────────────────────
+
+function ruleNewFriend(
+  newFriends: IdeasNewFriend[],
+  todayKey: string,
+): IdeaCard[] {
+  const cards: IdeaCard[] = [];
+
+  for (const f of newFriends) {
+    // Only suggest for friends added in the last 14 days
+    if (f.addedDaysAgo > 14) continue;
+
+    const name = firstName(f.friendName);
+    cards.push({
+      id: `new_friend_${f.friendId}_${todayKey}`,
+      category: "new_friend",
+      archetype: "new_friend",
+      friendId: f.friendId,
+      title: `Get to know ${name}`,
+      subtitle: `You connected ${f.addedDaysAgo <= 1 ? "recently" : `${f.addedDaysAgo} days ago`}. Plan something!`,
+      draftMessage: `Hey ${name}! We just connected — want to hang out sometime soon?`,
+      score: 70,
+      friendAvatarUrl: f.avatarUrl,
+    });
+  }
+
   return cards;
 }
 
@@ -878,17 +981,19 @@ export function generateIdeas(
   const ruleBCards = ruleLowRsvp(context.upcomingFriendEvents, todayKey);
   const ruleCCards = ruleBirthday(context.birthdays, todayKey);
   const ruleDCards = ruleActivityRepeat(context.myRecentEvents, todayKey);
+  const ruleECards = ruleTiming(todayKey);
+  const ruleFCards = ruleNewFriend(context.newFriends ?? [], todayKey);
 
   if (__DEV__) {
     devLog(
-      `[P1_IDEAS_ENGINE] inputs: reconnects=${context.reconnects.length} birthdays=${context.birthdays.length} friendEvents=${context.upcomingFriendEvents.length} myEvents=${context.myRecentEvents.length}`,
+      `[P1_IDEAS_ENGINE] inputs: reconnects=${context.reconnects.length} birthdays=${context.birthdays.length} friendEvents=${context.upcomingFriendEvents.length} myEvents=${context.myRecentEvents.length} newFriends=${(context.newFriends ?? []).length}`,
     );
     devLog(
-      `[P1_IDEAS_ENGINE] cards per rule: A_reconnect=${ruleACards.length} B_lowRsvp=${ruleBCards.length} C_birthday=${ruleCCards.length} D_repeat=${ruleDCards.length}`,
+      `[P1_IDEAS_ENGINE] cards per rule: A_reconnect=${ruleACards.length} B_lowRsvp=${ruleBCards.length} C_birthday=${ruleCCards.length} D_repeat=${ruleDCards.length} E_timing=${ruleECards.length} F_newFriend=${ruleFCards.length}`,
     );
   }
 
-  let allCards = [...ruleACards, ...ruleBCards, ...ruleCCards, ...ruleDCards];
+  let allCards = [...ruleACards, ...ruleBCards, ...ruleCCards, ...ruleDCards, ...ruleECards, ...ruleFCards];
 
   // P1_SCORE: snapshot baseline scores for breakdown
   const _baseScores = new Map(allCards.map(c => [c.id, c.score]));
