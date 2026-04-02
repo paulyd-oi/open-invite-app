@@ -38,6 +38,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Purchases from "react-native-purchases";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -1146,6 +1147,10 @@ export default function SettingsScreen() {
             }}
             onRestorePurchases={handleRestorePurchases}
             onRefreshEntitlements={handleRefreshEntitlements}
+            onRedeemCode={Platform.OS === "ios" ? async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              try { await Purchases.presentCodeRedemptionSheet(); } catch {}
+            } : undefined}
           />
         </Animated.View>
 

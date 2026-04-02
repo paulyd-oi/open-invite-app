@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, Pressable } from "react-native";
-import { Crown, RotateCcw, Sparkles } from "@/ui/icons";
+import { View, Text, Pressable, Platform } from "react-native";
+import { Crown, RotateCcw, Sparkles, Ticket } from "@/ui/icons";
 
 interface SettingsSubscriptionSectionProps {
   userIsPremium: boolean;
@@ -14,6 +14,7 @@ interface SettingsSubscriptionSectionProps {
   onOpenPaywall: () => void;
   onRestorePurchases: () => void;
   onRefreshEntitlements: () => void;
+  onRedeemCode?: () => void;
 }
 
 export function SettingsSubscriptionSection({
@@ -28,6 +29,7 @@ export function SettingsSubscriptionSection({
   onOpenPaywall,
   onRestorePurchases,
   onRefreshEntitlements,
+  onRedeemCode,
 }: SettingsSubscriptionSectionProps) {
   return (
     <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
@@ -76,6 +78,27 @@ export function SettingsSubscriptionSection({
           <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
             <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>
           </View>
+        </Pressable>
+      )}
+
+      {/* Redeem Church Code (iOS only, free users) */}
+      {!userIsPremium && Platform.OS === "ios" && onRedeemCode && (
+        <Pressable
+          onPress={onRedeemCode}
+          className="flex-row items-center p-4"
+          style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+        >
+          <View
+            className="w-10 h-10 rounded-full items-center justify-center mr-3"
+            style={{ backgroundColor: "#10B98120" }}
+          >
+            <Ticket size={20} color="#10B981" />
+          </View>
+          <View className="flex-1">
+            <Text style={{ color: colors.text }} className="text-base font-medium">Have a Church Code?</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-sm">Redeem your promo code</Text>
+          </View>
+          <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
         </Pressable>
       )}
 
