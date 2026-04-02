@@ -52,7 +52,7 @@ import { Button } from "@/ui/Button";
 import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
-import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
+import { computeAvailabilityBatch, getAvailabilityChip, type AvailabilitySignal } from "@/lib/availabilitySignal";
 import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
@@ -156,6 +156,335 @@ const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "soon", label: "Soon" },
   { key: "group", label: "Group" },
 ];
+
+// ── Extracted + memoized Discover card ──────────────────
+interface DiscoverCardProps {
+  event: PopularEvent;
+  index: number;
+  sessionUserId: string | undefined;
+  friendHostUserIds: Set<string>;
+  availabilityMap: Map<string, AvailabilitySignal>;
+  isDark: boolean;
+  colors: any;
+  themeColor: string;
+  tileShadow: any;
+  onPress: (eventId: string) => void;
+  onSave: (eventId: string) => void;
+  isSaving: boolean;
+}
+
+const DiscoverCard = React.memo(function DiscoverCard({
+  event,
+  index,
+  sessionUserId,
+  friendHostUserIds,
+  availabilityMap,
+  isDark,
+  colors,
+  themeColor,
+  tileShadow,
+  onPress,
+  onSave,
+  isSaving,
+}: DiscoverCardProps) {
+  const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
+  const rsvp = event.viewerRsvpStatus as string | null | undefined;
+  const saved = rsvp === "interested" || rsvp === "maybe";
+  const hostName = event.user?.name?.split(" ")[0] ?? null;
+  const isMyEvent = event.user?.id === sessionUserId;
+  const displayTime = event.nextOccurrence ?? event.startTime;
+  const dateStr = new Date(displayTime).toLocaleDateString([], {
+    weekday: "short", month: "short", day: "numeric",
+  });
+  const timeStr = new Date(displayTime).toLocaleTimeString([], {
+    hour: "numeric", minute: "2-digit",
+  });
+  const urgency = getUrgencyLabel(displayTime);
+  const spotsLeft = event.capacity && event.attendeeCount > 0
+    ? Math.max(0, event.capacity - event.attendeeCount)
+    : null;
+  const almostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 3;
+  const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+  const cardTheme = resolveEventTheme(event.themeId);
+  const cardAccent = cardTheme.backAccent;
+  const rawCardColor = (event as any).cardColor as string | undefined;
+  const plaqueBg = rawCardColor ? softenColor(rawCardColor) : (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
+  const ccHex = rawCardColor ? softenColor(rawCardColor) : undefined;
+  const ccText = ccHex ? getTextColorForBg(ccHex) : null;
+  const ccSecondary = ccText ? `${ccText}B3` : null;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).duration(220)} style={{ marginBottom: 18 }}>
+      <Pressable
+        testID="discover-card-open"
+        onPress={() => onPress(event.id)}
+        style={{
+          borderRadius: 20,
+          overflow: "hidden",
+          backgroundColor: plaqueBg,
+          borderWidth: cardAccent ? 1.5 : 1,
+          borderColor: cardAccent ? `${cardAccent}25` : colors.borderSubtle,
+          ...tileShadow,
+        }}
+      >
+        {/* ── Image zone ── */}
+        <View style={{ aspectRatio: 1.9, position: "relative" }}>
+          {hasPhoto ? (
+            <ExpoImage
+              source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          ) : (
+            <View
+              style={{
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: cardTheme
+                  ? (isDark ? cardTheme.pageTintDark : cardTheme.pageTintLight)
+                  : isDark ? "#2C2C2E" : "#FFF7ED",
+              }}
+            >
+              <Calendar size={48} color={isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.12)"} />
+            </View>
+          )}
+
+          {/* Urgency chip — image top-left */}
+          {urgency.label ? (
+            <View style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              backgroundColor: urgency.tone === "soon"
+                ? STATUS.soon.bgSoft
+                : "rgba(0,0,0,0.45)",
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+            }}>
+              <Text style={{
+                fontSize: 11,
+                fontWeight: "700",
+                color: urgency.tone === "soon" ? STATUS.soon.fg : "#FFFFFF",
+              }}>
+                {urgency.label}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* ── Themed content panel ── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+          {/* TOP ROW: Title + Save/Bookmark */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+            <Text
+              style={{
+                flex: 1,
+                color: ccText ?? colors.text,
+                fontSize: 18,
+                fontWeight: "700",
+                lineHeight: 24,
+                letterSpacing: -0.2,
+              }}
+              numberOfLines={2}
+            >
+              {event.title}
+            </Text>
+            <Pressable
+              testID="discover-card-save"
+              disabled={saved || isSaving}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onSave(event.id);
+              }}
+              hitSlop={10}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                marginLeft: 10,
+                marginTop: 1,
+                backgroundColor: saved
+                  ? STATUS.interested.bgSoft
+                  : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
+                opacity: isSaving ? 0.5 : 1,
+              }}
+            >
+              <Bookmark
+                size={16}
+                color={saved ? STATUS.interested.fg : colors.textTertiary}
+              />
+            </Pressable>
+          </View>
+
+          {/* Circle/group badge */}
+          {event.circleName ? (
+            <View style={{ flexDirection: "row", marginTop: 6 }}>
+              <EventVisibilityBadge
+                visibility={event.visibility}
+                circleId={event.circleId}
+                circleName={event.circleName}
+                eventId={event.id}
+                surface="discover_card"
+                isDark={isDark}
+              />
+            </View>
+          ) : null}
+
+          {/* Headline teaser */}
+          {event.eventHook ? (
+            <Text
+              style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 13, fontWeight: "500", fontStyle: "italic", marginTop: 6, lineHeight: 18 }}
+              numberOfLines={2}
+            >
+              {event.eventHook}
+            </Text>
+          ) : null}
+
+          {/* Host badge */}
+          {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
+              <EntityAvatar
+                photoUrl={event.user.image}
+                initials={event.user.name?.[0] ?? "?"}
+                size={20}
+                backgroundColor={event.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                foregroundColor={cardAccent ?? themeColor}
+                fallbackIcon="person-outline"
+              />
+              <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
+                {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
+              </Text>
+            </View>
+          )}
+
+          {/* FOOTER ROW */}
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+          }}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 6 }}>
+              <Calendar size={12} color={ccSecondary ?? cardAccent ?? colors.textSecondary} />
+              <Text style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
+                {dateStr}, {timeStr}
+              </Text>
+              {availChip && !isMyEvent && (
+                <View style={{
+                  backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                }}>
+                  <Text style={{
+                    fontSize: 10,
+                    fontWeight: "600",
+                    color: availChip.tone ? STATUS[availChip.tone].fg : colors.textTertiary,
+                  }}>
+                    {availChip.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Attendee avatar stack */}
+            {(() => {
+              const count = event.attendeeCount ?? 0;
+              const fromPreview = (event.attendeePreview ?? [])
+                .map((a) => ({ id: a.id, name: a.name ?? null, image: a.image ?? null }));
+              const fromJR = (event.joinRequests ?? [])
+                .filter((r) => r.status === "accepted" && r.user)
+                .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
+              const host = event.user
+                ? { id: event.user.id, name: event.user.name, image: event.user.image }
+                : null;
+              const seen = new Set<string>();
+              const merged: { id: string; name: string | null; image: string | null }[] = [];
+              for (const a of [...fromPreview, ...fromJR, ...(host ? [host] : [])]) {
+                if (!seen.has(a.id)) { seen.add(a.id); merged.push(a); }
+              }
+              if (merged.length === 0 && count === 0) return null;
+              const displayed = merged.slice(0, 3);
+              const remaining = Math.max(0, count - displayed.length);
+              const AVSZ = 24;
+              return (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {displayed.map((a, i) => (
+                    <View
+                      key={a.id}
+                      style={{
+                        marginLeft: i > 0 ? -7 : 0,
+                        borderWidth: 2,
+                        borderColor: plaqueBg,
+                        borderRadius: AVSZ / 2,
+                        zIndex: 3 - i,
+                      }}
+                    >
+                      <EntityAvatar
+                        photoUrl={a.image}
+                        initials={a.name?.[0] ?? "?"}
+                        size={AVSZ - 4}
+                        backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                        foregroundColor={cardAccent ?? themeColor}
+                        fallbackIcon="person-outline"
+                      />
+                    </View>
+                  ))}
+                  {remaining > 0 && (
+                    <View style={{
+                      width: AVSZ,
+                      height: AVSZ,
+                      borderRadius: AVSZ / 2,
+                      marginLeft: -7,
+                      borderWidth: 2,
+                      borderColor: plaqueBg,
+                      backgroundColor: cardAccent ?? themeColor,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 0,
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: "700", color: "#fff" }}>
+                        +{remaining}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}, (prev, next) => {
+  // Custom areEqual: only re-render when event data or relevant props change
+  return (
+    prev.event.id === next.event.id &&
+    prev.event.viewerRsvpStatus === next.event.viewerRsvpStatus &&
+    prev.event.attendeeCount === next.event.attendeeCount &&
+    prev.event.goingCount === next.event.goingCount &&
+    prev.event.eventPhotoUrl === next.event.eventPhotoUrl &&
+    prev.event.title === next.event.title &&
+    prev.sessionUserId === next.sessionUserId &&
+    prev.isDark === next.isDark &&
+    prev.themeColor === next.themeColor &&
+    prev.isSaving === next.isSaving &&
+    prev.friendHostUserIds === next.friendHostUserIds &&
+    prev.availabilityMap === next.availabilityMap
+  );
+});
+
+const discoverKeyExtractor = (item: PopularEvent) => item.id;
 
 export default function DiscoverScreen() {
   const mountTime = useRef(Date.now());
@@ -468,10 +797,34 @@ export default function DiscoverScreen() {
     });
   }
 
-  const handleEventPress = (eventId: string) => {
+  const handleEventPress = useCallback((eventId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/event/${eventId}` as any);
-  };
+  }, [router]);
+
+  const handleSaveEvent = useCallback((eventId: string) => {
+    saveMutation.mutate(eventId);
+  }, [saveMutation.mutate]);
+
+  const sessionUserId = session?.user?.id;
+  const isSaving = saveMutation.isPending;
+
+  const renderDiscoverCard = useCallback(({ item, index }: { item: PopularEvent; index: number }) => (
+    <DiscoverCard
+      event={item}
+      index={index}
+      sessionUserId={sessionUserId}
+      friendHostUserIds={friendHostUserIds}
+      availabilityMap={availabilityMap}
+      isDark={isDark}
+      colors={colors}
+      themeColor={themeColor}
+      tileShadow={tileShadow}
+      onPress={handleEventPress}
+      onSave={handleSaveEvent}
+      isSaving={isSaving}
+    />
+  ), [sessionUserId, friendHostUserIds, availabilityMap, isDark, colors, themeColor, tileShadow, handleEventPress, handleSaveEvent, isSaving]);
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
   if (!session) {
@@ -642,7 +995,7 @@ export default function DiscoverScreen() {
           ) : (
             <FlatList
               data={activeFeed}
-              keyExtractor={(item) => item.id}
+              keyExtractor={discoverKeyExtractor}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 16, paddingBottom: TAB_BOTTOM_PADDING }}
               refreshControl={
@@ -742,318 +1095,7 @@ export default function DiscoverScreen() {
                   </Pressable>
                 </View>
               }
-              renderItem={({ item: event, index }) => {
-                const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
-                const rsvp = event.viewerRsvpStatus as string | null | undefined;
-                const saved = rsvp === "interested" || rsvp === "maybe";
-                const hostName = event.user?.name?.split(" ")[0] ?? null;
-                const isMyEvent = event.user?.id === session?.user?.id;
-                const displayTime = event.nextOccurrence ?? event.startTime;
-                const dateStr = new Date(displayTime).toLocaleDateString([], {
-                  weekday: "short", month: "short", day: "numeric",
-                });
-                const timeStr = new Date(displayTime).toLocaleTimeString([], {
-                  hour: "numeric", minute: "2-digit",
-                });
-                const urgency = getUrgencyLabel(displayTime);
-                const spotsLeft = event.capacity && event.attendeeCount > 0
-                  ? Math.max(0, event.capacity - event.attendeeCount)
-                  : null;
-                const almostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 3;
-                // [AVAILABILITY_V1] Availability chip for this card
-                const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
-                const cardTheme = resolveEventTheme(event.themeId);
-                const cardAccent = cardTheme.backAccent;
-                const rawCardColor = (event as any).cardColor as string | undefined;
-                const plaqueBg = rawCardColor ? softenColor(rawCardColor) : (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
-                const ccHex = rawCardColor ? softenColor(rawCardColor) : undefined;
-                const ccText = ccHex ? getTextColorForBg(ccHex) : null;
-                const ccSecondary = ccText ? `${ccText}B3` : null;
-
-                return (
-                  <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).duration(220)} style={{ marginBottom: 18 }}>
-                    <Pressable
-                      testID="discover-card-open"
-                      onPress={() => handleEventPress(event.id)}
-                      style={{
-                        borderRadius: 20,
-                        overflow: "hidden",
-                        backgroundColor: plaqueBg,
-                        borderWidth: cardAccent ? 1.5 : 1,
-                        borderColor: cardAccent ? `${cardAccent}25` : colors.borderSubtle,
-                        ...tileShadow,
-                      }}
-                    >
-                      {/* ── Image zone ── */}
-                      <View style={{ aspectRatio: 1.9, position: "relative" }}>
-                        {hasPhoto ? (
-                          <ExpoImage
-                            source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
-                            style={{ width: "100%", height: "100%" }}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                            transition={200}
-                          />
-                        ) : (
-                          <View
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backgroundColor: cardTheme
-                                ? (isDark ? cardTheme.pageTintDark : cardTheme.pageTintLight)
-                                : isDark ? "#2C2C2E" : "#FFF7ED",
-                            }}
-                          >
-                            <Calendar size={48} color={isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.12)"} />
-                          </View>
-                        )}
-
-                        {/* Urgency chip — image top-left */}
-                        {urgency.label ? (
-                          <View style={{
-                            position: "absolute",
-                            top: 12,
-                            left: 12,
-                            backgroundColor: urgency.tone === "soon"
-                              ? STATUS.soon.bgSoft
-                              : "rgba(0,0,0,0.45)",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 8,
-                          }}>
-                            <Text style={{
-                              fontSize: 11,
-                              fontWeight: "700",
-                              color: urgency.tone === "soon" ? STATUS.soon.fg : "#FFFFFF",
-                            }}>
-                              {urgency.label}
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        {/* Event Hook overlay removed — headline now in card body */}
-                      </View>
-
-                      {/* ── Themed content panel ── */}
-                      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
-                        {/* TOP ROW: Title + Save/Bookmark */}
-                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                          <Text
-                            style={{
-                              flex: 1,
-                              color: ccText ?? colors.text,
-                              fontSize: 18,
-                              fontWeight: "700",
-                              lineHeight: 24,
-                              letterSpacing: -0.2,
-                            }}
-                            numberOfLines={2}
-                          >
-                            {event.title}
-                          </Text>
-                          <Pressable
-                            testID="discover-card-save"
-                            disabled={saved || saveMutation.isPending}
-                            onPress={() => {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              saveMutation.mutate(event.id);
-                            }}
-                            hitSlop={10}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 16,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              marginLeft: 10,
-                              marginTop: 1,
-                              backgroundColor: saved
-                                ? STATUS.interested.bgSoft
-                                : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
-                              opacity: saveMutation.isPending ? 0.5 : 1,
-                            }}
-                          >
-                            <Bookmark
-                              size={16}
-                              color={saved ? STATUS.interested.fg : colors.textTertiary}
-                            />
-                          </Pressable>
-                        </View>
-
-                        {/* Circle/group badge */}
-                        {event.circleName ? (
-                          <View style={{ flexDirection: "row", marginTop: 6 }}>
-                            <EventVisibilityBadge
-                              visibility={event.visibility}
-                              circleId={event.circleId}
-                              circleName={event.circleName}
-                              eventId={event.id}
-                              surface="discover_card"
-                              isDark={isDark}
-                            />
-                          </View>
-                        ) : null}
-
-                        {/* Headline teaser (replaces description on card front) */}
-                        {event.eventHook ? (
-                          <Text
-                            style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 13, fontWeight: "500", fontStyle: "italic", marginTop: 6, lineHeight: 18 }}
-                            numberOfLines={2}
-                          >
-                            {event.eventHook}
-                          </Text>
-                        ) : null}
-
-                        {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
-                        {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
-                            <EntityAvatar
-                              photoUrl={event.user.image}
-                              initials={event.user.name?.[0] ?? "?"}
-                              size={20}
-                              backgroundColor={event.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
-                              foregroundColor={cardAccent ?? themeColor}
-                              fallbackIcon="person-outline"
-                            />
-                            <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
-                              {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
-                            </Text>
-                          </View>
-                        )}
-
-                        {/* FOOTER ROW: date/time + availability | attendees */}
-                        <View style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginTop: 12,
-                          paddingTop: 12,
-                          borderTopWidth: 1,
-                          borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                        }}>
-                          {/* Left: date/time + "Looks clear" pill */}
-                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 6 }}>
-                            <Calendar size={12} color={ccSecondary ?? cardAccent ?? colors.textSecondary} />
-                            <Text style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
-                              {dateStr}, {timeStr}
-                            </Text>
-                            {/* [AVAILABILITY_V1] Calendar-fit chip — hidden on own events */}
-                            {availChip && !isMyEvent && (
-                              <View style={{
-                                backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
-                                paddingHorizontal: 6,
-                                paddingVertical: 2,
-                                borderRadius: 6,
-                              }}>
-                                <Text style={{
-                                  fontSize: 10,
-                                  fontWeight: "600",
-                                  color: availChip.tone ? STATUS[availChip.tone].fg : colors.textTertiary,
-                                }}>
-                                  {availChip.label}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Right: attendee avatar stack (visual only) */}
-                          {(() => {
-                            const count = event.attendeeCount ?? 0;
-
-                            // Build avatar list: attendeePreview (going RSVPs) first, then joinRequests, then host
-                            const fromPreview = (event.attendeePreview ?? [])
-                              .map((a) => ({ id: a.id, name: a.name ?? null, image: a.image ?? null }));
-                            const fromJR = (event.joinRequests ?? [])
-                              .filter((r) => r.status === "accepted" && r.user)
-                              .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
-
-                            // Always include host — they're an attendee on open events
-                            const host = event.user
-                              ? { id: event.user.id, name: event.user.name, image: event.user.image }
-                              : null;
-
-                            // Merge: attendeePreview first, then joinRequests, then host (dedupe)
-                            const seen = new Set<string>();
-                            const merged: { id: string; name: string | null; image: string | null }[] = [];
-                            for (const a of [...fromPreview, ...fromJR, ...(host ? [host] : [])]) {
-                              if (!seen.has(a.id)) { seen.add(a.id); merged.push(a); }
-                            }
-
-                            if (merged.length === 0 && count === 0) return null;
-                            const displayed = merged.slice(0, 3);
-                            const remaining = Math.max(0, count - displayed.length);
-                            const AVSZ = 24;
-
-                            // [DISCOVER_AVATAR_FIX] DEV diagnostic
-                            if (__DEV__ && index < 3) {
-                              devLog("[DISCOVER_AVATAR_FIX]", {
-                                eventId: event.id,
-                                title: event.title,
-                                attendeeCount: count,
-                                attendeePreviewCount: (event.attendeePreview ?? []).length,
-                                joinRequestsRaw: (event.joinRequests ?? []).length,
-                                fromPreviewCount: fromPreview.length,
-                                fromJRCount: fromJR.length,
-                                hostId: host?.id ?? null,
-                                hostImage: host?.image ?? null,
-                                displayedCount: displayed.length,
-                                displayedImages: displayed.map((a) => ({ id: a.id, hasImage: !!a.image })),
-                                remaining,
-                              });
-                            }
-
-                            return (
-                              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                {displayed.map((a, i) => (
-                                  <View
-                                    key={a.id}
-                                    style={{
-                                      marginLeft: i > 0 ? -7 : 0,
-                                      borderWidth: 2,
-                                      borderColor: plaqueBg,
-                                      borderRadius: AVSZ / 2,
-                                      zIndex: 3 - i,
-                                    }}
-                                  >
-                                    <EntityAvatar
-                                      photoUrl={a.image}
-                                      initials={a.name?.[0] ?? "?"}
-                                      size={AVSZ - 4}
-                                      backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
-                                      foregroundColor={cardAccent ?? themeColor}
-                                      fallbackIcon="person-outline"
-                                    />
-                                  </View>
-                                ))}
-                                {remaining > 0 && (
-                                  <View style={{
-                                    width: AVSZ,
-                                    height: AVSZ,
-                                    borderRadius: AVSZ / 2,
-                                    marginLeft: -7,
-                                    borderWidth: 2,
-                                    borderColor: plaqueBg,
-                                    backgroundColor: cardAccent ?? themeColor,
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    zIndex: 0,
-                                  }}>
-                                    <Text style={{ fontSize: 9, fontWeight: "700", color: "#fff" }}>
-                                      +{remaining}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                            );
-                          })()}
-                        </View>
-                      </View>
-                    </Pressable>
-                  </Animated.View>
-                );
-              }}
+              renderItem={renderDiscoverCard}
             />
           )}
         </View>

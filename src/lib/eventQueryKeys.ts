@@ -211,7 +211,6 @@ export function getInvalidateAfterComment(eventId: string): Array<readonly strin
 export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]> {
   return [
     eventKeys.single(eventId),
-    eventKeys.interests(eventId),
     eventKeys.comments(eventId),
     eventKeys.rsvp(eventId),
   ];
