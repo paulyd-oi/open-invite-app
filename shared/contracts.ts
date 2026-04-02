@@ -1207,6 +1207,16 @@ export const topFriendSchema = z.object({
 });
 export type TopFriend = z.infer<typeof topFriendSchema>;
 
+// Top event for Event Performance analytics
+export const topEventSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  emoji: z.string().nullable(),
+  startTime: z.string().nullable(),
+  attendees: z.number(),
+});
+export type TopEvent = z.infer<typeof topEventSchema>;
+
 // GET /api/profile/stats
 export const getProfileStatsResponseSchema = z.object({
   stats: z.object({
@@ -1216,6 +1226,11 @@ export const getProfileStatsResponseSchema = z.object({
     currentStreak: z.number(),
     maxAttendeesEvent: z.number(),
   }),
+  eventPerformance: z.object({
+    totalRsvpsReceived: z.number(),
+    avgRsvpsPerEvent: z.number(),
+    topEvents: z.array(topEventSchema),
+  }).optional(),
   topFriends: z.array(topFriendSchema),
   achievements: z.array(achievementSchema),
 });

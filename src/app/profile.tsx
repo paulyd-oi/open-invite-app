@@ -246,6 +246,7 @@ export default function ProfileScreen() {
   const circlesCount = circlesData?.circles?.length ?? 0;
 
   const stats = statsData?.stats;
+  const eventPerformance = statsData?.eventPerformance;
 
   const profileDisplay = getProfileDisplay({
     profileData,
@@ -985,6 +986,96 @@ export default function ProfileScreen() {
             />
           )}
         </Animated.View>
+
+        {/* ═══ Event Performance (premium-gated) ═══ */}
+        {userIsPremium && eventPerformance && (stats?.hostedCount ?? 0) > 0 && (
+          <Animated.View entering={FadeInDown.delay(140).duration(240)} className="mb-4">
+            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+              EVENT PERFORMANCE
+            </Text>
+            {/* Overview stats row */}
+            <View className="flex-row mb-2">
+              <View
+                className="flex-1 rounded-xl p-4 mr-1 border"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <Text className="text-2xl font-bold" style={{ color: themeColor }}>
+                  {StringSafe(eventPerformance.totalRsvpsReceived)}
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Total RSVPs
+                </Text>
+              </View>
+              <View
+                className="flex-1 rounded-xl p-4 ml-1 border"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <Text className="text-2xl font-bold" style={{ color: "#F39C12" }}>
+                  {StringSafe(eventPerformance.avgRsvpsPerEvent)}
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Avg per Event
+                </Text>
+              </View>
+            </View>
+
+            {/* Top events list */}
+            {eventPerformance.topEvents.length > 0 && (
+              <View
+                className="rounded-xl border overflow-hidden"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                {eventPerformance.topEvents.map((topEvent, idx) => (
+                  <Pressable
+                    key={topEvent.id}
+                    className="flex-row items-center px-4 py-3"
+                    style={idx > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : undefined}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/event/${topEvent.id}` as any);
+                    }}
+                  >
+                    <Text className="text-lg mr-2">{topEvent.emoji ?? "📅"}</Text>
+                    <View className="flex-1">
+                      <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
+                        {topEvent.title}
+                      </Text>
+                      <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                        {topEvent.attendees} attendee{topEvent.attendees !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                    <ChevronRight size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+        )}
+
+        {/* Teaser card for free users who have hosted events */}
+        {!userIsPremium && (stats?.hostedCount ?? 0) > 0 && (
+          <Animated.View entering={FadeInDown.delay(140).duration(240)} className="mb-4">
+            <Pressable
+              className="rounded-xl p-4 border"
+              style={{ backgroundColor: colors.surface, borderColor: "#FFD70050" }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/subscription" as any);
+              }}
+            >
+              <View className="flex-row items-center mb-2">
+                <Crown size={16} color="#FFD700" />
+                <Text className="font-semibold ml-2" style={{ color: colors.text }}>
+                  Event Performance
+                </Text>
+                <Chip label="PRO" variant="status" color="#FFD700" size="sm" style={{ marginLeft: 8 }} />
+              </View>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                See your RSVP stats, top events, and hosting insights.
+              </Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* ═══ Social Snapshot (2×2 grid) ═══ */}
         <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">

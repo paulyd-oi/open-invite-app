@@ -159,6 +159,8 @@ export function EventListItem({
   onToggleBusy,
   isOwner,
   colorOverride,
+  onEditWorkTime,
+  onDeleteWorkShift,
 }: {
   event: Event;
   isAttending?: boolean;
@@ -173,8 +175,12 @@ export function EventListItem({
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   isOwner?: boolean;
   colorOverride?: string;
+  onEditWorkTime?: (eventId: string) => void;
+  onDeleteWorkShift?: (eventId: string) => void;
 }) {
   const router = useRouter();
+  // Delete work shift confirmation state
+  const [showWorkDeleteConfirm, setShowWorkDeleteConfirm] = React.useState(false);
   // Track context menu state to prevent navigation when menu was just opened
   const contextMenuOpenedRef = React.useRef(false);
   const navigationBlockedUntilRef = React.useRef(0);
@@ -303,14 +309,14 @@ export function EventListItem({
     }
   };
 
-  // For non-interactive items (birthdays, work), just return simple Pressable
-  if (!isInteractive) {
+  // For birthday items, just return simple view (no context menu)
+  if (!isInteractive && !isWork) {
     if (compact) {
       return (
         <Pressable
           className="flex-row items-center py-2"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          style={{ opacity: isWork ? 0.7 : 1 }}
+          style={{ opacity: 1 }}
         >
           <View
             className="w-1 h-full rounded-full mr-3"
@@ -320,7 +326,7 @@ export function EventListItem({
           <View className="flex-1">
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-              {isWork ? `💼 ${displayTitle}` : displayTitle}
+              {displayTitle}
             </Text>
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs" style={{ color: colors.textSecondary }}>
@@ -339,7 +345,6 @@ export function EventListItem({
           backgroundColor: bgColor,
           borderLeftWidth: 4,
           borderLeftColor: eventColor,
-          opacity: isWork ? 0.8 : 1,
         }}
       >
         <View className="flex-1">
@@ -357,18 +362,6 @@ export function EventListItem({
             <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
               {displayTitle}
             </Text>
-            {isWork && (
-              <View
-                className="px-2 py-0.5 rounded-full ml-2"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: eventColor + "30" }}
-              >
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-xs font-medium" style={{ color: eventColor }}>
-                  Busy
-                </Text>
-              </View>
-            )}
           </View>
           <View className="flex-row items-center mt-1">
             <Clock size={12} color={textColor} />
@@ -385,6 +378,118 @@ export function EventListItem({
           )}
         </View>
       </View>
+    );
+  }
+
+  // Work events get a context menu with Edit Time and Delete Shift
+  if (isWork) {
+    const workCardContent = compact ? (
+      <View className="flex-row items-center py-2" style={{ opacity: 0.7 }}>
+        <View
+          className="w-1 h-full rounded-full mr-3"
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          style={{ backgroundColor: eventColor, minHeight: 36 }}
+        />
+        <View className="flex-1">
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
+            💼 {displayTitle}
+          </Text>
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
+            {timeLabel}
+          </Text>
+        </View>
+      </View>
+    ) : (
+      <View
+        className="flex-row items-center rounded-xl p-3 mb-2"
+        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+        style={{
+          backgroundColor: bgColor,
+          borderLeftWidth: 4,
+          borderLeftColor: eventColor,
+          opacity: 0.8,
+        }}
+      >
+        <View className="flex-1">
+          <View className="flex-row items-center">
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+            <View style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+              <EventPhotoEmoji
+                photoUrl={undefined}
+                emoji={displayEmoji}
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                emojiStyle={{ fontSize: 18 }}
+              />
+            </View>
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+            <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
+              {displayTitle}
+            </Text>
+            <View
+              className="px-2 py-0.5 rounded-full ml-2"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ backgroundColor: eventColor + "30" }}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-xs font-medium" style={{ color: eventColor }}>
+                Busy
+              </Text>
+            </View>
+          </View>
+          <View className="flex-row items-center mt-1">
+            <Clock size={12} color={textColor} />
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+            <Text className="text-xs ml-1" style={{ color: textColor }}>
+              {timeLabel}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+
+    return (
+      <>
+        <ContextMenu.Root>
+          <ContextMenu.Trigger>
+            <Pressable>{workCardContent}</Pressable>
+          </ContextMenu.Trigger>
+          <ContextMenu.Content>
+            {onEditWorkTime && (
+              <ContextMenu.Item key="edit-time" onSelect={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onEditWorkTime(event.id);
+              }}>
+                <ContextMenu.ItemTitle>Edit Time</ContextMenu.ItemTitle>
+                <ContextMenu.ItemIcon ios={{ name: "clock" }} />
+              </ContextMenu.Item>
+            )}
+            {onDeleteWorkShift && (
+              <ContextMenu.Item key="delete-shift" onSelect={() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                setShowWorkDeleteConfirm(true);
+              }} destructive>
+                <ContextMenu.ItemTitle>Delete Shift</ContextMenu.ItemTitle>
+                <ContextMenu.ItemIcon ios={{ name: "trash" }} />
+              </ContextMenu.Item>
+            )}
+          </ContextMenu.Content>
+        </ContextMenu.Root>
+
+        <ConfirmModal
+          visible={showWorkDeleteConfirm}
+          title="Delete Shift"
+          message={`Remove this ${displayTitle} shift? This will update your recurring work schedule.`}
+          confirmText="Delete"
+          isDestructive
+          onConfirm={() => {
+            setShowWorkDeleteConfirm(false);
+            onDeleteWorkShift?.(event.id);
+          }}
+          onCancel={() => setShowWorkDeleteConfirm(false)}
+        />
+      </>
     );
   }
 
