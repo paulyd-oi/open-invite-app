@@ -1,21 +1,11 @@
 import React from "react";
-import BottomSheet from "@/components/BottomSheet";
-import { SettingsSheetContent } from "@/components/create/SettingsSheetContent";
 import { CoverMediaPickerSheet } from "@/components/create/CoverMediaPickerSheet";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
-import type { DockMode } from "@/components/create/CreateBottomDock";
 import type { PaywallContext } from "@/lib/entitlements";
 import type { CoverMediaItem } from "@/components/create/coverMedia.types";
 
 interface CreateSheetsProps {
-  // Dock
-  activeDockMode: DockMode | null;
-  onCloseDock: () => void;
-
-  // Settings sheet
-  settingsProps: React.ComponentProps<typeof SettingsSheetContent>;
-
   // Cover picker
   showCoverPicker: boolean;
   onCloseCoverPicker: () => void;
@@ -37,9 +27,6 @@ interface CreateSheetsProps {
 }
 
 export function CreateSheets({
-  activeDockMode,
-  onCloseDock,
-  settingsProps,
   showCoverPicker,
   onCloseCoverPicker,
   onSelectCover,
@@ -55,16 +42,6 @@ export function CreateSheets({
 }: CreateSheetsProps) {
   return (
     <>
-      {/* ── Settings Sheet ── */}
-      <BottomSheet
-        visible={activeDockMode === "settings"}
-        onClose={onCloseDock}
-        title="Settings"
-        heightPct={0.65}
-      >
-        <SettingsSheetContent {...settingsProps} />
-      </BottomSheet>
-
       {/* ── Cover Media Picker Sheet ── */}
       <CoverMediaPickerSheet
         visible={showCoverPicker}

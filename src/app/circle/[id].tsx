@@ -1893,6 +1893,7 @@ export default function CircleScreen() {
       {/* [P1_NEXT_EVENT_ANCHOR] Sticky next-event card — stays visible above messages */}
       {nextCircleEvent && (
         <View
+          pointerEvents="box-none"
           style={{ position: "absolute", top: chromeHeight, left: 0, right: 0, zIndex: 9 }}
           onLayout={(e) => {
             const h = Math.round(e.nativeEvent.layout.height);

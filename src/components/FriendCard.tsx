@@ -12,6 +12,7 @@ import Animated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Pin, UserMinus, Calendar } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
+import { STATUS } from "@/ui/tokens";
 
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -161,8 +162,8 @@ export function FriendCard({
               />
               {isPinned && (
                 <View
-                  className="absolute -top-0.5 -right-0.5 rounded-full items-center justify-center"
-                  style={{ width: 18, height: 18, backgroundColor: "#10B981" }}
+                  className="absolute -top-0.5 -right-0.5 items-center justify-center"
+                  style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: STATUS.going.fg }}
                 >
                   <Pin size={10} color="#fff" />
                 </View>

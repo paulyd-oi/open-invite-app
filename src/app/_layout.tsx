@@ -882,6 +882,7 @@ function RootLayoutNav() {
         <Stack.Screen name="index" />
         <Stack.Screen name="calendar" />
         <Stack.Screen name="create" />
+        <Stack.Screen name="create-settings" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="friends" />
         <Stack.Screen name="circles" />
         <Stack.Screen

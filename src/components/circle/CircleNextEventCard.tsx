@@ -79,7 +79,7 @@ export function CircleNextEventCard({
           numberOfLines={1}
           style={{ fontSize: 12, fontWeight: "700", color: accentColor, textTransform: "uppercase", letterSpacing: 0.5, marginLeft: 6, flex: 1 }}
         >
-          Up Next \u00B7 {relativeLabel}
+          Up Next {"\u00B7"} {relativeLabel}
         </Text>
         {expanded ? (
           <ChevronUp size={14} color={accentColor} />
@@ -112,7 +112,7 @@ export function CircleNextEventCard({
               </Text>
             ) : null}
             <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 6 }}>
-              {dateStr} \u00B7 {timeStr}
+              {dateStr} {"\u00B7"} {timeStr}
             </Text>
             {event.location ? (
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>

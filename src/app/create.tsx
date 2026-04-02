@@ -56,6 +56,7 @@ import { type CreateEventRequest, type CreateEventResponse, type GetCirclesRespo
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate, getInvalidateAfterEventEdit } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
+import { useCreateSettingsStore } from "@/lib/createSettingsStore";
 
 // DEV-only: last create-event error receipt for inspection
 let __lastCreateEventReceipt: CreateEventErrorReceipt | null = null;
@@ -262,6 +263,12 @@ export default function CreateEventScreen() {
     return () => clearTimeout(timer);
   }, [entitlementsLoading, hostingQuota.isLoading]);
 
+  const handleRetryEntitlements = useCallback(() => {
+    setEntitlementsTimedOut(false);
+    refetchEntitlements();
+    hostingQuota.refetch();
+  }, [refetchEntitlements, hostingQuota]);
+
   // ── Hosting nudge (extracted hook) ──
   const { showNudgeBanner, handleNudgeDismiss } = useHostingNudge({
     userId: session?.user?.id,
@@ -274,6 +281,33 @@ export default function CreateEventScreen() {
   const handleNudgeUpgrade = useCallback(() => {
     setPaywallContext("RECURRING_EVENTS");
     setShowPaywallModal(true);
+  }, []);
+
+  // ── Sync settings store → local state when returning from settings modal ──
+  useEffect(() => {
+    const unsub = useCreateSettingsStore.subscribe((s) => {
+      setVisibility(s.visibility);
+      setSelectedGroupIds(s.selectedGroupIds);
+      setSendNotification(s.sendNotification);
+      setHasCapacity(s.hasCapacity);
+      setCapacityInput(s.capacityInput);
+      setHasRsvpDeadline(s.hasRsvpDeadline);
+      setRsvpDeadlineDate(s.rsvpDeadlineDate);
+      setCostPerPerson(s.costPerPerson);
+      setPitchInEnabled(s.pitchInEnabled);
+      setPitchInAmount(s.pitchInAmount);
+      setPitchInMethod(s.pitchInMethod);
+      setPitchInHandle(s.pitchInHandle);
+      setPitchInNote(s.pitchInNote);
+      setBringListEnabled(s.bringListEnabled);
+      setBringListItems(s.bringListItems);
+      setBringListInput(s.bringListInput);
+      setShowGuestList(s.showGuestList);
+      setShowGuestCount(s.showGuestCount);
+      setShowLocationPreRsvp(s.showLocationPreRsvp);
+      setHideWebLocation(s.hideWebLocation);
+    });
+    return unsub;
   }, []);
 
   // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
@@ -518,8 +552,35 @@ export default function CreateEventScreen() {
   }, [isEditMode, editEvent, isEditLoaded]);
 
   const handleDockMode = useCallback((mode: DockMode) => {
+    if (mode === "settings") {
+      // Sync local state → Zustand store, then open full-screen settings modal
+      useCreateSettingsStore.getState().set({
+        visibility,
+        selectedGroupIds,
+        sendNotification,
+        hasCapacity,
+        capacityInput,
+        hasRsvpDeadline,
+        rsvpDeadlineDate,
+        costPerPerson,
+        pitchInEnabled,
+        pitchInAmount,
+        pitchInMethod,
+        pitchInHandle,
+        pitchInNote,
+        bringListEnabled,
+        bringListItems,
+        bringListInput,
+        showGuestList,
+        showGuestCount,
+        showLocationPreRsvp,
+        hideWebLocation,
+      });
+      router.push(`/create-settings?isCircleEvent=${isCircleEvent}&themed=${themed}` as any);
+      return;
+    }
     setActiveDockMode((prev) => (prev === mode ? null : mode));
-  }, []);
+  }, [visibility, selectedGroupIds, sendNotification, hasCapacity, capacityInput, hasRsvpDeadline, rsvpDeadlineDate, costPerPerson, pitchInEnabled, pitchInAmount, pitchInMethod, pitchInHandle, pitchInNote, bringListEnabled, bringListItems, bringListInput, showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation, isCircleEvent, themed, router]);
 
   const handleThemeSelect = useCallback((id: ThemeId | null) => {
     setSelectedThemeId(id);
@@ -717,14 +778,14 @@ export default function CreateEventScreen() {
     createMutation.mutate(createPayload);
   };
 
-  const toggleGroup = (groupId: string) => {
+  const toggleGroup = useCallback((groupId: string) => {
     Haptics.selectionAsync();
     setSelectedGroupIds((prev) =>
       prev.includes(groupId)
         ? prev.filter((id) => id !== groupId)
         : [...prev, groupId]
     );
-  };
+  }, []);
 
   // ── Session guard (all hooks above) ──
   if (!session) {
@@ -1026,68 +1087,6 @@ export default function CreateEventScreen() {
       />
 
       <CreateSheets
-        activeDockMode={activeDockMode}
-        onCloseDock={() => setActiveDockMode(null)}
-        settingsProps={{
-          isCircleEvent,
-          visibility,
-          onSetVisibility: setVisibility,
-          selectedGroupIds,
-          onToggleGroup: toggleGroup,
-          circles,
-          sendNotification,
-          onSetSendNotification: setSendNotification,
-          hasCapacity,
-          onSetHasCapacity: setHasCapacity,
-          capacityInput,
-          onSetCapacityInput: setCapacityInput,
-          hasRsvpDeadline,
-          onSetHasRsvpDeadline: setHasRsvpDeadline,
-          rsvpDeadlineDate,
-          onSetRsvpDeadlineDate: setRsvpDeadlineDate,
-          costPerPerson,
-          onSetCostPerPerson: setCostPerPerson,
-          pitchInEnabled,
-          onSetPitchInEnabled: setPitchInEnabled,
-          pitchInAmount,
-          onSetPitchInAmount: setPitchInAmount,
-          pitchInMethod,
-          onSetPitchInMethod: setPitchInMethod,
-          pitchInHandle,
-          onSetPitchInHandle: setPitchInHandle,
-          pitchInNote,
-          onSetPitchInNote: setPitchInNote,
-          bringListEnabled,
-          onSetBringListEnabled: setBringListEnabled,
-          bringListItems,
-          onSetBringListItems: setBringListItems,
-          bringListInput,
-          onSetBringListInput: setBringListInput,
-          showGuestList,
-          onSetShowGuestList: setShowGuestList,
-          showGuestCount,
-          onSetShowGuestCount: setShowGuestCount,
-          showLocationPreRsvp,
-          onSetShowLocationPreRsvp: setShowLocationPreRsvp,
-          hideWebLocation,
-          onSetHideWebLocation: setHideWebLocation,
-          showNudgeBanner,
-          onNudgeUpgrade: handleNudgeUpgrade,
-          onNudgeDismiss: handleNudgeDismiss,
-          entitlementsTimedOut,
-          entitlementsLoading,
-          hostingQuotaLoading: hostingQuota.isLoading,
-          onRetryEntitlements: () => { setEntitlementsTimedOut(false); refetchEntitlements(); hostingQuota.refetch(); },
-          themed,
-          isDark,
-          themeColor,
-          glassText,
-          glassSecondary,
-          glassTertiary,
-          glassSurface,
-          glassBorder,
-          colors,
-        }}
         showCoverPicker={coverMedia.showCoverPicker}
         onCloseCoverPicker={() => coverMedia.setShowCoverPicker(false)}
         onSelectCover={coverMedia.handleCoverSelect}

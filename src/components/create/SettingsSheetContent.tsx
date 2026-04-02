@@ -108,7 +108,7 @@ interface SettingsSheetContentProps {
   onRetryEntitlements: () => void;
 }
 
-export function SettingsSheetContent(props: SettingsSheetContentProps) {
+export const SettingsSheetContent = React.memo(function SettingsSheetContent(props: SettingsSheetContentProps) {
   const {
     themed, glassSurface, glassBorder, glassText, glassSecondary, glassTertiary,
     themeColor, isDark, colors,
@@ -131,14 +131,16 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
 
   const router = require("expo-router").useRouter();
 
-  // Defer heavy below-fold sections until after the Modal slide animation settles.
-  // InteractionManager doesn't track native Modal animations, so we use a fixed
-  // timeout matching the slide duration (~350ms) to avoid mounting everything in
-  // the same frame burst that caused the 5-7s freeze.
-  const [ready, setReady] = useState(false);
+  // Defer heavy below-fold sections in two stages to avoid mounting everything
+  // in the same frame burst that caused the 5-7s freeze. Stage 1 (50ms) mounts
+  // the toggle rows (lightweight). Stage 2 (250ms) mounts expanded content
+  // (DateTimePicker, inputs, lists). This keeps the sheet scrollable immediately.
+  const [hasCostPerPerson, setHasCostPerPerson] = useState(() => costPerPerson.length > 0);
+  const [stage, setStage] = useState(0);
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 350);
-    return () => clearTimeout(timer);
+    const t1 = setTimeout(() => setStage(1), 50);
+    const t2 = setTimeout(() => setStage(2), 250);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   return (
@@ -264,8 +266,8 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
         </View>
       )}
 
-      {/* Below-fold sections — deferred until after sheet open animation */}
-      {ready && (<>
+      {/* Below-fold sections — stage 1: toggle rows (lightweight), stage 2: expanded inputs */}
+      {stage >= 1 && (<>
 
       {/* ── Capacity ── */}
       <View style={{ marginBottom: 16 }}>
@@ -286,7 +288,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
             thumbColor={hasCapacity ? themeColor : glassTertiary}
           />
         </View>
-        {hasCapacity && (
+        {stage >= 2 && hasCapacity && (
           <View style={{ borderRadius: 12, padding: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
             <Text style={{ color: glassSecondary, fontSize: 13 }}>Max guests</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -339,7 +341,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
             thumbColor={hasRsvpDeadline ? themeColor : glassTertiary}
           />
         </View>
-        {hasRsvpDeadline && (
+        {stage >= 2 && hasRsvpDeadline && (
           <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
             <DateTimePicker
               value={rsvpDeadlineDate}
@@ -357,20 +359,35 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
 
       {/* ── Cost Per Person ── */}
       <View style={{ marginBottom: 16 }}>
-        <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Cost Per Person</Text>
-        <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
-          <TextInput
-            value={costPerPerson}
-            onChangeText={onSetCostPerPerson}
-            placeholder="e.g. $20, Free, BYOB"
-            placeholderTextColor={glassTertiary}
-            style={{ fontSize: 14, color: glassText }}
-            maxLength={100}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Cost Per Person</Text>
+            <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Shown on the event page for guests to see.</Text>
+          </View>
+          <Switch
+            value={hasCostPerPerson}
+            onValueChange={(value) => {
+              Haptics.selectionAsync();
+              setHasCostPerPerson(value);
+              if (!value) onSetCostPerPerson("");
+            }}
+            trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+            thumbColor={hasCostPerPerson ? themeColor : glassTertiary}
           />
         </View>
-        <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 4, marginLeft: 2 }}>
-          Shown on the event page for guests to see.
-        </Text>
+        {stage >= 2 && hasCostPerPerson && (
+          <View style={{ borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
+            <TextInput
+              value={costPerPerson}
+              onChangeText={onSetCostPerPerson}
+              placeholder="e.g. $20, Free, BYOB"
+              placeholderTextColor={glassTertiary}
+              style={{ fontSize: 14, color: glassText }}
+              maxLength={100}
+              autoFocus
+            />
+          </View>
+        )}
       </View>
 
       {/* ── Pitch In ── */}
@@ -396,7 +413,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
           />
         </View>
 
-        {pitchInEnabled && (
+        {stage >= 2 && pitchInEnabled && (
           <View>
             <View style={{ borderRadius: 12, padding: 10, marginBottom: 8, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
               <TextInput
@@ -507,7 +524,7 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
           />
         </View>
 
-        {bringListEnabled && (
+        {stage >= 2 && bringListEnabled && (
           <View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <View style={{ flex: 1, borderRadius: 12, padding: 10, backgroundColor: glassSurface, borderWidth: 1, borderColor: glassBorder }}>
@@ -687,4 +704,4 @@ export function SettingsSheetContent(props: SettingsSheetContentProps) {
       </>)}
     </ScrollView>
   );
-}
+});
