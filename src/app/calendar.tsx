@@ -35,6 +35,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { AppHeader, HEADER_TITLE_SIZE } from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -85,6 +86,78 @@ import { DAYS, DAYS_FULL, CALENDAR_VIEW_HEIGHT_KEY, GUIDE_SEEN_KEY_PREFIX, UNIFI
 
 // NOTE: getEventPalette, EventPalette, and assertGreyPaletteInvariant are now imported from @/lib/eventPalette
 // This is the single source of truth for busy/work grey rendering
+
+// Helper: parse "HH:MM" → Date for DateTimePicker
+function parseTimeToDate(time: string): Date {
+  const [h, m] = time.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h ?? 9, m ?? 0, 0, 0);
+  return d;
+}
+
+// Helper: Date → "HH:MM"
+function formatTimeString(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+// Inline work time editor for the modal
+function WorkTimeEditor({
+  startTime,
+  endTime,
+  colors,
+  themeColor,
+  onSave,
+  onCancel,
+}: {
+  startTime: string;
+  endTime: string;
+  colors: typeof DARK_COLORS;
+  themeColor: string;
+  onSave: (start: string, end: string) => void;
+  onCancel: () => void;
+}) {
+  const [start, setStart] = useState(parseTimeToDate(startTime));
+  const [end, setEnd] = useState(parseTimeToDate(endTime));
+
+  return (
+    <View>
+      <View className="flex-row items-center justify-between mb-3">
+        <Text className="text-sm font-medium" style={{ color: colors.textSecondary }}>Start</Text>
+        <DateTimePicker
+          value={start}
+          mode="time"
+          display="default"
+          onChange={(_e, d) => d && setStart(d)}
+        />
+      </View>
+      <View className="flex-row items-center justify-between mb-5">
+        <Text className="text-sm font-medium" style={{ color: colors.textSecondary }}>End</Text>
+        <DateTimePicker
+          value={end}
+          mode="time"
+          display="default"
+          onChange={(_e, d) => d && setEnd(d)}
+        />
+      </View>
+      <View className="flex-row gap-3">
+        <Pressable
+          className="flex-1 py-3 rounded-xl items-center"
+          style={{ backgroundColor: colors.border }}
+          onPress={onCancel}
+        >
+          <Text className="font-semibold" style={{ color: colors.text }}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          className="flex-1 py-3 rounded-xl items-center"
+          style={{ backgroundColor: themeColor }}
+          onPress={() => onSave(formatTimeString(start), formatTimeString(end))}
+        >
+          <Text className="font-semibold text-white">Save</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 // Keep full list for reference
 const VIEW_MODES: { id: ViewMode; label: string; icon: typeof List }[] = [
@@ -570,6 +643,74 @@ export default function CalendarScreen() {
 
   const handleToggleBusy = (eventId: string, isBusy: boolean) => {
     toggleBusyMutation.mutate({ eventId, isBusy });
+  };
+
+  // ── Work event context menu: Edit Time / Delete Shift ──
+
+  // State for the work time editor
+  const [editingWorkEvent, setEditingWorkEvent] = useState<{
+    eventId: string;
+    dayOfWeek: number;
+    isBlock2: boolean;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
+
+  // Parse synthetic work event ID → dayOfWeek + isBlock2
+  const parseWorkEventId = (eventId: string): { dayOfWeek: number; isBlock2: boolean } | null => {
+    // IDs: work-YYYY-M-D or work-YYYY-M-D-b2
+    const match = eventId.match(/^work-(\d+)-(\d+)-(\d+)(-b2)?$/);
+    if (!match) return null;
+    const year = parseInt(match[1]!, 10);
+    const month = parseInt(match[2]!, 10);
+    const day = parseInt(match[3]!, 10);
+    const isBlock2 = match[4] === "-b2";
+    const date = new Date(year, month, day);
+    return { dayOfWeek: date.getDay(), isBlock2 };
+  };
+
+  // Update work schedule mutation (edit time or delete shift)
+  const updateWorkScheduleMutation = useMutation({
+    mutationFn: async (params: { dayOfWeek: number; payload: Record<string, unknown> }) =>
+      api.put(`/api/work-schedule/${params.dayOfWeek}`, params.payload),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
+    },
+    onError: () => {
+      safeToast.error("Oops", "That didn't go through. Please try again.");
+    },
+  });
+
+  const handleEditWorkTime = (eventId: string) => {
+    const parsed = parseWorkEventId(eventId);
+    if (!parsed) return;
+    const schedule = workSchedules.find((s) => s.dayOfWeek === parsed.dayOfWeek);
+    if (!schedule) return;
+    const startTime = parsed.isBlock2 ? (schedule.block2StartTime ?? "09:00") : (schedule.startTime ?? "09:00");
+    const endTime = parsed.isBlock2 ? (schedule.block2EndTime ?? "17:00") : (schedule.endTime ?? "17:00");
+    setEditingWorkEvent({ eventId, dayOfWeek: parsed.dayOfWeek, isBlock2: parsed.isBlock2, startTime, endTime });
+  };
+
+  const handleDeleteWorkShift = (eventId: string) => {
+    const parsed = parseWorkEventId(eventId);
+    if (!parsed) return;
+    if (parsed.isBlock2) {
+      // Clear block 2 times
+      updateWorkScheduleMutation.mutate({ dayOfWeek: parsed.dayOfWeek, payload: { block2StartTime: "", block2EndTime: "" } });
+    } else {
+      // Disable the entire day
+      updateWorkScheduleMutation.mutate({ dayOfWeek: parsed.dayOfWeek, payload: { isEnabled: false } });
+    }
+  };
+
+  const handleSaveWorkTime = (startTime: string, endTime: string) => {
+    if (!editingWorkEvent) return;
+    const payload = editingWorkEvent.isBlock2
+      ? { block2StartTime: startTime, block2EndTime: endTime }
+      : { startTime, endTime };
+    updateWorkScheduleMutation.mutate({ dayOfWeek: editingWorkEvent.dayOfWeek, payload });
+    setEditingWorkEvent(null);
   };
 
   // Fetch work schedule
@@ -1269,6 +1410,8 @@ export default function CalendarScreen() {
             onColorChange={handleColorChange}
             onDelete={handleDeleteEvent}
             onToggleBusy={handleToggleBusy}
+            onEditWorkTime={handleEditWorkTime}
+            onDeleteWorkShift={handleDeleteWorkShift}
             session={session}
             colorOverrides={colorOverrides}
           />
@@ -1452,6 +1595,8 @@ export default function CalendarScreen() {
                       onDelete={handleDeleteEvent}
                       onToggleBusy={handleToggleBusy}
                       colorOverride={colorOverrides[event.id]}
+                      onEditWorkTime={handleEditWorkTime}
+                      onDeleteWorkShift={handleDeleteWorkShift}
                     />
                   </Animated.View>
                 ))
@@ -1635,6 +1780,40 @@ export default function CalendarScreen() {
         onAdjustEnd={adjustBusyEnd}
         onCreateBusy={handleCreateBusy}
       />
+
+      {/* Work Event Time Editor Modal */}
+      <Modal
+        visible={!!editingWorkEvent}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingWorkEvent(null)}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setEditingWorkEvent(null)}
+        >
+          <Pressable
+            className="rounded-2xl p-5 mx-6 w-80"
+            style={{ backgroundColor: colors.surface }}
+            onPress={() => {}}
+          >
+            <Text className="text-lg font-bold text-center mb-4" style={{ color: colors.text }}>
+              Edit Work Time
+            </Text>
+            {editingWorkEvent && (
+              <WorkTimeEditor
+                startTime={editingWorkEvent.startTime}
+                endTime={editingWorkEvent.endTime}
+                colors={colors}
+                themeColor={themeColor}
+                onSave={handleSaveWorkTime}
+                onCancel={() => setEditingWorkEvent(null)}
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* First-login Welcome Modal - shows only once per user */}
       <WelcomeModal

@@ -21,6 +21,8 @@ export function ListView({
   onColorChange,
   onDelete,
   onToggleBusy,
+  onEditWorkTime,
+  onDeleteWorkShift,
   session,
   colorOverrides = {},
 }: {
@@ -34,6 +36,8 @@ export function ListView({
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
+  onEditWorkTime?: (eventId: string) => void;
+  onDeleteWorkShift?: (eventId: string) => void;
   session: any;
   colorOverrides?: Record<string, string>;
 }) {
@@ -126,6 +130,8 @@ export function ListView({
               onColorChange={onColorChange}
               onDelete={onDelete}
               onToggleBusy={onToggleBusy}
+              onEditWorkTime={onEditWorkTime}
+              onDeleteWorkShift={onDeleteWorkShift}
               colorOverride={colorOverrides[event.id]}
             />
           ))}
