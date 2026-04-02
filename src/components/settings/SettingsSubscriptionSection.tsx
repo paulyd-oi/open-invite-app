@@ -95,7 +95,7 @@ export function SettingsSubscriptionSection({
             <Ticket size={20} color="#10B981" />
           </View>
           <View className="flex-1">
-            <Text style={{ color: colors.text }} className="text-base font-medium">Have a Church Code?</Text>
+            <Text style={{ color: colors.text }} className="text-base font-medium">Have a Code?</Text>
             <Text style={{ color: colors.textSecondary }} className="text-sm">Redeem your promo code</Text>
           </View>
           <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
