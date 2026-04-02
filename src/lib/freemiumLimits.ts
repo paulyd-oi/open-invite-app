@@ -1,11 +1,20 @@
 // freemiumLimits.ts
 // Shared freemium model constants for Open Invite v3.0
 // Product Principle: Participation is free, power users pay
+//
+// ⚠️  DEPRECATED TIER LIMITS: FREE_TIER_LIMITS and PRO_TIER_LIMITS below
+// are NOT the canonical subscription source. They are stale and conflict
+// with the actual SSOT:
+//   - Runtime enforcement: src/lib/entitlements.ts (reads /api/entitlements)
+//   - Subscription hook:   src/lib/useSubscription.ts (reads /api/subscription)
+//   - Backend returns actual limits per user; these constants are never imported.
+// Only REFERRAL_TIERS from this file is actively used (6 import sites).
 
 // ============================================
-// FREE TIER LIMITS
+// FREE TIER LIMITS  — ⚠️ STALE, see useSubscription.ts
 // ============================================
 
+/** @deprecated Use entitlements from /api/entitlements or useSubscription hook instead. */
 export const FREE_TIER_LIMITS = {
   // Events
   maxActiveEvents: 5,           // Max concurrent future events
@@ -42,9 +51,10 @@ export const FREE_TIER_LIMITS = {
 } as const;
 
 // ============================================
-// PRO TIER LIMITS (no limits or unlocked)
+// PRO TIER LIMITS  — ⚠️ STALE, see useSubscription.ts
 // ============================================
 
+/** @deprecated Use entitlements from /api/entitlements or useSubscription hook instead. */
 export const PRO_TIER_LIMITS = {
   // Events
   maxActiveEvents: Infinity,    // Unlimited

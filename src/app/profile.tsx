@@ -980,7 +980,7 @@ export default function ProfileScreen() {
           ) : (
             <StreakCounter
               currentStreak={stats?.currentStreak ?? 0}
-              longestStreak={stats?.currentStreak ?? 0}
+              longestStreak={0}
               totalHangouts={stats?.attendedCount ?? 0}
             />
           )}

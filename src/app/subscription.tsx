@@ -333,6 +333,10 @@ export default function SubscriptionScreen() {
 
   const sourceCopy = getSourceCopy();
 
+  // Feature comparison — ONLY rows with backend-enforced differences.
+  // Theme gating is enforced via PREMIUM_THEME_IDS in shared/contracts.ts.
+  // Circles, Who's Free, Event History, Birthdays limits are defined in
+  // entitlements.ts FREE_LIMITS but NOT enforced by the backend for any user.
   const featureCategories: FeatureCategory[] = [
     {
       title: "Hosting",
@@ -343,22 +347,9 @@ export default function SubscriptionScreen() {
     {
       title: "Themes & Atmosphere",
       features: [
-        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "25 premium" },
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "All 30" },
         { name: "Premium Effects", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
         { name: "Theme Studio", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
-      ],
-    },
-    {
-      title: "Social",
-      features: [
-        { name: "Friends", icon: <Users size={16} color={themeColor} />, freeValue: "Unlimited", proValue: "Unlimited" },
-        { name: "Circles", icon: <Users size={16} color={themeColor} />, freeValue: "2 max", proValue: "Unlimited" },
-      ],
-    },
-    {
-      title: "Planning",
-      features: [
-        { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
       ],
     },
   ];

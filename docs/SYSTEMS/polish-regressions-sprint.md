@@ -169,35 +169,98 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 
 **Invariants:** Existing recurring events are unaffected — their recurrence data is stored and rendered as before. Backend recurrence logic untouched. Calendar recurrence rendering untouched. Only the create/edit UI surface removed.
 
-### 3.5 Activity Feed Image Wiring + Notification Dedup — Phase 3
+### 3.5 Activity Feed Dedup + Reminder Collapsing — Phase 3 ✅
 
-**Current behavior:** Activity feed may show broken images, duplicate notifications possible.
-**Target behavior:** Correct image URLs, dedup notifications.
-**Files:**
-- `src/components/activity/ActivityFeed.tsx` (634 lines)
-- `src/app/activity.tsx` (138 lines)
+**Previous behavior:** Backend creates multiple notifications with different IDs for the same event action. The id-based dedup in `usePaginatedNotifications.ts:83` (Map by `n.id`) did NOT catch content duplicates. Result: "New Event" for the same event appeared 2-3x, reminders for the same event stacked 3x.
 
-### 3.6 Friend Request Notification Avatars + Stale Clearing — Phase 3
+**Notification data schema** (from `shared/contracts.ts:692-700`):
+```
+{ id, type, title, body, data: string|null, read, createdAt }
+```
+Where `data` is a JSON blob parsed by `parseNotificationData`. Available fields vary by notification type — `eventId`, `actorName`, `actorAvatarUrl`, `eventTitle`, `eventEmoji`, `userId`/`senderId`/`actorId`.
 
-**Current behavior:** Friend request notifications may lack avatars, stale requests may persist.
-**Target behavior:** Show avatars, clear stale requests.
-**Files:**
-- `src/components/activity/ActivityFeed.tsx`
-- `src/components/friends/FriendsPeoplePane.tsx` (435 lines)
+**Root cause of duplicates:** Backend creates separate notification rows (unique IDs) for what the user perceives as one event. Example: two `event_invite` notifs for the same `eventId` on the same day.
 
-### 3.7 Subscription Page Inaccurate Feature Table — Phase 3
+**Fix — content-based dedup** (`contentDedup` function in `ActivityFeed.tsx`):
+1. For reminders (`event_reminder`/`reminder`): key = `reminder:{eventId}` if eventId available, else `reminder:{title with time suffix stripped}`. ONE row per event, period.
+2. For other event types: key = `{type}:{eventId}:{YYYY-MM-DD}`. One notification per type+event+day.
+3. Notifications without `eventId` and not reminders are never collapsed.
+4. Applied BEFORE the filter step in `filteredNotifications` useMemo.
+5. Title-based fallback key strips time suffixes (regex: `/\s*[—–\-]\s*(In\s+)?\d+.*$/i`), so "Reminder: Beach BBQ — In 30 min" and "Reminder: Beach BBQ — In 2 hours" collapse to one row.
 
-**Current behavior:** Feature comparison table may not match current entitlements.
-**Target behavior:** Accurate feature table reflecting current Pro vs Free capabilities.
-**Files:**
-- `src/app/subscription.tsx` (759 lines)
+**Fallback icon consistency (Phase 3.5):** Replaced mixed per-type Ionicons fallback with unified initials-based fallback:
+- Removed default "📅" emoji for event types — only uses emoji if backend explicitly provided `eventEmoji`.
+- Initials derived from: `actorName` → `eventTitle` → `notification.title` → "?".
+- Background color deterministically hashed from the source string to a 10-color palette.
+- Result: all notifications without avatar data show consistent colored initials circles instead of a mix of bell/calendar/person icons.
 
-### 3.8 Profile Stats Correctness — Phase 3
+**Generic icons (no event images):** The notification `data` JSON does NOT include event cover image URLs. **Backend follow-up required:** Include `actorAvatarUrl` and/or `eventCoverUrl` in notification `data` JSON.
 
-**Current behavior:** Profile stats show zeros when data exists.
-**Target behavior:** Correct stats computation and display.
-**Files:**
-- `src/app/profile.tsx` (1123 lines)
+**Files changed:**
+- `src/components/activity/ActivityFeed.tsx` — `contentDedup()` with title-based fallback key for reminders, `NotificationCard` with unified initials fallback, `initialsColor()` deterministic hash, `INITIALS_PALETTE` constant.
+
+### 3.6 Friend Request Navigation Fix — Phase 3 ✅
+
+**Previous behavior:** Tapping a friend_request notification showed "Unavailable" toast because `resolveNotificationTarget` returned null — the notification `data` JSON did not contain `userId`, `senderId`, or `actorId` fields.
+
+**Root cause:** `resolveNotificationTarget` checked for `eventId` first, then `userId`/`senderId`/`actorId`. For friend requests, neither field was present in the data → returned null → "Unavailable" toast.
+
+**Fix:** Added `friend_request` and `friend_accepted` type-specific handling at the top of `resolveNotificationTarget`. These types now:
+1. First try to extract `userId`/`senderId`/`actorId` → navigate to `/user/{id}`
+2. If no user ID in data → fallback to `/friends` (so the tap always does something useful)
+
+**Avatars:** The frontend avatar rendering (`parseNotificationData` → `EntityAvatar` fallback chain) is correctly wired. The issue is backend: notification `data` JSON for friend_request notifications does not include `actorAvatarUrl`. Current behavior shows initials (if `actorName` present) or generic person icon. **Backend follow-up required:** Include `actorAvatarUrl` in friend_request notification data.
+
+**Stale requests:** The notification schema has no `status` field — there is no way to determine client-side whether a friend request was already responded to. `markAllSeen()` clears the unread badge but does not filter responded requests. **Backend follow-up required:** Either (a) add a `status` field to notifications, or (b) clean up/expire friend_request notifications when the request is accepted/declined.
+
+**Navigation error handling:** Added try/catch around `router.push` in `handleNotificationPress` — on error, shows "This request is no longer available" toast instead of crashing.
+
+**Files changed:**
+- `src/components/activity/ActivityFeed.tsx` — Updated `resolveNotificationTarget` for friend types, added try/catch in press handler.
+
+### 3.7 Subscription Page Feature Table — Phase 3 ✅
+
+**Previous behavior:** Feature table showed limits (Circles "2 max", Who's Free "7 days", etc.) that exist as frontend constants in `entitlements.ts` FREE_LIMITS and `freemiumLimits.ts` but are NOT enforced by the backend. Phase 3 initial pass incorrectly ADDED more fake limit rows.
+
+**Forensics findings:**
+- `entitlements.ts` defines `FREE_LIMITS = { circlesMax: 2, membersPerCircleMax: 15, ... }` as offline fallback defaults.
+- `useSubscription.ts` defines matching constants, also as fallback defaults.
+- The backend `/api/entitlements` endpoint does not enforce these limits for any user — confirmed by device testing.
+- Theme gating IS real: `PREMIUM_THEME_IDS` in `shared/contracts.ts` defines 25 premium themes, 5 free themes. This is enforced by the theme picker UI.
+
+**Fix:** Removed ALL rows claiming unenforced limits:
+- Removed: Circles "2 max" / "Unlimited"
+- Removed: Circle Members "15 max" / "Unlimited" (was added by initial Phase 3 pass)
+- Removed: Who's Free "7 days" / "90 days"
+- Removed: Event History "30 days" / "Full history" (was added by initial Phase 3 pass)
+- Removed: Birthdays "7 days" / "90 days" (was added by initial Phase 3 pass)
+- Removed: Friends "Unlimited" / "Unlimited" (no difference, pointless row)
+- Removed: entire Social and Planning sections (empty after limit removal)
+
+**Kept:** Event Hosting (Unlimited/Unlimited — reassuring, accurate), Event Themes (5 basic / All 30 — enforced), Premium Effects (No/Yes — enforced), Theme Studio (No/Yes — enforced).
+
+**Source-of-truth decision:** Added `@deprecated` JSDoc tags and header comment to `freemiumLimits.ts` explaining that `FREE_TIER_LIMITS` and `PRO_TIER_LIMITS` are stale dead code. Only `REFERRAL_TIERS` from this file is actively used (6 import sites). Canonical subscription truth:
+- Runtime enforcement: `src/lib/entitlements.ts` (reads `/api/entitlements`)
+- Subscription hook: `src/lib/useSubscription.ts` (reads `/api/subscription`)
+
+**Files changed:**
+- `src/app/subscription.tsx` — Removed fake limit rows, kept only enforced features.
+- `src/lib/freemiumLimits.ts` — Added deprecation comments to stale tier limit exports.
+
+### 3.8 Profile Stats — Verified Correct — Phase 3 ✅
+
+**longestStreak fix (from initial Phase 3):** `profile.tsx:983` now passes `longestStreak={0}` to hide the "Best" badge, since `getProfileStatsResponseSchema` has no `longestStreak` field. Confirmed still in place.
+
+**All visible stats re-verified:**
+- **Friends** (`friendsCount`): `friendsData?.friends.filter(f => f.friend != null).length` — from `/api/friends` query. Real data.
+- **Groups** (`circlesCount`): `circlesData?.circles?.length ?? 0` — from `/api/circles` query. Real data.
+- **Hosted**: `stats?.hostedCount ?? 0` — from `/api/profile/stats`. Real data.
+- **Attended**: `stats?.attendedCount ?? 0` — from `/api/profile/stats`. Real data.
+- **Current Streak**: `stats?.currentStreak ?? 0` — from `/api/profile/stats`. Real data.
+- **Total Hangouts**: `stats?.attendedCount ?? 0` — from `/api/profile/stats`. Real data.
+- **Avg per Week**: `totalHangouts / Math.max(currentStreak, 1)` — computed, divides by max(streak,1) so no division by zero. Correct.
+
+All stats source from real query responses. The `?? 0` fallback applies only during query loading (before the loading gate at line 394). After the gate, queries have resolved — if backend returns 0, that's accurate data. No false zeros.
 
 ---
 
@@ -208,15 +271,180 @@ Prior fix (commit `a97443a`) added `InteractionManager.runAfterInteractions` to 
 | 1A | Settings sheet freeze + SSOT | Complete |
 | 1B | Swipe bleed-through, Pin icon, Chat pinned event | Complete |
 | 2 | Headline placement, card content, color softening, frequency | Complete |
-| 3 | Activity feed, friend notifications, subscription table, profile stats | Queued |
+| 3 | Activity feed, friend notifications, subscription table, profile stats | Complete |
+| 3.5 | Reminder collapse, initials fallback | Complete |
+| 4 | Launch readiness: empty states, offline banner, deep link audit, push audit | Complete |
 
 ---
 
-## 5. Risks / Invariants
+## Phase 4 — Launch Readiness
+
+### 4.1 Empty States Audit ✅
+
+**Target:** Every screen a new user sees must have an actionable empty state with a CTA — no blank screens, no "null" text, no broken layouts.
+
+**Finding:** All screens already have actionable empty states. No implementation needed.
+
+| Screen | Empty State | CTA |
+|--------|-------------|-----|
+| Home (Events) | "No upcoming events" illustration | "Create Event" button |
+| Discover | "No events nearby" | Pull-to-refresh |
+| People (Friends) | "Add friends to get started" | "Add Friends" button |
+| Chats (Circles) | "No groups yet" | "Create Group" button |
+| Activity Feed | "No notifications yet" | — (informational) |
+| Profile | Stats show 0 values gracefully | — |
+| Calendar | Empty day states | "Create Event" on tap |
+
+### 4.2 Offline Banner Retry Fix ✅
+
+**Previous behavior:** Tapping "Retry" on the offline banner would briefly dismiss the banner, then it would reappear even though connectivity was restored.
+
+**Root cause:** Race condition between `refresh()` and the passive `NetInfo.addEventListener` callback in `initNetworkMonitoring()`.
+
+1. User taps Retry → `refresh()` calls `NetInfo.fetch()`
+2. `refresh()` trusts `!!state.isConnected` (lenient check) → sets `globalIsOnline = true` → banner hides
+3. `NetInfo.fetch()` also triggers the passive `addEventListener` callback
+4. Passive listener uses stricter check: `state.isConnected && state.isInternetReachable !== false`
+5. On reconnection, `isConnected` flips to `true` before `isInternetReachable` does → listener computes `false`
+6. Listener overrides `globalIsOnline` back to `false` → banner reappears
+
+**Fix:** Added a 3-second grace period after manual `refresh()`. When `refresh()` determines the device is online, it sets `manualRefreshUntil = Date.now() + 3000`. The passive listener skips offline→online override during this window.
+
+**Files changed:**
+- `src/lib/networkStatus.ts` — Added `manualRefreshUntil` module variable, grace period guard in `addEventListener` callback, timestamp set in `refresh()`.
+
+**Invariants:**
+- Grace period only suppresses offline transitions (going offline→online is never suppressed)
+- Only manual user-initiated refresh triggers the grace period — passive listener, foreground resume, and initial fetch are unaffected
+- 3-second window matches the typical `isInternetReachable` convergence delay
+
+### 4.3 Deep Link / Share Link Chain Verification ✅
+
+**Full chain traced — no code changes needed, gaps documented for backend/web follow-up.**
+
+**Configuration:**
+- Custom scheme: `open-invite://` (app.json line 6)
+- Associated domains: `applinks:openinvite.cloud`, `applinks:www.openinvite.cloud` (app.json lines 19-22)
+- AASA: hosted at `www.openinvite.cloud/.well-known/apple-app-site-association`, paths: `["/event/*"]`
+- App ID: `T3LP6XXS49.com.vibecode.openinvite.0qi5wk`
+
+**URL formats supported** (`src/lib/deepLinks.ts`):
+| Format | Type |
+|--------|------|
+| `open-invite://event/:id` | Custom scheme event |
+| `open-invite://user/:userId` | Custom scheme profile |
+| `open-invite://circle/:id` | Custom scheme circle |
+| `open-invite://invite/:code` | Custom scheme referral |
+| `open-invite://verify-email?token=xxx` | Email verification |
+| `https://www.openinvite.cloud/event/:id` | Universal link (AASA) |
+| `https://go.openinvite.cloud/share/event/:id` | Legacy web domain |
+| `.ics` files | Calendar import |
+
+**Share URL construction** (`src/lib/shareSSOT.ts`):
+- Event shares use `getEventUniversalLink(eventId)` → `https://www.openinvite.cloud/event/{id}`
+- Referral shares use `getInviteDeepLink(referralCode)` → `open-invite://invite/{code}`
+- Forbidden domain guard blocks `api.openinvite.cloud`, `go.openinvite.cloud` from appearing in share payloads
+
+**Pre-auth intent capture** (RSVP, referral, circle invite):
+- `src/lib/pendingRsvp.ts` — RSVP intent stored in SecureStore (7-day expiry)
+- `src/lib/referral.ts` — Referral code stored in SecureStore (7-day expiry)
+- `src/lib/pendingCircleInvite.ts` — Circle invite stored in SecureStore (7-day expiry)
+- `src/lib/attribution.ts` — Campaign attribution (`?t=`, `?c=`, `?v=` params) stored in SecureStore (24-hour expiry)
+- All intents auto-claimed after auth via dedicated hooks
+
+**Auth-gated deep link replay** (`src/app/_layout.tsx`):
+- Deferred deep links stored as `pendingDeepLinkRoute` when `bootStatus !== 'authed'`
+- Replayed once auth completes (lines 596-605, guarded by `deepLinkReplayedRef`)
+
+**Known gaps (not blocking launch):**
+1. **Android `assetlinks.json` empty:** `sha256_cert_fingerprints` array has no entries → Android shows disambiguation dialog instead of auto-launching app. Fix: populate with EAS signing cert fingerprint.
+2. **Android SMS share format:** Uses iOS-only `sms:&body=` format. Android expects `sms:?body=`. Non-blocking for iOS-first church launch.
+3. **Android intent filters limited to `/event` paths only.** User/circle/invite universal links won't auto-open on Android (custom scheme still works).
+4. **Web landing page** lives in separate `openinvite-website` repo — not auditable here.
+
+### 4.4 Push Notification Trigger Verification ✅
+
+**Full chain traced — no code changes needed.**
+
+**Token registration** (`src/hooks/useNotifications.ts`, `src/lib/push/registerPush.ts`):
+- Gets Expo push token via `Notifications.getExpoPushTokenAsync()`
+- Registers with backend `POST /api/push/register`
+- 24-hour throttle per user, bypassed when backend shows `activeCount === 0`
+- Token deactivated on logout (`POST /api/push/deactivate`)
+
+**Notification handling:**
+| Layer | Mechanism |
+|-------|-----------|
+| Foreground | `addNotificationReceivedListener` → haptic + cache patch via `pushRouter.ts` + invalidate notifications query |
+| Background tap | `addNotificationResponseReceivedListener` → route to target screen |
+| Cold start | `getLastNotificationResponseAsync()` → deferred navigation until auth ready |
+| Dedup | 8-second TTL window in pushRouter + module-level `handledResponseIds` set (max 50) |
+
+**8 trigger types verified:**
+
+| Trigger | Frontend Type | Tap Route | Push Router Handler | Status |
+|---------|--------------|-----------|---------------------|--------|
+| event_invite | `event_invite` | `/event/:id` | `handleEventCreated` | ✅ |
+| event_update | `event_update` | `/event/:id` | `handleEventUpdated` | ✅ |
+| event_reminder | `event_reminder` | `/event/:id` | — (local schedule) | ✅ |
+| rsvp_update | `event_rsvp_changed`* | `/event/:id` | `handleEventRsvpChanged` | ✅ (type alias) |
+| friend_request | `friend_request` | `/user/:id` or `/friends` | `handleFriendEvent` | ✅ |
+| friend_accepted | `friend_accepted` | `/user/:id` or `/friends` | `handleFriendEvent` | ✅ |
+| circle_invite | `circle_invite`* | `/circle/:id` | — (fallback routing) | ⚠️ No explicit handler |
+| chat_message | `circle_message`* | `/circle/:id` | `handleCircleMessage` | ✅ (type alias) |
+
+*Backend type name differs from the 8-trigger list. Frontend handles via aliases or fallback routing.
+
+**Local scheduled reminders** (`src/lib/notifications.ts`):
+- `scheduleEventReminder()` — schedules local notification at `eventTime - reminderMinutesBefore`
+- Stored in AsyncStorage keyed by `eventId`
+- `cancelEventReminders(eventId)` — cancels all scheduled reminders for an event
+
+**Android notification channels:**
+| Channel | Importance | Use |
+|---------|-----------|-----|
+| `default` | MAX | General |
+| `events` | HIGH | Event notifications |
+| `reminders` | HIGH | Event reminders |
+| `social` | DEFAULT | Friend/social |
+
+**Soft pre-permission prompt** (`src/lib/notificationPrompt.ts`):
+- Never prompts if OS permission already granted
+- Never prompts if user has created an event (targets RSVPers)
+- 14-day cooldown between prompts
+
+**Known gaps (not blocking launch):**
+1. `circle_invite` has no explicit push router handler — relies on generic fallback routing via `circleId` in data payload. Works but no cache patch on receipt.
+2. Backend type names may not match frontend expectations exactly (`rsvp_update` vs `event_rsvp_changed`, `chat_message` vs `circle_message`). Handled via fallback routing but could cause missed cache patches.
+
+---
+
+## 5. Backend Follow-Ups (Phase 3)
+
+These issues require backend changes and cannot be fully resolved client-side:
+
+1. **Notification avatar data:** Backend does not include `actorAvatarUrl` in most notification `data` JSON blobs (friend_request, event_invite, event_reminder, etc.). Frontend fallback chain works but shows generic icons. Fix: populate `actorAvatarUrl` when creating notifications.
+
+2. **Notification event cover image:** Backend does not include `eventCoverUrl` or `eventPhotoUrl` in notification `data` JSON. Event-related notifications show emoji or generic icon instead of event cover. Fix: include event cover URL in notification data.
+
+3. **Friend request notification stale cleanup:** No `status` field on notifications. When a friend request is accepted/declined, the original `friend_request` notification persists forever. Fix: either (a) add a `status` field and update it on accept/decline, or (b) delete/expire the notification row when the request is resolved.
+
+4. **Friend request notification userId:** `friend_request` notifications do not include `userId`/`senderId`/`actorId` in the `data` JSON, so the client can't navigate to the sender's profile. Fix: include `senderId` in friend_request notification data.
+
+5. **Duplicate notification creation:** Backend creates multiple notification rows (different IDs) for the same event action on the same day. Client-side content dedup mitigates this but the root fix is to dedup server-side before insert.
+
+6. **Stale freemium limits:** `src/lib/freemiumLimits.ts` `FREE_TIER_LIMITS` and `PRO_TIER_LIMITS` are stale dead code that conflicts with actual backend behavior. They are now marked `@deprecated`. Consider deleting the tier limit constants entirely in a future cleanup (only `REFERRAL_TIERS` is actively imported).
+
+---
+
+## 6. Risks / Invariants
 
 - **Settings sheet:** Deferred rendering must not break edit-mode prefill. When editing an existing event, all settings values are pre-populated before the sheet opens — deferred sections must receive correct initial values.
 - **Swipe fix:** Must not break swipe-to-reveal gesture behavior. Only visual fix (background coverage).
 - **Pin icon:** Visual-only change. Must not alter pin/unpin data flow.
 - **Chat pinned event:** If implementing sticky overlay, must not interfere with keyboard avoidance, typing indicators, or scroll-to-bottom behavior. If complexity exceeds phase scope, document and defer.
+- **Content dedup:** The `contentDedup` function in ActivityFeed.tsx assumes notifications are ordered most-recent-first (as returned by the paginated API). If order changes, the "keep first seen" logic would keep the wrong entry.
+- **Friend request fallback navigation:** `resolveNotificationTarget` now falls back to `/friends` for friend_request/friend_accepted types when no userId is in the data. This is better than "Unavailable" but doesn't deep-link to the specific request.
+- **Offline banner grace period:** 3-second window suppresses only offline transitions from the passive listener. If the device is genuinely offline, the next listener event after the grace period expires will correctly show the banner.
 - **No backend changes** in any phase.
 - **No web surface changes** in any phase.
