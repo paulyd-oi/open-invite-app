@@ -41,6 +41,7 @@ import * as Haptics from "expo-haptics";
 import {
   EVENT_THEMES,
   getThemesForSurface,
+  THEME_PACKS,
   type ThemeId,
   type ThemeVisualStack,
 } from "@/lib/eventThemes";
@@ -319,6 +320,7 @@ function ThemeTrayContent({
     <View style={styles.trayBody}>
       <ThemePicker
         themeIds={EVENT_THEME_IDS}
+        packs={THEME_PACKS}
         selectedThemeId={selectedThemeId}
         userIsPro={userIsPro}
         themeColor={themeColor}

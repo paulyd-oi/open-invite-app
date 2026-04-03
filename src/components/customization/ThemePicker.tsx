@@ -3,6 +3,7 @@
  *
  * Surface-agnostic: used by ThemeTray (event create) and profile editor.
  * Parent passes pre-filtered theme list and handles premium gating.
+ * Supports optional pack-based grouping with section labels.
  *
  * Does NOT know about events, profiles, Theme Studio, or EffectTray.
  */
@@ -19,6 +20,7 @@ import {
   BASIC_THEME_IDS,
   THEME_DISPLAY_ORDER,
   type ThemeId,
+  type ThemePack,
 } from "@/lib/eventThemes";
 
 // ─── Constants ───────────────────────────────────────────────
@@ -32,6 +34,8 @@ const SWATCH_GAP = 8;
 export interface ThemePickerProps {
   /** Theme IDs to display (pre-filtered by parent for surface) */
   themeIds: ThemeId[];
+  /** Optional pack grouping — when provided, themes render in labeled sections */
+  packs?: readonly ThemePack[];
   selectedThemeId: ThemeId | null;
   userIsPro: boolean;
   themeColor: string;
@@ -48,6 +52,7 @@ export interface ThemePickerProps {
 
 export function ThemePicker({
   themeIds,
+  packs,
   selectedThemeId,
   userIsPro,
   themeColor,
@@ -56,22 +61,6 @@ export function ThemePicker({
   onPremiumUpsell,
   layout = "horizontal",
 }: ThemePickerProps) {
-  // Split into free and premium, maintaining display order
-  const displayOrder = themeIds.filter((id) =>
-    THEME_DISPLAY_ORDER.includes(id),
-  );
-  // Sort by THEME_DISPLAY_ORDER position
-  displayOrder.sort(
-    (a, b) => THEME_DISPLAY_ORDER.indexOf(a) - THEME_DISPLAY_ORDER.indexOf(b),
-  );
-
-  const freeThemes = displayOrder.filter(
-    (id) => (BASIC_THEME_IDS as readonly string[]).includes(id),
-  );
-  const premiumThemes = displayOrder.filter(
-    (id) => !(BASIC_THEME_IDS as readonly string[]).includes(id),
-  );
-
   const handlePress = (tid: ThemeId) => {
     Haptics.selectionAsync();
     const premium = isPremiumTheme(tid);
@@ -84,6 +73,7 @@ export function ThemePicker({
 
   const renderSwatch = (tid: ThemeId) => {
     const t = EVENT_THEMES[tid];
+    if (!t) return null;
     const selected = selectedThemeId === tid;
     const showCrown = isPremiumTheme(tid) && !userIsPro;
 
@@ -101,6 +91,123 @@ export function ThemePicker({
       />
     );
   };
+
+  // ── Pack-based rendering ──────────────────────────────────
+  if (packs && packs.length > 0) {
+    const dividerColor = isDark
+      ? "rgba(255,255,255,0.12)"
+      : "rgba(0,0,0,0.08)";
+    const labelColor = isDark
+      ? "rgba(255,255,255,0.35)"
+      : "rgba(0,0,0,0.28)";
+
+    const sections = packs
+      .map((pack, idx) => {
+        const validIds = pack.ids.filter((id) =>
+          (themeIds as readonly string[]).includes(id),
+        ) as ThemeId[];
+        if (validIds.length === 0) return null;
+
+        return (
+          <React.Fragment key={pack.label}>
+            {/* Divider between sections */}
+            {idx > 0 && (
+              <View
+                style={{
+                  justifyContent: "center",
+                  paddingHorizontal: layout === "horizontal" ? 2 : 0,
+                  paddingVertical: layout === "grid" ? 4 : 0,
+                }}
+              >
+                {layout === "horizontal" ? (
+                  <View
+                    style={{
+                      width: 1,
+                      height: 28,
+                      backgroundColor: dividerColor,
+                      borderRadius: 1,
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: dividerColor,
+                      marginVertical: 4,
+                    }}
+                  />
+                )}
+              </View>
+            )}
+
+            {/* Section label */}
+            <View
+              style={{
+                justifyContent: "center",
+                paddingHorizontal: layout === "horizontal" ? 2 : 0,
+                paddingVertical: layout === "grid" ? 2 : 0,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontWeight: "700",
+                  color: labelColor,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.3,
+                }}
+                numberOfLines={1}
+              >
+                {pack.label}
+              </Text>
+            </View>
+
+            {/* Swatches */}
+            {validIds.map(renderSwatch)}
+          </React.Fragment>
+        );
+      })
+      .filter(Boolean);
+
+    if (layout === "horizontal") {
+      return (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            gap: SWATCH_GAP,
+            paddingRight: 8,
+            alignItems: "center",
+          }}
+          style={{ flexGrow: 0 }}
+        >
+          {sections}
+        </ScrollView>
+      );
+    }
+
+    return (
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: SWATCH_GAP }}>
+        {sections}
+      </View>
+    );
+  }
+
+  // ── Flat rendering (backward compatible) ──────────────────
+  const displayOrder = themeIds.filter((id) =>
+    THEME_DISPLAY_ORDER.includes(id),
+  );
+  // Sort by THEME_DISPLAY_ORDER position
+  displayOrder.sort(
+    (a, b) => THEME_DISPLAY_ORDER.indexOf(a) - THEME_DISPLAY_ORDER.indexOf(b),
+  );
+
+  const freeThemes = displayOrder.filter(
+    (id) => (BASIC_THEME_IDS as readonly string[]).includes(id),
+  );
+  const premiumThemes = displayOrder.filter(
+    (id) => !(BASIC_THEME_IDS as readonly string[]).includes(id),
+  );
 
   const content = (
     <>
