@@ -62,5 +62,15 @@ target 'OpenInvite' do
         end
       end
     end
+
+    # Force modular headers + wholemodule on lottie-ios (EAS toolchain workaround)
+    installer.pods_project.targets.each do |target|
+      if target.name == 'lottie-ios'
+        target.build_configurations.each do |config|
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+          config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+        end
+      end
+    end
   end
 end
