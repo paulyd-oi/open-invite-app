@@ -320,9 +320,7 @@ PODS:
     - ExpoModulesCore
   - ExpoImage (2.4.1):
     - ExpoModulesCore
-    - libavif/libdav1d
     - SDWebImage (~> 5.21.0)
-    - SDWebImageAVIFCoder (~> 0.11.0)
     - SDWebImageSVGCoder (~> 1.7.0)
     - SDWebImageWebPCoder (~> 0.14.6)
   - ExpoImageManipulator (13.1.7):
@@ -417,10 +415,6 @@ PODS:
   - ImageColors (2.5.1):
     - ExpoModulesCore
   - libavif/core (0.11.1)
-  - libavif/libdav1d (0.11.1):
-    - libavif/core
-    - libdav1d (>= 0.6.0)
-  - libdav1d (1.2.0)
   - libwebp (1.5.0):
     - libwebp/demux (= 1.5.0)
     - libwebp/mux (= 1.5.0)
@@ -2794,7 +2788,6 @@ SPEC REPOS:
     - ContextMenuAuxiliaryPreview
     - DGSwiftUtilities
     - libavif
-    - libdav1d
     - libwebp
     - lottie-ios
     - PurchasesHybridCommon
@@ -3160,7 +3153,7 @@ SPEC CHECKSUMS:
   ExpoFont: cf508bc2e6b70871e05386d71cab927c8524cc8e
   ExpoHaptics: 0ff6e0d83cd891178a306e548da1450249d54500
   ExpoHead: cfc12096c9a68cbe25de93a8bfc4781c7689467e
-  ExpoImage: b0b4a838c62bb9d5438bb475cccc85619a5f59dc
+  ExpoImage: d6e8ffc37557567a219ab0d0e1be28213a21f3bc
   ExpoImageManipulator: 1e06e7a1e56f454e75d01b7032c1e44963bfc865
   ExpoImagePicker: 0963da31800c906e01c03e25d7c849f16ebf02a2
   ExpoInsights: 58e64eba38ad4a46358bc3e316d2e5ed50d71caa
@@ -3195,7 +3188,6 @@ SPEC CHECKSUMS:
   hermes-engine: 44bb6fe76a6eb400d3a992e2d0b21946ae999fa9
   ImageColors: e12eb73e29bc1feaa3c228db8c174a1b25acb59d
   libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
-  libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   lottie-ios: a881093fab623c467d3bce374367755c272bdd59
   lottie-react-native: 4131dd0b1a1c65ee95d3329cc5060d000e0e9394

@@ -44,12 +44,14 @@
         "EXPO_NO_BUN": "1",
         "NPM_CONFIG_INCLUDE": "dev",
         "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud",
-        "EXPO_PUBLIC_REALTIME_WS": "1"
+        "EXPO_PUBLIC_REALTIME_WS": "1",
+        "EXPO_IMAGE_NO_AVIF": "1"
       },
       "ios": {
         "image": "macos-sonoma-14.5-xcode-15.4",
         "resourceClass": "m-medium",
-        "autoIncrement": true
+        "autoIncrement": true,
+        "preInstall": "bash scripts/eas-build-pre-install.sh"
       }
     }
   },
