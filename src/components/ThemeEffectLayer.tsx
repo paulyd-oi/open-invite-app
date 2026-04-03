@@ -1441,17 +1441,19 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
 
   if (reducedMotion) return null;
 
-  // If no Skia particles and no Lottie, nothing to render
-  if (!lottieEffect && (!_skiaAvailable || !config)) return null;
-
   const isColorWash = config ? (config as EffectConfig).colorWash === true : false;
-  const shaderPreset = config ? (config as EffectConfig).shaderPreset : undefined;
+  // Standalone vs.shader (set by Theme Studio) takes priority over particle-bundled shaderPreset
+  const standaloneShader = vs?.shader as EffectConfig["shaderPreset"] | undefined;
+  const shaderPreset = standaloneShader ?? (config ? (config as EffectConfig).shaderPreset : undefined);
   const shaderOpacity = config ? ((config as EffectConfig).shaderOpacity ?? 0.15) : 0.15;
+
+  // If no Skia particles, no standalone shader, and no Lottie, nothing to render
+  if (!lottieEffect && (!_skiaAvailable || (!config && !shaderPreset))) return null;
 
   return (
     <View style={styles.container} pointerEvents="none">
       {/* Skia particle/shader layer */}
-      {_skiaAvailable && config && (
+      {_skiaAvailable && (config || shaderPreset) && (
         <SkiaErrorBoundary>
           <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
             {shaderPreset && !disableShader && (
@@ -1462,11 +1464,11 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
                 height={height}
               />
             )}
-            {isColorWash ? (
+            {config && (isColorWash ? (
               <ColorWashField config={config} width={width} height={height} />
             ) : (
               <ParticleField config={config} width={width} height={height} />
-            )}
+            ))}
           </Canvas>
         </SkiaErrorBoundary>
       )}
