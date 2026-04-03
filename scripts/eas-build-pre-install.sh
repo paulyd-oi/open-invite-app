@@ -8,3 +8,13 @@ if [ -f "$PODSPEC" ]; then
 else
   echo "Warning: expo-image podspec not found at $PODSPEC"
 fi
+
+# Pin lottie-ios to 4.4.3 — 4.5.0 breaks EAS Xcode builds
+LOTTIE_PODSPEC="node_modules/lottie-react-native/lottie-react-native.podspec"
+if [ -f "$LOTTIE_PODSPEC" ]; then
+  sed -i '' "s/s.dependency 'lottie-ios', '4.5.0'/s.dependency 'lottie-ios', '4.4.3'/" "$LOTTIE_PODSPEC" 2>/dev/null || \
+  sed -i "s/s.dependency 'lottie-ios', '4.5.0'/s.dependency 'lottie-ios', '4.4.3'/" "$LOTTIE_PODSPEC"
+  echo "Patched lottie-react-native podspec: pinned lottie-ios to 4.4.3"
+else
+  echo "Warning: lottie-react-native podspec not found at $LOTTIE_PODSPEC"
+fi

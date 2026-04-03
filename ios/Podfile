@@ -44,6 +44,10 @@ target 'OpenInvite' do
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
 
+  # Pin lottie-ios to 4.4.3 — 4.5.0 breaks EAS Xcode builds.
+  # The lottie-react-native podspec is patched via postinstall in package.json.
+  pod 'lottie-ios', '4.4.3'
+
   post_install do |installer|
     react_native_post_install(
       installer,
