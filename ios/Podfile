@@ -27,6 +27,7 @@ target 'OpenInvite' do
       '--platform',
       'ios'
     ]
+
   end
 
   config = use_native_modules!(config_command)
@@ -43,15 +44,6 @@ target 'OpenInvite' do
   )
 
   post_install do |installer|
-    # Fix lottie-ios: force all sources into single compilation unit
-    installer.pods_project.targets.each do |target|
-      if target.name == 'lottie-ios'
-        target.build_configurations.each do |config|
-          config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
-          config.build_settings['SWIFT_WHOLE_MODULE_OPTIMIZATION'] = 'YES'
-        end
-      end
-    end
 
     react_native_post_install(
       installer,
@@ -70,5 +62,15 @@ target 'OpenInvite' do
         end
       end
     end
+    # Fix lottie-ios: force all sources into single compilation unit
+    installer.pods_project.targets.each do |target|
+      if target.name == 'lottie-ios'
+        target.build_configurations.each do |config|
+          config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+          config.build_settings['SWIFT_WHOLE_MODULE_OPTIMIZATION'] = 'YES'
+        end
+      end
+    end
+
   end
 end
