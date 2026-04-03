@@ -109,7 +109,7 @@ export function CircleMembersSheet({
             </View>
 
             {/* Modal Header */}
-            <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
               <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
                 Members
               </Text>
@@ -124,14 +124,17 @@ export function CircleMembersSheet({
             >
               {/* Members List — SSOT via UserRow */}
               {__DEV__ && members.length > 0 && once('P0_USERROW_SHEET_SOT_circle') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: members.length })}
-              {members.map((member, idx) => {
+              {members.map((member) => {
                 const isHostOfCircle = circleCreatedById === member.userId;
                 return (
                   <View
                     key={member.userId}
                     style={{
-                      borderBottomWidth: idx < members.length - 1 ? 1 : 0,
-                      borderBottomColor: colors.border,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#fafaf8",
+                      borderRadius: 12,
+                      borderWidth: 0.5,
+                      borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                      marginBottom: 6,
                     }}
                   >
                     <UserListRow
@@ -168,8 +171,8 @@ export function CircleMembersSheet({
               })}
 
               {/* Add Members Section */}
-              <View style={{ marginTop: 20, paddingTop: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>Add Members</Text>
+              <View style={{ marginTop: 20, paddingTop: 16, paddingBottom: 16, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
+                <Text style={{ fontSize: 11, fontWeight: "600", color: isDark ? "rgba(255,255,255,0.4)" : colors.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>Add Members</Text>
 
                 {availableFriends.length > 0 ? (
                   <View
@@ -188,8 +191,11 @@ export function CircleMembersSheet({
                           <Pressable
                             onPress={() => onToggleFriend(friend.friendId)}
                             style={{
-                              borderBottomWidth: 1,
-                              borderBottomColor: colors.border,
+                              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#fafaf8",
+                              borderRadius: 12,
+                              borderWidth: 0.5,
+                              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                              marginBottom: 6,
                             }}
                           >
                             <UserListRow
@@ -228,7 +234,7 @@ export function CircleMembersSheet({
 
             {/* Add Button */}
             {selectedCount > 0 && (
-              <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(24, bottomInset + 8), paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(24, bottomInset + 8), paddingTop: 12, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
                 <Button
                   variant="primary"
                   label={

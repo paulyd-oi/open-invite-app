@@ -19,6 +19,24 @@ import {
   Bell,
 } from "@/ui/icons";
 
+const glassRow = (isDark: boolean) => ({
+  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#fafaf8",
+  borderRadius: 12,
+  borderWidth: 0.5 as const,
+  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+  marginBottom: 6,
+  paddingHorizontal: 16,
+});
+
+const dangerGlass = (isDark: boolean) => ({
+  backgroundColor: isDark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
+  borderRadius: 12,
+  borderWidth: 0.5 as const,
+  borderColor: isDark ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.12)",
+  marginTop: 10,
+  paddingHorizontal: 16,
+});
+
 interface CircleSettingsSheetProps {
   visible: boolean;
   circleName: string | undefined;
@@ -96,7 +114,7 @@ export function CircleSettingsSheet({
       keyboardMode="padding"
     >
       {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
         <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
           Circle Settings
         </Text>
@@ -135,9 +153,9 @@ export function CircleSettingsSheet({
           </View>
 
           {/* Description Section */}
-          <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: colors.textSecondary }}>Description</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: isDark ? "rgba(255,255,255,0.4)" : colors.textTertiary, letterSpacing: 0.5, textTransform: "uppercase" }}>Description</Text>
               {isHost && !editingDescription && (
                 <Pressable onPress={onEditDescription}>
                   <Text style={{ fontSize: 14, fontWeight: "500", color: themeColor }}>Edit</Text>
@@ -207,8 +225,7 @@ export function CircleSettingsSheet({
                   flexDirection: "row",
                   alignItems: "center",
                   paddingVertical: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  ...glassRow(isDark),
                 }}
               >
                 <Camera size={22} color={themeColor} />
@@ -229,8 +246,7 @@ export function CircleSettingsSheet({
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                ...glassRow(isDark),
               }}
             >
               <Users size={22} color={colors.text} />
@@ -247,8 +263,7 @@ export function CircleSettingsSheet({
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                ...glassRow(isDark),
               }}
             >
               <Users size={22} color={themeColor} />
@@ -264,8 +279,7 @@ export function CircleSettingsSheet({
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                ...glassRow(isDark),
               }}
             >
               <BellOff size={22} color={colors.textSecondary} />
@@ -294,8 +308,7 @@ export function CircleSettingsSheet({
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+                ...glassRow(isDark),
               }}
             >
               <Bell size={22} color={colors.textSecondary} />
@@ -308,13 +321,14 @@ export function CircleSettingsSheet({
               <ChevronRight size={18} color={colors.textTertiary} />
             </Pressable>
 
-            {/* Leave Group */}
+            {/* Leave Group — red-tinted glass */}
             <Pressable
               onPress={onLeaveGroup}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 16,
+                ...dangerGlass(isDark),
               }}
             >
               <X size={22} color="#FF3B30" />
@@ -329,7 +343,7 @@ export function CircleSettingsSheet({
         {/* Photo actions view (inside same sheet) */}
         {settingsView === "photo" && (
           <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
-            <View style={{ paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 4 }}>
+            <View style={{ paddingBottom: 12, borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", marginBottom: 4 }}>
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, textAlign: "center" }}>Circle Photo</Text>
             </View>
             <Pressable
@@ -339,9 +353,8 @@ export function CircleSettingsSheet({
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
                 opacity: uploadingPhoto ? 0.5 : 1,
+                ...glassRow(isDark),
               }}
             >
               <Camera size={22} color={themeColor} />
@@ -357,8 +370,7 @@ export function CircleSettingsSheet({
                   flexDirection: "row",
                   alignItems: "center",
                   paddingVertical: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
+                  ...dangerGlass(isDark),
                 }}
               >
                 <X size={22} color="#FF3B30" />
