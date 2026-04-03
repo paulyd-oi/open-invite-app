@@ -47,7 +47,7 @@
         "EXPO_PUBLIC_REALTIME_WS": "1"
       },
       "ios": {
-        "image": "sdk-53",
+        "image": "EXACT_IMAGE_FROM_BUILD_266",
         "resourceClass": "m-medium",
         "autoIncrement": true
       }
