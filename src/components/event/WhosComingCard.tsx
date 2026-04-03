@@ -68,9 +68,21 @@ interface WhosComingCardProps {
   onToggleInterestedUsers: () => void;
 }
 
-const STACK_MAX = 5;
+const STACK_MAX = 8;
 const AVATAR_SIZE = 40;
-const OVERLAP = 11;
+const OVERLAP = 14;
+
+/** Deterministic "who's going" summary from attendee names. */
+function formatGoingSummary(names: string[], totalCount: number): string {
+  // Deduplicate and filter empty
+  const clean = [...new Set(names.filter(Boolean))];
+  if (clean.length === 0) return `${totalCount} going`;
+  if (clean.length === 1) return `${clean[0]} is going`;
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]} are going`;
+  if (totalCount <= 3) return `${clean[0]}, ${clean[1]}, and ${clean[2]}`;
+  const overflow = totalCount - 3;
+  return `${clean[0]}, ${clean[1]}, ${clean[2]} +${overflow}`;
+}
 
 export function WhosComingCard({
   attendeesPrivacyDenied,
@@ -141,7 +153,7 @@ export function WhosComingCard({
           const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
 
           return (
-            <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 14 }}>
+            <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 10 }}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
                 Who's Coming
               </Text>
@@ -213,18 +225,11 @@ export function WhosComingCard({
                       </View>
                     )}
                   </View>
-                  <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
-                    {myRsvpStatus === "going" && effectiveGoingCount === 1
-                      ? "You\u2019re in \u2014 be the first to invite friends"
-                      : myRsvpStatus === "going" && effectiveGoingCount === 2
-                      ? "You + 1 other going"
-                      : myRsvpStatus === "going" && effectiveGoingCount > 2
-                      ? `You + ${effectiveGoingCount - 1} others going`
-                      : effectiveGoingCount >= 10
-                      ? `${effectiveGoingCount} going \u00B7 Popular`
-                      : effectiveGoingCount >= 5
-                      ? `${effectiveGoingCount} going \u00B7 Filling up`
-                      : `${effectiveGoingCount} going`}
+                  <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }} numberOfLines={1}>
+                    {formatGoingSummary(
+                      stackSource.map(a => a.name).filter(Boolean) as string[],
+                      effectiveGoingCount,
+                    )}
                   </Text>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: `${themeColor}12` }}>
@@ -361,7 +366,8 @@ export function WhosComingCard({
       )}
 
       {/* Guests Section (web RSVPs with status "going") */}
-      {guestGoingList.length > 0 && (
+      {/* Privacy: hide when guest list is restricted and count is too low to be useful */}
+      {guestGoingList.length > 0 && (showGuestList || guestGoingList.length >= 2) && (
         <Animated.View entering={FadeInDown.delay(125).springify()} className="mb-3">
           <View className="flex-row items-center mb-2">
             <UserPlus size={16} color="#6B7280" />
