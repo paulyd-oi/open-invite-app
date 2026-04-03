@@ -47,7 +47,7 @@
         "EXPO_PUBLIC_REALTIME_WS": "1"
       },
       "ios": {
-        "image": "macos-sequoia-15.3-xcode-16.2",
+        "image": "macos-sonoma-14.6-xcode-16.1",
         "resourceClass": "m-medium",
         "autoIncrement": true
       }
