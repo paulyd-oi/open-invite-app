@@ -175,9 +175,6 @@ export function WhosComingCard({
                 testID="event-detail-whos-coming-open"
                 onPress={onOpenAttendees}
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
                   paddingVertical: 14,
                   paddingHorizontal: 14,
                   borderRadius: RADIUS.lg,
@@ -186,8 +183,8 @@ export function WhosComingCard({
                   borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
                 }}
               >
-                {/* Avatar stack */}
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                {/* Row 1: Avatar stack with overflow badge */}
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
                   <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: "row" }}>
                     {visibleAvatars.map((attendee, idx) => {
                       const isHostAvatar = attendee.id === hostId || attendee.isHost;
@@ -239,16 +236,19 @@ export function WhosComingCard({
                       </View>
                     )}
                   </View>
-                  <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }} numberOfLines={1}>
+                </View>
+                {/* Row 2: Name summary + View all */}
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: "500", color: colors.textSecondary, marginRight: 10 }} numberOfLines={1}>
                     {formatGoingSummary(
                       stackSource.map(a => a.name).filter(Boolean) as string[],
                       effectiveGoingCount,
                     )}
                   </Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: `${themeColor}12` }}>
-                  <Text style={{ color: themeColor, fontSize: 13, fontWeight: "600" }}>View all</Text>
-                  <ChevronRight size={14} color={themeColor} style={{ marginLeft: 2 }} />
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: `${themeColor}12` }}>
+                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "600" }}>View all</Text>
+                    <ChevronRight size={14} color={themeColor} style={{ marginLeft: 2 }} />
+                  </View>
                 </View>
               </Pressable>
             </Animated.View>
