@@ -345,10 +345,13 @@ export async function handleDeepLink(url: string): Promise<boolean> {
           trackReferralOpened({ source: linkSource, hasCode: true });
           handleReferralUrl(url); // fire-and-forget — stores code for post-auth claim
         }
-        // [GROWTH_P3] Store pending RSVP intent so it survives through signup.
-        // The useRsvpIntentClaim hook will auto-apply after auth + onboarding.
-        setPendingRsvpIntent({ eventId: parsed.id, status: 'going' });
-        trackRsvpIntentPreauth({ hasEvent: true, source: linkSource });
+        // [GROWTH_P3] Store pending RSVP intent ONLY for pre-auth users.
+        // Already-authenticated users must RSVP explicitly via the event page button.
+        const bootAtLink = getBootStatus();
+        if (bootAtLink !== 'authed') {
+          setPendingRsvpIntent({ eventId: parsed.id, status: 'going' });
+          trackRsvpIntentPreauth({ hasEvent: true, source: linkSource });
+        }
         authedPush(`/event/${parsed.id}`);
         return true;
       }

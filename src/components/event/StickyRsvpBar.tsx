@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Pressable, View, Text, ActivityIndicator } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { Heart, Users, Share2 } from "@/ui/icons";
+import { Heart, Users, Share2, Check, Clock, AlertCircle } from "@/ui/icons";
 
 interface StickyRsvpBarColors {
   text: string;
@@ -12,6 +12,7 @@ interface StickyRsvpBarProps {
   effectiveGoingCount: number;
   isFull: boolean;
   isDeadlinePassed?: boolean;
+  isPastEvent?: boolean;
   myRsvpStatus: string | null;
   isPending: boolean;
   isDark: boolean;
@@ -53,6 +54,7 @@ export function StickyRsvpBar({
   effectiveGoingCount,
   isFull,
   isDeadlinePassed = false,
+  isPastEvent = false,
   myRsvpStatus,
   isPending,
   isDark,
@@ -113,7 +115,8 @@ export function StickyRsvpBar({
       )}
 
       {/* ── Floating response options (fade in above bar) ── */}
-      {showOptions && (
+      {/* Suppressed for past events and closed RSVPs — no changes allowed */}
+      {showOptions && !isPastEvent && !isDeadlinePassed && (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(150)}
@@ -274,8 +277,106 @@ export function StickyRsvpBar({
       )}
 
       {/* ── Main bar buttons ── */}
-      {(isFull || isDeadlinePassed) && !isConfirmed ? (
-        /* Full or deadline-passed event — disabled label + Save */
+      {/* Priority: past event > deadline passed > full > confirmed > declined > pre-RSVP */}
+      {isPastEvent ? (
+        /* Past event — read-only status + Share */
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <View style={{
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: 14,
+            borderRadius: 16,
+            backgroundColor: fullGlass.bg,
+            borderWidth: 1,
+            borderColor: fullGlass.border,
+            opacity: 0.7,
+          }}>
+            {isConfirmed ? (
+              <>
+                <Check size={16} color="#22C55E" />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: "#22C55E" }}>You went</Text>
+              </>
+            ) : (
+              <>
+                <Clock size={16} color={colors.textTertiary} />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Past Event</Text>
+              </>
+            )}
+          </View>
+          {onShare && (
+            <Pressable
+              onPress={onShare}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 16,
+                backgroundColor: mutedGlass.bg,
+                borderWidth: 1,
+                borderColor: mutedGlass.border,
+              }}
+            >
+              <Share2 size={14} color={colors.text} />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : isDeadlinePassed ? (
+        /* RSVP deadline passed — read-only status + Share */
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <View style={{
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: 14,
+            borderRadius: 16,
+            backgroundColor: isConfirmed ? GLASS.going.bg : fullGlass.bg,
+            borderWidth: 1,
+            borderColor: isConfirmed ? GLASS.going.border : fullGlass.border,
+            opacity: isConfirmed ? 1 : 0.6,
+            ...(isConfirmed ? {
+              shadowColor: GLASS.going.shadow.color,
+              shadowOffset: GLASS.going.shadow.offset,
+              shadowOpacity: GLASS.going.shadow.opacity,
+              shadowRadius: GLASS.going.shadow.radius,
+            } : {}),
+          }}>
+            {isConfirmed ? (
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>Going ✓</Text>
+            ) : (
+              <>
+                <AlertCircle size={16} color={colors.textTertiary} />
+                <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>RSVPs Closed</Text>
+              </>
+            )}
+          </View>
+          {onShare && (
+            <Pressable
+              onPress={onShare}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 16,
+                backgroundColor: mutedGlass.bg,
+                borderWidth: 1,
+                borderColor: mutedGlass.border,
+              }}
+            >
+              <Share2 size={14} color={colors.text} />
+              <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.text }}>Share</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : isFull && !isConfirmed ? (
+        /* At capacity, user not going — disabled label + Save */
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <View style={{
             flex: 1,
@@ -290,9 +391,7 @@ export function StickyRsvpBar({
             opacity: 0.6,
           }}>
             <Users size={16} color={colors.textTertiary} />
-            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>
-              {isDeadlinePassed ? "RSVPs Closed" : "Full"}
-            </Text>
+            <Text style={{ marginLeft: 6, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Event Full</Text>
           </View>
           <Pressable
             onPress={onRsvpInterested}

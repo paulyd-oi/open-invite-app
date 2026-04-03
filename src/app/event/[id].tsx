@@ -2389,6 +2389,7 @@ export default function EventDetailScreen() {
           effectiveGoingCount={effectiveGoingCount}
           isFull={eventMeta.isFull}
           isDeadlinePassed={!!event.rsvpDeadline && new Date(event.rsvpDeadline) < new Date()}
+          isPastEvent={new Date(event.endTime ?? event.startTime) < new Date()}
           myRsvpStatus={myRsvpStatus}
           isPending={rsvpMutation.isPending}
           isDark={isDark}
