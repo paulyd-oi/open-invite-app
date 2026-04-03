@@ -20,6 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type Circle } from "@/shared/contracts";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import { useTheme } from "@/lib/ThemeContext";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { devLog, devError } from "@/lib/devLog";
@@ -100,6 +101,7 @@ const THRESH_OPEN_PX = 28;               // drag distance to snap open
 export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount = 0 }: CircleCardProps) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const glass = buildGlassTokens(isDark, colors);
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
@@ -368,11 +370,15 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
         <Animated.View style={[animatedCardStyle, { backgroundColor: colors.background }]}>
           <Pressable
             onPress={handlePress}
-            className="flex-row items-center py-2.5 px-1"
+            className="flex-row items-center py-2.5 px-3"
             style={{
               backgroundColor: unreadCount > 0 && !circle.isMuted
                 ? (isDark ? themeColor + "08" : themeColor + "06")
-                : undefined,
+                : glass.card.backgroundColor,
+              borderRadius: 12,
+              borderWidth: glass.card.borderWidth,
+              borderColor: glass.card.borderColor,
+              marginBottom: 6,
             }}
           >
             {/* LEFT — Avatar cluster */}

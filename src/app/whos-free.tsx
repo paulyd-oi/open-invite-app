@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, Clock, ChevronDown, ChevronUp, Check, Users, Sparkles } from "@/ui/icons";
+import { Calendar, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Users, Sparkles, Plus, AlertCircle } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -33,6 +33,9 @@ import { formatSlotAvailability } from "@/lib/scheduling/format";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 import { useWorkSkipDays } from "@/lib/workSkipDays";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import BottomSheet from "@/components/BottomSheet";
+import { FriendPickerSheet } from "@/components/FriendPickerSheet";
+import { buildGlassTokens } from "@/ui/glassTokens";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -92,7 +95,7 @@ export default function WhosFreeScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
-  const { themeColor, colors } = useTheme();
+  const { themeColor, isDark, colors } = useTheme();
 
   // [P0_FIND_BEST_TIME_SSOT] When launched from create, return picked time instead of pushing
   const isFromCreate = source === "create";
@@ -132,6 +135,10 @@ export default function WhosFreeScreen() {
   // [P1_WHOSFREE] Expandable slot index — which slot is expanded to show who's free/busy
   const [expandedSlotIndex, setExpandedSlotIndex] = useState<number | null>(null);
 
+  // Glass redesign: friend picker sheet + time window sheet
+  const [showFriendPicker, setShowFriendPicker] = useState(false);
+  const [showTimeWindowPicker, setShowTimeWindowPicker] = useState(false);
+
   // [P1_WHOSFREE] DEV proof log on mount
   React.useEffect(() => {
     if (__DEV__) {
@@ -162,6 +169,26 @@ export default function WhosFreeScreen() {
   });
   const workSchedules = workScheduleData?.schedules ?? [];
   const { skipKeys: workSkipKeys } = useWorkSkipDays();
+
+  // [P0_WORK_HOURS_BLOCK] Fetch selected friends' work schedules (friendship-gated endpoint)
+  const { data: friendWorkSchedulesData, refetch: refetchFriendWorkSchedules } = useQuery({
+    queryKey: ["friendWorkSchedules", bestTimeFriendIds],
+    queryFn: async () => {
+      const results = await Promise.allSettled(
+        bestTimeFriendIds.map(async (friendId) => {
+          const res = await api.get<{ schedules: WorkScheduleDay[] }>(`/api/work-schedule/user/${friendId}`);
+          return { userId: friendId, schedules: res.schedules ?? [] };
+        }),
+      );
+      // Only keep successful fetches — 403/404 means friend hasn't shared, treat as fully free
+      return results
+        .filter((r): r is PromiseFulfilledResult<{ userId: string; schedules: WorkScheduleDay[] }> =>
+          r.status === "fulfilled",
+        )
+        .map((r) => r.value);
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0,
+  });
 
   // [P1_WHOSFREE] Fetch each selected friend's events for client-side scheduling
   const {
@@ -314,6 +341,27 @@ export default function WhosFreeScreen() {
       }
     }
 
+    // [P0_WORK_HOURS_BLOCK] Merge friends' work schedules as busy blocks
+    if (friendWorkSchedulesData) {
+      for (const friendSched of friendWorkSchedulesData) {
+        if (friendSched.schedules.length === 0) continue;
+        const friendWorkWindows = buildWorkScheduleBusyWindows(friendSched.schedules, rangeStart, rangeEnd);
+        if (friendWorkWindows.length === 0) continue;
+        if (!busyWindowsByUserId[friendSched.userId]) {
+          busyWindowsByUserId[friendSched.userId] = [];
+        }
+        busyWindowsByUserId[friendSched.userId] = busyWindowsByUserId[friendSched.userId].concat(friendWorkWindows);
+
+        if (__DEV__) {
+          devLog("[P0_WORK_HOURS_BLOCK]", "friend_work_merge", {
+            friendId: friendSched.userId.slice(0, 8),
+            workWindowsCount: friendWorkWindows.length,
+            totalBusyForFriend: busyWindowsByUserId[friendSched.userId].length,
+          });
+        }
+      }
+    }
+
     const result = computeSchedule({
       members: allMemberIds.map((id) => ({ id })),
       busyWindowsByUserId,
@@ -371,7 +419,7 @@ export default function WhosFreeScreen() {
     }));
 
     return { suggestedSlots: slots, isLoadingSuggestions: false };
-  }, [friendEventsData, isLoadingFriendEvents, pickerDate, timeWindowStart, timeWindowEnd, allFriends, workSchedules, session?.user?.id, workSkipKeys]);
+  }, [friendEventsData, isLoadingFriendEvents, pickerDate, timeWindowStart, timeWindowEnd, allFriends, workSchedules, session?.user?.id, workSkipKeys, friendWorkSchedulesData]);
 
   // [P1_WHOSFREE] Capped render list — never explode the scroll
   const renderCap = showAllSlots ? MAX_EXPANDED_SLOTS : MAX_SUGGESTED_SLOTS;
@@ -393,6 +441,40 @@ export default function WhosFreeScreen() {
   const dayLabel = useMemo(() => {
     return pickerDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
   }, [pickerDate]);
+
+  // Derived: friends currently selected (for avatar strip)
+  const selectedFriends = useMemo(
+    () => allFriends.filter((f) => bestTimeFriendIds.includes(f.friendId) && f.friend != null),
+    [allFriends, bestTimeFriendIds],
+  );
+
+  // Glass slot tier classification
+  const getSlotTier = (slot: TimeSlot) => {
+    const busyCount = slot.totalMembers - slot.totalAvailable;
+    if (busyCount === 0)
+      return {
+        bg: "rgba(93,202,165,0.08)",
+        border: "rgba(93,202,165,0.25)",
+        accent: "#5DCAA5",
+        label: "Everyone free",
+      };
+    if (busyCount === 1)
+      return {
+        bg: isDark ? "rgba(255,255,255,0.06)" : colors.surface,
+        border: isDark ? "rgba(255,255,255,0.1)" : colors.borderSubtle,
+        accent: colors.textSecondary,
+        label: "Great overlap",
+      };
+    return {
+      bg: "rgba(245,158,11,0.06)",
+      border: "rgba(245,158,11,0.2)",
+      accent: "#F59E0B",
+      label: "Some conflicts",
+    };
+  };
+
+  // Glass styling tokens
+  const glass = buildGlassTokens(isDark, colors);
 
   const toggleBestTimeFriend = (friendId: string) => {
     Haptics.selectionAsync();
@@ -452,7 +534,7 @@ export default function WhosFreeScreen() {
   // [P0_WHOSFREE_REFRESH] Pull-to-refresh + focus/foreground refresh via SSOT contract
   const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
     screenName: "whos-free",
-    refetchFns: [refetchFriends, refetchWorkSchedule, refetchFriendEvents],
+    refetchFns: [refetchFriends, refetchWorkSchedule, refetchFriendEvents, refetchFriendWorkSchedules],
   });
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
@@ -467,6 +549,31 @@ export default function WhosFreeScreen() {
       </SafeAreaView>
     );
   }
+
+  // Slot time selection handler (shared by slot tap and "Pick this time" CTA)
+  const handlePickSlot = async (slot: TimeSlot) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isFromCreate) {
+      const pickedAtMs = Date.now();
+      await AsyncStorage.setItem(
+        "oi:bestTimePick",
+        JSON.stringify({ startISO: slot.start, endISO: slot.end, pickedAtMs }),
+      );
+      if (__DEV__) {
+        devLog("[P0_FIND_BEST_TIME_SSOT] pick", {
+          startISO: slot.start,
+          endISO: slot.end,
+          pickedAtMs,
+          returning: "create",
+        });
+      }
+      router.back();
+      return;
+    }
+    const slotStartDate = new Date(slot.start);
+    const dateStr = slotStartDate.toISOString().split("T")[0];
+    router.push(`/create?date=${dateStr}&time=${slot.start}` as any);
+  };
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={[]}>
@@ -490,420 +597,566 @@ export default function WhosFreeScreen() {
           />
         }
       >
-        {/* Find Best Time Section */}
-        <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-6">
-          <View
-            className="rounded-2xl p-5"
-            style={{
-              backgroundColor: `${themeColor}10`,
-              borderWidth: 1,
-              borderColor: `${themeColor}30`,
+        {/* ── Header ── */}
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+                backgroundColor: `${themeColor}20`,
+              }}
+            >
+              <Sparkles size={20} color={themeColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text }}>
+                Find Best Time
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                See when friends are free
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ── FRIENDS glass card ── */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 12 }}>
+          <Pressable
+            onPress={() => {
+              if (allFriends.length === 0) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/friends");
+              } else {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowFriendPicker(true);
+              }
             }}
+            style={{ ...glass.card, padding: 16 }}
           >
-            <View className="flex-row items-center mb-4">
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: `${themeColor}20` }}
-              >
-                <Sparkles size={20} color={themeColor} />
-              </View>
-              <View className="flex-1">
-                <Text className="font-sora-semibold text-base" style={{ color: themeColor }}>
-                  Find Best Time
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                  See when friends are free
-                </Text>
-              </View>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ ...glass.label, textTransform: "uppercase" }}>FRIENDS</Text>
+              {bestTimeFriendIds.length > 0 && (
+                <View
+                  style={{
+                    backgroundColor: "rgba(93,202,165,0.12)",
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                  }}
+                >
+                  <Text style={{ color: "#5DCAA5", fontSize: 11, fontWeight: "700" }}>
+                    {bestTimeFriendIds.length} selected
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {/* Select Friends for Best Time */}
-            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textSecondary }}>
-              WHO'S COMING?
-            </Text>
             {allFriends.length === 0 ? (
-              <View
-                className="rounded-xl p-4 items-center mb-4"
-                style={{ backgroundColor: colors.surface }}
-              >
+              <View style={{ alignItems: "center", paddingVertical: 16 }}>
                 <Users size={24} color={colors.textTertiary} />
-                <Text className="text-sm mt-2" style={{ color: colors.textSecondary }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>
                   Add friends to find the best time
                 </Text>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  label="Find Friends"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/friends");
-                  }}
-                  style={{ marginTop: 12 }}
-                />
               </View>
             ) : (
-              <View className="flex-row flex-wrap mb-4">
-                {allFriends.filter((f) => f.friend != null).map((friendship: Friendship) => {
-                  const isSelected = bestTimeFriendIds.includes(friendship.friendId);
-                  return (
-                    <Pressable
-                      key={friendship.id}
-                      onPress={() => toggleBestTimeFriend(friendship.friendId)}
-                      className="rounded-full px-3 py-2 mr-2 mb-2 flex-row items-center"
-                      style={{
-                        backgroundColor: isSelected ? `${themeColor}20` : colors.surface,
-                        borderWidth: isSelected ? 1 : 0,
-                        borderColor: themeColor,
-                      }}
-                    >
-                      <EntityAvatar
-                        photoUrl={friendship.friend?.image ?? null}
-                        initials={friendship.friend?.name?.[0] ?? "?"}
-                        size={24}
-                        backgroundColor={`${themeColor}30`}
-                        foregroundColor={themeColor}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        className="text-sm font-medium"
-                        style={{ color: isSelected ? themeColor : colors.text }}
-                      >
-                        {friendship.friend?.name?.split(" ")[0] ?? "Friend"}
-                      </Text>
-                      {isSelected && (
-                        <View
-                          className="w-4 h-4 rounded-full items-center justify-center ml-2"
-                          style={{ backgroundColor: themeColor }}
-                        >
-                          <Check size={10} color="#fff" />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+                {selectedFriends.slice(0, 8).map((friendship, i) => (
+                  <View
+                    key={friendship.friendId}
+                    style={{
+                      marginLeft: i > 0 ? -8 : 0,
+                      borderWidth: 2,
+                      borderColor: colors.background,
+                      borderRadius: 18,
+                      zIndex: 8 - i,
+                    }}
+                  >
+                    <EntityAvatar
+                      photoUrl={friendship.friend?.image ?? null}
+                      initials={friendship.friend?.name?.[0] ?? "?"}
+                      size={32}
+                      backgroundColor={isDark ? "rgba(255,255,255,0.1)" : `${themeColor}15`}
+                      foregroundColor={themeColor}
+                    />
+                  </View>
+                ))}
+                {/* + button */}
+                <View
+                  style={{
+                    marginLeft: selectedFriends.length > 0 ? -8 : 0,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : colors.surface,
+                    borderWidth: 1.5,
+                    borderColor: isDark ? "rgba(255,255,255,0.15)" : colors.border,
+                    borderStyle: "dashed",
+                    zIndex: 0,
+                  }}
+                >
+                  <Plus size={16} color={colors.textSecondary} />
+                </View>
               </View>
             )}
+          </Pressable>
+        </Animated.View>
 
-            {/* [P1_WHOSFREE] Single-Day Picker */}
-            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textSecondary }}>
-              DATE
-            </Text>
+        {/* ── DATE + TIME WINDOW side-by-side ── */}
+        <Animated.View
+          entering={FadeInDown.delay(150).springify()}
+          style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}
+        >
+          {/* Date card with day-switch arrows */}
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                const prev = new Date(pickerDate);
+                prev.setDate(prev.getDate() - 1);
+                if (prev >= new Date(new Date().toDateString())) {
+                  setPickerDate(prev);
+                  setExpandedSlotIndex(null);
+                }
+              }}
+              hitSlop={8}
+              style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}
+            >
+              <ChevronLeft size={14} color={isDark ? "rgba(255,255,255,0.4)" : "#aaa"} />
+            </Pressable>
             <Pressable
               onPress={() => setShowDatePicker(true)}
-              className="rounded-xl p-3 mb-4 flex-row items-center"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              style={{ ...glass.card, flex: 1, padding: 14 }}
             >
-              <Calendar size={16} color={themeColor} />
-              <Text className="ml-2 text-sm font-medium" style={{ color: colors.text }}>
-                {pickerDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-              </Text>
+              <Text style={{ ...glass.label, textTransform: "uppercase", marginBottom: 6 }}>DATE</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Calendar size={14} color={themeColor} />
+                <Text style={{ ...glass.value, marginLeft: 6 }}>
+                  {pickerDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                </Text>
+              </View>
             </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                const next = new Date(pickerDate);
+                next.setDate(next.getDate() + 1);
+                setPickerDate(next);
+                setExpandedSlotIndex(null);
+              }}
+              hitSlop={8}
+              style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}
+            >
+              <ChevronRight size={14} color={isDark ? "rgba(255,255,255,0.4)" : "#aaa"} />
+            </Pressable>
+          </View>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={pickerDate}
-                mode="date"
-                display="spinner"
-                minimumDate={new Date()}
-                textColor={colors.text}
-                onChange={(_, date) => {
-                  setShowDatePicker(false);
-                  if (date) {
-                    setPickerDate(date);
-                    // Reset expanded slot when date changes
-                    setExpandedSlotIndex(null);
-                  }
-                }}
-              />
+          {/* Time window card */}
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowTimeWindowPicker(true);
+            }}
+            style={{ ...glass.card, flex: 1, padding: 14 }}
+          >
+            <Text style={{ ...glass.label, textTransform: "uppercase", marginBottom: 6 }}>WINDOW</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Clock size={14} color={themeColor} />
+              <Text style={{ ...glass.value, marginLeft: 6 }}>
+                {formatHourLabel(timeWindowStart)} – {formatHourLabel(timeWindowEnd)}
+              </Text>
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={pickerDate}
+            mode="date"
+            display="spinner"
+            minimumDate={new Date()}
+            textColor={colors.text}
+            onChange={(_, d) => {
+              setShowDatePicker(false);
+              if (d) {
+                setPickerDate(d);
+                setExpandedSlotIndex(null);
+              }
+            }}
+          />
+        )}
+
+        {/* ── BEST TIMES section ── */}
+        {bestTimeFriendIds.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            {/* Section header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <Text style={{ ...glass.label, textTransform: "uppercase" }}>BEST TIMES</Text>
+              {suggestedSlots.length > 0 && (
+                <Text style={{ color: colors.textTertiary, fontSize: 11 }}>
+                  {renderedSlots.length} suggestion{renderedSlots.length !== 1 ? "s" : ""}
+                </Text>
+              )}
+            </View>
+
+            {/* Error state */}
+            {isFriendEventsError ? (
+              <View style={{ ...glass.card, padding: 24, alignItems: "center" }}>
+                <AlertCircle size={28} color="#EF4444" />
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500", marginTop: 10, textAlign: "center" }}>
+                  Could not load availability
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4, textAlign: "center" }}>
+                  Check your connection and try again
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    refetchFriendEvents();
+                  }}
+                  style={{
+                    marginTop: 14,
+                    paddingHorizontal: 20,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    backgroundColor: `${themeColor}20`,
+                  }}
+                >
+                  <Text style={{ color: themeColor, fontSize: 13, fontWeight: "600" }}>Retry</Text>
+                </Pressable>
+              </View>
+
+            ) : isLoadingSuggestions || (!isFriendEventsSuccess && !friendEventsData) ? (
+              <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                <ActivityIndicator size="large" color={themeColor} />
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 10 }}>
+                  Finding the best times...
+                </Text>
+              </View>
+
+            ) : suggestedSlots.length === 0 ? (
+              <View style={{ ...glass.card, padding: 24, alignItems: "center" }}>
+                <Clock size={28} color={colors.textTertiary} />
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500", marginTop: 10, textAlign: "center" }}>
+                  No overlapping free times found
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4, textAlign: "center" }}>
+                  Try a different date or fewer people
+                </Text>
+              </View>
+
+            ) : (
+              <View>
+                {/* Day label */}
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600", marginBottom: 10 }}>
+                  {dayLabel}
+                </Text>
+
+                {/* Slot cards */}
+                {renderedSlots.map((slot, index) => {
+                  const { time } = formatTimeSlot(slot);
+                  const tier = getSlotTier(slot);
+                  const isExpanded = expandedSlotIndex === index;
+                  const busyCount = slot.totalMembers - slot.totalAvailable;
+
+                  // Busy friends for expanded view
+                  const busyFriends = allFriends.filter(
+                    (f) =>
+                      bestTimeFriendIds.includes(f.friendId) &&
+                      !slot.availableFriends.some((af) => af.id === f.friendId) &&
+                      f.friend != null,
+                  );
+
+                  return (
+                    <Animated.View key={index} entering={FadeIn.delay(Math.min(index, 5) * 40)}>
+                      {/* Slot card */}
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setExpandedSlotIndex(isExpanded ? null : index);
+                        }}
+                        style={{
+                          backgroundColor: tier.bg,
+                          borderWidth: 0.5,
+                          borderColor: tier.border,
+                          borderRadius: isExpanded ? 16 : 14,
+                          borderBottomLeftRadius: isExpanded ? 0 : 14,
+                          borderBottomRightRadius: isExpanded ? 0 : 14,
+                          padding: 14,
+                          marginBottom: isExpanded ? 0 : 6,
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>
+                            {time}
+                          </Text>
+                          <Text style={{ color: tier.accent, fontSize: 11, fontWeight: "500", marginTop: 2 }}>
+                            {tier.label}
+                          </Text>
+                        </View>
+
+                        {/* Count badge */}
+                        <View style={{ flexDirection: "row", alignItems: "center", marginRight: 10 }}>
+                          <Users size={12} color={tier.accent} />
+                          <Text style={{ color: tier.accent, fontSize: 13, fontWeight: "700", marginLeft: 4 }}>
+                            {slot.totalAvailable}/{slot.totalMembers}
+                          </Text>
+                        </View>
+
+                        {/* Chevron */}
+                        {isExpanded ? (
+                          <ChevronUp size={16} color={colors.textTertiary} />
+                        ) : (
+                          <ChevronDown size={16} color={colors.textTertiary} />
+                        )}
+                      </Pressable>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <View
+                          style={{
+                            backgroundColor: tier.bg,
+                            borderWidth: 0.5,
+                            borderTopWidth: 0,
+                            borderColor: tier.border,
+                            borderBottomLeftRadius: 16,
+                            borderBottomRightRadius: 16,
+                            paddingHorizontal: 14,
+                            paddingTop: 4,
+                            paddingBottom: 14,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {/* Divider */}
+                          <View
+                            style={{
+                              height: 0.5,
+                              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                              marginBottom: 10,
+                            }}
+                          />
+
+                          {/* Free people chips */}
+                          {slot.availableFriends.length > 0 && (
+                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: busyFriends.length > 0 ? 8 : 12 }}>
+                              {slot.availableFriends.map((friend) => (
+                                <View
+                                  key={friend.id}
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    backgroundColor: "rgba(93,202,165,0.1)",
+                                    borderRadius: 20,
+                                    paddingVertical: 4,
+                                    paddingHorizontal: 8,
+                                    paddingRight: 10,
+                                  }}
+                                >
+                                  <EntityAvatar
+                                    photoUrl={friend.image}
+                                    initials={friend.name?.[0] ?? "?"}
+                                    size={20}
+                                    backgroundColor="rgba(93,202,165,0.2)"
+                                    foregroundColor="#5DCAA5"
+                                  />
+                                  <Text style={{ color: "#5DCAA5", fontSize: 11, fontWeight: "600", marginLeft: 5 }}>
+                                    {friend.name?.split(" ")[0] ?? "Friend"}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+
+                          {/* Busy people chips */}
+                          {busyFriends.length > 0 && (
+                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                              {busyFriends.map((friendship) => (
+                                <View
+                                  key={friendship.id}
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    backgroundColor: "rgba(239,68,68,0.08)",
+                                    borderRadius: 20,
+                                    paddingVertical: 4,
+                                    paddingHorizontal: 8,
+                                    paddingRight: 10,
+                                  }}
+                                >
+                                  <EntityAvatar
+                                    photoUrl={friendship.friend?.image ?? null}
+                                    initials={friendship.friend?.name?.[0] ?? "?"}
+                                    size={20}
+                                    backgroundColor="rgba(239,68,68,0.15)"
+                                    foregroundColor="#EF4444"
+                                  />
+                                  <Text style={{ color: colors.textTertiary, fontSize: 11, fontWeight: "500", marginLeft: 5 }}>
+                                    {friendship.friend?.name?.split(" ")[0] ?? "Friend"}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+
+                          {/* Pick this time CTA */}
+                          <Pressable
+                            onPress={() => handlePickSlot(slot)}
+                            style={{
+                              backgroundColor: "#5DCAA5",
+                              borderRadius: 12,
+                              paddingVertical: 12,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
+                              Pick this time
+                            </Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+
+                {/* Show More */}
+                {!showAllSlots && suggestedSlots.length > MAX_SUGGESTED_SLOTS && (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowAllSlots(true);
+                    }}
+                    style={{ ...glass.card, padding: 12, marginTop: 4, alignItems: "center" }}
+                  >
+                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>
+                      Show more suggestions
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             )}
+          </Animated.View>
+        )}
 
-            {/* [P1_WHOSFREE] Time Window — reasonable hours filter */}
-            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textSecondary }}>
-              TIME WINDOW
-            </Text>
-            <View className="flex-row items-center mb-4">
+        <View style={{ height: 80 }} />
+      </ScrollView>
+
+      {/* ── Friend Picker Sheet ── */}
+      <FriendPickerSheet
+        visible={showFriendPicker}
+        onClose={() => setShowFriendPicker(false)}
+        friends={allFriends}
+        selectedIds={bestTimeFriendIds}
+        onToggle={toggleBestTimeFriend}
+      />
+
+      {/* ── Time Window Sheet ── */}
+      <BottomSheet
+        visible={showTimeWindowPicker}
+        onClose={() => setShowTimeWindowPicker(false)}
+        title="Time Window"
+        heightPct={0}
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+          {/* Earliest */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>Earliest</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
                   setTimeWindowStart(Math.max(0, timeWindowStart - 1));
                 }}
-                className="w-8 h-8 rounded-lg items-center justify-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surface,
+                  borderWidth: 0.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : colors.borderSubtle,
+                }}
               >
-                <Text className="text-base font-bold" style={{ color: themeColor }}>−</Text>
+                <Text style={{ color: themeColor, fontSize: 18, fontWeight: "700" }}>-</Text>
               </Pressable>
-              <View className="flex-1 mx-2 rounded-xl px-3 py-2 flex-row items-center justify-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Clock size={14} color={themeColor} />
-                <Text className="ml-2 text-sm font-medium" style={{ color: colors.text }}>
-                  {formatHourLabel(timeWindowStart)} – {formatHourLabel(timeWindowEnd)}
-                </Text>
-              </View>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600", minWidth: 60, textAlign: "center" }}>
+                {formatHourLabel(timeWindowStart)}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setTimeWindowStart(Math.min(timeWindowEnd - 1, timeWindowStart + 1));
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surface,
+                  borderWidth: 0.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : colors.borderSubtle,
+                }}
+              >
+                <Text style={{ color: themeColor, fontSize: 18, fontWeight: "700" }}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+          {/* Latest */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>Latest</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setTimeWindowEnd(Math.max(timeWindowStart + 1, timeWindowEnd - 1));
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surface,
+                  borderWidth: 0.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : colors.borderSubtle,
+                }}
+              >
+                <Text style={{ color: themeColor, fontSize: 18, fontWeight: "700" }}>-</Text>
+              </Pressable>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600", minWidth: 60, textAlign: "center" }}>
+                {formatHourLabel(timeWindowEnd)}
+              </Text>
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
                   setTimeWindowEnd(Math.min(24, timeWindowEnd + 1));
                 }}
-                className="w-8 h-8 rounded-lg items-center justify-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surface,
+                  borderWidth: 0.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : colors.borderSubtle,
+                }}
               >
-                <Text className="text-base font-bold" style={{ color: themeColor }}>+</Text>
+                <Text style={{ color: themeColor, fontSize: 18, fontWeight: "700" }}>+</Text>
               </Pressable>
             </View>
-            <View className="flex-row justify-between mb-4 px-1">
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                Earliest: {formatHourLabel(timeWindowStart)}
-              </Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                Latest: {formatHourLabel(timeWindowEnd)}
-              </Text>
-            </View>
-
-            {/* Suggested Times List */}
-            {bestTimeFriendIds.length > 0 && (
-              <>
-                <Text className="text-xs font-semibold mb-2" style={{ color: colors.textSecondary }}>
-                  BEST TIMES
-                </Text>
-
-                {/* [P0_WHOSFREE_ERROR_TRUTH] Error → show explicit error + Retry; never fall through to "no conflicts" */}
-                {isFriendEventsError ? (
-                  <View
-                    className="rounded-xl p-4 items-center"
-                    style={{ backgroundColor: colors.surface }}
-                  >
-                    <Clock size={28} color="#EF4444" />
-                    <Text className="text-center mt-2 font-medium text-sm" style={{ color: colors.text }}>
-                      Could not load availability
-                    </Text>
-                    <Text className="text-center mt-1 text-xs" style={{ color: colors.textSecondary }}>
-                      Check your connection and try again
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        refetchFriendEvents();
-                      }}
-                      className="mt-3 rounded-lg px-5 py-2"
-                      style={{ backgroundColor: `${themeColor}20` }}
-                    >
-                      <Text className="text-sm font-semibold" style={{ color: themeColor }}>
-                        Retry
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : isLoadingSuggestions || (!isFriendEventsSuccess && !friendEventsData) ? (
-                  /* [P0_WHOSFREE_ERROR_TRUTH] Show loading when query hasn't succeeded yet (idle/fetching/disabled) */
-                  <View className="py-6 items-center">
-                    <ActivityIndicator size="large" color={themeColor} />
-                    <Text className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
-                      Finding the best times...
-                    </Text>
-                  </View>
-                ) : suggestedSlots.length === 0 ? (
-                  /* [P0_WHOSFREE_ERROR_TRUTH] Only reachable when isFriendEventsSuccess=true OR friendEventsData present */
-                  <View
-                    className="rounded-xl p-4 items-center"
-                    style={{ backgroundColor: colors.surface }}
-                  >
-                    <Clock size={28} color={colors.textTertiary} />
-                    <Text className="text-center mt-2 font-medium text-sm" style={{ color: colors.text }}>
-                      No overlapping free times found
-                    </Text>
-                    <Text className="text-center mt-1 text-xs" style={{ color: colors.textSecondary }}>
-                      Try a different date or fewer people
-                    </Text>
-                  </View>
-                ) : (
-                  <View>
-                    {/* [P1_WHOSFREE] Single-day header */}
-                    <View className="mb-3">
-                      <Text className="font-sora-semibold text-sm" style={{ color: colors.text }}>
-                        Best times on {dayLabel}
-                      </Text>
-                      <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                        Showing top {renderedSlots.length} suggestion{renderedSlots.length !== 1 ? "s" : ""} ({formatHourLabel(timeWindowStart)}–{formatHourLabel(timeWindowEnd)})
-                      </Text>
-                    </View>
-
-                    {renderedSlots.map((slot, index) => {
-                      const { time } = formatTimeSlot(slot);
-                      const availLabel = formatSlotAvailability(slot.totalAvailable, slot.totalMembers);
-                      const isExpanded = expandedSlotIndex === index;
-                      return (
-                        <Animated.View key={index} entering={FadeIn.delay(Math.min(index, 5) * 50)}>
-                          <Pressable
-                            onPress={async () => {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                              if (isFromCreate) {
-                                // [P0_FIND_BEST_TIME_SSOT] Return picked time to create screen
-                                const pickedAtMs = Date.now();
-                                await AsyncStorage.setItem(
-                                  "oi:bestTimePick",
-                                  JSON.stringify({ startISO: slot.start, endISO: slot.end, pickedAtMs }),
-                                );
-                                if (__DEV__) {
-                                  devLog("[P0_FIND_BEST_TIME_SSOT] pick", {
-                                    startISO: slot.start,
-                                    endISO: slot.end,
-                                    pickedAtMs,
-                                    returning: "create",
-                                  });
-                                }
-                                router.back();
-                                return;
-                              }
-                              const slotStartDate = new Date(slot.start);
-                              const dateStr = slotStartDate.toISOString().split('T')[0];
-                              router.push(`/create?date=${dateStr}&time=${slot.start}` as any);
-                            }}
-                            className="rounded-xl p-3 mb-1 flex-row items-center"
-                            style={{
-                              backgroundColor: colors.surface,
-                              borderWidth: 1,
-                              borderColor: isExpanded ? `${themeColor}40` : colors.border,
-                            }}
-                          >
-                            <View
-                              className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-                              style={{ backgroundColor: `${themeColor}15` }}
-                            >
-                              <Clock size={20} color={themeColor} />
-                            </View>
-                            <View className="flex-1">
-                              <Text className="font-semibold text-sm" style={{ color: colors.text }}>
-                                {time}
-                              </Text>
-                              <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                                {availLabel}
-                              </Text>
-                            </View>
-                            {/* [P1_WHOSFREE] X/Y availability badge */}
-                            <View className="items-end mr-2">
-                              <View className="flex-row items-center">
-                                <Users size={12} color="#22C55E" />
-                                <Text className="ml-1 font-bold text-sm" style={{ color: "#22C55E" }}>
-                                  {slot.totalAvailable}/{slot.totalMembers}
-                                </Text>
-                              </View>
-                            </View>
-                            {/* [P1_WHOSFREE] Expand/collapse toggle */}
-                            <Pressable
-                              onPress={(e) => {
-                                e.stopPropagation?.();
-                                Haptics.selectionAsync();
-                                setExpandedSlotIndex(isExpanded ? null : index);
-                              }}
-                              hitSlop={8}
-                              className="p-1"
-                            >
-                              {isExpanded
-                                ? <ChevronUp size={16} color={colors.textTertiary} />
-                                : <ChevronDown size={16} color={colors.textTertiary} />
-                              }
-                            </Pressable>
-                          </Pressable>
-
-                          {/* [P1_WHOSFREE] Expandable detail — who's free / busy */}
-                          {isExpanded && (
-                            <View
-                              className="rounded-b-xl px-4 py-3 mb-2 -mt-1"
-                              style={{
-                                backgroundColor: `${themeColor}08`,
-                                borderWidth: 1,
-                                borderTopWidth: 0,
-                                borderColor: `${themeColor}20`,
-                              }}
-                            >
-                              {/* Free friends */}
-                              {slot.availableFriends.length > 0 && (
-                                <View className="mb-2">
-                                  <Text className="text-xs font-semibold mb-1" style={{ color: "#22C55E" }}>
-                                    ✓ Free ({slot.availableFriends.length})
-                                  </Text>
-                                  {slot.availableFriends.map((friend) => (
-                                    <View key={friend.id} className="flex-row items-center mb-1">
-                                      <EntityAvatar
-                                        photoUrl={friend.image}
-                                        initials={friend.name?.[0] ?? "?"}
-                                        size={20}
-                                        backgroundColor={`${themeColor}30`}
-                                        foregroundColor={themeColor}
-                                        style={{ marginRight: 6 }}
-                                      />
-                                      <Text className="text-xs" style={{ color: colors.text }}>
-                                        {friend.name ?? "Friend"}
-                                      </Text>
-                                    </View>
-                                  ))}
-                                </View>
-                              )}
-                              {/* Busy friends */}
-                              {(() => {
-                                const busyFriends = allFriends
-                                  .filter(
-                                    (f) =>
-                                      bestTimeFriendIds.includes(f.friendId) &&
-                                      !slot.availableFriends.some((af) => af.id === f.friendId),
-                                  );
-                                if (busyFriends.length === 0) return null;
-                                return (
-                                  <View>
-                                    <Text className="text-xs font-semibold mb-1" style={{ color: "#EF4444" }}>
-                                      ✗ Busy ({busyFriends.length})
-                                    </Text>
-                                    {busyFriends.filter((f) => f.friend != null).map((friendship) => (
-                                      <View key={friendship.id} className="flex-row items-center mb-1">
-                                        <EntityAvatar
-                                          photoUrl={friendship.friend?.image ?? null}
-                                          initials={friendship.friend?.name?.[0] ?? "?"}
-                                          size={20}
-                                          backgroundColor="#EF444420"
-                                          foregroundColor="#EF4444"
-                                          style={{ marginRight: 6 }}
-                                        />
-                                        <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                                          {friendship.friend?.name ?? "Friend"}
-                                        </Text>
-                                      </View>
-                                    ))}
-                                  </View>
-                                );
-                              })()}
-                            </View>
-                          )}
-                        </Animated.View>
-                      );
-                    })}
-
-                    {/* Show More — no recompute, just increase render cap */}
-                    {!showAllSlots && suggestedSlots.length > MAX_SUGGESTED_SLOTS && (
-                      <Pressable
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setShowAllSlots(true);
-                        }}
-                        className="rounded-xl p-3 mt-1 items-center"
-                        style={{
-                          backgroundColor: colors.surface,
-                          borderWidth: 1,
-                          borderColor: `${themeColor}30`,
-                        }}
-                      >
-                        <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                          Show more suggestions
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                )}
-              </>
-            )}
           </View>
-        </Animated.View>
-
-        {/* Spacer for bottom padding */}
-        <View className="h-20" />
-      </ScrollView>
+        </View>
+      </BottomSheet>
 
       {/* Paywall Modal for horizon gating */}
       <PaywallModal

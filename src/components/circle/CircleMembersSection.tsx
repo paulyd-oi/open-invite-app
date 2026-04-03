@@ -28,6 +28,7 @@ import {
 } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import BottomSheet from "@/components/BottomSheet";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import { api } from "@/lib/api";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
@@ -121,6 +122,8 @@ function MiniCalendar({
     }
   }, [showBestTimeSheet]);
 
+  const glass = buildGlassTokens(isDark, colors);
+
   // [P0_DAY_DETAIL_SWIPE] Swipe left/right inside unified sheet to change day
   const bestTimesDateRef = useRef(bestTimesDate);
   bestTimesDateRef.current = bestTimesDate;
@@ -168,6 +171,21 @@ function MiniCalendar({
     enabled: !!currentUserId,
   });
   const workSchedules = workScheduleData?.schedules ?? [];
+
+  // [PERF] Stable fingerprints for scheduling deps — avoids recomputing
+  // computeSchedule() on every 60s poll when data hasn't actually changed.
+  const memberIdsKey = useMemo(
+    () => members.map((m) => m.userId).sort().join(","),
+    [members],
+  );
+  const memberEventsKey = useMemo(
+    () => memberEvents.map((me) => `${me.userId}:${me.events.length}`).sort().join("|"),
+    [memberEvents],
+  );
+  const workSchedulesKey = useMemo(
+    () => workSchedules.map((ws) => `${ws.dayOfWeek}:${ws.isEnabled}`).join(","),
+    [workSchedules],
+  );
 
   // Load persisted suggested-hours preset on mount
   useEffect(() => {
@@ -310,7 +328,8 @@ function MiniCalendar({
       slotDurationMinutes: 60,
       maxTopSlots: 1000, // Return all slots so per-day dot indicators can be derived
     });
-  }, [memberEvents, members, workSchedules, currentUserId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- stable fingerprints replace object refs
+  }, [memberEventsKey, memberIdsKey, workSchedulesKey, currentUserId]);
 
   // [P0_DAY_AVAIL_SOT] Compute stable date range strings for the selected day
   const dayAvailRange = useMemo(() => {
@@ -391,7 +410,8 @@ function MiniCalendar({
       slotDurationMinutes: 60,
       maxTopSlots: 50, // [PERF] Day sheet only shows top ~3 + expanded ranges; 1000 was wasteful
     });
-  }, [isSheetSettled, dayAvailData, memberEvents, members, bestTimesDate, workSchedules, currentUserId, dayAvailRange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- stable fingerprints replace object refs
+  }, [isSheetSettled, dayAvailData, memberEventsKey, memberIdsKey, bestTimesDate, workSchedulesKey, currentUserId, dayAvailRange]);
 
   // Suggested hours filter + social ranking via SSOT (src/lib/quietHours.ts)
   const quietWindow = getSuggestedHoursForPreset(quietPreset);
@@ -777,23 +797,25 @@ function MiniCalendar({
             accessibilityRole="button"
             accessibilityLabel={`${quietHasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
             style={({ pressed }) => ({
+              ...glass.card,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
               marginBottom: 2,
-              paddingVertical: 4,
-              paddingHorizontal: 8,
-              borderRadius: 8,
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderRadius: 12,
               backgroundColor: pressed
-                ? (quietHasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
-                : (quietHasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
+                ? (quietHasPerfectOverlap ? "rgba(93,202,165,0.12)" : glass.card.backgroundColor)
+                : (quietHasPerfectOverlap ? "rgba(93,202,165,0.08)" : glass.card.backgroundColor),
+              borderColor: quietHasPerfectOverlap ? "rgba(93,202,165,0.25)" : glass.card.borderColor,
             })}
           >
             <View>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: quietHasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+              <Text style={{ ...glass.value, fontSize: 12, fontWeight: "600", color: quietHasPerfectOverlap ? "#5DCAA5" : colors.textSecondary }}>
                 {quietHasPerfectOverlap ? "Everyone's free" : "Best times"}
               </Text>
-              <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>Tap to see best times</Text>
+              <Text style={{ ...glass.label, fontSize: 10, marginTop: 1 }}>Tap to see best times</Text>
             </View>
           </Pressable>
 
@@ -838,17 +860,14 @@ function MiniCalendar({
 
               {/* ── Section 2: Who's Free — distinct module container ── */}
               <View style={{
-                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
-                borderRadius: 16,
+                ...glass.card,
                 padding: 16,
                 marginTop: 8,
-                borderWidth: 1,
-                borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
               }}>
-              <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.4, color: colors.text, marginBottom: 4 }}>
+              <Text style={{ ...glass.label, fontSize: 13, fontWeight: "700", letterSpacing: 0.4, color: colors.text, marginBottom: 4 }}>
                 Who{"\u2019"}s Free
               </Text>
-              <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 14 }}>
+              <Text style={{ ...glass.label, fontSize: 12, marginBottom: 14 }}>
                 Based on availability shared in this circle
               </Text>
 
@@ -860,8 +879,8 @@ function MiniCalendar({
                     <View key={i} style={{
                       width: "100%",
                       height: 40,
-                      borderRadius: 10,
-                      backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+                      borderRadius: glass.card.borderRadius,
+                      backgroundColor: glass.card.backgroundColor,
                       marginBottom: 8,
                     }} />
                   ))}
@@ -878,31 +897,31 @@ function MiniCalendar({
                   setShowPresetPicker((v) => !v);
                 }}
                 style={{
+                  ...glass.card,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
                   paddingVertical: 10,
-                  paddingHorizontal: 10,
+                  paddingHorizontal: 12,
                   marginBottom: 12,
-                  borderRadius: 10,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                  borderRadius: 12,
                 }}
               >
                 <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Suggested hours</Text>
-                  <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
+                  <Text style={{ ...glass.value, fontSize: 13, fontWeight: "600" }}>Suggested hours</Text>
+                  <Text style={{ ...glass.label, fontSize: 11, marginTop: 1 }}>
                     {PRESET_LABELS[quietPreset].range}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>Change</Text>
               </Pressable>
-              <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>
+              <Text style={{ ...glass.label, fontSize: 11, marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>
                 We only recommend times within these hours.
               </Text>
 
               {/* Inline preset picker */}
               {showPresetPicker && (
-                <View style={{ marginBottom: 12, borderRadius: 10, overflow: "hidden", backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
+                <View style={{ ...glass.card, marginBottom: 12, borderRadius: 12, overflow: "hidden" }}>
                   {ALL_PRESETS.map((p) => {
                     const isActive = p === quietPreset;
                     return (
@@ -921,14 +940,14 @@ function MiniCalendar({
                           paddingVertical: 12,
                           paddingHorizontal: 14,
                           borderBottomWidth: 0.5,
-                          borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                          borderBottomColor: glass.card.borderColor,
                         }}
                       >
                         <View>
-                          <Text style={{ fontSize: 14, fontWeight: isActive ? "600" : "400", color: isActive ? themeColor : colors.text }}>
+                          <Text style={{ ...glass.value, fontSize: 14, fontWeight: isActive ? "600" : "400", color: isActive ? themeColor : colors.text }}>
                             {PRESET_LABELS[p].label}
                           </Text>
-                          <Text style={{ fontSize: 11, color: colors.textTertiary }}>{PRESET_LABELS[p].range}</Text>
+                          <Text style={{ ...glass.label, fontSize: 11 }}>{PRESET_LABELS[p].range}</Text>
                         </View>
                         {isActive && <Check size={16} color={themeColor} />}
                       </Pressable>
@@ -938,7 +957,7 @@ function MiniCalendar({
               )}
 
               {/* Date selector row */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
+              <View style={{ ...glass.card, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 12 }}>
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync().catch(() => {});
@@ -952,7 +971,7 @@ function MiniCalendar({
                 >
                   <ChevronLeft size={18} color={colors.text} />
                 </Pressable>
-                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>
+                <Text style={{ ...glass.value, fontSize: 15, fontWeight: "600" }}>
                   {bestTimesDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                 </Text>
                 <Pressable
@@ -973,7 +992,7 @@ function MiniCalendar({
               {/* Recommended section or empty state — filtered to quiet hours */}
               {quietSlots.length > 0 ? (
                 <>
-                  <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
+                  <Text style={{ ...glass.label, textTransform: "uppercase", marginBottom: 10 }}>
                     Recommended
                   </Text>
 
@@ -1004,16 +1023,18 @@ function MiniCalendar({
                           paddingHorizontal: 12,
                           marginBottom: 8,
                           borderRadius: 12,
-                          backgroundColor: isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)",
+                          backgroundColor: "rgba(93,202,165,0.08)",
+                          borderWidth: glass.card.borderWidth,
+                          borderColor: "rgba(93,202,165,0.25)",
                         }}
                       >
                         <View style={{ width: 48, marginRight: 10 }}>
-                          <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981" }}>Best</Text>
+                          <Text style={{ ...glass.label, color: "#5DCAA5", fontWeight: "700" }}>Best</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
+                          <Text style={{ ...glass.value }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
                         </View>
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#10B981" }}>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#5DCAA5" }}>
                           {formatSlotAvailabilityCompact(slot.availableCount, slot.totalMembers)}
                         </Text>
                       </Pressable>
@@ -1046,20 +1067,20 @@ function MiniCalendar({
                             }}
                             onLongPress={() => { Haptics.selectionAsync().catch(() => {}); setSelectedSlot(slot); }}
                             style={{
+                              ...glass.card,
                               flexDirection: "row",
                               alignItems: "center",
                               paddingVertical: 10,
                               paddingHorizontal: 12,
                               marginBottom: 8,
                               borderRadius: 12,
-                              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
                             }}
                           >
                             <View style={{ width: 48, marginRight: 10 }}>
-                              <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
+                              <Text style={{ ...glass.label, color: rankColor, fontWeight: "700" }}>{rankLabel}</Text>
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
+                              <Text style={{ ...glass.value }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
                             </View>
                             <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
                               {formatSlotAvailabilityCompact(slot.availableCount, slot.totalMembers)}
@@ -1097,8 +1118,8 @@ function MiniCalendar({
                 </>
               ) : (
                 <View style={{ alignItems: "center", paddingVertical: 24 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 6 }}>No shared free times</Text>
-                  <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 16 }}>Try another day.</Text>
+                  <Text style={{ ...glass.value, fontSize: 16, fontWeight: "600", marginBottom: 6 }}>No shared free times</Text>
+                  <Text style={{ ...glass.label, fontSize: 13, marginBottom: 16 }}>Try another day.</Text>
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -1145,8 +1166,8 @@ function MiniCalendar({
                   style={{
                     marginTop: 12,
                     paddingVertical: 14,
-                    borderRadius: 12,
-                    backgroundColor: themeColor,
+                    borderRadius: glass.card.borderRadius,
+                    backgroundColor: "#5DCAA5",
                     alignItems: "center",
                   }}
                 >
@@ -1154,10 +1175,10 @@ function MiniCalendar({
                 </Pressable>}
 
                 {/* Privacy disclaimer */}
-                <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
+                <Text style={{ ...glass.label, fontSize: 12, lineHeight: 16, marginTop: 16, textAlign: "center" }}>
                   {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact. Times outside your suggested hours are hidden."}
                 </Text>
-                <Text style={{ fontSize: 11, lineHeight: 15, color: colors.textTertiary, marginTop: 6, textAlign: "center" }}>
+                <Text style={{ ...glass.label, fontSize: 11, lineHeight: 15, marginTop: 6, textAlign: "center" }}>
                   Suggested hours can be changed in Best time to meet.
                 </Text>
               </View>
@@ -1180,28 +1201,30 @@ function MiniCalendar({
             {selectedSlot && (
               <ScrollView style={{ paddingHorizontal: 20 }}>
                 {/* Subheader */}
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12 }}>
+                <Text style={{ ...glass.label, fontSize: 13, marginBottom: 12 }}>
                   {formatSlotAvailability(selectedSlot.availableCount, selectedSlot.totalMembers)}
                 </Text>
 
                 {/* Available section */}
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#10B981", marginBottom: 6 }}>
-                  Available ({selectedSlot.availableCount})
-                </Text>
-                {selectedSlot.availableUserIds.map((uid) => {
-                  const m = members.find((mb) => mb.userId === uid);
-                  return (
-                    <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981", marginRight: 8 }} />
-                      <Text style={{ fontSize: 13, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
-                    </View>
-                  );
-                })}
+                <View style={{ ...glass.card, padding: 12, marginBottom: 8 }}>
+                  <Text style={{ ...glass.label, color: "#5DCAA5", fontWeight: "700", marginBottom: 8 }}>
+                    Available ({selectedSlot.availableCount})
+                  </Text>
+                  {selectedSlot.availableUserIds.map((uid) => {
+                    const m = members.find((mb) => mb.userId === uid);
+                    return (
+                      <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#5DCAA5", marginRight: 8 }} />
+                        <Text style={{ ...glass.value, fontSize: 13 }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
 
                 {/* Busy section */}
                 {selectedSlot.unavailableUserIds.length > 0 && (
-                  <>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textTertiary, marginTop: 12, marginBottom: 6 }}>
+                  <View style={{ ...glass.card, padding: 12 }}>
+                    <Text style={{ ...glass.label, fontWeight: "700", marginBottom: 8 }}>
                       Busy ({selectedSlot.unavailableUserIds.length})
                     </Text>
                     {selectedSlot.unavailableUserIds.map((uid) => {
@@ -1209,14 +1232,12 @@ function MiniCalendar({
                       return (
                         <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
                           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.textTertiary, marginRight: 8 }} />
-                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                          <Text style={{ ...glass.label, fontSize: 13 }}>{m?.user?.name ?? uid.slice(-6)}</Text>
                         </View>
                       );
                     })}
-                  </>
+                  </View>
                 )}
-
-
               </ScrollView>
             )}
           </BottomSheet>

@@ -46,7 +46,7 @@ export function getPostHogProviderProps() {
       captureLifecycleEvents: true,
       captureScreens: false, // We do manual screen tracking via Expo Router
     },
-    debug: __DEV__,
+    debug: false, // [PERF] Suppress flush/capture noise in Metro logs
   } as const;
 }
 

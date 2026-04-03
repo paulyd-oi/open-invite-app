@@ -784,14 +784,7 @@ export default function EventDetailScreen() {
     },
   });
 
-  // Fetch event interests/RSVPs
-  const { data: interestsData } = useQuery({
-    queryKey: eventKeys.interests(id ?? ""),
-    queryFn: () => api.get<{ event_interest: Array<{ id: string; userId: string; user: { id: string; name: string | null; image: string | null }; status: string; createdAt: string }> }>(`/api/events/${id}/interests`),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
-  });
-
-  // Fetch grouped RSVPs (includes not_going users for Who's Coming)
+  // Fetch grouped RSVPs (includes going, interested, not_going, maybe)
   type RsvpUser = { id: string; name: string | null; image: string | null };
   type GroupedRsvps = { going: RsvpUser[]; interested: RsvpUser[]; not_going: RsvpUser[]; maybe: RsvpUser[] };
   const { data: groupedRsvpsData } = useQuery({
@@ -999,7 +992,14 @@ export default function EventDetailScreen() {
     logRsvpMismatch(id, derivedCount, attendeesData?.totalGoing, "event_details_endpoint");
   }
 
-  const interests = interestsData?.event_interest ?? [];
+  // Derive interests from grouped RSVPs (replaces removed /api/events/:id/interests endpoint)
+  const interests = (groupedRsvpsData?.interested ?? []).map((u) => ({
+    id: u.id,
+    userId: u.id,
+    user: { id: u.id, name: u.name, image: u.image },
+    status: "interested" as const,
+    createdAt: "",
+  }));
   const notGoingUsers = groupedRsvpsData?.not_going ?? [];
 
   // ============================================
@@ -1199,7 +1199,7 @@ export default function EventDetailScreen() {
         devLog('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
           eventId: id,
           nextStatus: status,
-          keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
+          keys: ['single', 'attendees', 'rsvps', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
         });
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
           action: 'event_rsvp',
@@ -1346,10 +1346,10 @@ export default function EventDetailScreen() {
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
         safeToast.warning("Full", "This invite is full.");
-        // [P1_EVENT_PROJ] Refetch owner + interests + feed on capacity error
+        // [P1_EVENT_PROJ] Refetch owner + rsvps + feed on capacity error
         invalidateEventKeys(queryClient, [
           eventKeys.single(id ?? ""),
-          eventKeys.interests(id ?? ""),
+          eventKeys.rsvps(id ?? ""),
           eventKeys.feed(),
         ], "rsvp_error_409");
       } else if (isNetwork) {
@@ -1570,7 +1570,7 @@ export default function EventDetailScreen() {
             "event.single",
             "event.attendees",
             "event.rsvp",
-            "event.interests",
+            "event.rsvps",
           ],
         });
       }
@@ -1584,7 +1584,7 @@ export default function EventDetailScreen() {
       // Optional hardening: adjacent event/[id] surfaces that depend on visibility
       queryClient.invalidateQueries({ queryKey: eventKeys.attendees(id ?? "") });
       queryClient.invalidateQueries({ queryKey: eventKeys.rsvp(id ?? "") });
-      queryClient.invalidateQueries({ queryKey: eventKeys.interests(id ?? "") });
+      queryClient.invalidateQueries({ queryKey: eventKeys.rsvps(id ?? "") });
     },
     onError: (error: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

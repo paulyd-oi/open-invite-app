@@ -429,7 +429,8 @@ export default function CircleScreen() {
       return response;
     },
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
-    refetchInterval: 10000, // Poll every 10 seconds for new messages
+    staleTime: 30_000, // [PERF] 30s stale window — rapid tab switches skip network
+    refetchInterval: 60_000, // [PERF] Poll every 60s (was 10s); WS push handles real-time
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
 
@@ -440,10 +441,16 @@ export default function CircleScreen() {
   );
 
   // [P0_TIMELINE] Mark UI converged when circle detail refetch settles
+  // [PERF] Debounce guard: suppress duplicate fires within 2s window
   const prevFetchingRef = useRef(false);
+  const lastConvergedRef = useRef(0);
   useEffect(() => {
     if (__DEV__ && prevFetchingRef.current && !isFetching && id) {
-      markTimeline(id, "ui_converged");
+      const now = Date.now();
+      if (now - lastConvergedRef.current > 2000) {
+        markTimeline(id, "ui_converged");
+        lastConvergedRef.current = now;
+      }
     }
     prevFetchingRef.current = isFetching;
   }, [isFetching, id]);

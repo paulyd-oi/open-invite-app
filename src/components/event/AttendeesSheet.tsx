@@ -108,7 +108,7 @@ export function AttendeesSheet({
             <ActivityIndicator size="large" color={themeColor} />
             <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading attendees…</Text>
           </View>
-        ) : hasError && !isPrivacyDenied && attendees.length === 0 ? (
+        ) : hasError && !isPrivacyDenied && attendees.length === 0 && guestGoingList.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
             <AlertTriangle size={32} color={colors.textTertiary} />
             <Text style={{ marginTop: 12, fontSize: 15, fontWeight: "600", color: colors.text, textAlign: "center" }}>
@@ -134,7 +134,7 @@ export function AttendeesSheet({
               <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 14 }}>Retry</Text>
             </Pressable>
           </View>
-        ) : attendees.length === 0 ? (
+        ) : attendees.length === 0 && guestGoingList.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
             <Users size={32} color={colors.textTertiary} />
             <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
@@ -188,7 +188,7 @@ export function AttendeesSheet({
                       displayName={guest.name}
                       bio={null}
                       avatarUri={null}
-                      badgeText="Guest"
+                      badgeText="Web guest"
                       onPress={() => {}}
                     />
                   </View>

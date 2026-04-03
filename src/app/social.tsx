@@ -34,6 +34,7 @@ import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -136,7 +137,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
 }) {
   const router = useRouter();
   const translateX = useSharedValue(0);
-  
+  const glass = buildGlassTokens(isDark, colors);
+
   // Check if this is a series or single event
   // All events are wrapped in EventSeries, but only recurring ones with multiple occurrences are "series"
   const isSeriesWrapper = 'nextEvent' in event;
@@ -224,16 +226,16 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   // Non-own events get availability outline (green/red) or default border
   const getBorderStyle = () => {
     if (isOwn) {
-      return { borderWidth: 1, borderColor: `${themeColor}40` };
+      return { borderWidth: glass.card.borderWidth, borderColor: `${themeColor}40` };
     }
     if (availability === "free") {
-      return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.free };
+      return { borderWidth: 1.5, borderColor: isDark ? "rgba(93,202,165,0.4)" : "rgba(16,185,129,0.4)" };
     }
     if (availability === "busy") {
-      return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.busy };
+      return { borderWidth: 1.5, borderColor: "rgba(239,68,68,0.4)" };
     }
     // unknown: default border
-    return { borderWidth: 1, borderColor: colors.border };
+    return { borderWidth: glass.card.borderWidth, borderColor: glass.card.borderColor };
   };
 
   // Swipe action handlers
@@ -318,9 +320,9 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         className="rounded-2xl p-4 mb-4"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
-          backgroundColor: (displayEvent as any).cardColor || colors.surface,
+          backgroundColor: (displayEvent as any).cardColor || glass.card.backgroundColor,
           ...getBorderStyle(),
-          ...(isDark ? { elevation: 1 } : TILE_SHADOW),
+          borderRadius: glass.card.borderRadius,
         }}
       >
         <View className="flex-row items-center">
@@ -756,6 +758,7 @@ export default function SocialScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const glass = buildGlassTokens(isDark, colors);
   const [authBootstrapState, setAuthBootstrapState] = useState<"checking" | "error" | "ready">("checking");
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
@@ -1770,7 +1773,7 @@ export default function SocialScreen() {
             /* ═══ MODE A: Default — Group | Open Invite pane ═══ */
             <View className="mt-4">
               {/* Pane selector */}
-              <View className="flex-row mb-4" style={{ borderRadius: 12, backgroundColor: colors.surface, padding: 4 }}>
+              <View className="flex-row mb-4" style={{ ...glass.card, borderRadius: 12, padding: 4 }}>
                 <Pressable
                   /* INVARIANT_ALLOW_INLINE_HANDLER */
                   onPress={() => { Haptics.selectionAsync(); setActivePane("group"); }}
@@ -1884,7 +1887,7 @@ export default function SocialScreen() {
                     )}
                   </>
                 ) : (
-                  <View className="py-8 items-center px-8">
+                  <View className="py-8 items-center px-8" style={{ ...glass.card, padding: 24 }}>
                     <Text className="text-4xl mb-3">🎉</Text>
                     {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>
@@ -1925,7 +1928,7 @@ export default function SocialScreen() {
                     />
                   ))
                 ) : (
-                  <View className="py-8 items-center px-8">
+                  <View className="py-8 items-center px-8" style={{ ...glass.card, padding: 24 }}>
                     <Text className="text-4xl mb-3">👥</Text>
                     {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>

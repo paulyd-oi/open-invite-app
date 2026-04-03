@@ -81,6 +81,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
@@ -618,6 +619,7 @@ export default function FriendsScreen() {
   // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const glass = buildGlassTokens(isDark, colors);
   const friendsInsets = useSafeAreaInsets();
   const [chromeHeight, setChromeHeight] = useState<number>(160);
 
@@ -1398,7 +1400,7 @@ export default function FriendsScreen() {
             {/* ── Tab Header: Activity | Chats | People ────────── */}
             <View className="px-5 pb-3">
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <View className="flex-row" style={{ backgroundColor: colors.surface2, borderRadius: 12, padding: 3 }}>
+              <View className="flex-row" style={{ ...glass.card, borderRadius: 12, padding: 3 }}>
                 {/* INVARIANT_ALLOW_SMALL_MAP */}
                 {FRIENDS_TABS.map((label, idx) => {
                   const isActive = friendsTab === idx;
@@ -1415,7 +1417,7 @@ export default function FriendsScreen() {
                       }}
                       className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
                       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      style={{ backgroundColor: isActive ? colors.surface : "transparent" }}
+                      style={{ backgroundColor: isActive ? (isDark ? "rgba(255,255,255,0.1)" : colors.surface) : "transparent" }}
                     >
                       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                       <View style={{ position: "relative" }}>

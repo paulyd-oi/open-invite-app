@@ -53,6 +53,7 @@ import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
@@ -170,6 +171,7 @@ export default function CalendarScreen() {
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const glass = buildGlassTokens(isDark, colors);
   const calendarInsets = useSafeAreaInsets();
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const calendarMountTime = useRef(Date.now()); // [PERF_SWEEP] render timing
@@ -1518,10 +1520,7 @@ export default function CalendarScreen() {
                   className="rounded-2xl p-6 items-center"
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{
-                    backgroundColor: colors.surface,
-                    borderWidth: 1,
-                    borderColor: colors.borderSubtle,
-                    ...(isDark ? {} : TILE_SHADOW),
+                    ...glass.card,
                   }}
                 >
                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -1662,10 +1661,9 @@ export default function CalendarScreen() {
                         className="rounded-xl p-4 mb-3"
                         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                         style={{
-                          backgroundColor: needsResponse ? `${themeColor}10` : colors.surface,
-                          borderWidth: needsResponse ? 2 : 1,
-                          borderColor: needsResponse ? themeColor : colors.borderSubtle,
-                          ...(isDark ? {} : TILE_SHADOW),
+                          backgroundColor: needsResponse ? `${themeColor}10` : glass.card.backgroundColor,
+                          borderWidth: needsResponse ? 2 : glass.card.borderWidth,
+                          borderColor: needsResponse ? themeColor : glass.card.borderColor,
                         }}
                       >
                         <View className="flex-row items-start">

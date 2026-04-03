@@ -18,7 +18,7 @@ export function shouldMaskEvent(
   event: { isBusy?: boolean; isWork?: boolean; isOwn?: boolean },
   viewerIsOwner?: boolean
 ): boolean {
-  const isBusyOrPrivate = event.isBusy || event.isWork;
+  const isBusyOrPrivate = (event.isBusy ?? false) || (event.isWork ?? false);
   const isOwner = viewerIsOwner ?? event.isOwn ?? false;
   const shouldMask = isBusyOrPrivate && !isOwner;
   

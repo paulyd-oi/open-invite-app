@@ -51,6 +51,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { trackOfflineQueueReplayResult } from "@/analytics/analyticsEventsSSOT";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
+import { buildGlassTokens } from "@/ui/glassTokens";
 import {
   isRevenueCatEnabled,
   hasEntitlement,
@@ -105,17 +106,17 @@ function SettingItem({ icon, title, subtitle, onPress, onLongPress, rightElement
       onLongPress={onLongPress}
       disabled={!onPress && !rightElement}
       className="flex-row items-center p-4"
-      style={{ borderBottomWidth: 1, borderBottomColor: isDark ? "#38383A" : "#F3F4F6" }}
+      style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
     >
       <View
         className="w-10 h-10 rounded-full items-center justify-center mr-3"
-        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+        style={{ backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)" }}
       >
         {icon}
       </View>
       <View className="flex-1">
         <Text style={{ color: isDark ? "#FFFFFF" : "#1F2937" }} className="text-base font-medium">{title}</Text>
-        {subtitle && <Text style={{ color: isDark ? "#8E8E93" : "#6B7280" }} className="text-sm mt-0.5">{subtitle}</Text>}
+        {subtitle && <Text style={{ color: isDark ? "rgba(255,255,255,0.5)" : "#888" }} className="text-sm mt-0.5">{subtitle}</Text>}
       </View>
       {rightElement}
       {showArrow && onPress && !rightElement && (
@@ -135,6 +136,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, setThemeColor, themeColorName, themeMode, setThemeMode, isDark, colors } = useTheme();
+  const glass = buildGlassTokens(isDark, colors);
 
   // Push diagnostics state
   const [isPushDiagRunning, setIsPushDiagRunning] = useState(false);
@@ -971,8 +973,8 @@ export default function SettingsScreen() {
 
         {/* Account Section */}
         <Animated.View entering={FadeInDown.delay(120).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ACCOUNT</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">ACCOUNT</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<Shield size={20} color={themeColor} />}
               title="Account Settings"
@@ -990,8 +992,8 @@ export default function SettingsScreen() {
 
         {/* Notifications Section */}
         <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">NOTIFICATIONS</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">NOTIFICATIONS</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<Bell size={20} color={themeColor} />}
               title="Notification Preferences"
@@ -1021,8 +1023,8 @@ export default function SettingsScreen() {
 
         {/* Subscription Section - Hidden for launch, will be enabled in future update */}
         {/* <Animated.View entering={FadeInDown.delay(155).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">SUBSCRIPTION</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             {isPremium ? (
               <View className="p-4">
                 <View className="flex-row items-center">
@@ -1090,8 +1092,8 @@ export default function SettingsScreen() {
 
         {/* Invite Friends Section */}
         <Animated.View entering={FadeInDown.delay(160).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">INVITE FRIENDS</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">INVITE FRIENDS</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             {/* Referral Counter */}
             <ReferralCounterSection isDark={isDark} colors={colors} themeColor={themeColor} />
 
@@ -1124,7 +1126,7 @@ export default function SettingsScreen() {
         {__DEV__ && (() => { devLog("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
         {__DEV__ && (() => { devLog("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
         <Animated.View entering={FadeInDown.delay(167).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">SUBSCRIPTION</Text>
           {/* Always render the subscription card - loading state shows "Free" as safe default, not blank */}
           <SettingsSubscriptionSection
             userIsPremium={userIsPremium}
@@ -1156,7 +1158,7 @@ export default function SettingsScreen() {
 
         {/* Birthdays Section */}
         <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">BIRTHDAYS</Text>
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">BIRTHDAYS</Text>
           <SettingsBirthdaySection
             showBirthdaySection={showBirthdaySection}
             birthday={birthday}
@@ -1179,7 +1181,7 @@ export default function SettingsScreen() {
 
         {/* Work Schedule Section */}
         <Animated.View entering={FadeInDown.delay(185).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">WORK SCHEDULE</Text>
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">WORK SCHEDULE</Text>
           <SettingsWorkScheduleSection
             showWorkScheduleSection={showWorkScheduleSection}
             workSchedules={workSchedules}
@@ -1203,8 +1205,8 @@ export default function SettingsScreen() {
 
         {/* Calendar Integration Section */}
         <Animated.View entering={FadeInDown.delay(190).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">CALENDAR</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">CALENDAR</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<CalendarDays size={20} color={themeColor} />}
               title="Import Device Calendar"
@@ -1220,8 +1222,8 @@ export default function SettingsScreen() {
 
         {/* Privacy Section */}
         <Animated.View entering={FadeInDown.delay(200).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PRIVACY & SECURITY</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">PRIVACY & SECURITY</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<UserX size={20} color="#EF4444" />}
               title="Blocked Contacts"
@@ -1247,8 +1249,8 @@ export default function SettingsScreen() {
 
         {/* Support Section */}
         <Animated.View entering={FadeInDown.delay(250).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUPPORT</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">SUPPORT</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<HelpCircle size={20} color="#45B7D1" />}
               title="Help & FAQ"
@@ -1304,8 +1306,8 @@ export default function SettingsScreen() {
         {/* Admin Section - Only visible when unlocked AND admin */}
         {adminUnlocked && adminStatus?.isAdmin && (
           <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
-            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">ADMIN</Text>
+            <View style={{ ...glass.card }} className="overflow-hidden">
               <SettingItem
                 icon={<Shield size={20} color="#10B981" />}
                 title="Admin Console"
@@ -1324,8 +1326,8 @@ export default function SettingsScreen() {
 
         {/* Legal Section */}
         <Animated.View entering={FadeInDown.delay(275).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">LEGAL</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+          <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "#999", letterSpacing: 0.5 }} className="text-xs font-semibold mb-2 ml-2">LEGAL</Text>
+          <View style={{ ...glass.card }} className="overflow-hidden">
             <SettingItem
               icon={<FileText size={20} color="#6366F1" />}
               title="Privacy Policy"
@@ -1355,8 +1357,13 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify()} className="mx-4 mt-6">
           <Pressable
             onPress={handleLogout}
-            style={{ backgroundColor: colors.surface }}
-            className="rounded-2xl p-4 flex-row items-center justify-center"
+            style={{
+              backgroundColor: isDark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
+              borderWidth: glass.card.borderWidth,
+              borderColor: isDark ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.12)",
+              borderRadius: glass.card.borderRadius,
+            }}
+            className="p-4 flex-row items-center justify-center"
           >
             <LogOut size={20} color="#EF4444" />
             <Text className="text-red-500 font-semibold ml-2">Sign Out</Text>

@@ -795,6 +795,13 @@ export function useNotifications() {
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
+    // Guard: only register once per app session (effect can re-fire when deps change)
+    // Allow re-registration on account switch or fresh login
+    if (registrationAttempted.current && !isAccountSwitch) {
+      if (__DEV__) devLog(`[P0_PUSH_REG] SKIP reason=ALREADY_ATTEMPTED userId=${userIdPrefix}...`);
+      return;
+    }
+    registrationAttempted.current = true;
     checkAndRegisterToken(shouldForce);
 
     // Re-check permission when app comes to foreground (throttled)
