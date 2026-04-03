@@ -322,6 +322,22 @@ export function InviteFlipCard({
                       {title}
                     </Text>
 
+                    {/* Event hook / tagline */}
+                    {eventHook ? (
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "500",
+                          fontStyle: "italic",
+                          color: cSecondary,
+                          marginBottom: 8,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {eventHook}
+                      </Text>
+                    ) : null}
+
                     {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
                       <Calendar size={14} color={contrastText ?? backAccent} />
