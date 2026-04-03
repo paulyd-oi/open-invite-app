@@ -47,6 +47,7 @@
         "EXPO_PUBLIC_REALTIME_WS": "1"
       },
       "ios": {
+        "image": "latest-stable",
         "resourceClass": "m-medium",
         "autoIncrement": true
       }
