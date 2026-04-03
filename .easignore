@@ -35,6 +35,21 @@ coverage
 **/DerivedDataDetox*
 **/*Detox*/**
 
+# Non-shipping directories
+dist/
+public/
+screenshots_review/
+docs/
+maestro/
+design-system/
+backend/
+
+# Misc non-shipping files
+*.log
+changelog.txt
+cookies.txt
+Terminal Saved Output.txt
+
 # Accidental repo snapshots / exports
 json/ios
 json/android
