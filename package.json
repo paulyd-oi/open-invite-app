@@ -16,7 +16,8 @@
     "e2e:ios": "npm run e2e:build:ios && npm run e2e:test:ios",
     "ios:sync-build": "bash scripts/ios/sync_build_numbers.sh",
     "doctor": "node scripts/doctor.mjs",
-    "proofpack": "node scripts/proofpack.mjs"
+    "proofpack": "node scripts/proofpack.mjs",
+    "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
