@@ -93,8 +93,7 @@ interface EventShareInput {
  * [P0_SHARE_ULINK]
  */
 export function getEventUniversalLink(eventId: string): string {
-  // String() ensures plain UTF-8 string — prevents iOS clipboard bplist encoding
-  return String(`${SHARE_DOMAIN}/event/${eventId}`);
+  return `${SHARE_DOMAIN}/event/${eventId}`;
 }
 
 /**

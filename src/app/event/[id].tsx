@@ -36,6 +36,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
 import { buildEventSmsBody, getEventUniversalLink } from "@/lib/shareSSOT";
+import { copyPlainText } from "@/lib/clipboard";
 import { safeToast } from "@/lib/safeToast";
 import { BusyBlockGate } from "@/components/event/BusyBlockGate";
 import { PrivacyRestrictedGate } from "@/components/event/PrivacyRestrictedGate";
@@ -2118,7 +2119,7 @@ export default function EventDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                 const link = getEventUniversalLink(event.id);
-                await Clipboard.setStringAsync(link);
+                await copyPlainText(link);
                 safeToast.success("Link copied");
               }}
               onText={() => {
