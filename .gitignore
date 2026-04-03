@@ -48,8 +48,6 @@ yarn-error.*
 expo.log
 main,
 
-bun.lockb
-bun.lock
 
 .githooks/
 
