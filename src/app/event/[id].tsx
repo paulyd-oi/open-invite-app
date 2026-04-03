@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -1001,6 +1001,13 @@ export default function EventDetailScreen() {
     createdAt: "",
   }));
   const notGoingUsers = groupedRsvpsData?.not_going ?? [];
+
+  // Friends-first social proof: read cached friends (zero-cost, no new fetch)
+  const friendIdSet = useMemo(() => {
+    const cached = queryClient.getQueryData<{ friendships?: Array<{ friendId: string }> }>(["friends"]);
+    if (!cached?.friendships?.length) return undefined;
+    return new Set(cached.friendships.map((f) => f.friendId));
+  }, [queryClient]);
 
   // ============================================
   // INVARIANT [P0_RSVP]: myRsvpStatus is the SOLE source of truth for RSVP display.
@@ -2224,6 +2231,7 @@ export default function EventDetailScreen() {
           showGuestList={showGuestList}
           showGuestCount={showGuestCount}
           showInterestedUsers={showInterestedUsers}
+          friendIds={friendIdSet}
           isDark={isDark}
           themeColor={themeColor}
           colors={colors}

@@ -61,6 +61,8 @@ interface WhosComingCardProps {
   showGuestList: boolean;
   showGuestCount: boolean;
   showInterestedUsers: boolean;
+  /** Viewer's friend IDs for friends-first sorting. Falls back to current order when absent. */
+  friendIds?: ReadonlySet<string>;
   isDark: boolean;
   themeColor: string;
   colors: WhosComingCardColors;
@@ -71,6 +73,17 @@ interface WhosComingCardProps {
 const STACK_MAX = 8;
 const AVATAR_SIZE = 40;
 const OVERLAP = 14;
+
+/** Stable friends-first sort: friends before non-friends, preserve order within each bucket. */
+function sortFriendsFirst(attendees: AttendeeInfo[], friendIds?: ReadonlySet<string>): AttendeeInfo[] {
+  if (!friendIds || friendIds.size === 0) return attendees;
+  const friends: AttendeeInfo[] = [];
+  const others: AttendeeInfo[] = [];
+  for (const a of attendees) {
+    (friendIds.has(a.id) ? friends : others).push(a);
+  }
+  return [...friends, ...others];
+}
 
 /** Deterministic "who's going" summary from attendee names. */
 function formatGoingSummary(names: string[], totalCount: number): string {
@@ -99,6 +112,7 @@ export function WhosComingCard({
   showGuestList,
   showGuestCount,
   showInterestedUsers,
+  friendIds,
   isDark,
   themeColor,
   colors,
@@ -136,7 +150,7 @@ export function WhosComingCard({
         // Has attendees: show compact roster preview (1-row avatar stack)
         if (effectiveGoingCount > 0 || attendeesList.length > 0) {
           const hostInList = attendeesList.find(a => a.id === hostId);
-          const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
+          const nonHostAttendees = sortFriendsFirst(attendeesList.filter(a => a.id !== hostId), friendIds);
           const orderedForStack: AttendeeInfo[] = [
             ...(hostInList ? [hostInList] : []),
             ...nonHostAttendees,
