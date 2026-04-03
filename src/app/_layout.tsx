@@ -51,23 +51,24 @@ import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
 import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
 import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime/wsClient';
-import * as Sentry from "@sentry/react-native";
+// TEMP: Sentry disabled — Xcode/EAS build incompatibility
+const Sentry = {
+  init: () => {},
+  wrap: (c: any) => c,
+  captureException: (..._args: any[]) => {},
+  captureMessage: (..._args: any[]) => {},
+  setTag: () => {},
+  setExtra: () => {},
+  setUser: () => {},
+  addBreadcrumb: () => {},
+  withScope: (cb: any) => cb({ setExtra: () => {}, setTag: () => {} }),
+  reactNavigationIntegration: () => ({}),
+};
 import Constants from "expo-constants";
 import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { getPostHogProviderProps, posthogIdentify, posthogReset, setPostHogRef, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
 import { usePostHogScreenTrack } from "@/analytics/usePostHogScreenTrack";
 import { trackAppOpened, trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
-
-const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
-
-Sentry.init({
-  dsn: SENTRY_DSN,
-enabled: !__DEV__ && !!SENTRY_DSN,
-  release: `${Constants.expoConfig?.version ?? "unknown"} (${Constants.expoConfig?.ios?.buildNumber ?? "0"})`,
-  environment: __DEV__ ? "development" : "production",
-  tracesSampleRate: 0.0,
-  sendDefaultPii: false,
-});
 
 
 // [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
