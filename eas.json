@@ -17,6 +17,7 @@
       },
       "ios": {
         "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.4-xcode-16.3",
         "autoIncrement": false
       }
     },
@@ -49,6 +50,7 @@
       },
       "ios": {
         "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.4-xcode-16.3",
         "autoIncrement": true
       }
     }
