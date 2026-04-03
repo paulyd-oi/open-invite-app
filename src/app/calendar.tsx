@@ -1543,7 +1543,6 @@ export default function CalendarScreen() {
                         try {
                           await Share.share({
                             message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
-                            url: APP_STORE_URL,
                           });
                         } catch (error) {
                           devError("Error sharing:", error);

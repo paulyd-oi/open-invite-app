@@ -41,7 +41,7 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
     }
     try {
       const p = buildAppSharePayload("I'm using Open Invite to plan hangouts — join me!");
-      await Share.share({ message: p.message, url: p.url });
+      await Share.share({ message: p.message });
     } catch (error) {
       devError("[PostValueInvitePrompt] share error:", error);
     }

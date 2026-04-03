@@ -64,7 +64,6 @@ export const shareEventFromCalendar = async (event: Event) => {
     await Share.share({
       message: payload.message,
       title: event.title,
-      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);

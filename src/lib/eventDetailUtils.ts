@@ -151,7 +151,6 @@ export const shareEvent = async (event: { id: string; title: string; emoji: stri
     await Share.share({
       message: payload.message,
       title: event.title,
-      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);

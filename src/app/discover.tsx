@@ -187,12 +187,39 @@ export default function DiscoverScreen() {
   const saveMutation = useMutation({
     mutationFn: (eventId: string) =>
       postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
+    onMutate: async (eventId) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: eventKeys.feedPopular() });
+      await queryClient.cancelQueries({ queryKey: eventKeys.myEvents() });
+
+      // Snapshot previous values for rollback
+      const prevFeed = queryClient.getQueryData<{ events: PopularEvent[] }>(eventKeys.feedPopular());
+      const prevMyEvents = queryClient.getQueryData<{ events: PopularEvent[] }>(eventKeys.myEvents());
+
+      // Optimistically update viewerRsvpStatus in both caches
+      const patchEvents = (old: { events: PopularEvent[] } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          events: old.events.map((e) =>
+            e.id === eventId ? { ...e, viewerRsvpStatus: "interested" } : e,
+          ),
+        };
+      };
+      queryClient.setQueryData(eventKeys.feedPopular(), patchEvents);
+      queryClient.setQueryData(eventKeys.myEvents(), patchEvents);
+
+      return { prevFeed, prevMyEvents };
+    },
     onSuccess: (_data, eventId) => {
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), "discover_save");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       flashSavedToast();
     },
-    onError: (err) => {
+    onError: (err, _eventId, context) => {
+      // Rollback optimistic update
+      if (context?.prevFeed) queryClient.setQueryData(eventKeys.feedPopular(), context.prevFeed);
+      if (context?.prevMyEvents) queryClient.setQueryData(eventKeys.myEvents(), context.prevMyEvents);
       if (__DEV__) devLog("[DISCOVER_SAVE_ERR]", err);
       safeToast.error("Couldn't save", "Please try again");
     },

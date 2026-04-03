@@ -25,7 +25,6 @@ export function ShareAppButton({ variant = "icon" }: ShareAppButtonProps) {
     try {
       await Share.share({
         message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
       });
     } catch (error) {
       devError("Error sharing:", error);
@@ -81,7 +80,6 @@ export function InviteFriendsContent() {
     try {
       await Share.share({
         message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
       });
     } catch (error) {
       devError("Error sharing:", error);
