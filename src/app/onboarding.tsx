@@ -68,7 +68,7 @@ import { useSession } from "@/lib/useSession";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
-import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { APP_STORE_URL } from "@/lib/config";
 
@@ -585,10 +585,10 @@ const MockInviteCard = ({ themeColor, referralCode, isDark, colors, isPro }: { t
         </View>
         <View className="flex-1">
           <Text className="font-bold text-lg" style={{ color: colors.text }}>
-            {isPro ? "Invite Friends" : "Earn Rewards!"}
+            Invite Friends
           </Text>
           <Text className="text-sm" style={{ color: colors.textTertiary }}>
-            {isPro ? "Invite friends later from Settings" : "Invite friends to reach milestones"}
+            Plan better with more friends on Open Invite
           </Text>
         </View>
       </View>
@@ -601,26 +601,6 @@ const MockInviteCard = ({ themeColor, referralCode, isDark, colors, isPro }: { t
         <Text className="font-bold text-xl text-center tracking-widest" style={{ color: colors.text }}>{referralCode}</Text>
       </View>
 
-      {!isPro && (
-        <View className="flex-row justify-between">
-          {[
-            { count: String(REFERRAL_TIERS.MONTH_PRO.count), reward: '1 Month' },
-            { count: String(REFERRAL_TIERS.YEAR_PRO.count), reward: '1 Year' },
-            { count: String(REFERRAL_TIERS.LIFETIME_PRO.count), reward: 'Lifetime' },
-          ].map((tier, i) => (
-            <View key={i} className="items-center flex-1">
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mb-1"
-                style={{ backgroundColor: `${themeColor}${i === 0 ? '60' : '30'}` }}
-              >
-                <Text className="font-bold" style={{ color: colors.text }}>{tier.count}</Text>
-              </View>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>{tier.reward}</Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>FREE</Text>
-            </View>
-          ))}
-        </View>
-      )}
     </View>
   </View>
 );
@@ -876,15 +856,11 @@ export default function OnboardingScreen() {
     {
       id: "invite",
       title: "Invite Friends",
-      subtitle: isPro ? "Share the App" : "Earn Rewards",
-      description: isPro
-        ? "Open Invite is better with friends! Share the app so your crew can plan together."
-        : "Open Invite is better with friends! Share the app and earn premium rewards.",
+      subtitle: "Share the App",
+      description: "Open Invite is better with friends! Share the app so your crew can plan together.",
       icon: <Gift size={36} color="#fff" />,
       iconBg: "#10B981",
-      tip: isPro
-        ? "Invite friends later from Settings"
-        : `${REFERRAL_TIERS.MONTH_PRO.count} friends = 1 month Pro | ${REFERRAL_TIERS.YEAR_PRO.count} friends = 1 year Pro | ${REFERRAL_TIERS.LIFETIME_PRO.count} friends = Lifetime Pro`,
+      tip: "Invite friends later from Settings",
       showShareButton: true,
     },
     {

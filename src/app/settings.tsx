@@ -1112,7 +1112,7 @@ export default function SettingsScreen() {
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-base font-medium">Invite More Friends</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">10 friends = 1 year FREE!</Text>
+                <Text style={{ color: colors.textSecondary }} className="text-sm">Plan better with more friends on Open Invite</Text>
               </View>
               <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
             </Pressable>

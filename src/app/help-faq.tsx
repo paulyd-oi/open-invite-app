@@ -29,7 +29,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+
 import Constants from "expo-constants";
 
 import { useTheme } from "@/lib/ThemeContext";
@@ -689,30 +689,18 @@ export default function HelpFAQScreen() {
     },
     {
       id: "referrals",
-      title: "Referrals & Rewards",
+      title: "Referrals",
       icon: <Gift size={22} color="#E91E63" />,
       iconColor: "#E91E63",
       features: [
         {
           title: "Referral Program",
-          description: "Invite friends and track your referral milestones.",
+          description: "Invite friends so you can plan together on Open Invite.",
           howItWorks: [
             "Go to Settings > Invite Friends",
             "Get your unique referral code or link",
             "Share with friends via text, email, or social media",
-            "When they sign up, your referral count grows",
-            "Track your progress toward milestones",
-          ],
-        },
-        {
-          title: "Referral Milestones",
-          description: `Reach ${REFERRAL_TIERS.MONTH_PRO.count}, ${REFERRAL_TIERS.YEAR_PRO.count}, or ${REFERRAL_TIERS.LIFETIME_PRO.count} referrals to hit milestone tiers.`,
-          howItWorks: [
-            "Each friend who joins counts toward your milestone progress",
-            `${REFERRAL_TIERS.MONTH_PRO.count} referrals — first milestone`,
-            `${REFERRAL_TIERS.YEAR_PRO.count} referrals — second milestone`,
-            `${REFERRAL_TIERS.LIFETIME_PRO.count} referrals — ultimate milestone`,
-            "Track progress in Settings > Invite Friends",
+            "When they sign up using your code, they'll be connected to you",
           ],
         },
         {

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Users, Gift, Copy, Share2, Check, Clock, Crown } from "@/ui/icons";
+import { ChevronLeft, Users, Copy, Share2, Check, Clock } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
@@ -24,23 +24,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { buildReferralSharePayload } from "@/lib/shareSSOT";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError, devLog } from "@/lib/devLog";
-import { usePremiumStatusContract } from "@/lib/entitlements";
-
-/** Normalize backend reward type strings to canonical _pro format for display */
-function normalizeRewardType(type: string): string {
-  const map: Record<string, string> = {
-    month_premium: "month_pro",
-    year_premium: "year_pro",
-    lifetime_premium: "lifetime_pro",
-  };
-  if (map[type]) {
-    if (__DEV__) devLog("[P0_REFERRAL_TYPEMAP]", { from: type, to: map[type] });
-    return map[type];
-  }
-  return type;
-}
 
 interface ReferralHistoryItem {
   id: string;
@@ -50,17 +34,9 @@ interface ReferralHistoryItem {
   referredEmail: string | null;
 }
 
-interface ReferralReward {
-  id: string;
-  rewardType: string;
-  referralCount: number;
-  claimedAt: string;
-  expiresAt: string | null;
-}
-
 interface ReferralHistoryResponse {
   referrals: ReferralHistoryItem[];
-  rewards: ReferralReward[];
+  rewards?: unknown[];
   summary: {
     successful: number;
     pending: number;
@@ -75,68 +51,6 @@ interface ReferralStatsResponse {
   pendingReferrals: number;
   totalInvites: number;
   hasReferrer: boolean;
-  nextReward: { type: string; count: number; remaining: number } | null;
-  rewardTiers: typeof REFERRAL_TIERS;
-}
-
-function RewardTierCard({
-  title,
-  count,
-  currentCount,
-  emoji,
-  isDark,
-  colors,
-  themeColor,
-}: {
-  title: string;
-  count: number;
-  currentCount: number;
-  emoji: string;
-  isDark: boolean;
-  colors: any;
-  themeColor: string;
-}) {
-  const isUnlocked = currentCount >= count;
-  const progress = Math.min((currentCount / count) * 100, 100);
-
-  return (
-    <View
-      className="rounded-xl p-4 mb-3"
-      style={{
-        backgroundColor: isUnlocked ? "#10B98115" : colors.surface,
-        borderWidth: 1,
-        borderColor: isUnlocked ? "#10B981" : colors.border,
-      }}
-    >
-      <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center">
-          <Text className="text-2xl mr-2">{emoji}</Text>
-          <View>
-            <Text className="font-semibold" style={{ color: isUnlocked ? "#10B981" : colors.text }}>
-              {title}
-            </Text>
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
-              {count} referrals needed
-            </Text>
-          </View>
-        </View>
-        {isUnlocked && (
-          <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#10B98125" }}>
-            <Text className="text-xs font-bold" style={{ color: "#10B981" }}>UNLOCKED</Text>
-          </View>
-        )}
-      </View>
-      <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-        <View
-          className="h-full rounded-full"
-          style={{ width: `${progress}%`, backgroundColor: isUnlocked ? "#10B981" : themeColor }}
-        />
-      </View>
-      <Text className="text-xs mt-1 text-right" style={{ color: colors.textTertiary }}>
-        {currentCount}/{count}
-      </Text>
-    </View>
-  );
 }
 
 function ReferralHistoryCard({
@@ -213,12 +127,6 @@ export default function ReferralsScreen() {
   const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
-  const { isPro } = usePremiumStatusContract();
-
-  // [P0_REFERRAL_PRO_GATE] DEV proof log
-  if (__DEV__) {
-    devLog("[P0_REFERRAL_PRO_GATE]", { isPro, screen: "referrals" });
-  }
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["referralStats"],
@@ -261,7 +169,6 @@ export default function ReferralsScreen() {
     }
   };
 
-  const successfulCount = stats?.successfulReferrals ?? 0;
   const isLoading = statsLoading || historyLoading;
 
   return (
@@ -276,7 +183,7 @@ export default function ReferralsScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Text className="text-xl font-bold" style={{ color: colors.text }}>
-          Referrals & Rewards
+          Referrals
         </Text>
       </View>
 
@@ -325,38 +232,6 @@ export default function ReferralsScreen() {
           </View>
         </View>
 
-        {/* Reward Tiers */}
-        <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>
-          {isPro ? "Sharing Milestones" : "Reward Tiers"}
-        </Text>
-        <RewardTierCard
-          title={isPro ? "3-Friend Milestone" : "1 Month Free"}
-          count={REFERRAL_TIERS.MONTH_PRO.count}
-          currentCount={successfulCount}
-          emoji="🎁"
-          isDark={isDark}
-          colors={colors}
-          themeColor={themeColor}
-        />
-        <RewardTierCard
-          title={isPro ? "10-Friend Milestone" : "1 Year Free"}
-          count={REFERRAL_TIERS.YEAR_PRO.count}
-          currentCount={successfulCount}
-          emoji="⭐"
-          isDark={isDark}
-          colors={colors}
-          themeColor={themeColor}
-        />
-        <RewardTierCard
-          title={isPro ? "40-Friend Milestone" : "Lifetime Free"}
-          count={REFERRAL_TIERS.LIFETIME_PRO.count}
-          currentCount={successfulCount}
-          emoji="👑"
-          isDark={isDark}
-          colors={colors}
-          themeColor={themeColor}
-        />
-
         {/* Referral History */}
         <Text className="text-lg font-bold mt-4 mb-3" style={{ color: colors.text }}>
           Referral History
@@ -382,52 +257,11 @@ export default function ReferralsScreen() {
               No referrals yet
             </Text>
             <Text className="text-sm text-center mt-1 px-4" style={{ color: colors.textSecondary }}>
-              {isPro
-                ? "Share your code with friends so they can join you on Open Invite"
-                : "Share your code with friends to start earning rewards"}
+              Share your code with friends so they can join you on Open Invite
             </Text>
           </View>
         )}
 
-        {/* Earned Rewards */}
-        {history?.rewards && history.rewards.length > 0 && (
-          <>
-            <Text className="text-lg font-bold mt-6 mb-3" style={{ color: colors.text }}>
-              Earned Rewards
-            </Text>
-            {history.rewards.map((reward, index) => (
-              <Animated.View
-                key={reward.id}
-                entering={FadeInDown.delay(index * 50).springify()}
-              >
-                <View
-                  className="flex-row items-center p-4 rounded-xl mb-2"
-                  style={{ backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140" }}
-                >
-                  <Crown size={24} color="#10B981" />
-                  <View className="flex-1 ml-3">
-                    <Text className="font-semibold" style={{ color: "#10B981" }}>
-                      {normalizeRewardType(reward.rewardType) === "month_pro"
-                        ? "1 Month Pro"
-                        : normalizeRewardType(reward.rewardType) === "year_pro"
-                        ? "1 Year Pro"
-                        : "Lifetime Pro"}
-                    </Text>
-                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                      Earned with {reward.referralCount} referrals
-                    </Text>
-                  </View>
-                  <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                    {new Date(reward.claimedAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                </View>
-              </Animated.View>
-            ))}
-          </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
