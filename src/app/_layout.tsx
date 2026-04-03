@@ -10,7 +10,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator, useWindowDimensions, InteractionManager } from 'react-native';
+import { AppState, View, ActivityIndicator, useWindowDimensions, InteractionManager } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { APP_FONTS } from '@/lib/fonts';
 
@@ -652,6 +653,15 @@ function BootRouter() {
       devLog('[PUSH_BOOTSTRAP]', 'authed shell mounted for push bootstrap, userId:', session.user.id.substring(0, 8) + '...');
     }
   }, [bootStatus, session?.user?.id]);
+
+  // Clear app icon badge on cold start and when returning to foreground
+  useEffect(() => {
+    Notifications.setBadgeCountAsync(0);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') Notifications.setBadgeCountAsync(0);
+    });
+    return () => sub.remove();
+  }, []);
 
   // Email verification gate modal (global, show once per account if unverified)
   // [POST_ONBOARD] FIX: Use InteractionManager to defer modal until navigation
