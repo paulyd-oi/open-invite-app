@@ -179,6 +179,9 @@ export const ALLOWED_THEME_IDS = [
   "summer_splash", "bonfire_night", "luau", "pool_party", "beach_day",
   // Premium — Seasonal / Mood Pack
   "fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night",
+  // Premium — Animated Backgrounds Pack
+  "tropical_flower", "autumn_vibes", "midnight_wave", "snowfall", "floral_garden",
+  "neon_glow", "sunset_glow", "bubblegum", "crimson_tide", "magenta_night", "purple_haze",
   // Custom — user-created themes
   "custom",
 ] as const;
@@ -191,6 +194,8 @@ export const PREMIUM_THEME_IDS: readonly ThemeId[] = [
   "spring_bloom", "garden_party", "spring_brunch", "easter",
   "summer_splash", "bonfire_night", "luau", "pool_party", "beach_day",
   "fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night",
+  "tropical_flower", "autumn_vibes", "midnight_wave", "snowfall", "floral_garden",
+  "neon_glow", "sunset_glow", "bubblegum", "crimson_tide", "magenta_night", "purple_haze",
 ] as const;
 
 const themeIdSchema = z.enum(ALLOWED_THEME_IDS).nullable().optional();

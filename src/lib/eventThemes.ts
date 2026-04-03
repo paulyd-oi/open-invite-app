@@ -46,6 +46,18 @@ export const PREMIUM_THEME_IDS = [
   "beach_day",
   "cozy_night",
   "movie_night",
+  // Wave C — Lottie backgrounds
+  "tropical_flower",
+  "autumn_vibes",
+  "midnight_wave",
+  "snowfall",
+  "floral_garden",
+  "neon_glow",
+  "sunset_glow",
+  "bubblegum",
+  "crimson_tide",
+  "magenta_night",
+  "purple_haze",
 ] as const;
 
 export const ALL_THEME_IDS = [...BASIC_THEME_IDS, ...PREMIUM_THEME_IDS] as const;
@@ -56,11 +68,15 @@ export type ThemeId = (typeof ALL_THEME_IDS)[number];
 export const THEME_DISPLAY_ORDER: ThemeId[] = [
   "neutral",          // gray #8E8E93
   "fourth_of_july",   // red #B22234
+  "crimson_tide",     // red #DC2626
   "romance_elegant",  // crimson #BE123C
   "luau",             // coral #FB7185
+  "tropical_flower",  // coral #F472B6
   "birthday_bash",    // red-orange #FF6B4A
   "fall_harvest",     // orange #D4763B
   "dinner_night",     // orange #FF9800
+  "sunset_glow",      // orange #F97316
+  "autumn_vibes",     // amber #D97706
   "bonfire_night",    // amber #D97706
   "beach_day",        // amber #F59E0B
   "anniversary",      // gold #C9A84C
@@ -68,17 +84,24 @@ export const THEME_DISPLAY_ORDER: ThemeId[] = [
   "celebration",      // gold #FFD700
   "graduation",       // gold #FFD700
   "new_years_eve",    // gold #FFD700
+  "neon_glow",        // rainbow #FF6B6B
   "garden_party",     // lime #84CC16
+  "floral_garden",    // green #16A34A
   "game_day",         // green #43A047
   "spring_bloom",     // green #22C55E
   "chill_hang",       // teal #14B8A6
   "summer_splash",    // cyan #00ACC1
   "pool_party",       // cyan #06B6D4
+  "snowfall",         // icy blue #93C5FD
   "winter_glow",      // blue #6495ED
+  "midnight_wave",    // dark blue #1E40AF
   "spring_brunch",    // lavender #A78BFA
   "easter",           // lavender #A78BFA
   "game_night",       // purple #8B5CF6
+  "purple_haze",      // purple #7C3AED
   "party_night",      // purple #A855F7
+  "magenta_night",    // magenta #D946EF
+  "bubblegum",        // pink #F472B6
   "valentines",       // pink #EC4899
   "worship_night",    // brown #9C7C63
   "date_night",       // brown #B45309
@@ -101,6 +124,7 @@ export const THEME_PACKS: readonly ThemePack[] = [
   { label: "Spring", premium: true, ids: ["spring_bloom", "garden_party", "spring_brunch", "easter"] },
   { label: "Summer", premium: true, ids: ["summer_splash", "bonfire_night", "luau", "pool_party", "beach_day"] },
   { label: "Seasonal & Mood", premium: true, ids: ["fall_harvest", "winter_glow", "party_night", "cozy_night", "movie_night"] },
+  { label: "Animated Backgrounds", premium: true, ids: ["tropical_flower", "autumn_vibes", "midnight_wave", "snowfall", "floral_garden", "neon_glow", "sunset_glow", "bubblegum", "crimson_tide", "magenta_night", "purple_haze"] },
 ] as const;
 
 // ─── Visual Stack (composable layer schema) ─────────────
@@ -215,6 +239,62 @@ export const LOTTIE_EFFECTS: Record<string, LottieEffectEntry> = {
   balloons_scene: {
     source: require("../../assets/effects/lottie/balloons_rising.json") as AnimationObject,
     speed: 0.7,
+    opacity: 0.5,
+  },
+  // Wave C — Lottie animated backgrounds
+  tropical_flower_bg: {
+    source: require("../../assets/effects/lottie/tropical_flower.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.4,
+  },
+  autumn_orange_bg: {
+    source: require("../../assets/effects/lottie/autumn_orange.json") as AnimationObject,
+    speed: 0.5,
+    opacity: 0.4,
+  },
+  dark_blue_wave_bg: {
+    source: require("../../assets/effects/lottie/dark_blue_wave.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  falling_snow_bg: {
+    source: require("../../assets/effects/lottie/falling_snow.json") as AnimationObject,
+    speed: 0.7,
+    opacity: 0.45,
+  },
+  floral_green_bg: {
+    source: require("../../assets/effects/lottie/floral_green.json") as AnimationObject,
+    speed: 0.5,
+    opacity: 0.4,
+  },
+  gradient_colorful_bg: {
+    source: require("../../assets/effects/lottie/gradient_colorful.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  gradient_orange_bg: {
+    source: require("../../assets/effects/lottie/gradient_orange.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  gradient_bubblegum_bg: {
+    source: require("../../assets/effects/lottie/gradient_bubblegum.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  gradient_red_bg: {
+    source: require("../../assets/effects/lottie/gradient_red.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  magenta_glow_bg: {
+    source: require("../../assets/effects/lottie/magenta_glow.json") as AnimationObject,
+    speed: 0.6,
+    opacity: 0.5,
+  },
+  purple_wave_bg: {
+    source: require("../../assets/effects/lottie/purple_wave.json") as AnimationObject,
+    speed: 0.6,
     opacity: 0.5,
   },
 };
@@ -674,6 +754,151 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     category: "video",
     visualStack: { gradient: { colors: ["rgba(15,18,24,0.50)", "rgba(50,55,70,0.35)", "rgba(100,116,139,0.22)", "rgba(12,14,20,0.50)"], speed: 2 }, shader: "shimmer", particles: "projector_dust", image: { source: "movie_night_v2_bg", opacity: 0.20 }, filter: "film_grain", video: { source: "fluid_dark_loop", poster: "fluid_dark_bg", opacity: 0.65 } },
     surfaces: ["event", "profile"],
+  },
+
+  // ── Wave C — Lottie Animated Backgrounds ──
+  tropical_flower: {
+    label: "Tropical Flower",
+    swatch: "🌺",
+    gradientTint: "rgba(244,114,182,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#F472B6",
+    backBgDark: "#2A0E1E",
+    backBgLight: "#FFF1F5",
+    pageTintDark: "rgba(244,114,182,0.22)",
+    pageTintLight: "rgba(244,114,182,0.12)",
+    chipAccent: "#F472B6",
+    visualStack: { gradient: { colors: ["rgba(42,14,30,0.50)", "rgba(244,114,182,0.38)", "rgba(20,184,166,0.20)", "rgba(35,10,25,0.50)"], speed: 2 }, lottie: "tropical_flower_bg" },
+  },
+  autumn_vibes: {
+    label: "Autumn Vibes",
+    swatch: "🍁",
+    gradientTint: "rgba(217,119,6,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#D97706",
+    backBgDark: "#1A1208",
+    backBgLight: "#FEF3C7",
+    pageTintDark: "rgba(217,119,6,0.22)",
+    pageTintLight: "rgba(217,119,6,0.10)",
+    chipAccent: "#D97706",
+    visualStack: { gradient: { colors: ["rgba(26,18,8,0.50)", "rgba(217,119,6,0.38)", "rgba(185,28,28,0.20)", "rgba(22,14,5,0.50)"], speed: 2 }, lottie: "autumn_orange_bg", filter: "vignette" },
+  },
+  midnight_wave: {
+    label: "Midnight Wave",
+    swatch: "🌊",
+    gradientTint: "rgba(30,64,175,0.28)",
+    vibeLabel: "You're Invited",
+    backAccent: "#1E40AF",
+    backBgDark: "#0A0E2A",
+    backBgLight: "#DBEAFE",
+    pageTintDark: "rgba(30,64,175,0.26)",
+    pageTintLight: "rgba(30,64,175,0.14)",
+    chipAccent: "#3B82F6",
+    visualStack: { gradient: { colors: ["rgba(10,14,42,0.50)", "rgba(30,64,175,0.40)", "rgba(59,130,246,0.22)", "rgba(8,10,35,0.50)"], speed: 2 }, lottie: "dark_blue_wave_bg" },
+  },
+  snowfall: {
+    label: "Snowfall",
+    swatch: "❄️",
+    gradientTint: "rgba(147,197,253,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#93C5FD",
+    backBgDark: "#0F172A",
+    backBgLight: "#EFF6FF",
+    pageTintDark: "rgba(147,197,253,0.22)",
+    pageTintLight: "rgba(147,197,253,0.12)",
+    chipAccent: "#60A5FA",
+    visualStack: { gradient: { colors: ["rgba(15,23,42,0.50)", "rgba(147,197,253,0.35)", "rgba(224,242,254,0.22)", "rgba(12,18,35,0.50)"], speed: 2 }, lottie: "falling_snow_bg", filter: "noise" },
+  },
+  floral_garden: {
+    label: "Floral Garden",
+    swatch: "🌿",
+    gradientTint: "rgba(22,163,74,0.22)",
+    vibeLabel: "You're Invited",
+    backAccent: "#16A34A",
+    backBgDark: "#0A1F10",
+    backBgLight: "#F0FDF4",
+    pageTintDark: "rgba(22,163,74,0.20)",
+    pageTintLight: "rgba(22,163,74,0.10)",
+    chipAccent: "#16A34A",
+    visualStack: { gradient: { colors: ["rgba(10,31,16,0.50)", "rgba(22,163,74,0.35)", "rgba(134,239,172,0.22)", "rgba(8,25,12,0.50)"], speed: 2 }, lottie: "floral_green_bg" },
+  },
+  neon_glow: {
+    label: "Neon Glow",
+    swatch: "🌈",
+    gradientTint: "rgba(255,107,107,0.22)",
+    vibeLabel: "Let's Go!",
+    backAccent: "#FF6B6B",
+    backBgDark: "#0A0A18",
+    backBgLight: "#FFF5F5",
+    pageTintDark: "rgba(255,107,107,0.20)",
+    pageTintLight: "rgba(255,107,107,0.10)",
+    chipAccent: "#FF6B6B",
+    visualStack: { gradient: { colors: ["rgba(10,10,24,0.50)", "rgba(255,107,107,0.35)", "rgba(168,85,247,0.25)", "rgba(8,8,20,0.50)"], speed: 3 }, lottie: "gradient_colorful_bg" },
+  },
+  sunset_glow: {
+    label: "Sunset Glow",
+    swatch: "🌅",
+    gradientTint: "rgba(249,115,22,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#F97316",
+    backBgDark: "#1A1008",
+    backBgLight: "#FFF7ED",
+    pageTintDark: "rgba(249,115,22,0.22)",
+    pageTintLight: "rgba(249,115,22,0.12)",
+    chipAccent: "#F97316",
+    visualStack: { gradient: { colors: ["rgba(26,16,8,0.50)", "rgba(249,115,22,0.40)", "rgba(234,88,12,0.25)", "rgba(22,12,5,0.50)"], speed: 2 }, lottie: "gradient_orange_bg" },
+  },
+  bubblegum: {
+    label: "Bubblegum",
+    swatch: "🍬",
+    gradientTint: "rgba(244,114,182,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#F472B6",
+    backBgDark: "#2A0E22",
+    backBgLight: "#FDF2F8",
+    pageTintDark: "rgba(244,114,182,0.22)",
+    pageTintLight: "rgba(244,114,182,0.12)",
+    chipAccent: "#F472B6",
+    visualStack: { gradient: { colors: ["rgba(42,14,34,0.50)", "rgba(244,114,182,0.40)", "rgba(232,121,249,0.22)", "rgba(35,10,28,0.50)"], speed: 2 }, lottie: "gradient_bubblegum_bg" },
+  },
+  crimson_tide: {
+    label: "Crimson Tide",
+    swatch: "❤️‍🔥",
+    gradientTint: "rgba(220,38,38,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#DC2626",
+    backBgDark: "#1A0A0A",
+    backBgLight: "#FEF2F2",
+    pageTintDark: "rgba(220,38,38,0.22)",
+    pageTintLight: "rgba(220,38,38,0.12)",
+    chipAccent: "#DC2626",
+    visualStack: { gradient: { colors: ["rgba(26,10,10,0.50)", "rgba(220,38,38,0.40)", "rgba(185,28,28,0.25)", "rgba(22,8,8,0.50)"], speed: 2 }, lottie: "gradient_red_bg" },
+  },
+  magenta_night: {
+    label: "Magenta Night",
+    swatch: "💜",
+    gradientTint: "rgba(217,70,239,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#D946EF",
+    backBgDark: "#1A0A28",
+    backBgLight: "#FAF5FF",
+    pageTintDark: "rgba(217,70,239,0.22)",
+    pageTintLight: "rgba(217,70,239,0.12)",
+    chipAccent: "#D946EF",
+    visualStack: { gradient: { colors: ["rgba(26,10,40,0.50)", "rgba(217,70,239,0.40)", "rgba(168,85,247,0.22)", "rgba(22,8,34,0.50)"], speed: 2 }, lottie: "magenta_glow_bg" },
+  },
+  purple_haze: {
+    label: "Purple Haze",
+    swatch: "🔮",
+    gradientTint: "rgba(124,58,237,0.25)",
+    vibeLabel: "You're Invited",
+    backAccent: "#7C3AED",
+    backBgDark: "#1A1030",
+    backBgLight: "#F5F3FF",
+    pageTintDark: "rgba(124,58,237,0.22)",
+    pageTintLight: "rgba(124,58,237,0.12)",
+    chipAccent: "#7C3AED",
+    visualStack: { gradient: { colors: ["rgba(26,16,48,0.50)", "rgba(124,58,237,0.40)", "rgba(167,139,250,0.22)", "rgba(22,12,40,0.50)"], speed: 2 }, lottie: "purple_wave_bg" },
   },
 };
 
