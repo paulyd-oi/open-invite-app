@@ -98,3 +98,4 @@ ios/**/.DS_Store
 !assets/theme-backgrounds/*.png
 Terminal Saved Output.txt
 .gstack/
+ios/build-test/
