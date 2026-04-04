@@ -63,6 +63,7 @@ target 'OpenInvite' do
       end
     end
     # Fix lottie-ios: force all sources into single compilation unit
+    puts ">>> [Podfile post_install] Applying lottie-ios wholemodule fix..."
     installer.pods_project.targets.each do |target|
       if target.name == 'lottie-ios'
         target.build_configurations.each do |config|
