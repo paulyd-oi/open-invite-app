@@ -6,8 +6,22 @@ if [[ "$EAS_BUILD_PLATFORM" != "ios" ]]; then
   exit 0
 fi
 
-echo ">>> [eas-build-post-install] Applying lottie-ios wholemodule fix to Pods.xcodeproj..."
+echo ">>> [eas-build-post-install] Applying lottie-ios wholemodule fix..."
 
+# Layer 1: Patch xcconfig files (these OVERRIDE project-level settings)
+for config in ios/Pods/Target\ Support\ Files/lottie-ios/lottie-ios.*.xcconfig; do
+  if [[ -f "$config" ]]; then
+    if ! grep -q 'SWIFT_COMPILATION_MODE' "$config"; then
+      echo "SWIFT_COMPILATION_MODE = wholemodule" >> "$config"
+      echo "  ✓ Patched xcconfig: $config"
+    else
+      sed -i '' 's/SWIFT_COMPILATION_MODE = .*/SWIFT_COMPILATION_MODE = wholemodule/' "$config"
+      echo "  ✓ Updated xcconfig: $config"
+    fi
+  fi
+done
+
+# Layer 2: Also patch Pods.xcodeproj (belt and suspenders)
 ruby << 'RUBY'
 require 'xcodeproj'
 
@@ -33,10 +47,9 @@ end
 
 if found
   project.save
-  puts ">>> lottie-ios fix applied and saved."
+  puts ">>> lottie-ios xcodeproj fix applied and saved."
 else
   puts "WARNING: lottie-ios target not found in Pods project."
-  puts "Available targets: #{project.targets.map(&:name).join(', ')}"
 end
 RUBY
 
