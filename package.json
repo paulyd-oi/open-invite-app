@@ -17,7 +17,7 @@
     "ios:sync-build": "bash scripts/ios/sync_build_numbers.sh",
     "doctor": "node scripts/doctor.mjs",
     "proofpack": "node scripts/proofpack.mjs",
-    "eas-build-pre-install": "./scripts/eas-build-pre-install.sh"
+    "postinstall": "./scripts/patch-expo-image.sh"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
