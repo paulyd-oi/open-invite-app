@@ -64,10 +64,14 @@ target 'OpenInvite' do
 
     # lottie-ios 4.6.0 Sources/Private cannot resolve Sources/Public types
     # on Xcode 16.4 (iPhoneOS18.5.sdk). Wholemodule compilation resolves it.
+    puts ">>> [Podfile post_install] Starting target scan"
     installer.pods_project.targets.each do |target|
+      puts ">>> [Podfile post_install] Found target: #{target.name}"
       if target.name == 'lottie-ios'
+        puts ">>> [Podfile post_install] MATCHED lottie target: #{target.name}"
         target.build_configurations.each do |config|
           config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+          puts ">>> [Podfile post_install] Set SWIFT_COMPILATION_MODE=wholemodule for #{config.name}"
         end
       end
     end
