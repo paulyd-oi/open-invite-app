@@ -20,3 +20,19 @@ if [ -f "$IMAGE_MODULE" ]; then
 else
   echo "Warning: ImageModule.swift not found at $IMAGE_MODULE"
 fi
+
+# Force wholemodule compilation on lottie-ios pod
+# lottie-ios 4.6.0 has Sources/Private vs Sources/Public module visibility bug
+# on Xcode 16.x (iPhoneOS18.5.sdk). wholemodule compilation resolves it.
+for config in ios/Pods/Target\ Support\ Files/lottie-ios/lottie-ios.*.xcconfig; do
+  if [ -f "$config" ]; then
+    if ! grep -q 'SWIFT_COMPILATION_MODE' "$config"; then
+      echo "SWIFT_COMPILATION_MODE = wholemodule" >> "$config"
+      echo "Patched lottie-ios xcconfig (appended): $config"
+    else
+      sed -i '' 's/SWIFT_COMPILATION_MODE = .*/SWIFT_COMPILATION_MODE = wholemodule/' "$config" 2>/dev/null || \
+      sed -i 's/SWIFT_COMPILATION_MODE = .*/SWIFT_COMPILATION_MODE = wholemodule/' "$config"
+      echo "Patched lottie-ios xcconfig (updated): $config"
+    fi
+  fi
+done
