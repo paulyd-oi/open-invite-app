@@ -124,12 +124,13 @@ export default function HelpFAQScreen() {
         },
         {
           title: "Event Feed",
-          description: "Discover what your friends are planning with the chronological event feed.",
+          description: "Discover what your friends are planning with the Discover feed.",
           howItWorks: [
-            "Open the Home tab to see the event feed",
-            "Events are grouped: Today, Tomorrow, This Week, Upcoming",
+            "Open the Discover tab to browse events from your network",
+            "Use filter pills: Popular, Soon, Friends, or Group",
+            "The Friends filter shows events where your friends have RSVP\u2019d",
             "Tap an event card to see full details",
-            "RSVP directly from the card: Going, Interested, or Not Going",
+            "RSVP directly from the card or tap the bookmark to save",
             "Pull down to refresh and see new events",
           ],
         },
@@ -461,10 +462,10 @@ export default function HelpFAQScreen() {
           title: "Popular Events",
           description: "Discover events with multiple attendees.",
           howItWorks: [
-            "Open the Discover tab to see popular events",
-            "Events with 2+ attendees appear here",
-            "Sorted by attendance count",
-            "Great way to find group activities",
+            "Open the Discover tab and select the Popular filter",
+            "Events are sorted by attendance count",
+            "Use the Friends filter to see events your friends are attending",
+            "Open events are visible to friends and friends-of-friends",
           ],
         },
         {
@@ -588,10 +589,11 @@ export default function HelpFAQScreen() {
       features: [
         {
           title: "Event Themes",
-          description: "Choose from 30 themes to set the mood for your event.",
+          description: "Choose from 38 themes to set the mood for your event.",
           howItWorks: [
             "When creating or editing an event, tap the theme selector",
-            "Browse 5 free basic themes and 25 premium themes",
+            "Browse 5 free Essentials themes and 33 premium themes",
+            "Themes are organized by category: Celebration, Romance, Spring, Summer, Seasonal, and Animated",
             "Each theme includes a unique gradient, colors, and atmosphere",
             "Premium themes require a Pro subscription",
             "The theme is visible to everyone viewing the event",
@@ -631,7 +633,7 @@ export default function HelpFAQScreen() {
           description: "Personalize your profile with a unique look.",
           howItWorks: [
             "Go to your profile and tap 'Edit Profile'",
-            "Select a profile theme from 10 curated options",
+            "Select a profile theme from 24 options (5 free, 19 Pro)",
             "Upload a custom profile banner image",
             "Your theme is visible when friends view your profile",
           ],
@@ -640,9 +642,10 @@ export default function HelpFAQScreen() {
           title: "Subscription Tiers",
           description: "Free and Pro plans for every type of planner.",
           howItWorks: [
-            "Free: Unlimited event hosting, 5 basic themes, no effects",
-            "Pro: 25 premium themes, premium effects, Theme Studio",
+            "Free: Unlimited event hosting, 5 Essentials themes, core features",
+            "Pro: 33 premium themes, animated backgrounds, premium effects, Theme Studio, profile themes",
             "Founder Special: $30/year for life (first 1,000 users)",
+            "Redeem promo codes through Apple\u2019s native code redemption in the App Store",
             "Manage your subscription in Settings > Subscription",
           ],
         },
@@ -725,7 +728,10 @@ export default function HelpFAQScreen() {
           title: "Event Visibility Controls",
           description: "Choose who can see your events and what they see.",
           howItWorks: [
-            "When creating events, set audience visibility (All Friends, Groups, or Private)",
+            "Open: visible to friends and friends-of-friends on Discover, and anyone with a share link",
+            "Group: visible only to group members on Discover",
+            "Invite-only: not shown on Discover \u2014 guests need a direct invite or link",
+            "Your calendar and availability are always friends-only",
             "Open Privacy & Display settings for fine-grained control",
             "Hide the guest list, guest count, or location from the web page",
             "Gate the location behind RSVP so only confirmed guests see the address",

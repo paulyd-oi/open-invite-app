@@ -38,6 +38,7 @@ interface AboutCardProps {
   visibility: string | null | undefined;
   circleName: string | null | undefined;
   circleId: string | null | undefined;
+  groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }> | null;
   onOpenCircle: () => void;
   // Capacity
   eventMeta: EventMeta;
@@ -76,6 +77,7 @@ export function AboutCard({
   visibility,
   circleName,
   circleId,
+  groupVisibility,
   onOpenCircle,
   eventMeta,
   rsvpDeadline,
@@ -176,7 +178,7 @@ export function AboutCard({
                     <Users size={16} color={colors.textTertiary} />
                   )}
                   <Text style={{ fontSize: 13, marginLeft: 8, color: colors.textSecondary }}>
-                    {isBusy ? "Only self" : visibility === "all_friends" ? "All Friends" : visibility === "circle_only" ? (circleName ? `Circle: ${circleName}` : "Circle Only") : visibility === "private" ? "Private" : "Specific Groups"}
+                    {isBusy ? "Only self" : visibility === "all_friends" ? "All Friends" : visibility === "circle_only" ? (circleName ? `Circle: ${circleName}` : "Circle Only") : visibility === "private" ? "Private" : groupVisibility?.length ? groupVisibility.map((gv) => gv.group.name).join(", ") : "Specific Groups"}
                   </Text>
                   {isCircleTappable && <ChevronRight size={14} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
                 </RowWrapper>

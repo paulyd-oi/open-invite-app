@@ -139,6 +139,7 @@ interface PopularEvent {
   }>;
   circleId?: string | null;
   circleName?: string | null;
+  groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }> | null;
   userId?: string;
   eventHook?: string | null;
 }
@@ -150,10 +151,11 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "saved", label: "Saved" },
 ];
 
-type EventSort = "popular" | "soon" | "group";
+type EventSort = "popular" | "soon" | "friends" | "group";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "popular", label: "Popular" },
   { key: "soon", label: "Soon" },
+  { key: "friends", label: "Friends" },
   { key: "group", label: "Group" },
 ];
 
@@ -270,6 +272,17 @@ export default function DiscoverScreen() {
     refetchOnWindowFocus: false,
   });
 
+  // [FRIENDS_PILL] Friends feed — events where viewer's friends RSVP'd going
+  const { data: friendsFeedData, isLoading: loadingFriendsFeed, refetch: refetchFriendsFeed } = useQuery({
+    queryKey: eventKeys.friendsFeed(),
+    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?tab=friends"),
+    enabled: isAuthedForNetwork(bootStatus, session) && eventSort === "friends",
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
+  });
+
   // Friend count for nudge gating — shares cache key with Friends/Calendar/etc.
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
@@ -288,6 +301,15 @@ export default function DiscoverScreen() {
     }
     return ids;
   }, [friendHostData?.events]);
+
+  // [FRIENDS_PILL] Set of viewer's direct friend user IDs for social proof cross-referencing
+  const friendUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const f of friendsData?.friends ?? []) {
+      if (f.friend?.id) ids.add(f.friend.id);
+    }
+    return ids;
+  }, [friendsData?.friends]);
 
   const isLoading = loadingFeed || loadingMyEvents;
   const isError = feedError || myEventsError;
@@ -320,7 +342,7 @@ export default function DiscoverScreen() {
   // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
   const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
     screenName: "discover",
-    refetchFns: [refetchFeed, refetchMyEvents],
+    refetchFns: [refetchFeed, refetchMyEvents, refetchFriendsFeed],
   });
 
   // ── SSOT: merge + deduplicate + enrich all events ──
@@ -456,8 +478,17 @@ export default function DiscoverScreen() {
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [myEventsData?.events]);
 
+  // [FRIENDS_PILL] Friends feed from backend (already filtered/sorted by goingCount desc)
+  const friendsSorted = useMemo(() => {
+    return (friendsFeedData?.events ?? []).map((event) => {
+      const derivedCount = deriveAttendeeCount(event);
+      const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
+      return { ...event, attendeeCount };
+    });
+  }, [friendsFeedData?.events]);
+
   // Active Events feed based on sort control
-  const activeFeed = eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
+  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
 
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
@@ -744,6 +775,32 @@ export default function DiscoverScreen() {
                 </>
               }
               ListEmptyComponent={
+                eventSort === "friends" && !loadingFriendsFeed ? (
+                <View style={{ alignItems: "center", paddingTop: 60 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDC4B"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No friend activity yet
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    None of your friends have RSVP'd to upcoming events yet
+                  </Text>
+                  <Pressable
+                    onPress={() => router.push("/add-friends" as any)}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Find Friends</Text>
+                  </Pressable>
+                </View>
+                ) : eventSort === "friends" && loadingFriendsFeed ? (
+                <View style={{ alignItems: "center", paddingTop: 60 }}>
+                  <ActivityIndicator size="small" color={themeColor} />
+                </View>
+                ) : (
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
                   <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u2728"}</Text>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
@@ -768,6 +825,7 @@ export default function DiscoverScreen() {
                     <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create an Event</Text>
                   </Pressable>
                 </View>
+                )
               }
               renderItem={({ item: event, index }) => {
                 const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
@@ -923,6 +981,40 @@ export default function DiscoverScreen() {
                           </View>
                         ) : null}
 
+                        {/* Group name pill — shows actual group name on group-visibility events */}
+                        {!event.circleName && event.groupVisibility?.length ? (
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6, gap: 4 }}>
+                            {event.groupVisibility.map((gv) => (
+                              <View
+                                key={gv.groupId}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRadius: 6,
+                                  backgroundColor: gv.group.color
+                                    ? `${gv.group.color}${isDark ? "33" : "22"}`
+                                    : (isDark ? "rgba(245,158,11,0.2)" : "#FEF3C7"),
+                                }}
+                              >
+                                <Users size={10} color={gv.group.color || (isDark ? "#FCD34D" : "#B45309")} />
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: "600",
+                                    color: gv.group.color || (isDark ? "#FCD34D" : "#B45309"),
+                                    marginLeft: 3,
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {gv.group.name}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+
                         {/* Headline teaser (replaces description on card front) */}
                         {event.eventHook ? (
                           <Text
@@ -949,6 +1041,37 @@ export default function DiscoverScreen() {
                             </Text>
                           </View>
                         )}
+
+                        {/* [FRIENDS_PILL] Social proof — friend avatars + "Sarah is going" */}
+                        {eventSort === "friends" && (event.attendeePreview?.length ?? 0) > 0 && (() => {
+                          const preview = event.attendeePreview ?? [];
+                          const friendAttendees = preview.filter((a) => friendUserIds.has(a.id));
+                          if (friendAttendees.length === 0) return null;
+                          const firstName = friendAttendees[0].name?.split(" ")[0] ?? "A friend";
+                          const othersCount = friendAttendees.length - 1;
+                          const label = othersCount === 0
+                            ? `${firstName} is going`
+                            : `${firstName} +${othersCount} friend${othersCount > 1 ? "s" : ""} going`;
+                          return (
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
+                              {friendAttendees.slice(0, 3).map((a, i) => (
+                                <View key={a.id} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }}>
+                                  <EntityAvatar
+                                    photoUrl={a.image}
+                                    initials={a.name?.[0] ?? "?"}
+                                    size={20}
+                                    backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                                    foregroundColor={cardAccent ?? themeColor}
+                                    fallbackIcon="person-outline"
+                                  />
+                                </View>
+                              ))}
+                              <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor, marginLeft: 2 }}>
+                                {label}
+                              </Text>
+                            </View>
+                          );
+                        })()}
 
                         {/* FOOTER ROW: date/time + availability | attendees */}
                         <View style={{

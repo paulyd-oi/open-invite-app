@@ -104,6 +104,7 @@ export const eventKeys = {
   calendarRange: (start: string, end: string) => ["events", "calendar", start, end] as const, // Calendar date range query
   attending: () => ["events", "attending"] as const,
   friendsHostedFeed: () => ["events", "friends-hosted-feed"] as const,
+  friendsFeed: () => ["events", "feed", "friends"] as const,
 } as const;
 
 // ============================================================================

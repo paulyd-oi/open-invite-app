@@ -43,13 +43,15 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
   discover: {
     title: "Discover shows events happening around you",
     howItWorks: [
-      "Browse public events shared by friends and the community",
-      "Find things to join, explore, or plan ahead",
+      "Browse open events from friends and people in your network",
+      "Use filters to find events \u2014 Popular, Soon, Friends, or Group",
+      "The Friends filter shows events where your friends have RSVP\u2019d",
       "RSVP updates your calendar instantly",
     ],
     visibility: [
       "Your private schedule never appears here",
-      "Only events shared publicly are shown",
+      "Open events are visible to friends and friends-of-friends",
+      "Group events are only visible to group members",
     ],
   },
   calendar: {
@@ -70,15 +72,15 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
     ],
   },
   social: {
-    title: "Social shows activity from your network",
+    title: "Open Invites shows activity from your network",
     howItWorks: [
-      "View friends\u2019 public RSVPs and events",
+      "See open events and RSVPs from your network",
       "Stay updated on what people are doing",
       "Discover shared plans and momentum",
     ],
     visibility: [
       "Private events are never displayed",
-      "Your settings control what appears",
+      "Open events are visible to friends and friends-of-friends",
     ],
   },
   friends: {
@@ -89,9 +91,9 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
       "Stay connected through events",
     ],
     eventControls: [
-      "Swipe on chats to pin or manage conversations",
-      "Tap a thread to open messages, events, and shared plans",
-      "Pinned chats stay at the top for faster access",
+      "Swipe on chats to pin or manage conversations (Chats tab)",
+      "Tap a thread to open messages, events, and shared plans (Chats tab)",
+      "Pinned chats stay at the top for faster access (Chats tab)",
     ],
     visibility: [
       "Only friends can see your shared calendar",
