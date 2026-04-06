@@ -18,7 +18,7 @@
       "jsEngine": "hermes",
       "associatedDomains": [
         "applinks:openinvite.cloud",
-        "applinks:www.openinvite.cloud"
+        "applinks:www.openinvite.cloud",
       ],
       "infoPlist": {
         "UISupportsDocumentBrowser": false,
@@ -34,6 +34,7 @@
         "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to save.",
         "NSRemindersFullAccessUsageDescription": "Open Invite needs reminders access to help you stay on track with events you choose to save.",
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false,
@@ -44,9 +45,31 @@
             "LSItemContentTypes": [
               "com.apple.ical.ics"
             ]
+          },
+          {
+            "CFBundleTypeName": "iCalendar Event",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "com.apple.ical.ics"
+            ]
           }
         ],
         "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.apple.ical.ics",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "ics"
+              ],
+              "public.mime-type": [
+                "text/calendar"
+              ]
+            },
+            "UTTypeConformsTo": [
+              "public.data",
+              "public.content"
+            ]
+          },
           {
             "UTTypeIdentifier": "com.apple.ical.ics",
             "UTTypeTagSpecification": {
@@ -82,6 +105,15 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
         "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE"
       ],
       "jsEngine": "hermes",
@@ -105,7 +137,6 @@
             "BROWSABLE",
             "DEFAULT"
           ]
-        }
       ]
     },
     "plugins": [
@@ -114,10 +145,13 @@
       "expo-video",
       "expo-web-browser",
       "react-native-edge-to-edge",
-      ["@sentry/react-native/expo", {
-        "organization": "open-invite",
-        "project": "open-invite-app"
-      }]
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "open-invite",
+          "project": "open-invite-app"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -127,6 +161,10 @@
       "eas": {
         "projectId": "9991157f-7ee4-4214-97e7-cc5333424701"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/9991157f-7ee4-4214-97e7-cc5333424701"
     }
   }
 }
