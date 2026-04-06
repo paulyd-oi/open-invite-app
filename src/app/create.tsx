@@ -414,7 +414,7 @@ export default function CreateEventScreen() {
 
       // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {
-        router.replace(`/event/${evt.id}?from=create` as any);
+        router.replace(`/event/${evt.id}?from=create`);
         return;
       }
 
@@ -692,7 +692,7 @@ export default function CreateEventScreen() {
         showLocationPreRsvp,
         hideWebLocation,
       });
-      router.push(`/create-settings?isCircleEvent=${isCircleEvent}&themed=${themed}` as any);
+      router.push(`/create-settings?isCircleEvent=${isCircleEvent}&themed=${themed}`);
       return;
     }
     setActiveDockMode((prev) => (prev === mode ? null : mode));
@@ -1093,7 +1093,7 @@ export default function CreateEventScreen() {
                 onFindBestTime={() => {
                   Haptics.selectionAsync();
                   if (__DEV__) devLog('[P0_FIND_BEST_TIME_SSOT] open', { source: 'create' });
-                  router.push('/whos-free?source=create' as any);
+                  router.push('/whos-free?source=create');
                 }}
               />
             </Animated.View>

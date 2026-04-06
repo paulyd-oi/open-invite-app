@@ -188,7 +188,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
     }
     if (__DEV__) devLog("[SOCIAL_GESTURE]", "press_fired", { eventId: displayEvent.id });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/event/${displayEvent.id}` as any);
+    router.push(`/event/${displayEvent.id}`);
   };
 
   const onTouchStart = useCallback((e: any) => {

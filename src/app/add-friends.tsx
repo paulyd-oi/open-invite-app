@@ -205,7 +205,7 @@ export default function FindFriendsScreen() {
                 return (
                   <Animated.View key={user.id} entering={FadeInDown.delay(index * 30)}>
                     <Pressable
-                      onPress={() => router.push(`/user/${user.id}` as any)}
+                      onPress={() => router.push(`/user/${user.id}`)}
                       className="flex-row items-center px-5 py-3"
                     >
                       <EntityAvatar
@@ -265,7 +265,7 @@ export default function FindFriendsScreen() {
               {existingFriends.map((user, index) => (
                 <Animated.View key={user.id} entering={FadeInDown.delay(index * 30)}>
                   <Pressable
-                    onPress={() => router.push(`/user/${user.id}` as any)}
+                    onPress={() => router.push(`/user/${user.id}`)}
                     className="flex-row items-center px-5 py-3"
                   >
                     <EntityAvatar

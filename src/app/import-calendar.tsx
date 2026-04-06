@@ -346,7 +346,7 @@ export default function ImportCalendarScreen() {
     // If we have a returnTo param, navigate back to that destination
     if (params.returnTo) {
       if (params.returnTo === "eventDetails" && params.eventId) {
-        router.replace(`/event/${params.eventId}` as any);
+        router.replace(`/event/${params.eventId}`);
       } else {
         router.back();
       }

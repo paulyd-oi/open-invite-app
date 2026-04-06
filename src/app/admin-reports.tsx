@@ -202,7 +202,7 @@ export default function AdminReportsInbox() {
               isLast={idx === reports.length - 1}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/admin-report-detail?reportId=${report.id}` as any);
+                router.push(`/admin-report-detail?reportId=${report.id}`);
               }}
             />
           ))

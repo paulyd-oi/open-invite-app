@@ -1859,7 +1859,7 @@ export default function EventDetailScreen() {
             hostIdPrefix: fb.hostId!.slice(0, 6),
           });
         }
-        router.push(`/user/${fb.hostId}` as any);
+        router.push(`/user/${fb.hostId}`);
       };
 
       return (
@@ -1875,7 +1875,7 @@ export default function EventDetailScreen() {
           onGoToHostProfile={goToHostProfile}
           onViewCircle={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push(`/circle/${fb.circleId}` as any);
+            router.push(`/circle/${fb.circleId}`);
           }}
         />
       );
@@ -2175,7 +2175,7 @@ export default function EventDetailScreen() {
           onOpenCircle={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             devLog('[P0_EVENT_CIRCLE_LINK]', { circleId: event.circleId, eventId: event.id });
-            router.push(`/circle/${event.circleId}` as any);
+            router.push(`/circle/${event.circleId}`);
           }}
           eventMeta={eventMeta}
           rsvpDeadline={event.rsvpDeadline}
@@ -2276,7 +2276,7 @@ export default function EventDetailScreen() {
           onDeleteComment={handleDeleteComment}
           onPressUser={(userId) => {
             Haptics.selectionAsync();
-            router.push(`/user/${userId}` as any);
+            router.push(`/user/${userId}`);
           }}
           formatTimeAgo={formatTimeAgo}
         />
@@ -2379,7 +2379,7 @@ export default function EventDetailScreen() {
           screenWidth={screenWidth}
           topInset={insets.top}
           colors={colors}
-          onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+          onBack={() => router.canGoBack() ? router.back() : router.replace("/calendar")}
           onOpenOptions={() => {
             Haptics.selectionAsync();
             if (__DEV__) devLog("[IMPORTED_EVENT]", "options_sheet_open", {
@@ -2508,7 +2508,7 @@ export default function EventDetailScreen() {
           onEdit: () => {
             setShowEventActionsSheet(false);
             Haptics.selectionAsync();
-            router.push(`/create?editEventId=${id}&emoji=${encodeURIComponent(event?.emoji ?? "📅")}` as any);
+            router.push(`/create?editEventId=${id}&emoji=${encodeURIComponent(event?.emoji ?? "📅")}`);
           },
           onDuplicate: () => {
             setShowEventActionsSheet(false);
@@ -2616,7 +2616,7 @@ export default function EventDetailScreen() {
         onRetryAttendees={() => attendeesQuery.refetch()}
         onPressAttendee={(userId) => {
           setShowAttendeesModal(false);
-          router.push(`/user/${userId}` as any);
+          router.push(`/user/${userId}`);
         }}
 
         // Color Picker Sheet

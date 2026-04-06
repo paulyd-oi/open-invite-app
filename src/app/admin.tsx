@@ -256,7 +256,7 @@ export default function AdminConsole() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/admin-reports" as any);
+              router.push("/admin-reports");
             }}
             style={{ backgroundColor: colors.surface }}
             className="rounded-2xl px-4 py-4 flex-row items-center"

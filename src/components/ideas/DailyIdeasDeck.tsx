@@ -971,7 +971,7 @@ export function DailyIdeasDeck({
 
     // low_rsvp → navigate to the event detail screen (so user can RSVP)
     if (card.category === "low_rsvp" && card.eventId) {
-      router.push(`/event/${card.eventId}` as any);
+      router.push(`/event/${card.eventId}`);
     } else if (card.friendId) {
       // reconnect/birthday/repeat with friendId → open circle chat
       const circles = circlesData?.circles ?? [];
@@ -991,7 +991,7 @@ export function DailyIdeasDeck({
 
       if (bestCircle) {
         const draftVParam = card.draftVariants ? `&draftVariants=${encodeURIComponent(JSON.stringify(card.draftVariants))}` : "";
-        router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam}` as any);
+        router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam}`);
       } else {
         try {
           const friendName = card.title.replace(/^(Catch up with |Join |Do )/, "").replace(/[?'].*/, "").trim() || "friend";
@@ -1001,15 +1001,15 @@ export function DailyIdeasDeck({
             memberIds: [card.friendId],
           });
           const draftVParam2 = card.draftVariants ? `&draftVariants=${encodeURIComponent(JSON.stringify(card.draftVariants))}` : "";
-          router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam2}` as any);
+          router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam2}`);
         } catch {
-          router.push(`/user/${card.friendId}` as any);
+          router.push(`/user/${card.friendId}`);
         }
       }
     } else {
       // Activity repeat (no friend): navigate to create
       const title = card.title.replace(/^Do |\?$/g, "").replace(/ again this week$/i, "");
-      router.push(`/create?title=${encodeURIComponent(title)}` as any);
+      router.push(`/create?title=${encodeURIComponent(title)}`);
     }
 
     const next = currentIndex + 1;
@@ -1103,7 +1103,7 @@ export function DailyIdeasDeck({
         </Text>
         {peopleCount === 0 && (
           <Pressable
-            onPress={() => router.push("/add-friends" as any)}
+            onPress={() => router.push("/add-friends")}
             className="px-5 py-2.5 rounded-full mt-4"
             style={{ backgroundColor: themeColor }}
           >

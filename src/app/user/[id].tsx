@@ -212,7 +212,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
             });
           }
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push(`/event/${event.id}` as any);
+          router.push(`/event/${event.id}`);
         }}
         className="rounded-2xl p-4 mb-3"
         style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
@@ -718,7 +718,7 @@ export default function UserProfileScreen() {
       safeToast.success("Unfriended", `You and ${user?.name ?? "this user"} are no longer friends`);
       refreshAfterUnfriend(queryClient, id);
       // Navigate back to friends list
-      router.replace("/friends" as any);
+      router.replace("/friends");
     },
     onError: () => {
       safeToast.error("Unfriend Failed", "Failed to unfriend");
@@ -748,7 +748,7 @@ export default function UserProfileScreen() {
         devLog("[P1_DM_OPEN]", `circleId=${circleId}`);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push(`/circle/${circleId}` as any);
+      router.push(`/circle/${circleId}`);
     },
     onError: (error: any) => {
       safeToast.error("Message Failed", error?.message || "Could not open conversation. Please try again.");
@@ -828,7 +828,7 @@ export default function UserProfileScreen() {
             Could not load this profile.
           </Text>
           <Pressable
-            onPress={() => router.replace('/friends' as any)}
+            onPress={() => router.replace('/friends')}
             className="px-6 py-3 rounded-full"
             style={{ backgroundColor: themeColor }}
           >

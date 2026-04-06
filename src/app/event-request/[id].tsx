@@ -778,7 +778,7 @@ export default function EventRequestDetailScreen() {
         onConfirm={() => {
           setShowEventConfirmedModal(false);
           if (confirmedEventId) {
-            router.replace(`/event/${confirmedEventId}` as any);
+            router.replace(`/event/${confirmedEventId}`);
           }
         }}
         onCancel={() => {

@@ -10,7 +10,7 @@ export default function EditEventRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(`/create?editEventId=${id}` as any);
+    router.replace(`/create?editEventId=${id}`);
   }, [id]);
 
   return null;

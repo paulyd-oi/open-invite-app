@@ -118,7 +118,7 @@ export function EventListItem({
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose?.();
-    router.push(`/event/${event.id}` as any);
+    router.push(`/event/${event.id}`);
   };
 
   return (

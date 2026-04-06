@@ -179,7 +179,7 @@ export default function CreateSettingsPage() {
                     <View style={{ alignItems: "center", paddingVertical: 14 }}>
                       <Text style={{ color: glassTertiary, textAlign: "center", marginBottom: 10 }}>No circles yet.</Text>
                       <Pressable
-                        onPress={() => router.push("/friends" as any)}
+                        onPress={() => router.push("/friends")}
                         style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: themeColor }}
                       >
                         <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "600" }}>Go to Friends</Text>

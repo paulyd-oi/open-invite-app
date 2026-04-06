@@ -46,7 +46,7 @@ import { Button } from "@/ui/Button";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useTheme } from "@/lib/ThemeContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { api } from "@/lib/api";
@@ -409,7 +409,7 @@ export function FriendDiscoverySurface({
 
                   const handleRowPress = () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(profileRoute as any);
+                    router.push(profileRoute as Href);
                   };
 
                   const handleAddPress = () => {
@@ -525,7 +525,7 @@ export function FriendDiscoverySurface({
                       className="flex-row items-center flex-1"
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push(`/user/${user.id}` as any);
+                        router.push(`/user/${user.id}`);
                       }}
                     >
                       <EntityAvatar

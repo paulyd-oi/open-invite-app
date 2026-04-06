@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Pressable, Platform, useWindowDimensions } from "react-native";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter, usePathname, type Href } from "expo-router";
 import { type LucideIcon } from "../ui/icons";
 import Animated, {
   useAnimatedStyle,
@@ -96,7 +96,7 @@ function NavButton({
       withTiming(0.85, { duration: 50 }),
       withSpring(1, { damping: 15 })
     );
-    router.push(href as any);
+    router.push(href as Href);
   };
 
   const handleLongPress = () => {

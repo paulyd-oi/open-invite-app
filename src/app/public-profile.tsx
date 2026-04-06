@@ -84,7 +84,7 @@ function PreviewCalendar({
         });
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push(`/event/${dayEvents[0].id}` as any);
+      router.push(`/event/${dayEvents[0].id}`);
     }
   };
 
@@ -524,7 +524,7 @@ export default function PublicProfileScreen() {
                       <Pressable
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          router.push(`/event/${event.id}` as any);
+                          router.push(`/event/${event.id}`);
                         }}
                         className="rounded-2xl p-4 mb-3"
                         style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}

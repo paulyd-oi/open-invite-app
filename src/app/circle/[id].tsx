@@ -1919,7 +1919,7 @@ export default function CircleScreen() {
             }}
             onNavigateToEvent={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/event/${nextCircleEvent.id}` as any);
+              router.push(`/event/${nextCircleEvent.id}`);
             }}
           />
         </View>
@@ -2341,7 +2341,7 @@ export default function CircleScreen() {
                 })()}
                 onViewEvent={(eventId) => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/event/${eventId}` as any);
+                  router.push(`/event/${eventId}`);
                 }}
               />
               </>
@@ -2845,7 +2845,7 @@ export default function CircleScreen() {
         onCreatePress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           setShowCreateEvent(false);
-          router.push(`/create?circleId=${id}&visibility=circle_only` as any);
+          router.push(`/create?circleId=${id}&visibility=circle_only`);
         }}
       />
 

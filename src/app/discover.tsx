@@ -528,7 +528,7 @@ export default function DiscoverScreen() {
 
   const handleEventPress = (eventId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/event/${eventId}` as any);
+    router.push(`/event/${eventId}`);
   };
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
@@ -751,7 +751,7 @@ export default function DiscoverScreen() {
                 {/* ═══ Friend Nudge — zero friends ═══ */}
                 {friendCount === 0 && activeFeed.length > 0 && (
                   <Pressable
-                    onPress={() => router.push("/add-friends" as any)}
+                    onPress={() => router.push("/add-friends")}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -785,7 +785,7 @@ export default function DiscoverScreen() {
                     None of your friends have RSVP'd to upcoming events yet
                   </Text>
                   <Pressable
-                    onPress={() => router.push("/add-friends" as any)}
+                    onPress={() => router.push("/add-friends")}
                     style={{
                       paddingHorizontal: 24,
                       paddingVertical: 12,
@@ -813,7 +813,7 @@ export default function DiscoverScreen() {
                     onPress={() => {
                       if (!guardEmailVerification(session)) return;
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      router.push("/create" as any);
+                      router.push("/create");
                     }}
                     style={{
                       paddingHorizontal: 24,

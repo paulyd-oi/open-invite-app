@@ -3,7 +3,7 @@ import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator, Scr
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn } from "@/lib/devLog";
 import { trackNotificationMarkRead, trackNotifsEngagement } from "@/analytics/analyticsEventsSSOT";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -289,7 +289,7 @@ function EmptyState() {
         You'll see friend requests, event updates, and more here
       </Text>
       <Pressable
-        onPress={() => router.push("/social" as any)}
+        onPress={() => router.push("/social")}
         className="px-5 py-2.5 rounded-full"
         style={{ backgroundColor: themeColor }}
       >
@@ -609,7 +609,7 @@ export function ActivityFeed({ embedded = false, emptyComponent }: ActivityFeedP
     trackNotifsEngagement({ action: "tap_item", routeTargeted: !!target });
     if (target) {
       try {
-        router.push(target as any);
+        router.push(target as Href);
       } catch {
         safeToast.info("Unavailable", "This request is no longer available.");
       }

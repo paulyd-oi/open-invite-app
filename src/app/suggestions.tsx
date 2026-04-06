@@ -729,7 +729,7 @@ export default function SuggestionsScreen() {
                         key={user.id}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          router.push(`/user/${user.id}` as any);
+                          router.push(`/user/${user.id}`);
                         }}
                         className="flex-row items-center py-3 border-t"
                         style={{ borderTopColor: colors.separator }}

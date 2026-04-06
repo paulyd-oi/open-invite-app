@@ -204,7 +204,7 @@ export default function CirclesScreen() {
       // Mark guidance complete - user has created their first circle
       markGuidanceComplete("join_circle");
       trackCircleCreated({ source: "circles" });
-      router.push(`/circle/${response.circle.id}` as any);
+      router.push(`/circle/${response.circle.id}`);
     },
     onError: (error: any) => {
       devError("Failed to create circle:", error);
@@ -236,7 +236,7 @@ export default function CirclesScreen() {
 
   const handleCircleTap = (circleId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/circle/${circleId}` as any);
+    router.push(`/circle/${circleId}`);
   };
 
   return (

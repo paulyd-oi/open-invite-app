@@ -24,7 +24,7 @@ function FriendsEmptyState() {
         Your friends' activity will show up here
       </Text>
       <Pressable
-        onPress={() => router.push("/add-friends" as any)}
+        onPress={() => router.push("/add-friends")}
         className="px-5 py-2.5 rounded-full"
         style={{ backgroundColor: themeColor }}
       >

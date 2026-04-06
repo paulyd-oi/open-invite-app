@@ -2,7 +2,7 @@
 import 'fast-text-encoding';
 
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useRootNavigationState, usePathname, useSegments } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState, usePathname, useSegments, type Href } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -640,7 +640,7 @@ function BootRouter() {
     }
     // Small delay to ensure router is mounted after auth completes
     setTimeout(() => {
-      router.push(route as any);
+      router.push(route as Href);
     }, 150);
   }, [bootStatus, router]);
 

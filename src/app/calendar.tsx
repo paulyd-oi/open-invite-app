@@ -870,7 +870,7 @@ export default function CalendarScreen() {
       }
 
       if (__DEV__) devLog("[CALENDAR_RESYNC]", `found ${newEvents.length} new device events, navigating to import`);
-      router.push("/import-calendar?mode=resync" as any);
+      router.push("/import-calendar?mode=resync");
     } catch (error) {
       if (__DEV__) devError("[CALENDAR_RESYNC]", "failed:", error);
     } finally {
@@ -1508,7 +1508,7 @@ export default function CalendarScreen() {
                     /* INVARIANT_ALLOW_INLINE_HANDLER */
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}` as any);
+                      router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}`);
                     }}
                     size="sm"
                   />
@@ -1571,7 +1571,7 @@ export default function CalendarScreen() {
                       /* INVARIANT_ALLOW_INLINE_HANDLER */
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}` as any);
+                        router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}`);
                       }}
                     />
                   </View>
@@ -1627,7 +1627,7 @@ export default function CalendarScreen() {
                     /* INVARIANT_ALLOW_INLINE_HANDLER */
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/create-event-request" as any);
+                      router.push("/create-event-request");
                     }}
                     className="flex-row items-center px-3 py-1.5 rounded-full"
                     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -1656,7 +1656,7 @@ export default function CalendarScreen() {
                         /* INVARIANT_ALLOW_INLINE_HANDLER */
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          router.push(`/event-request/${request.id}` as any);
+                          router.push(`/event-request/${request.id}`);
                         }}
                         className="rounded-xl p-4 mb-3"
                         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */

@@ -1124,7 +1124,7 @@ function MiniCalendar({
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                       setShowBestTimeSheet(false);
-                      router.push({ pathname: "/create", params: { circleId: circleId } } as any);
+                      router.push({ pathname: "/create", params: { circleId: circleId } });
                     }}
                     style={{
                       paddingVertical: 12,

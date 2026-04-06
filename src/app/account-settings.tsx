@@ -220,7 +220,7 @@ export default function AccountSettingsScreen() {
         await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
       } catch {
         // Account is deleted; if logout fails, force navigation to clean state
-        router.replace("/" as any);
+        router.replace("/");
       }
     } catch {
       safeToast.error("Delete Failed", "Failed to delete account. Please try again.");

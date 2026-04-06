@@ -18,6 +18,10 @@
       "ios": {
         "resourceClass": "m-medium",
         "autoIncrement": false
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
       }
     },
     "development-simulator": {
@@ -33,6 +37,10 @@
       },
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
       }
     },
     "production": {
@@ -51,6 +59,10 @@
       "ios": {
         "resourceClass": "m-medium",
         "autoIncrement": true,
+        "image": "latest"
+      },
+      "android": {
+        "buildType": "app-bundle",
         "image": "latest"
       }
     }

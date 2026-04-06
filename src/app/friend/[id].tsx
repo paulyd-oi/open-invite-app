@@ -79,7 +79,7 @@ export default function FriendProfileRedirect() {
             Could not load this profile.
           </Text>
           <Pressable
-            onPress={() => router.replace('/friends' as any)}
+            onPress={() => router.replace('/friends')}
             className="px-6 py-3 rounded-full"
             style={{ backgroundColor: themeColor }}
           >

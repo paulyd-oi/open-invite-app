@@ -3,7 +3,7 @@
  * Uses expo-router file-based routing
  */
 
-import type { Router } from "expo-router";
+import type { Router, Href } from "expo-router";
 import { devLog, devWarn, devError } from "./devLog";
 
 // ============================================
@@ -114,7 +114,7 @@ export function goToUser(router: Router, userId: string, viewerId?: string): voi
 
 export function safePush(router: Router, path: string): void {
   try {
-    router.push(path as any);
+    router.push(path as Href);
   } catch (error) {
     if (__DEV__) {
       devError('[Navigation] Failed to push:', path, error);
@@ -131,7 +131,7 @@ export function safePush(router: Router, path: string): void {
 
 export function safeReplace(router: Router, path: string): void {
   try {
-    router.replace(path as any);
+    router.replace(path as Href);
   } catch (error) {
     if (__DEV__) {
       devError('[Navigation] Failed to replace:', path, error);

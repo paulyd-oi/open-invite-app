@@ -204,7 +204,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/circle/${circle.id}` as any);
+    router.push(`/circle/${circle.id}`);
   };
 
   const triggerPin = () => {

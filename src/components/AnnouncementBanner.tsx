@@ -17,7 +17,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, Pressable } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { X, Megaphone } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
@@ -120,7 +120,7 @@ export function AnnouncementBanner() {
   const handleCtaPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (announcement?.ctaRoute) {
-      router.push(announcement.ctaRoute as any);
+      router.push(announcement.ctaRoute as Href);
     }
   };
 

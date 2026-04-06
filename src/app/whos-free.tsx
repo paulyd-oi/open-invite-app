@@ -572,7 +572,7 @@ export default function WhosFreeScreen() {
     }
     const slotStartDate = new Date(slot.start);
     const dateStr = slotStartDate.toISOString().split("T")[0];
-    router.push(`/create?date=${dateStr}&time=${slot.start}` as any);
+    router.push(`/create?date=${dateStr}&time=${slot.start}`);
   };
 
   return (

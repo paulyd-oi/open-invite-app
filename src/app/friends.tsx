@@ -280,7 +280,7 @@ const FriendCard = React.memo(function FriendCard({
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/friend/${friendship.id}` as any);
+    router.push(`/friend/${friendship.id}`);
   }, [router, friendship.id]);
 
   const panGesture = Gesture.Pan()
@@ -552,7 +552,7 @@ const FriendListItem = React.memo(function FriendListItem({
                   return;
                 }
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/friend/${friendship.id}` as any);
+                router.push(`/friend/${friendship.id}`);
               }}
               leftAccessory={undefined}
               rightAccessory={
@@ -1389,7 +1389,7 @@ export default function FriendsScreen() {
                       leftIcon={<UserPlus size={14} color="#fff" />}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push("/add-friends" as any);
+                        router.push("/add-friends");
                       }}
                     />
                   )}

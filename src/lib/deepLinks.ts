@@ -15,7 +15,7 @@
 
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseICS, isValidICSContent } from './icsParser';
 import { handleReferralUrl } from './referral';
@@ -56,7 +56,7 @@ export function hasPendingDeepLinkRoute(): boolean {
 function authedPush(route: string): void {
   const boot = getBootStatus();
   if (boot === 'authed') {
-    router.push(route as any);
+    router.push(route as Href);
   } else {
     pendingDeepLinkRoute = route;
     if (__DEV__) {
@@ -69,7 +69,7 @@ function authedPush(route: string): void {
 function authedReplace(route: string): void {
   const boot = getBootStatus();
   if (boot === 'authed') {
-    router.replace(route as any);
+    router.replace(route as Href);
   } else {
     pendingDeepLinkRoute = route;
     if (__DEV__) {

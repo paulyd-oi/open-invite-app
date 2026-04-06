@@ -278,7 +278,7 @@ export function FriendsPeoplePane({
                     onViewProfile={() => {
                       if (senderId) {
                         if (__DEV__) devLog('[FRIEND_REQUEST] navigate', { senderId, target: `/user/${senderId}` });
-                        router.push(`/user/${senderId}` as any);
+                        router.push(`/user/${senderId}`);
                       } else {
                         if (__DEV__) devLog('[FRIEND_REQUEST] nav_blocked: no senderId', { requestId: request.id });
                       }
@@ -359,7 +359,7 @@ export function FriendsPeoplePane({
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/add-friends" as any);
+                  router.push("/add-friends");
                 }}
                 className="px-5 py-2.5 rounded-full mb-3"
                 style={{ backgroundColor: themeColor }}

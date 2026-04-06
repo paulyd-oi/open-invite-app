@@ -4,7 +4,7 @@ import { AppState, type AppStateStatus } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import type { EventSubscription } from "expo-modules-core";
@@ -859,9 +859,9 @@ export function useNotifications() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       if (pending.source === 'cold_start') {
-        router.replace(pending.route as any);
+        router.replace(pending.route as Href);
       } else {
-        router.push(pending.route as any);
+        router.push(pending.route as Href);
       }
     }, 150);
   }, [bootStatus, router]);
@@ -996,9 +996,9 @@ export function useNotifications() {
       
       // Use replace for cold start to avoid stacking on initial route
       if (source === "cold_start") {
-        router.replace(route as any);
+        router.replace(route as Href);
       } else {
-        router.push(route as any);
+        router.push(route as Href);
       }
     };
 

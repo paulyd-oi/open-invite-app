@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Share, Linking, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
@@ -261,7 +261,7 @@ export function EventListItem({
 
   const handleCopyEvent = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/create?copyEventId=${event.id}` as any);
+    router.push(`/create?copyEventId=${event.id}`);
   };
 
   const handleToggleBusy = () => {
@@ -285,7 +285,7 @@ export function EventListItem({
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(getEventRoute() as any);
+    router.push(getEventRoute() as Href);
   };
 
   // Track press start time to detect long press vs tap

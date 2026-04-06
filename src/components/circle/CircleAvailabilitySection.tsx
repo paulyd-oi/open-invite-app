@@ -157,7 +157,7 @@ function DayDetailEventsSection({
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
               onClose();
-              router.push({ pathname: "/create", params: { date: bestTimesDate.toISOString(), circleId } } as any);
+              router.push({ pathname: "/create", params: { date: bestTimesDate.toISOString(), circleId } });
             }}
             style={{
               paddingVertical: 10,
@@ -242,7 +242,7 @@ function DayDetailEventsSection({
             }
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onClose();
-            router.push(`/event/${eventId}` as any);
+            router.push(`/event/${eventId}`);
           }}
         >
           <Animated.View

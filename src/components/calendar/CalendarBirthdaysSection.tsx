@@ -94,7 +94,7 @@ export function UpcomingBirthdaysSection({
                     if (canNavigate) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       // Navigate to user profile using friend's userId
-                      router.push(`/user/${bday.id}` as any);
+                      router.push(`/user/${bday.id}`);
                     }
                   }}
                   disabled={!canNavigate}

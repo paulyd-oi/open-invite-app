@@ -6,6 +6,7 @@ import {
   Pressable,
   RefreshControl,
   Share,
+  ActivityIndicator,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { resolveBannerUri } from "@/lib/heroSSOT";
@@ -142,7 +143,7 @@ export default function ProfileScreen() {
     staleTime: 120_000, // 2 min — stable data
   });
 
-  const { data: profileData, refetch: refetchProfile, isError: isProfileError } = useQuery({
+  const { data: profileData, refetch: refetchProfile, isError: isProfileError, isPending: isProfilePending } = useQuery({
     queryKey: qk.profile(),
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -163,7 +164,7 @@ export default function ProfileScreen() {
     staleTime: 60_000, // 1 min
   });
 
-  const { data: statsData, refetch: refetchStats, isError: isStatsError, isRefetching: isStatsRefetching } = useQuery({
+  const { data: statsData, refetch: refetchStats, isError: isStatsError, isRefetching: isStatsRefetching, isPending: isStatsPending } = useQuery({
     queryKey: qk.profileStats(),
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -434,6 +435,48 @@ export default function ProfileScreen() {
             {"Couldn't load profile.\nCheck your connection and try again."}
           </Text>
           <Button variant="secondary" label="Retry" onPress={onRefresh} loading={refreshing} />
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
+    );
+  }
+
+  // Data-level loading gate: show skeleton while critical queries are pending
+  // (bootStatus is already "authed" at this point, but queries may not have resolved yet)
+  const isDataPending = isProfilePending || isStatsPending;
+  if (isDataPending && !profileData && !statsData) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center gap-4">
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            }}
+          />
+          <View
+            style={{
+              width: 140,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            }}
+          />
+          <View
+            style={{
+              width: 100,
+              height: 14,
+              borderRadius: 7,
+              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            }}
+          />
+          <ActivityIndicator
+            size="small"
+            color={colors.textSecondary}
+            style={{ marginTop: 12 }}
+          />
         </View>
         <BottomNavigation />
       </SafeAreaView>
@@ -768,7 +811,7 @@ export default function ProfileScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/public-profile" as any);
+                router.push("/public-profile");
               }}
               style={{
                 backgroundColor: themeColor,
@@ -1032,7 +1075,7 @@ export default function ProfileScreen() {
                     style={idx > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : undefined}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/event/${topEvent.id}` as any);
+                      router.push(`/event/${topEvent.id}`);
                     }}
                   >
                     <Text className="text-lg mr-2">{topEvent.emoji ?? "📅"}</Text>
@@ -1060,7 +1103,7 @@ export default function ProfileScreen() {
               style={{ backgroundColor: colors.surface, borderColor: "#FFD70050" }}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/subscription" as any);
+                router.push("/subscription");
               }}
             >
               <View className="flex-row items-center mb-2">
