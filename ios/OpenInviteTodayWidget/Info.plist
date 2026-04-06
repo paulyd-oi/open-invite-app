@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_TYPE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.0</string>
+    <string>1.2.1</string>
     <key>CFBundleVersion</key>
-    <string>294</string>
+    <string>318</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
     <key>NSExtension</key>

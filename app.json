@@ -13,7 +13,7 @@
       "icon": "./icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "317",
+      "buildNumber": "318",
       "usesAppleSignIn": true,
       "jsEngine": "hermes",
       "associatedDomains": [
@@ -113,7 +113,11 @@
       "expo-asset",
       "expo-video",
       "expo-web-browser",
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      ["@sentry/react-native/expo", {
+        "organization": "open-invite",
+        "project": "open-invite-app"
+      }]
     ],
     "experiments": {
       "typedRoutes": true

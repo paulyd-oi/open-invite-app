@@ -32,7 +32,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.0</string>
+    <string>1.2.1</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -52,7 +52,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>294</string>
+    <string>318</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -96,6 +96,8 @@
     <string>Open Invite needs reminders access to help you stay on track with events you choose to save.</string>
     <key>NSRemindersUsageDescription</key>
     <string>Open Invite uses reminders to help you stay on track with events you choose to save.</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
@@ -130,8 +132,6 @@
     <false/>
     <key>UIUserInterfaceStyle</key>
     <string>Automatic</string>
-    <key>NSSupportsLiveActivities</key>
-    <true/>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
     <key>UTImportedTypeDeclarations</key>

@@ -45,11 +45,13 @@
         "NPM_CONFIG_INCLUDE": "dev",
         "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud",
         "EXPO_PUBLIC_REALTIME_WS": "1",
-        "EXPO_IMAGE_NO_AVIF": "1"
+        "EXPO_IMAGE_NO_AVIF": "1",
+        "SENTRY_AUTH_TOKEN": "TODO_GET_FROM_SENTRY_SETTINGS_AUTH_TOKENS"
       },
       "ios": {
         "resourceClass": "m-medium",
-        "autoIncrement": true
+        "autoIncrement": true,
+        "image": "latest"
       }
     }
   },

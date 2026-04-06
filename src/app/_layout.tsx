@@ -51,19 +51,51 @@ import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
 import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
 import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime/wsClient';
-// TEMP: Sentry disabled — Xcode/EAS build incompatibility
-const Sentry = {
-  init: () => {},
-  wrap: (c: any) => c,
-  captureException: (..._args: any[]) => {},
-  captureMessage: (..._args: any[]) => {},
-  setTag: () => {},
-  setExtra: () => {},
-  setUser: () => {},
-  addBreadcrumb: () => {},
-  withScope: (cb: any) => cb({ setExtra: () => {}, setTag: () => {} }),
-  reactNavigationIntegration: () => ({}),
-};
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: !__DEV__,
+  tracesSampleRate: 0.2,
+  attachScreenshot: true,
+  enableNativeFramesTracking: true,
+});
+
+// ---------------------------------------------------------------------------
+// Global JS error capture via PostHog (OTA-safe, no native changes)
+// ---------------------------------------------------------------------------
+if (!__DEV__) {
+  const originalHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    try {
+      const posthog = require('@/lib/posthogClient').default;
+      posthog.capture('app_error', {
+        error_message: error?.message || String(error),
+        error_stack: error?.stack?.substring(0, 2000),
+        is_fatal: isFatal,
+        app_version: Constants.expoConfig?.version || 'unknown',
+      });
+    } catch {}
+    originalHandler?.(error, isFatal);
+  });
+}
+
+// Unhandled promise rejection capture via PostHog
+if (!__DEV__) {
+  const tracking = require('promise/setimmediate/rejection-tracking');
+  tracking.enable({
+    allRejections: true,
+    onUnhandled: (_id: number, error: any) => {
+      try {
+        const posthog = require('@/lib/posthogClient').default;
+        posthog.capture('unhandled_promise_rejection', {
+          error_message: error?.message || String(error),
+          error_stack: error?.stack?.substring(0, 2000),
+        });
+      } catch {}
+    },
+  });
+}
 import Constants from "expo-constants";
 import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { getPostHogProviderProps, posthogIdentify, posthogReset, setPostHogRef, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
@@ -1173,7 +1205,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
   // [P1_FONTS_SSOT] Load ALL app fonts from the SSOT font map.
@@ -1382,3 +1414,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
