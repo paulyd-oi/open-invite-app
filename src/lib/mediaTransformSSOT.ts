@@ -26,7 +26,7 @@ export type CloudinaryTransform = {
   gravity?: "auto" | "center" | "face" | "faces";
   /** Compression quality (1-100). Defaults to "auto" when omitted. */
   quality?: number;
-  /** Output format. Defaults to "auto" when omitted. */
+  /** Output format. Defaults to "webp" when omitted (AVIF decoder removed from expo-image). */
   format?: "auto" | "jpg" | "png" | "webp";
 };
 
@@ -85,7 +85,7 @@ export function toCloudinaryTransformedUrl(
   const parts: string[] = [];
 
   // Format — always first
-  const fmt = t.format ?? "auto";
+  const fmt = t.format ?? "webp";
   parts.push(`f_${fmt}`);
 
   // Quality
