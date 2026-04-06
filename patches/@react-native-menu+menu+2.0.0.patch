@@ -1,5 +1,5 @@
 diff --git a/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuView.kt b/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuView.kt
-index c45f5cc..6b46fd8 100644
+index c45f5cc..2e1cac4 100644
 --- a/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuView.kt
 +++ b/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuView.kt
 @@ -25,7 +25,7 @@ class MenuView(private val mContext: ReactContext) : ReactViewGroup(mContext) {
@@ -7,32 +7,42 @@ index c45f5cc..6b46fd8 100644
    private var mHitSlopRect: Rect? = null
      set(value) {
 -      super.hitSlopRect = value
-+      // super.hitSlopRect = value
++      // super.hitSlopRect = value // patched: val cannot be reassigned
        mHitSlopRect = value
        updateTouchDelegate()
      }
 diff --git a/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuViewManagerBase.kt b/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuViewManagerBase.kt
-index e4d2743..e841ddc 100644
+index e4d2743..3354cbc 100644
 --- a/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuViewManagerBase.kt
 +++ b/node_modules/@react-native-menu/menu/android/src/main/java/com/reactnativemenu/MenuViewManagerBase.kt
-@@ -123,9 +123,9 @@ abstract class MenuViewManagerBase : ReactClippingViewManager<MenuView>() {
+@@ -123,10 +123,10 @@ abstract class MenuViewManagerBase : ReactClippingViewManager<MenuView>() {
    fun setHitSlop(view: ReactViewGroup, @Nullable hitSlop: ReadableMap?) {
      if (hitSlop == null) {
        // We should keep using setters as `Val cannot be reassigned`
 -      view.hitSlopRect = null
-+      // view.hitSlopRect = null
++      // view.hitSlopRect = null // patched: val cannot be reassigned
      } else {
 -      view.hitSlopRect = (
-+      // view.hitSlopRect = (
-               Rect(
+-              Rect(
++      // patched: val cannot be reassigned, using touchDelegate workaround
++      val rect = Rect(
                        if (hitSlop.hasKey("left"))
                                PixelUtil.toPixelFromDIP(hitSlop.getDouble("left")).toInt()
-@@ -206,7 +206,7 @@ abstract class MenuViewManagerBase : ReactClippingViewManager<MenuView>() {
+                       else 0,
+@@ -140,7 +140,6 @@ abstract class MenuViewManagerBase : ReactClippingViewManager<MenuView>() {
+                               PixelUtil.toPixelFromDIP(hitSlop.getDouble("bottom")).toInt()
+                       else 0
+               )
+-      )
+     }
+   }
+ 
+@@ -206,7 +205,7 @@ abstract class MenuViewManagerBase : ReactClippingViewManager<MenuView>() {
  
    @ReactProp(name = ViewProps.OVERFLOW)
    fun setOverflow(view: ReactViewGroup, overflow: String?) {
 -    view.overflow = overflow
-+    // view.overflow = overflow
++    // view.overflow = overflow // patched: val cannot be reassigned
    }
  
    @ReactProp(name = "backfaceVisibility")
