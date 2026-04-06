@@ -710,13 +710,12 @@ export default function SubscriptionScreen() {
             <Button
               variant="secondary"
               label="Redeem Offer Code"
-              onPress={async () => {
-                try {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  await Purchases.presentCodeRedemptionSheet();
-                } catch (e) {
-                  if (__DEV__) devWarn("[Subscription] presentCodeRedemptionSheet error:", e);
-                }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                // Use App Store deep link — reliable on all iOS versions.
+                // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
+                // that silently fails on iOS 16+.
+                Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
               }}
               leftIcon={<Ticket size={18} color={colors.buttonSecondaryText} />}
               style={{ borderRadius: 16, paddingVertical: 14 }}

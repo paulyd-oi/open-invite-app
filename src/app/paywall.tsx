@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -271,13 +272,11 @@ export default function PaywallScreen() {
 
   const handleRedeemOfferCode = async () => {
     if (Platform.OS !== "ios") return;
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await Purchases.presentCodeRedemptionSheet();
-      // Listener in SubscriptionContext will auto-detect entitlement changes
-    } catch (e) {
-      if (__DEV__) devWarn("[Paywall] presentCodeRedemptionSheet error:", e);
-    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Use App Store deep link — reliable on all iOS versions.
+    // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
+    // that silently fails on iOS 16+.
+    Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
   };
 
   // ── Feature comparison ──────────────────────────────────────────────

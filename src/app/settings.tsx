@@ -1151,7 +1151,10 @@ export default function SettingsScreen() {
             onRefreshEntitlements={handleRefreshEntitlements}
             onRedeemCode={Platform.OS === "ios" ? async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              try { await Purchases.presentCodeRedemptionSheet(); } catch {}
+              // Use App Store deep link — reliable on all iOS versions.
+              // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
+              // that silently fails on iOS 16+.
+              Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
             } : undefined}
           />
         </Animated.View>
