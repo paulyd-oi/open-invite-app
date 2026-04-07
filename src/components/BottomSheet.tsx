@@ -16,7 +16,7 @@
  * Internals: Modal transparent + Pressable backdrop + Animated.View
  *   borderTopLeft/RightRadius 24, FadeInDown 200ms, safe-area bottom.
  */
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -27,10 +27,20 @@ import {
   KeyboardAvoidingView,
   type ViewStyle,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog } from "@/lib/devLog";
+
+const DISMISS_THRESHOLD = 120;
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -76,6 +86,7 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const translateY = useSharedValue(0);
 
   if (__DEV__ && visible) {
     devLog("[P0_SHEET_PRIMITIVE] open", { title: title ?? "(no title)", heightPct, maxHeightPct, backdropOpacity });
@@ -84,6 +95,38 @@ export default function BottomSheet({
   const screenH = Dimensions.get("window").height;
   const maxH = Math.round(screenH * maxHeightPct);
   const sheetHeight = heightPct > 0 ? Math.min(Math.round(screenH * heightPct), maxH) : undefined;
+
+  const dismiss = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  /* Reset translateY whenever sheet opens */
+  React.useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible, translateY]);
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      // Only allow downward dragging (positive translationY)
+      translateY.value = Math.max(0, e.translationY);
+    })
+    .onEnd((e) => {
+      if (e.translationY > DISMISS_THRESHOLD) {
+        // Slide out and dismiss
+        translateY.value = withTiming(screenH, { duration: 200 }, () => {
+          runOnJS(dismiss)();
+        });
+      } else {
+        // Spring back
+        translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
+      }
+    });
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   const backdropBg: ViewStyle["backgroundColor"] =
     backdropOpacity > 0 ? `rgba(0,0,0,${backdropOpacity})` : "transparent";
@@ -95,53 +138,58 @@ export default function BottomSheet({
     >
       {/* Prevent inner taps from closing */}
       <Pressable onPress={(e) => e.stopPropagation()}>
-        <Animated.View
-            entering={FadeInDown.duration(200)}
-            style={{
-              backgroundColor: colors.background,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              ...(sheetHeight ? { height: sheetHeight } : { maxHeight: maxH }),
-              paddingBottom: Math.max(insets.bottom, 20),
-              overflow: "hidden",
-            }}
-          >
-            {/* Handle */}
-            <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.textTertiary,
-                  opacity: 0.4,
-                }}
-              />
-            </View>
-
-            {/* Optional title row */}
-            {(title || headerRight) && (
-              <View
-                style={{
-                  paddingHorizontal: 20,
-                  paddingBottom: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                  {title ?? ""}
-                </Text>
-                {headerRight}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={[
+                {
+                  backgroundColor: colors.background,
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                  ...(sheetHeight ? { height: sheetHeight } : { maxHeight: maxH }),
+                  paddingBottom: Math.max(insets.bottom, 20),
+                  overflow: "hidden",
+                },
+                animatedSheetStyle,
+              ]}
+            >
+              {/* Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.textTertiary,
+                    opacity: 0.4,
+                  }}
+                />
               </View>
-            )}
 
-            {/* Content – flex:1 ensures scroll children fill remaining space (fixed height only) */}
-            <View style={sheetHeight ? { flex: 1 } : undefined}>
-              {children}
-            </View>
-          </Animated.View>
+              {/* Optional title row */}
+              {(title || headerRight) && (
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingBottom: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                    {title ?? ""}
+                  </Text>
+                  {headerRight}
+                </View>
+              )}
+
+              {/* Content – flex:1 ensures scroll children fill remaining space (fixed height only) */}
+              <View style={sheetHeight ? { flex: 1 } : undefined}>
+                {children}
+              </View>
+            </Animated.View>
+          </GestureDetector>
         </Pressable>
       </Pressable>
   );

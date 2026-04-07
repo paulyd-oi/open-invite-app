@@ -353,6 +353,8 @@ export default function CircleScreen() {
   }, [selectedMemberToRemove]);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameText, setNameText] = useState("");
   const [settingsSheetView, setSettingsSheetView] = useState<"settings" | "photo">("settings");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
@@ -789,16 +791,21 @@ export default function CircleScreen() {
 
   // [P1_READ_HORIZON] markAsReadMutation removed — replaced by sendReadHorizon()
 
-  // Update circle mutation (for description editing)
+  // Update circle mutation (for description/name editing)
   const updateCircleMutation = useMutation({
-    mutationFn: (updates: { description?: string }) =>
+    mutationFn: (updates: { description?: string; name?: string }) =>
       api.put<{ circle: Circle }>(`/api/circles/${id}`, updates),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Saved", "Description updated");
+      if (variables.name) {
+        safeToast.success("Saved", "Group name updated");
+        setEditingName(false);
+      } else {
+        safeToast.success("Saved", "Description updated");
+        setEditingDescription(false);
+      }
       queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
       queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-      setEditingDescription(false);
     },
     onError: (error: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -2635,6 +2642,8 @@ export default function CircleScreen() {
         memberCount={members.length}
         settingsView={settingsSheetView}
         isHost={isHost}
+        editingName={editingName}
+        nameText={nameText}
         editingDescription={editingDescription}
         descriptionText={descriptionText}
         uploadingPhoto={uploadingPhoto}
@@ -2644,8 +2653,22 @@ export default function CircleScreen() {
         colors={colors}
         isDark={isDark}
         themeColor={themeColor}
-        onClose={() => { setShowGroupSettings(false); setSettingsSheetView("settings"); }}
+        onClose={() => { setShowGroupSettings(false); setSettingsSheetView("settings"); setEditingName(false); }}
         onSetView={setSettingsSheetView}
+        onEditName={() => {
+          setNameText(circle?.name ?? "");
+          setEditingName(true);
+        }}
+        onCancelEditName={() => setEditingName(false)}
+        onNameChange={(text) => setNameText(text.slice(0, 50))}
+        onSaveName={() => {
+          const trimmed = nameText.trim();
+          if (!trimmed || trimmed.length < 1) {
+            safeToast.error("Invalid Name", "Group name cannot be empty.");
+            return;
+          }
+          updateCircleMutation.mutate({ name: trimmed });
+        }}
         onEditDescription={() => {
           setDescriptionText(circle?.description ?? "");
           setEditingDescription(true);

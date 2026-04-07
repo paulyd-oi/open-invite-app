@@ -127,16 +127,11 @@ export const ThemeTray = memo(function ThemeTray({
 
   // ── Expand / Collapse ──
   const expand = useCallback(() => {
-    // Gate Theme Studio on Pro status
-    if (!userIsPro) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onStudioGate?.();
-      return;
-    }
+    // Gate-on-save: let users explore Theme Studio freely, premium gate at save time
     setExpanded(true);
     animHeight.value = withTiming(studioHeight, TIMING_CONFIG);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [animHeight, studioHeight, userIsPro, onStudioGate]);
+  }, [animHeight, studioHeight]);
 
   const collapse = useCallback(() => {
     setExpanded(false);

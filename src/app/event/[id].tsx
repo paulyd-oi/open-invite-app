@@ -204,6 +204,7 @@ export default function EventDetailScreen() {
 
   // ── Flip-to-reveal gate (Phase 6C) ──
   const [contentRevealed, setContentRevealed] = useState(() => isEventRevealed(id as string));
+  const [hasBeenFlipped, setHasBeenFlipped] = useState(() => isEventRevealed(id as string));
 
   // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
   const pageViewFired = useRef(false);
@@ -949,6 +950,7 @@ export default function EventDetailScreen() {
   // Privacy flags from event detail
   const showGuestList = (event as any)?.showGuestList !== false;
   const showGuestCount = (event as any)?.showGuestCount !== false;
+  const hideDetailsUntilRsvp = (event as any)?.hideDetailsUntilRsvp === true;
 
   // [P1_EVENT_META] COUNT SSOT — single source of truth for displayed count.
   // INVARIANT: displayedCount MUST derive exclusively from eventMeta.goingCount (owner: eventKeys.single).
@@ -1019,6 +1021,9 @@ export default function EventDetailScreen() {
   const rawRsvpStatus = myRsvpData?.status;
   // Normalize: "maybe" → "interested", "invited" → null (pending RSVP, show controls)
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
+
+  // When hideDetailsUntilRsvp is enabled, blur Who's Coming and Discussion for non-going, non-host viewers
+  const shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent;
 
   // Shared save/unsave hook — MUST be above all early returns for stable hook order
   const saveEvent = useSaveEvent({ eventId: id ?? "", viewerRsvpStatus: myRsvpStatus });
@@ -1261,17 +1266,20 @@ export default function EventDetailScreen() {
         let notifEligible = false;
 
         // 1. Check PostValueInvitePrompt eligibility (highest priority)
-        try {
-          postValueEligible = await canShowPostValueInvite("rsvp");
-        } catch {
-          postValueEligible = false;
-        }
+        // Only show celebratory prompts for "going" responses
+        if (status === "going") {
+          try {
+            postValueEligible = await canShowPostValueInvite("rsvp");
+          } catch {
+            postValueEligible = false;
+          }
 
-        // 2. Check FirstRsvpNudge eligibility
-        try {
-          firstRsvpEligible = await canShowFirstRsvpNudge();
-        } catch {
-          firstRsvpEligible = false;
+          // 2. Check FirstRsvpNudge eligibility
+          try {
+            firstRsvpEligible = await canShowFirstRsvpNudge();
+          } catch {
+            firstRsvpEligible = false;
+          }
         }
 
         // 3. Check NotificationPrePrompt eligibility (only for going/interested)
@@ -2060,6 +2068,7 @@ export default function EventDetailScreen() {
               cardColor={(event as any)?.cardColor ?? null}
               onFirstFlip={() => {
                 setContentRevealed(true);
+                setHasBeenFlipped(true);
                 markEventRevealed(id as string);
                 trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
               }}
@@ -2082,6 +2091,15 @@ export default function EventDetailScreen() {
 
         </View>
 
+        {/* Below-card hint — hidden once user has flipped at least once */}
+        {!isMyEvent && !hasBeenFlipped && (
+          <View style={{ alignItems: "center", paddingVertical: 8 }}>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
+              Tap the invite card to see event details
+            </Text>
+          </View>
+        )}
+
         {/* Breathing room between hero card and first content card */}
         <View style={{ height: 8 }} />
 
@@ -2090,16 +2108,7 @@ export default function EventDetailScreen() {
         <View style={{ position: "relative" }}>
         {!isMyEvent && !contentRevealed && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
-            <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <Animated.View entering={FadeIn.duration(300)} style={{ alignItems: "center", paddingHorizontal: 32 }}>
-                <Text style={{ color: colors.text, fontSize: 17, fontWeight: "600", textAlign: "center", marginBottom: 6 }}>
-                  Flip the card to reveal
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>
-                  Tap the invite card above to see event details
-                </Text>
-              </Animated.View>
-            </BlurView>
+            <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
           </View>
         )}
 
@@ -2215,7 +2224,15 @@ export default function EventDetailScreen() {
         </View>{/* close About card */}
 
         {/* ═══ WHO'S COMING CARD ═══ */}
-        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
+
+        {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
+        {shouldBlurDetails && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+            <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+            <Text style={{ color: isDark ? "#FFFFFF" : "#000000", fontSize: 14, fontWeight: "600", textAlign: "center", zIndex: 11 }}>RSVP to see who's coming</Text>
+          </View>
+        )}
 
         {/* ═══ Who's Coming / Social Proof ═══ */}
         <WhosComingCard
@@ -2246,7 +2263,15 @@ export default function EventDetailScreen() {
         </View>{/* close Who's Coming card */}
 
         {/* ═══ DISCUSSION CARD ═══ */}
-        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
+
+        {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
+        {shouldBlurDetails && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+            <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+            <Text style={{ color: isDark ? "#FFFFFF" : "#000000", fontSize: 14, fontWeight: "600", textAlign: "center", zIndex: 11 }}>RSVP to see discussion</Text>
+          </View>
+        )}
 
         {/* Comments Section */}
         <DiscussionCard

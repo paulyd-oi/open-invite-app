@@ -147,6 +147,7 @@ export const eventSchema = z.object({
   showGuestCount: z.boolean().optional(),
   showLocationPreRsvp: z.boolean().optional(),
   hideWebLocation: z.boolean().optional(),
+  hideDetailsUntilRsvp: z.boolean().optional(),
   // Guest RSVPs from web (no auth) — included in event detail response
   guestRsvps: z.array(z.object({
     id: z.string(),
@@ -317,6 +318,7 @@ export const createEventRequestSchema = z.object({
   showGuestCount: z.boolean().optional(),
   showLocationPreRsvp: z.boolean().optional(),
   hideWebLocation: z.boolean().optional(),
+  hideDetailsUntilRsvp: z.boolean().optional(),
   // Offline idempotency — client-generated unique key to prevent duplicate creation on replay
   idempotencyKey: z.string().optional(),
 });

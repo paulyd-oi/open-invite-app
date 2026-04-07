@@ -193,12 +193,6 @@ export function InviteFlipCard({
     };
   });
 
-  // Flip hint fades when card is mid-rotation
-  const hintStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(flipProgress.value, [0, 0.15, 0.85, 1], [0.5, 0, 0, 0.5]);
-    return { opacity };
-  });
-
   const visibleAvatars = attendeeAvatars.slice(0, 5);
   const avatarStackWidth = visibleAvatars.length > 0
     ? visibleAvatars.length * (MINI_AV - MINI_OVERLAP) + MINI_OVERLAP
@@ -823,15 +817,7 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Flip hint overlaying card bottom */}
-      <Animated.View style={[{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }, hintStyle]}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <RefreshCw size={11} color={cTertiary} />
-          <Text style={{ fontSize: 12, color: cTertiary, fontWeight: "500", marginLeft: 5 }}>
-            Tap for details
-          </Text>
-        </View>
-      </Animated.View>
+      {/* Front-face flip hint removed — below-card hint in [id].tsx instead */}
     </View>
   );
 }

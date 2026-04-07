@@ -9,7 +9,74 @@ export interface PlaceSuggestion {
   fullAddress: string;
 }
 
-// Search places using backend proxy (avoids CORS/API key issues)
+// Google Places API key (client-side, restricted to Places API)
+const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+
+// Search places via Google Places Autocomplete API directly (with location bias)
+const searchPlacesViaGoogle = async (
+  query: string,
+  lat?: number,
+  lon?: number,
+  signal?: AbortSignal,
+): Promise<PlaceSuggestion[]> => {
+  if (!GOOGLE_PLACES_KEY || !query || query.length < 2) return [];
+
+  try {
+    // Build Google Places Autocomplete URL with location bias
+    let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_KEY}`;
+
+    // Add location bias: prefer results within ~50km of user's location
+    if (lat !== undefined && lon !== undefined) {
+      url += `&location=${lat},${lon}&radius=50000`;
+    }
+
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "google_request", { query, hasLocation: lat !== undefined });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    if (signal) {
+      signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+
+    const response = await globalThis.fetch(url, {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (__DEV__) devLog("[P0_PLACE_SEARCH]", "google_http_error", { query, status: response.status });
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (data.status !== "OK" || !data.predictions?.length) {
+      if (__DEV__) devLog("[P0_PLACE_SEARCH]", "google_no_results", { query, status: data.status });
+      return [];
+    }
+
+    // Map Google predictions to PlaceSuggestion format
+    return data.predictions.slice(0, 8).map((p: any) => {
+      const mainText = p.structured_formatting?.main_text ?? p.description;
+      const secondaryText = p.structured_formatting?.secondary_text ?? "";
+      return {
+        id: p.place_id,
+        name: mainText,
+        address: secondaryText,
+        fullAddress: p.description,
+      };
+    });
+  } catch (error: any) {
+    if (error?.name === "AbortError") return [];
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "google_error", { query, message: error?.message });
+    return [];
+  }
+};
+
+// Search places using backend proxy (fallback when no Google API key)
 const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number, signal?: AbortSignal): Promise<PlaceSuggestion[]> => {
   if (!query || query.length < 2) return [];
 
@@ -20,7 +87,7 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number,
       url += `&lat=${lat}&lon=${lon}`;
     }
 
-    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "request", { query, url: url.slice(0, 80) });
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "backend_request", { query, url: url.slice(0, 80) });
 
     // Create AbortController for timeout, chained to caller's signal
     const controller = new AbortController();
@@ -178,8 +245,15 @@ const searchPlacesLocal = async (query: string): Promise<PlaceSuggestion[]> => {
   return suggestions.slice(0, 8);
 };
 
-// Main search function - uses backend API for Google Places
+// Main search function — Google Places direct (with location bias) → backend proxy → local fallback
 export const searchPlaces = async (query: string, lat?: number, lon?: number, signal?: AbortSignal): Promise<PlaceSuggestion[]> => {
+  // 1. Try Google Places Autocomplete directly (if API key is set)
+  if (GOOGLE_PLACES_KEY) {
+    const googleResults = await searchPlacesViaGoogle(query, lat, lon, signal);
+    if (googleResults.length > 0) return googleResults;
+  }
+
+  // 2. Fall back to backend proxy
   return searchPlacesViaBackend(query, lat, lon, signal);
 };
 

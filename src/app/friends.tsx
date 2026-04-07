@@ -1007,7 +1007,9 @@ export default function FriendsScreen() {
   };
 
   const friends = friendsData?.friends ?? [];
-  const receivedRequests = requestsData?.received ?? [];
+  const receivedRequests = (requestsData?.received ?? []).filter(
+    (r) => r.status === "pending"
+  );
 
   // [FRIEND_REQUEST] DEV diagnostic: log query payload shape
   if (__DEV__ && requestsData) {

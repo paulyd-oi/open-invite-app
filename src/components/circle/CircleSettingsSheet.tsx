@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -47,6 +47,8 @@ interface CircleSettingsSheetProps {
   memberCount: number;
   settingsView: "settings" | "photo";
   isHost: boolean;
+  editingName: boolean;
+  nameText: string;
   editingDescription: boolean;
   descriptionText: string;
   uploadingPhoto: boolean;
@@ -58,6 +60,10 @@ interface CircleSettingsSheetProps {
   themeColor: string;
   onClose: () => void;
   onSetView: (v: "settings" | "photo") => void;
+  onEditName: () => void;
+  onCancelEditName: () => void;
+  onNameChange: (text: string) => void;
+  onSaveName: () => void;
   onEditDescription: () => void;
   onCancelEditDescription: () => void;
   onDescriptionChange: (text: string) => void;
@@ -81,6 +87,8 @@ export function CircleSettingsSheet({
   memberCount,
   settingsView,
   isHost,
+  editingName,
+  nameText,
   editingDescription,
   descriptionText,
   uploadingPhoto,
@@ -92,6 +100,10 @@ export function CircleSettingsSheet({
   themeColor,
   onClose,
   onSetView,
+  onEditName,
+  onCancelEditName,
+  onNameChange,
+  onSaveName,
   onEditDescription,
   onCancelEditDescription,
   onDescriptionChange,
@@ -143,10 +155,58 @@ export function CircleSettingsSheet({
               <CirclePhotoEmoji photoUrl={circlePhotoUrl} emoji={circleEmoji ?? "👥"} emojiStyle={{ fontSize: 28 }} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                {circleName}
-              </Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+              {editingName && isHost ? (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <TextInput
+                    value={nameText}
+                    onChangeText={onNameChange}
+                    maxLength={50}
+                    autoFocus
+                    selectTextOnFocus
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "600",
+                      color: colors.text,
+                      backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      flex: 1,
+                    }}
+                    onSubmitEditing={onSaveName}
+                    returnKeyType="done"
+                  />
+                  <Pressable
+                    onPress={onSaveName}
+                    disabled={isSaveDescriptionPending}
+                    style={{
+                      backgroundColor: themeColor,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      marginLeft: 8,
+                      opacity: isSaveDescriptionPending ? 0.5 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
+                      {isSaveDescriptionPending ? "..." : "Save"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onCancelEditName}
+                    style={{ paddingHorizontal: 8, paddingVertical: 6, marginLeft: 4 }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary }}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable onPress={isHost ? onEditName : undefined} disabled={!isHost}>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                    {circleName}
+                  </Text>
+                </Pressable>
+              )}
+              <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: editingName && isHost ? 4 : 0 }}>
                 {memberCount} member{memberCount !== 1 ? "s" : ""}
               </Text>
             </View>

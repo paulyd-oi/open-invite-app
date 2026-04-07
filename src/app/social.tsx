@@ -7,7 +7,7 @@ import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
-import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
+import { Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as SplashScreen from "expo-splash-screen";
@@ -353,16 +353,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
               )}
               <EventVisibilityBadge visibility={displayEvent.visibility} circleId={displayEvent.circleId} circleName={displayEvent.circleName} isBusy={displayEvent.isBusy} eventId={displayEvent.id} surface="social_feed" isDark={isDark} />
             </View>
-            {displayEvent.description && !isSeries && (
-              <Text
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ color: colors.textSecondary }}
-                className="text-sm mt-0.5"
-                numberOfLines={2}
-              >
-                {displayEvent.description}
-              </Text>
-            )}
+            {/* P3#11: description removed for scannable cards — headline field not yet available */}
             {isSeries && (
               <Text
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -414,27 +405,21 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{timeLabel}</Text>
             </View>
-            {displayEvent.location && (
-              <View className="flex-row items-center flex-1">
-                <MapPin size={14} color="#4ECDC4" />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1" numberOfLines={1}>
-                  {displayEvent.location}
-                </Text>
-              </View>
-            )}
+            {/* P3#11: location hidden for compact scannable cards */}
           </View>
         )}
 
-        {/* Capacity indicator */}
-        {!isSeries && displayEvent.capacity != null && (
+        {/* RSVP / capacity indicator — always show going count for scannable cards (P3#11) */}
+        {!isSeries && (
           <View className="flex-row items-center mt-2">
-            <Users size={14} color={displayEvent.isFull ? "#EF4444" : "#22C55E"} />
+            <Users size={14} color={displayEvent.isFull ? "#EF4444" : effectiveGoingCount > 0 ? "#22C55E" : "#9CA3AF"} />
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
-              {displayEvent.isFull 
-                ? `Full • ${effectiveGoingCount} going`
-                : `${effectiveGoingCount}/${displayEvent.capacity} filled`
+              {displayEvent.capacity != null
+                ? displayEvent.isFull
+                  ? `Full • ${effectiveGoingCount} going`
+                  : `${effectiveGoingCount}/${displayEvent.capacity} filled`
+                : `${effectiveGoingCount} going`
               }
             </Text>
           </View>

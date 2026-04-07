@@ -155,16 +155,11 @@ export const EffectTray = memo(function EffectTray({
 
   // ── Expand / Collapse ──
   const expand = useCallback(() => {
-    // Gate Effect Studio on Pro status
-    if (!userIsPro) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onStudioGate?.();
-      return;
-    }
+    // Gate-on-save: let users explore Effect Studio freely, premium gate at save time
     setExpanded(true);
     animHeight.value = withTiming(libraryHeight, TIMING_CONFIG);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [animHeight, libraryHeight, userIsPro, onStudioGate]);
+  }, [animHeight, libraryHeight]);
 
   const collapse = useCallback(() => {
     setExpanded(false);
@@ -358,13 +353,7 @@ function TrayContent({
             themeColor={themeColor}
             isDark={isDark}
             glassTertiary={glassTertiary}
-            onSelect={(effectId) => {
-              if (!userIsPro && effectId) {
-                onPremiumPreview?.(effectId);
-                return;
-              }
-              onSelectEffect(effectId);
-            }}
+            onSelect={onSelectEffect}
           />
         ))}
       </ScrollView>

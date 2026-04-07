@@ -77,7 +77,7 @@ export default function CreateSettingsPage() {
     costPerPerson,
     pitchInEnabled, pitchInAmount, pitchInMethod, pitchInHandle, pitchInNote,
     bringListEnabled, bringListItems, bringListInput,
-    showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation,
+    showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation, hideDetailsUntilRsvp,
   } = store;
 
   // Local toggle for cost per person (mirrors SettingsSheetContent behavior)
@@ -591,6 +591,20 @@ export default function CreateSettingsPage() {
               onValueChange={(value) => { Haptics.selectionAsync(); store.set({ showGuestCount: value }); }}
               trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
               thumbColor={showGuestCount ? themeColor : glassTertiary}
+            />
+          </View>
+
+          {/* Hide Details Until RSVP */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: glassText, fontSize: 14, fontWeight: "500" }}>Hide Details Until RSVP</Text>
+              <Text style={{ color: glassTertiary, fontSize: 11, marginTop: 2 }}>Guest list and chat blurred until guests RSVP</Text>
+            </View>
+            <Switch
+              value={hideDetailsUntilRsvp}
+              onValueChange={(value) => { Haptics.selectionAsync(); store.set({ hideDetailsUntilRsvp: value }); }}
+              trackColor={{ false: themed ? "rgba(255,255,255,0.15)" : colors.separator, true: `${themeColor}80` }}
+              thumbColor={hideDetailsUntilRsvp ? themeColor : glassTertiary}
             />
           </View>
 

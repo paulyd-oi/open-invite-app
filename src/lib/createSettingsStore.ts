@@ -44,6 +44,7 @@ export interface CreateSettingsState {
   showGuestCount: boolean;
   showLocationPreRsvp: boolean;
   hideWebLocation: boolean;
+  hideDetailsUntilRsvp: boolean;
 
   // Actions
   set: (partial: Partial<Omit<CreateSettingsState, "set" | "toggleGroup" | "reset">>) => void;
@@ -72,6 +73,7 @@ const DEFAULTS: Omit<CreateSettingsState, "set" | "toggleGroup" | "reset"> = {
   showGuestCount: true,
   showLocationPreRsvp: false,
   hideWebLocation: false,
+  hideDetailsUntilRsvp: false,
 };
 
 export const useCreateSettingsStore = create<CreateSettingsState>((set) => ({

@@ -63,11 +63,7 @@ export function ThemePicker({
 }: ThemePickerProps) {
   const handlePress = (tid: ThemeId) => {
     Haptics.selectionAsync();
-    const premium = isPremiumTheme(tid);
-    if (premium && !userIsPro) {
-      onPremiumUpsell(tid);
-      return;
-    }
+    // Gate-on-save: let users preview any theme freely, premium gate at save time
     onThemeSelect(selectedThemeId === tid ? null : tid);
   };
 

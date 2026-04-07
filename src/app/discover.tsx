@@ -151,11 +151,12 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "saved", label: "Saved" },
 ];
 
-type EventSort = "popular" | "soon" | "friends" | "group";
+type EventSort = "popular" | "soon" | "friends" | "responded" | "group";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
-  { key: "popular", label: "Popular" },
   { key: "soon", label: "Soon" },
+  { key: "popular", label: "Popular" },
   { key: "friends", label: "Friends" },
+  { key: "responded", label: "Responded" },
   { key: "group", label: "Group" },
 ];
 
@@ -168,7 +169,7 @@ export default function DiscoverScreen() {
 
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("events");
-  const [eventSort, setEventSort] = useState<EventSort>("popular");
+  const [eventSort, setEventSort] = useState<EventSort>("soon");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
 
@@ -487,8 +488,16 @@ export default function DiscoverScreen() {
     });
   }, [friendsFeedData?.events]);
 
+  // [RESPONDED_PILL] Events the viewer has RSVP'd to (going, not_going, interested, maybe)
+  const respondedSorted = useMemo(() => {
+    const RESPONDED_STATUSES = ["going", "not_going", "interested", "maybe"];
+    return enrichedEvents
+      .filter((e) => e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus))
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
+  }, [enrichedEvents]);
+
   // Active Events feed based on sort control
-  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
+  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "responded" ? respondedSorted : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
 
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
@@ -800,6 +809,16 @@ export default function DiscoverScreen() {
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
                   <ActivityIndicator size="small" color={themeColor} />
                 </View>
+                ) : eventSort === "responded" ? (
+                <View style={{ alignItems: "center", paddingTop: 60 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDCEC"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No responses yet
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    Events you RSVP to will appear here
+                  </Text>
+                </View>
                 ) : (
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
                   <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u2728"}</Text>
@@ -846,7 +865,14 @@ export default function DiscoverScreen() {
                   : null;
                 const almostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 3;
                 // [AVAILABILITY_V1] Availability chip for this card
-                const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+                // RSVP status overrides calendar-based availability chip
+                const calendarChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+                const availChip: { label: string; tone: "going" | "warning" | "destructive" | null } | null =
+                  rsvp === "going"
+                    ? { label: "Attending", tone: "going" }
+                    : rsvp === "not_going"
+                      ? { label: "Not Attending", tone: "destructive" }
+                      : calendarChip;
                 const cardTheme = resolveEventTheme(event.themeId);
                 const cardAccent = cardTheme.backAccent;
                 const rawCardColor = (event as any).cardColor as string | undefined;
@@ -1060,7 +1086,7 @@ export default function DiscoverScreen() {
                                     photoUrl={a.image}
                                     initials={a.name?.[0] ?? "?"}
                                     size={20}
-                                    backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                                    backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
                                     foregroundColor={cardAccent ?? themeColor}
                                     fallbackIcon="person-outline"
                                   />
@@ -1171,7 +1197,7 @@ export default function DiscoverScreen() {
                                       photoUrl={a.image}
                                       initials={a.name?.[0] ?? "?"}
                                       size={AVSZ - 4}
-                                      backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                                      backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
                                       foregroundColor={cardAccent ?? themeColor}
                                       fallbackIcon="person-outline"
                                     />

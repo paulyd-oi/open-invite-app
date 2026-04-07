@@ -719,58 +719,92 @@ export default function ImportCalendarScreen() {
               >
                 SELECT CALENDARS
               </Text>
-              <View
-                className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: colors.surface }}
-              >
-                {calendars.length === 0 ? (
-                  <View className="p-6 items-center">
-                    <Text style={{ color: colors.textSecondary }}>
-                      No calendars found on your device
-                    </Text>
-                  </View>
-                ) : (
-                  calendars.map((calendar, index) => (
-                    <Pressable
-                      key={calendar.id}
-                      onPress={() => toggleCalendarSelection(calendar.id)}
-                      className="flex-row items-center p-4"
-                      style={{
-                        borderBottomWidth: index < calendars.length - 1 ? 1 : 0,
-                        borderBottomColor: colors.separator,
-                      }}
-                    >
-                      <View
-                        className="w-4 h-4 rounded-full mr-3"
-                        style={{ backgroundColor: calendar.color }}
-                      />
-                      <View className="flex-1">
-                        <Text className="font-medium" style={{ color: colors.text }}>
-                          {calendar.title}
+              {calendars.length === 0 ? (
+                <View
+                  className="rounded-2xl overflow-hidden p-6 items-center"
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <Text style={{ color: colors.textSecondary }}>
+                    No calendars found on your device
+                  </Text>
+                </View>
+              ) : (
+                (() => {
+                  // Filter out UUID-named calendars and group by source
+                  const UUID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+                  const visibleCalendars = calendars.filter(
+                    (cal) => !UUID_REGEX.test(cal.title)
+                  );
+                  const grouped = visibleCalendars.reduce<Record<string, DeviceCalendar[]>>(
+                    (acc, cal) => {
+                      const key = cal.source || "Other";
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(cal);
+                      return acc;
+                    },
+                    {}
+                  );
+                  const sourceNames = Object.keys(grouped).sort();
+                  return sourceNames.map((sourceName, sectionIndex) => {
+                    const sectionCalendars = grouped[sourceName];
+                    return (
+                      <View key={sourceName} className={sectionIndex > 0 ? "mt-3" : ""}>
+                        <Text
+                          className="text-xs font-semibold mb-1 ml-2 uppercase tracking-wide"
+                          style={{ color: colors.textTertiary }}
+                        >
+                          {sourceName}
                         </Text>
-                        <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                          {calendar.source}
-                          {calendar.isPrimary && " • Primary"}
-                        </Text>
+                        <View
+                          className="rounded-2xl overflow-hidden"
+                          style={{ backgroundColor: colors.surface }}
+                        >
+                          {sectionCalendars.map((calendar, index) => (
+                            <Pressable
+                              key={calendar.id}
+                              onPress={() => toggleCalendarSelection(calendar.id)}
+                              className="flex-row items-center p-4"
+                              style={{
+                                borderBottomWidth: index < sectionCalendars.length - 1 ? 1 : 0,
+                                borderBottomColor: colors.separator,
+                              }}
+                            >
+                              <View
+                                className="w-4 h-4 rounded-full mr-3"
+                                style={{ backgroundColor: calendar.color }}
+                              />
+                              <View className="flex-1">
+                                <Text className="font-medium" style={{ color: colors.text }}>
+                                  {calendar.title}
+                                </Text>
+                                {calendar.isPrimary && (
+                                  <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                                    Primary
+                                  </Text>
+                                )}
+                              </View>
+                              <View
+                                className="w-6 h-6 rounded-md items-center justify-center"
+                                style={{
+                                  backgroundColor: selectedCalendars.has(calendar.id)
+                                    ? themeColor
+                                    : isDark
+                                    ? "#2C2C2E"
+                                    : "#E5E7EB",
+                                }}
+                              >
+                                {selectedCalendars.has(calendar.id) && (
+                                  <Check size={14} color="#fff" />
+                                )}
+                              </View>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
-                      <View
-                        className="w-6 h-6 rounded-md items-center justify-center"
-                        style={{
-                          backgroundColor: selectedCalendars.has(calendar.id)
-                            ? themeColor
-                            : isDark
-                            ? "#2C2C2E"
-                            : "#E5E7EB",
-                        }}
-                      >
-                        {selectedCalendars.has(calendar.id) && (
-                          <Check size={14} color="#fff" />
-                        )}
-                      </View>
-                    </Pressable>
-                  ))
-                )}
-              </View>
+                    );
+                  });
+                })()
+              )}
             </Animated.View>}
 
             {/* Load Events Button — hidden in resync mode (auto-loaded) */}

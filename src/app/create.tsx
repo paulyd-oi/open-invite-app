@@ -9,7 +9,7 @@ import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import { trackEventCreated } from "@/lib/rateApp";
-import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS, isValidThemeId, type ThemeId } from "@/lib/eventThemes";
+import { resolveEventTheme, THEME_VIDEOS, THEME_BACKGROUNDS, isValidThemeId, isPremiumTheme, type ThemeId } from "@/lib/eventThemes";
 import type { CustomTheme } from "@/lib/customThemeStorage";
 import Animated, { FadeInDown, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { AnimatedGradientLayer } from "@/components/AnimatedGradientLayer";
@@ -170,6 +170,7 @@ export default function CreateEventScreen() {
   const [showGuestCount, setShowGuestCount] = useState(true);
   const [showLocationPreRsvp, setShowLocationPreRsvp] = useState(false);
   const [hideWebLocation, setHideWebLocation] = useState(false);
+  const [hideDetailsUntilRsvp, setHideDetailsUntilRsvp] = useState(false);
 
   // Event Themes V1 state
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
@@ -226,7 +227,7 @@ export default function CreateEventScreen() {
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
-  // ── Premium upsell sheet state ──
+  // ── Premium upsell sheet state (gate-on-save: shown when saving with premium content) ──
   const [upsellSheet, setUpsellSheet] = useState<{
     visible: boolean;
     title: string;
@@ -234,14 +235,7 @@ export default function CreateEventScreen() {
     analyticsShowEvent?: string;
     analyticsUpgradeEvent?: string;
     analyticsProps?: Record<string, unknown>;
-    /** ID to revert from on dismiss (theme or effect) */
-    revertThemeId?: ThemeId | null;
-    revertEffectId?: string | null;
   }>({ visible: false, title: "", subtitle: "" });
-
-  /** Saved theme ID before premium preview (for revert) */
-  const preUpsellThemeRef = useRef<ThemeId | null>(null);
-  const preUpsellEffectRef = useRef<string | null>(null);
 
   // Edit mode loaded flag
   const [isEditLoaded, setIsEditLoaded] = useState(false);
@@ -308,6 +302,7 @@ export default function CreateEventScreen() {
       setShowGuestCount(s.showGuestCount);
       setShowLocationPreRsvp(s.showLocationPreRsvp);
       setHideWebLocation(s.hideWebLocation);
+      setHideDetailsUntilRsvp(s.hideDetailsUntilRsvp);
     });
     return unsub;
   }, []);
@@ -451,8 +446,9 @@ export default function CreateEventScreen() {
       safeToast.success("Updated", "Your event has been updated.");
       router.back();
     },
-    onError: (error) => {
-      safeToast.error("Oops", "That didn't go through. Please try again.");
+    onError: (error: any) => {
+      const msg = error?.data?.message || error?.message || "That didn't go through. Please try again.";
+      safeToast.error("Oops", msg);
     },
   });
 
@@ -473,9 +469,13 @@ export default function CreateEventScreen() {
       setUserModifiedEndTime(true);
     }
 
-    // Visibility
-    const vis = editEvent.visibility as "all_friends" | "specific_groups" | "circle_only";
-    if (vis) setVisibility(vis);
+    // Visibility — map backend values to the 3 UI-supported options
+    const rawVis = editEvent.visibility;
+    const vis: "all_friends" | "specific_groups" | "circle_only" =
+      rawVis === "specific_groups" ? "specific_groups"
+      : rawVis === "circle_only" ? "circle_only"
+      : "all_friends"; // open_invite, private, etc. map to all_friends
+    setVisibility(vis);
     if (editEvent.groupVisibility) {
       setSelectedGroupIds(editEvent.groupVisibility.map((g) => g.groupId));
     }
@@ -550,6 +550,7 @@ export default function CreateEventScreen() {
     setShowGuestCount(editEvent.showGuestCount ?? true);
     setShowLocationPreRsvp(editEvent.showLocationPreRsvp ?? false);
     setHideWebLocation(editEvent.hideWebLocation ?? false);
+    setHideDetailsUntilRsvp(editEvent.hideDetailsUntilRsvp ?? false);
 
     setIsEditLoaded(true);
   }, [isEditMode, editEvent, isEditLoaded]);
@@ -663,6 +664,7 @@ export default function CreateEventScreen() {
     setShowGuestCount(copyEvent.showGuestCount ?? true);
     setShowLocationPreRsvp(copyEvent.showLocationPreRsvp ?? false);
     setHideWebLocation(copyEvent.hideWebLocation ?? false);
+    setHideDetailsUntilRsvp(copyEvent.hideDetailsUntilRsvp ?? false);
 
     setIsCopyLoaded(true);
   }, [isCopyMode, copyEvent, isCopyLoaded]);
@@ -691,12 +693,13 @@ export default function CreateEventScreen() {
         showGuestCount,
         showLocationPreRsvp,
         hideWebLocation,
+        hideDetailsUntilRsvp,
       });
       router.push(`/create-settings?isCircleEvent=${isCircleEvent}&themed=${themed}`);
       return;
     }
     setActiveDockMode((prev) => (prev === mode ? null : mode));
-  }, [visibility, selectedGroupIds, sendNotification, hasCapacity, capacityInput, hasRsvpDeadline, rsvpDeadlineDate, costPerPerson, pitchInEnabled, pitchInAmount, pitchInMethod, pitchInHandle, pitchInNote, bringListEnabled, bringListItems, bringListInput, showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation, isCircleEvent, themed, router]);
+  }, [visibility, selectedGroupIds, sendNotification, hasCapacity, capacityInput, hasRsvpDeadline, rsvpDeadlineDate, costPerPerson, pitchInEnabled, pitchInAmount, pitchInMethod, pitchInHandle, pitchInNote, bringListEnabled, bringListItems, bringListInput, showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation, hideDetailsUntilRsvp, isCircleEvent, themed, router]);
 
   const handleThemeSelect = useCallback((id: ThemeId | null) => {
     setSelectedThemeId(id);
@@ -720,68 +723,8 @@ export default function CreateEventScreen() {
     setSelectedEffectId(config ? "__custom__" : null);
   }, []);
 
-  // ── Premium preview + upsell handlers ──
-
-  /** Free user tapped a premium theme — preview it, then show upsell after 500ms */
-  const handlePremiumThemePreview = useCallback((themeId: ThemeId) => {
-    preUpsellThemeRef.current = selectedThemeId;
-    // Apply preview immediately
-    setSelectedThemeId(themeId);
-    setSelectedCustomTheme(null);
-    // Show upsell after brief preview
-    setTimeout(() => {
-      setUpsellSheet({
-        visible: true,
-        title: "Premium Theme",
-        subtitle: "Unlock all 25 premium themes with Pro",
-        analyticsShowEvent: "premium_theme_upsell_shown",
-        analyticsUpgradeEvent: "premium_theme_upsell_tapped",
-        analyticsProps: { themeId },
-      });
-    }, 500);
-  }, [selectedThemeId]);
-
-  /** Free user tried to open Theme Studio */
-  const handleThemeStudioGate = useCallback(() => {
-    setUpsellSheet({
-      visible: true,
-      title: "Theme Studio",
-      subtitle: "Create custom gradients, shaders, and animations with Pro",
-      analyticsShowEvent: "premium_studio_upsell_shown",
-      analyticsUpgradeEvent: "premium_studio_upsell_tapped",
-    });
-  }, []);
-
-  /** Free user tapped an effect — preview it, then show upsell */
-  const handlePremiumEffectPreview = useCallback((effectId: string) => {
-    preUpsellEffectRef.current = selectedEffectId;
-    // Apply preview immediately
-    setSelectedEffectId(effectId);
-    // Show upsell after brief preview
-    setTimeout(() => {
-      setUpsellSheet({
-        visible: true,
-        title: "Premium Effect",
-        subtitle: "Add animated effects to your events with Pro",
-        analyticsShowEvent: "premium_effect_upsell_shown",
-        analyticsUpgradeEvent: "premium_effect_upsell_tapped",
-        analyticsProps: { effectId },
-      });
-    }, 500);
-  }, [selectedEffectId]);
-
-  /** Upsell dismissed — revert to pre-preview state */
+  // ── Premium upsell dismiss (gate-on-save: no revert needed, user keeps their selection) ──
   const handleUpsellDismiss = useCallback(() => {
-    // Revert theme if we previewed one
-    if (preUpsellThemeRef.current !== undefined) {
-      setSelectedThemeId(preUpsellThemeRef.current);
-      preUpsellThemeRef.current = null;
-    }
-    // Revert effect if we previewed one
-    if (preUpsellEffectRef.current !== undefined) {
-      setSelectedEffectId(preUpsellEffectRef.current);
-      preUpsellEffectRef.current = null;
-    }
     setUpsellSheet((s) => ({ ...s, visible: false }));
   }, []);
 
@@ -807,6 +750,30 @@ export default function CreateEventScreen() {
     if (visibility === "specific_groups" && selectedGroupIds.length === 0) {
       safeToast.warning("No Groups Selected", "Please select at least one group.");
       return;
+    }
+
+    // Gate-on-save: check if free user is trying to save with premium content
+    if (!userIsPro) {
+      const hasPremiumContent =
+        (selectedThemeId && isPremiumTheme(selectedThemeId)) ||
+        !!selectedCustomTheme ||
+        !!selectedEffectId;
+      if (hasPremiumContent) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setUpsellSheet({
+          visible: true,
+          title: "Pro Feature",
+          subtitle: "Subscribe to save events with premium themes and effects",
+          analyticsShowEvent: "premium_save_gate_shown",
+          analyticsUpgradeEvent: "premium_save_gate_tapped",
+          analyticsProps: {
+            hasPremiumTheme: !!(selectedThemeId && isPremiumTheme(selectedThemeId)),
+            hasCustomTheme: !!selectedCustomTheme,
+            hasEffect: !!selectedEffectId,
+          },
+        });
+        return;
+      }
     }
 
     const isRecurring = frequency !== "once";
@@ -886,6 +853,7 @@ export default function CreateEventScreen() {
       showGuestCount,
       showLocationPreRsvp,
       hideWebLocation,
+      hideDetailsUntilRsvp,
     };
     if (isEditMode) {
       updateMutation.mutate(createPayload as any);
@@ -1159,16 +1127,6 @@ export default function CreateEventScreen() {
         glassTertiary={glassTertiary}
         onSelectEffect={handleEffectSelect}
         onCustomEffect={handleCustomEffectConfig}
-        onPremiumPreview={handlePremiumEffectPreview}
-        onStudioGate={() => {
-          setUpsellSheet({
-            visible: true,
-            title: "Effect Studio",
-            subtitle: "Create custom particle effects and animations with Pro",
-            analyticsShowEvent: "premium_effect_studio_upsell_shown",
-            analyticsUpgradeEvent: "premium_effect_studio_upsell_tapped",
-          });
-        }}
         onClose={() => setActiveDockMode(null)}
       />
 
@@ -1186,8 +1144,6 @@ export default function CreateEventScreen() {
         onSelectTheme={handleThemeSelect}
         onSelectCustomTheme={handleCustomThemeSelect}
         onOpenPaywall={(source) => { setPaywallContext("PREMIUM_THEME"); setShowPaywallModal(true); }}
-        onPremiumPreview={handlePremiumThemePreview}
-        onStudioGate={handleThemeStudioGate}
         onClose={() => setActiveDockMode(null)}
       />
 
