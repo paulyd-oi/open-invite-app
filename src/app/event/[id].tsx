@@ -55,6 +55,7 @@ import { HostActionCard } from "@/components/event/HostActionCard";
 import { ThemeBackgroundLayers } from "@/components/event/ThemeBackgroundLayers";
 import { EventModals } from "@/components/event/EventModals";
 import { ShareFlyerSheet } from "@/components/event/ShareFlyerSheet";
+import { ShareToFriendsSheet } from "@/components/event/ShareToFriendsSheet";
 import { useSaveEvent } from "@/hooks/useSaveEvent";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
@@ -153,6 +154,7 @@ export default function EventDetailScreen() {
   // Event Actions Sheet state
   const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
   const [showShareFlyerSheet, setShowShareFlyerSheet] = useState(false);
+  const [showShareToFriendsSheet, setShowShareToFriendsSheet] = useState(false);
 
   // Attendees modal state (P0: Who's Coming)
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
@@ -2544,6 +2546,11 @@ export default function EventDetailScreen() {
             Haptics.selectionAsync();
             setTimeout(() => launchEventPhotoPicker(), 350);
           },
+          onSendInApp: () => {
+            setShowEventActionsSheet(false);
+            Haptics.selectionAsync();
+            setTimeout(() => setShowShareToFriendsSheet(true), 350);
+          },
           onShare: () => {
             setShowEventActionsSheet(false);
             Haptics.selectionAsync();
@@ -2723,6 +2730,20 @@ export default function EventDetailScreen() {
         })()}
         hasCoverImage={!!event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"}
         isDark={isDark}
+        themeColor={themeColor}
+      />
+
+      {/* Send to Friends/Circles Sheet */}
+      <ShareToFriendsSheet
+        visible={showShareToFriendsSheet}
+        onClose={() => setShowShareToFriendsSheet(false)}
+        eventId={event.id}
+        eventTitle={event.title}
+        eventStartTime={event.startTime}
+        eventEndTime={event.endTime ?? undefined}
+        eventEmoji={event.emoji}
+        eventPhotoUrl={event.eventPhotoUrl}
+        hostName={event.user?.name ?? "Someone"}
         themeColor={themeColor}
       />
     </SafeAreaView>

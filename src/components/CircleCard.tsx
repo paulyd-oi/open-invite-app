@@ -76,6 +76,14 @@ function humanizePreview(text: string): string {
     } catch { /* fall through */ }
     return "New activity";
   }
+  // __system:event_share:{JSON} → "Shared event: {title}"
+  if (text.startsWith("__system:event_share:")) {
+    try {
+      const payload = JSON.parse(text.slice("__system:event_share:".length));
+      if (payload?.title) return `Shared event: ${payload.title}`;
+    } catch { /* fall through */ }
+    return "Shared an event";
+  }
   // Catch-all for any future __system: prefix
   if (text.startsWith("__system:")) return "New activity";
   return text;

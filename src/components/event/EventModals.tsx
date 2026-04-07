@@ -86,6 +86,7 @@ export interface EventModalsProps {
     onEdit: () => void;
     onDuplicate: () => void;
     onChangePhoto: () => void;
+    onSendInApp?: () => void;
     onShare: () => void;
     onShareFlyer?: () => void;
     onToggleLiveActivity: () => void;

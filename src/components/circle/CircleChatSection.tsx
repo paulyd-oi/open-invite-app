@@ -15,6 +15,7 @@ import { devLog } from "@/lib/devLog";
 import * as Haptics from "expo-haptics";
 import { Calendar, RefreshCw } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { EventShareCard, parseEventSharePayload } from "@/components/chat/EventShareCard";
 import type { CircleMessage } from "@/shared/contracts";
 
 function formatDateSeparator(dateStr: string): string {
@@ -95,6 +96,7 @@ function MessageBubble({
 }) {
   const isLegacySystemMessage = message.content.startsWith("📅");
   const systemEventPayload = parseSystemEventPayload(message.content);
+  const eventSharePayload = parseEventSharePayload(message.content);
   const memberLeftPayload = parseSystemMemberLeftPayload(message.content);
   const isSending = (message as any).status === "sending";
   const isFailed = (message as any).status === "failed";
@@ -184,6 +186,21 @@ function MessageBubble({
             {pillText}
           </Text>
         </View>
+      </View>
+    );
+  }
+
+  // Shared event card (__system:event_share: prefix)
+  if (eventSharePayload) {
+    return (
+      <View className="items-center" style={{ marginVertical: 16 }}>
+        <EventShareCard
+          payload={eventSharePayload}
+          themeColor={themeColor}
+          colors={colors}
+          isDark={isDark}
+          onViewEvent={onViewEvent}
+        />
       </View>
     );
   }

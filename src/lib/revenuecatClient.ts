@@ -37,7 +37,7 @@ import { devLog, devWarn, devError } from "./devLog";
  * Use this constant when requesting specific offerings
  * If null or not found, falls back to current offering
  */
-export const REVENUECAT_OFFERING_ID = "founder_pro_v1";
+export const REVENUECAT_OFFERING_ID = "default";
 
 /**
  * Entitlement identifier for premium access
@@ -354,7 +354,7 @@ export const hasActiveSubscription = async (): Promise<
 /**
  * Get the best available offering with fallback logic.
  *
- * 1. Try REVENUECAT_OFFERING_ID (founder_pro_v1) from offerings.all
+ * 1. Try REVENUECAT_OFFERING_ID (default) from offerings.all
  * 2. Fall back to offerings.current (the "default" offering in RevenueCat)
  * 3. Return null if neither exists
  *

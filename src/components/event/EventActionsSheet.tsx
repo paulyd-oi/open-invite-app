@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, Text, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
-import { Pencil, Copy, Camera, Share2, Bell, AlertTriangle, Palette, Trash2, ImagePlus } from "@/ui/icons";
+import { Pencil, Copy, Camera, Share2, Bell, AlertTriangle, Palette, Trash2, ImagePlus, Send } from "@/ui/icons";
 import { STATUS } from "@/ui/tokens";
 import BottomSheet from "@/components/BottomSheet";
 
@@ -37,6 +37,7 @@ interface EventActionsSheetProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onChangePhoto: () => void;
+  onSendInApp?: () => void;
   onShare: () => void;
   onShareFlyer?: () => void;
   onToggleLiveActivity: () => void;
@@ -105,6 +106,7 @@ export function EventActionsSheet({
   onEdit,
   onDuplicate,
   onChangePhoto,
+  onSendInApp,
   onShare,
   onShareFlyer,
   onToggleLiveActivity,
@@ -156,9 +158,19 @@ export function EventActionsSheet({
           </>
         )}
 
-        {/* Share - available to everyone (unless busy block) */}
+        {/* Send in App / Share - available to everyone (unless busy block) */}
         {!isBusy && (
           <>
+            {onSendInApp && (
+              <ActionRow
+                icon={<Send size={20} color={themeColor} />}
+                label="Send in App"
+                onPress={onSendInApp}
+                isDark={isDark}
+                themeColor={themeColor}
+                colors={colors}
+              />
+            )}
             <ActionRow
               icon={<Share2 size={20} color={themeColor} />}
               label="Share Event"
