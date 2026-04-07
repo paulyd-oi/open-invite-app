@@ -19,6 +19,9 @@ export const APP_STORE_ID = "6757429210";
 /** Canonical App Store listing URL — country-neutral, id-only form. */
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
 
+/** App Store offer code redemption URL — opens the offer code entry sheet (not gift cards). */
+export const APP_STORE_OFFER_CODE_URL = `https://apps.apple.com/redeem?ctx=offercodes&id=${APP_STORE_ID}`;
+
 // Use API URL override during development, canonical production origin otherwise
 // Check for truthy value (not just undefined) to handle empty string case
 const overrideApiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;

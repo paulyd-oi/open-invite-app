@@ -58,6 +58,7 @@ import { useRefreshProContract } from "@/lib/entitlements";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { STATUS } from "@/ui/tokens";
 import Purchases, { type PurchasesPackage } from "react-native-purchases";
+import { APP_STORE_OFFER_CODE_URL } from "@/lib/config";
 
 // Types for subscription details from backend
 interface SubscriptionDetails {
@@ -715,7 +716,7 @@ export default function SubscriptionScreen() {
                 // Use App Store deep link — reliable on all iOS versions.
                 // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
                 // that silently fails on iOS 16+.
-                Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
+                Linking.openURL(APP_STORE_OFFER_CODE_URL).catch(() => {});
               }}
               leftIcon={<Ticket size={18} color={colors.buttonSecondaryText} />}
               style={{ borderRadius: 16, paddingVertical: 14 }}

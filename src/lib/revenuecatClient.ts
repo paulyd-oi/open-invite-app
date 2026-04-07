@@ -62,13 +62,16 @@ const testKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_TEST_KEY;
 const appleKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY;
 const googleKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY;
 
-// Use __DEV__ and Platform to determine which key to use
+// Use __DEV__ and Platform to determine which key to use.
+// Falls back to the test key when platform-specific production keys aren't set.
+// RevenueCat uses one API key per app — sandbox vs production is environment-based.
 const getApiKey = (): string | undefined => {
   if (isWeb) return undefined;
   if (__DEV__) return testKey;
 
-  // Production: use platform-specific key
-  return Platform.OS === "ios" ? appleKey : googleKey;
+  // Production: prefer platform-specific key, fall back to test key
+  const platformKey = Platform.OS === "ios" ? appleKey : googleKey;
+  return platformKey || testKey;
 };
 
 const apiKey = getApiKey();

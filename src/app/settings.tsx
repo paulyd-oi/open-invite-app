@@ -61,6 +61,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { performLogout } from "@/lib/logout";
 import { safeToast } from "@/lib/safeToast";
 import { qk } from "@/lib/queryKeys";
+import { APP_STORE_OFFER_CODE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { SettingsThemeSection } from "@/components/settings/SettingsThemeSection";
 import { SettingsBirthdaySection } from "@/components/settings/SettingsBirthdaySection";
@@ -1154,7 +1155,7 @@ export default function SettingsScreen() {
               // Use App Store deep link — reliable on all iOS versions.
               // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
               // that silently fails on iOS 16+.
-              Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
+              Linking.openURL(APP_STORE_OFFER_CODE_URL).catch(() => {});
             } : undefined}
           />
         </Animated.View>

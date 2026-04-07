@@ -47,6 +47,7 @@ import {
 } from "@/lib/revenuecatClient";
 import { useFounderSpots, useEarlyMemberSpots } from "@/lib/useInventory";
 import { PRICING } from "@/lib/useSubscription";
+import { APP_STORE_OFFER_CODE_URL } from "@/lib/config";
 
 // ── Feature comparison categories ──────────────────────────────────────
 
@@ -276,7 +277,7 @@ export default function PaywallScreen() {
     // Use App Store deep link — reliable on all iOS versions.
     // RevenueCat's presentCodeRedemptionSheet uses deprecated SK1 API
     // that silently fails on iOS 16+.
-    Linking.openURL("https://apps.apple.com/redeem").catch(() => {});
+    Linking.openURL(APP_STORE_OFFER_CODE_URL).catch(() => {});
   };
 
   // ── Feature comparison ──────────────────────────────────────────────
