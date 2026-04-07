@@ -1,5 +1,6 @@
 import { devLog, devError } from "@/lib/devLog";
 import { BACKEND_URL } from "@/lib/config";
+import { searchAppleMaps } from "@/lib/appleMapsSearch";
 
 // Place suggestion type
 export interface PlaceSuggestion {
@@ -245,7 +246,7 @@ const searchPlacesLocal = async (query: string): Promise<PlaceSuggestion[]> => {
   return suggestions.slice(0, 8);
 };
 
-// Main search function — Google Places direct (with location bias) → backend proxy → local fallback
+// Main search function — Google Places → Apple Maps (iOS) → backend proxy → local fallback
 export const searchPlaces = async (query: string, lat?: number, lon?: number, signal?: AbortSignal): Promise<PlaceSuggestion[]> => {
   // 1. Try Google Places Autocomplete directly (if API key is set)
   if (GOOGLE_PLACES_KEY) {
@@ -253,7 +254,11 @@ export const searchPlaces = async (query: string, lat?: number, lon?: number, si
     if (googleResults.length > 0) return googleResults;
   }
 
-  // 2. Fall back to backend proxy
+  // 2. Try Apple Maps MKLocalSearch (iOS only, free, no API key)
+  const appleResults = await searchAppleMaps(query, lat, lon);
+  if (appleResults.length > 0) return appleResults;
+
+  // 3. Fall back to backend proxy
   return searchPlacesViaBackend(query, lat, lon, signal);
 };
 

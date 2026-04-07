@@ -21,6 +21,8 @@
 		D1A1C00100000001AABBCC01 /* OpenInviteLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */; };
 		D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */; };
 		D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */; };
+		D1A1C0010000000BAABBCC0B /* AppleMapsSearchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */; };
+		D1A1C0010000000DAABBCC0D /* AppleMapsSearchBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */; };
 		D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
 		D1A1C0010000000AAABBCC0A /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
 		EDF538446C3FE4521D9DE233 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 478B501D56DA4877F133DB4B /* Foundation.framework */; };
@@ -71,6 +73,8 @@
 		D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteLiveActivity.swift; sourceTree = "<group>"; };
 		D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LiveActivityBridge.swift; path = OpenInvite/LiveActivityBridge.swift; sourceTree = "<group>"; };
 		D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = LiveActivityBridge.m; path = OpenInvite/LiveActivityBridge.m; sourceTree = "<group>"; };
+		D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppleMapsSearchBridge.swift; path = OpenInvite/AppleMapsSearchBridge.swift; sourceTree = "<group>"; };
+		D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = AppleMapsSearchBridge.m; path = OpenInvite/AppleMapsSearchBridge.m; sourceTree = "<group>"; };
 		D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteEventAttributes.swift; sourceTree = "<group>"; };
 		DB8A3F772F5A0AC000BED704 /* OpenInvite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenInvite.entitlements; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -113,6 +117,8 @@
 				25CD06E25C26FDBC788E0423 /* WidgetBridge.m */,
 				D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */,
 				D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */,
+				D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */,
+				D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */,
 			);
 			name = OpenInvite;
 			sourceTree = "<group>";
@@ -470,6 +476,8 @@
 				A4EFC30CB11738E79F5772E6 /* WidgetBridge.m in Sources */,
 				D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */,
 				D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */,
+				D1A1C0010000000BAABBCC0B /* AppleMapsSearchBridge.swift in Sources */,
+				D1A1C0010000000DAABBCC0D /* AppleMapsSearchBridge.m in Sources */,
 				D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
