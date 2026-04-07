@@ -59,6 +59,8 @@ import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { STATUS } from "@/ui/tokens";
 import Purchases, { type PurchasesPackage } from "react-native-purchases";
 import { APP_STORE_OFFER_CODE_URL } from "@/lib/config";
+import { useFounderSpots, useEarlyMemberSpots } from "@/lib/useInventory";
+import { ScarcityMeter, ScarcityInline } from "@/components/subscription/ScarcityMeter";
 
 // Types for subscription details from backend
 interface SubscriptionDetails {
@@ -95,6 +97,10 @@ export default function SubscriptionScreen() {
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
+
+  // Spot inventory (public, no auth needed)
+  const { data: founderSpots } = useFounderSpots();
+  const { data: earlyMemberSpots } = useEarlyMemberSpots();
 
   const [selectedPlan, setSelectedPlan] = useState<"lifetime" | "yearly" | "monthly">("yearly");
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -536,6 +542,18 @@ export default function SubscriptionScreen() {
           </View>
         </Animated.View>
 
+        {/* Scarcity Meters — animated spots counters */}
+        {!isLifetime && founderSpots && (
+          <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4 mt-6">
+            <ScarcityMeter total={founderSpots.total} claimed={founderSpots.claimed} label="Founder Pro" />
+          </Animated.View>
+        )}
+        {!isLifetime && earlyMemberSpots && (
+          <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-3">
+            <ScarcityMeter total={earlyMemberSpots.total} claimed={earlyMemberSpots.claimed} label="Annual Pro" />
+          </Animated.View>
+        )}
+
         {/* Upgrade Options - Show if not lifetime */}
         {!isLifetime && (
           <Animated.View entering={FadeInDown.delay(200).springify()} className="mx-4 mt-6">
@@ -551,8 +569,14 @@ export default function SubscriptionScreen() {
                   backgroundColor: selectedPlan === "lifetime" ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F3F4F6",
                   borderWidth: 2,
                   borderColor: selectedPlan === "lifetime" ? themeColor : "transparent",
+                  position: "relative",
+                  overflow: "visible",
                 }}
               >
+                {/* Savings badge */}
+                <View style={{ position: "absolute", top: -8, right: 12, backgroundColor: STATUS.going.fg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, zIndex: 1 }}>
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 }}>BEST VALUE</Text>
+                </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
                     <View className="flex-row items-center">
@@ -565,8 +589,11 @@ export default function SubscriptionScreen() {
                       {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
                     </Text>
                     <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                      One-time payment. Pro forever. First 1,000 only.
+                      One-time payment. Pro forever.
                     </Text>
+                    {founderSpots && (
+                      <ScarcityInline remaining={founderSpots.remaining} total={founderSpots.total} />
+                    )}
                   </View>
                   <View
                     className="w-6 h-6 rounded-full border-2 items-center justify-center"
@@ -588,8 +615,14 @@ export default function SubscriptionScreen() {
                   backgroundColor: selectedPlan === "yearly" ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F3F4F6",
                   borderWidth: 2,
                   borderColor: selectedPlan === "yearly" ? themeColor : "transparent",
+                  position: "relative",
+                  overflow: "visible",
                 }}
               >
+                {/* Savings badge */}
+                <View style={{ position: "absolute", top: -8, right: 12, backgroundColor: themeColor, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, zIndex: 1 }}>
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 }}>75% OFF</Text>
+                </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
                     <View className="flex-row items-center">
@@ -607,8 +640,11 @@ export default function SubscriptionScreen() {
                       </Text>
                     </View>
                     <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                      {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`}/yr after. First 10,000 users only.
+                      {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`}/yr after
                     </Text>
+                    {earlyMemberSpots && (
+                      <ScarcityInline remaining={earlyMemberSpots.remaining} total={earlyMemberSpots.total} />
+                    )}
                   </View>
                   <View
                     className="w-6 h-6 rounded-full border-2 items-center justify-center"
@@ -655,6 +691,28 @@ export default function SubscriptionScreen() {
                   </View>
                 </View>
               </Pressable>
+
+              {/* Regular Price Anchor — non-selectable, display only */}
+              <View
+                className="rounded-xl p-4 mt-3"
+                style={{
+                  backgroundColor: "transparent",
+                  borderWidth: 1.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                  borderStyle: "dashed",
+                  opacity: 0.55,
+                }}
+              >
+                <Text style={{ color: colors.textSecondary }} className="text-base font-medium">
+                  Regular Price
+                </Text>
+                <Text style={{ color: colors.textSecondary, textDecorationLine: "line-through" }} className="text-lg mt-1">
+                  $39.99 / year
+                </Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                  Standard annual price after early access ends
+                </Text>
+              </View>
 
               {/* Purchase Button */}
               <Button
