@@ -15,14 +15,14 @@
 		8C97EA28F0ED15580B68B616 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5763BD41EFAA1D7172A64E2E /* Assets.xcassets */; };
 		98DA122B01F25B085397550C /* OpenInviteTodayWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 92A18D5D282990267E2CB0FF /* OpenInviteTodayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A4EFC30CB11738E79F5772E6 /* WidgetBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 25CD06E25C26FDBC788E0423 /* WidgetBridge.m */; };
+		A799D78EF29092CEFD6BA4FB /* AppleMapsSearchBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = E42CA279D43FE97DB8B8F0AF /* AppleMapsSearchBridge.m */; };
 		B60AEF587342B791A5F88D33 /* OpenInviteTodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788F227A450E3D41A1467BE4 /* OpenInviteTodayWidget.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C1611D98C1F2D006FF75F800 /* AppleMapsSearchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC236E0AB9B91BD417037130 /* AppleMapsSearchBridge.swift */; };
 		CD53982E7E11FE89E4D9C38B /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED6FA97B6F5957D8F710AC0 /* ExpoModulesProvider.swift */; };
 		D1A1C00100000001AABBCC01 /* OpenInviteLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */; };
 		D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */; };
 		D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */; };
-		D1A1C0010000000BAABBCC0B /* AppleMapsSearchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */; };
-		D1A1C0010000000DAABBCC0D /* AppleMapsSearchBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */; };
 		D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
 		D1A1C0010000000AAABBCC0A /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
 		EDF538446C3FE4521D9DE233 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 478B501D56DA4877F133DB4B /* Foundation.framework */; };
@@ -70,13 +70,13 @@
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = OpenInvite/SplashScreen.storyboard; sourceTree = "<group>"; };
 		AE60C431AED1B1B3F901C600 /* WidgetBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WidgetBridge.swift; path = OpenInvite/WidgetBridge.swift; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		BC236E0AB9B91BD417037130 /* AppleMapsSearchBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppleMapsSearchBridge.swift; sourceTree = "<group>"; };
 		D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteLiveActivity.swift; sourceTree = "<group>"; };
 		D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LiveActivityBridge.swift; path = OpenInvite/LiveActivityBridge.swift; sourceTree = "<group>"; };
 		D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = LiveActivityBridge.m; path = OpenInvite/LiveActivityBridge.m; sourceTree = "<group>"; };
-		D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppleMapsSearchBridge.swift; path = OpenInvite/AppleMapsSearchBridge.swift; sourceTree = "<group>"; };
-		D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = AppleMapsSearchBridge.m; path = OpenInvite/AppleMapsSearchBridge.m; sourceTree = "<group>"; };
 		D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteEventAttributes.swift; sourceTree = "<group>"; };
 		DB8A3F772F5A0AC000BED704 /* OpenInvite.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenInvite.entitlements; sourceTree = "<group>"; };
+		E42CA279D43FE97DB8B8F0AF /* AppleMapsSearchBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = AppleMapsSearchBridge.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = OpenInvite/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* OpenInvite-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "OpenInvite-Bridging-Header.h"; path = "OpenInvite/OpenInvite-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -117,8 +117,8 @@
 				25CD06E25C26FDBC788E0423 /* WidgetBridge.m */,
 				D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */,
 				D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */,
-				D1A1C0010000000CAABBCC0C /* AppleMapsSearchBridge.swift */,
-				D1A1C0010000000EAABBCC0E /* AppleMapsSearchBridge.m */,
+				BC236E0AB9B91BD417037130 /* AppleMapsSearchBridge.swift */,
+				E42CA279D43FE97DB8B8F0AF /* AppleMapsSearchBridge.m */,
 			);
 			name = OpenInvite;
 			sourceTree = "<group>";
@@ -393,6 +393,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXNotifications/ExpoNotifications_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoDevice/ExpoDevice_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoMediaLibrary/ExpoMediaLibrary_privacy.bundle",
@@ -401,11 +402,13 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ReachabilitySwift/ReachabilitySwift.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RevenueCat/RevenueCat.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RevenueCatUI/RevenueCat_RevenueCatUI.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/Sentry/Sentry.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/boost/boost_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-launcher/EXDevLauncher.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-menu/EXDevMenu.bundle",
@@ -419,6 +422,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoNotifications_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoDevice_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
@@ -427,11 +431,13 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ReachabilitySwift.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RevenueCat.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RevenueCat_RevenueCatUI.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Sentry.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/boost_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevLauncher.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevMenu.bundle",
@@ -476,9 +482,9 @@
 				A4EFC30CB11738E79F5772E6 /* WidgetBridge.m in Sources */,
 				D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */,
 				D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */,
-				D1A1C0010000000BAABBCC0B /* AppleMapsSearchBridge.swift in Sources */,
-				D1A1C0010000000DAABBCC0D /* AppleMapsSearchBridge.m in Sources */,
 				D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */,
+				C1611D98C1F2D006FF75F800 /* AppleMapsSearchBridge.swift in Sources */,
+				A799D78EF29092CEFD6BA4FB /* AppleMapsSearchBridge.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
