@@ -23,7 +23,7 @@ import { StatusBar } from "expo-status-bar";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolation, runOnJS } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
@@ -207,47 +207,17 @@ export default function EventDetailScreen() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
-  // ── Scroll-driven flip shared value ──
-  const scrollFlipProgress = useSharedValue(0);
-  const scrollYValue = useSharedValue(0);
-  const flipTriggeredRef = useRef(false);
-
   // ── Flip-to-reveal gate (Phase 6C) ──
   const [contentRevealed, setContentRevealed] = useState(() => isEventRevealed(id as string));
   const [hasBeenFlipped, setHasBeenFlipped] = useState(() => isEventRevealed(id as string));
 
-  // ── Scroll-driven flip handler ──
-  const FLIP_SCROLL_THRESHOLD = 280;
-
-  const handleScrollFlipReveal = useCallback(() => {
-    if (!flipTriggeredRef.current) {
-      flipTriggeredRef.current = true;
-      setContentRevealed(true);
-      setHasBeenFlipped(true);
-      markEventRevealed(id as string);
-      trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
-    }
+  // ── Tap-to-flip reveal handler ──
+  const handleFirstFlipReveal = useCallback(() => {
+    setContentRevealed(true);
+    setHasBeenFlipped(true);
+    markEventRevealed(id as string);
+    trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
   }, [id, session?.user?.id]);
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      'worklet';
-      const y = event.contentOffset.y;
-      scrollYValue.value = y;
-      const progress = interpolate(y, [0, FLIP_SCROLL_THRESHOLD], [0, 1], Extrapolation.CLAMP);
-      scrollFlipProgress.value = progress;
-      if (progress >= 0.5 && !flipTriggeredRef.current) {
-        runOnJS(handleScrollFlipReveal)();
-      }
-    },
-  });
-
-  // During flip phase (scrollY 0→FLIP_SCROLL_THRESHOLD): content stays pinned
-  // by counteracting scroll offset. After flip: scrolls normally.
-  const contentPinStyle = useAnimatedStyle(() => {
-    const compensate = Math.min(scrollYValue.value, FLIP_SCROLL_THRESHOLD);
-    return { transform: [{ translateY: -compensate }] };
-  });
 
   // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
   const pageViewFired = useRef(false);
@@ -2084,8 +2054,6 @@ export default function EventDetailScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
@@ -2135,8 +2103,7 @@ export default function EventDetailScreen() {
               colors={colors}
               themeId={event.themeId ?? null}
               cardColor={(event as any)?.cardColor ?? null}
-              scrollFlipProgress={scrollFlipProgress}
-              onFirstFlip={handleScrollFlipReveal}
+              onFirstFlip={handleFirstFlipReveal}
               editButton={undefined}
               photoNudge={
                 isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
@@ -2156,12 +2123,12 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* Spacer consumed by scroll during flip phase */}
-        <View style={{ height: FLIP_SCROLL_THRESHOLD }} />
+        {/* Breathing room between hero card and first content card */}
+        <View style={{ height: 8 }} />
 
         {/* ═══ FLIP-TO-REVEAL GATE (Phase 6C) ═══ */}
-        {/* Content stays pinned during flip phase, then scrolls normally */}
-        <Animated.View style={[{ position: "relative" }, contentPinStyle]}>
+        {/* Hosts always see content; guests see blur until first card flip */}
+        <View style={{ position: "relative" }}>
         {!isMyEvent && !contentRevealed && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
             <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
@@ -2467,7 +2434,7 @@ export default function EventDetailScreen() {
           );
         })()}
 
-        </Animated.View>{/* close flip-to-reveal gate wrapper */}
+        </View>{/* close flip-to-reveal gate wrapper */}
 
       </Animated.ScrollView>
       </KeyboardAvoidingView>

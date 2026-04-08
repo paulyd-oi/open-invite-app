@@ -21,11 +21,10 @@ import Animated, {
   withTiming,
   interpolate,
   Easing,
-  type SharedValue,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import { MapPin, Calendar, Users, FileText } from "@/ui/icons";
+import { MapPin, Calendar, Users, RefreshCw, FileText } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { RADIUS } from "@/ui/layout";
 import { STATUS } from "@/ui/tokens";
@@ -89,10 +88,6 @@ export interface InviteFlipCardProps {
 
   // Called on the first flip (front → back)
   onFirstFlip?: () => void;
-
-  // Scroll-driven flip: when provided, overrides tap-to-flip.
-  // Value range 0..1 (0=front, 1=back). Driven by parent scroll handler.
-  scrollFlipProgress?: SharedValue<number>;
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -145,14 +140,10 @@ export function InviteFlipCard({
   editButton,
   photoNudge,
   onFirstFlip,
-  scrollFlipProgress,
 }: InviteFlipCardProps) {
   const { width: screenWidth } = useWindowDimensions();
   const isWide = screenWidth >= 768;
-  const internalFlipProgress = useSharedValue(0);
-  // Use scroll-driven progress when provided, otherwise internal tap-driven
-  const flipProgress = scrollFlipProgress ?? internalFlipProgress;
-  const isScrollDriven = !!scrollFlipProgress;
+  const flipProgress = useSharedValue(0);
 
   // ── Card theme (always resolves — neutral fallback for unthemed events) ──
   const ct = useMemo(() => resolveEventTheme(themeId), [themeId]);
@@ -169,19 +160,18 @@ export function InviteFlipCard({
 
   const hasCalledFirstFlip = useRef(false);
   const handleFlip = useCallback(() => {
-    if (isScrollDriven) return; // Scroll-driven mode — ignore taps
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const target = internalFlipProgress.value < 0.5 ? 1 : 0;
+    const target = flipProgress.value < 0.5 ? 1 : 0;
     // Fire onFirstFlip on the first front→back flip
     if (target === 1 && !hasCalledFirstFlip.current) {
       hasCalledFirstFlip.current = true;
       onFirstFlip?.();
     }
-    internalFlipProgress.value = withTiming(target, {
+    flipProgress.value = withTiming(target, {
       duration: FLIP_DURATION,
       easing: FLIP_EASING,
     });
-  }, [internalFlipProgress, onFirstFlip, isScrollDriven]);
+  }, [flipProgress, onFirstFlip]);
 
   // Front face (0→90° visible)
   const frontStyle = useAnimatedStyle(() => {
@@ -818,7 +808,15 @@ export function InviteFlipCard({
                     </View>
                   </View>
 
-                  {/* Flip hint removed — scroll-only interaction */}
+                  {/* Flip-back hint */}
+                  <View style={{ alignItems: "center", paddingTop: 10 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", opacity: 0.5 }}>
+                      <RefreshCw size={10} color={colors.textTertiary} />
+                      <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
+                        Tap to flip back
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
@@ -826,7 +824,17 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Flip hints removed — scroll-only interaction */}
+      {/* Front-face flip hint */}
+      {!isMyEvent && (
+        <View style={{ alignItems: "center", paddingTop: 8, opacity: 0.5 }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <RefreshCw size={10} color={colors.textTertiary} />
+            <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
+              Tap for details
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
