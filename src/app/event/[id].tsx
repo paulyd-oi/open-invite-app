@@ -20,7 +20,7 @@ import { markTimeline } from "@/lib/devConvergenceTimeline";
 
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolation, runOnJS } from "react-native-reanimated";
@@ -640,14 +640,30 @@ export default function EventDetailScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !singleEventData?.event && !isPrivacyRestricted,
   });
 
-  // Fetch comments
-  const { data: commentsData, isLoading: isLoadingComments } = useQuery({
+  // Fetch comments — cursor-paginated
+  const COMMENTS_PAGE_SIZE = 30;
+  const {
+    data: commentsInfiniteData,
+    isLoading: isLoadingComments,
+    fetchNextPage: fetchMoreComments,
+    hasNextPage: hasMoreComments,
+    isFetchingNextPage: isFetchingMoreComments,
+  } = useInfiniteQuery({
     queryKey: eventKeys.comments(id ?? ""),
-    queryFn: () => api.get<GetEventCommentsResponse>(`/api/events/${id}/comments`),
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: String(COMMENTS_PAGE_SIZE) });
+      if (pageParam) params.set("cursor", pageParam);
+      return api.get<GetEventCommentsResponse>(`/api/events/${id}/comments?${params}`);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
-  const comments = commentsData?.comments ?? [];
+  const comments = useMemo(
+    () => commentsInfiniteData?.pages.flatMap((p) => p.comments ?? []) ?? [],
+    [commentsInfiniteData?.pages],
+  );
 
   // [EVENT_LIVE_UI_2] Show "Recently active" chip when new comments appear on focus
   useFocusEffect(
@@ -2357,6 +2373,9 @@ export default function EventDetailScreen() {
             router.push(`/user/${userId}`);
           }}
           formatTimeAgo={formatTimeAgo}
+          hasMoreComments={hasMoreComments ?? false}
+          isFetchingMoreComments={isFetchingMoreComments}
+          onLoadMoreComments={fetchMoreComments}
         />
 
         {/* ═══ V4.1 Compact Memories Row — low-emphasis, expandable ═══ */}

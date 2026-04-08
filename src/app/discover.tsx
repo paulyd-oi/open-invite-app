@@ -15,7 +15,7 @@ import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
   MapPin,
@@ -68,9 +68,10 @@ import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
-import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
+import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
 import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
+import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -234,25 +235,32 @@ export default function DiscoverScreen() {
       postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
     onMutate: async (eventId) => {
       // Cancel outgoing refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: eventKeys.feedPopular() });
+      await queryClient.cancelQueries({ queryKey: eventKeys.feedPaginated() });
       await queryClient.cancelQueries({ queryKey: eventKeys.myEvents() });
 
       // Snapshot previous values for rollback
-      const prevFeed = queryClient.getQueryData<{ events: PopularEvent[] }>(eventKeys.feedPopular());
+      const prevFeed = queryClient.getQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(eventKeys.feedPaginated());
       const prevMyEvents = queryClient.getQueryData<{ events: PopularEvent[] }>(eventKeys.myEvents());
 
-      // Optimistically update viewerRsvpStatus in both caches
-      const patchEvents = (old: { events: PopularEvent[] } | undefined) => {
+      // Optimistically update viewerRsvpStatus in infinite pages
+      queryClient.setQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(eventKeys.feedPaginated(), (old) => {
         if (!old) return old;
         return {
           ...old,
-          events: old.events.map((e) =>
-            e.id === eventId ? { ...e, viewerRsvpStatus: "interested" } : e,
-          ),
+          pages: old.pages.map((page) => ({
+            ...page,
+            events: page.events.map((e) =>
+              e.id === eventId ? { ...e, viewerRsvpStatus: "interested" as const } : e,
+            ),
+          })),
         };
+      });
+      // Patch myEvents (non-paginated)
+      const patchMyEvents = (old: { events: PopularEvent[] } | undefined) => {
+        if (!old) return old;
+        return { ...old, events: old.events.map((e) => e.id === eventId ? { ...e, viewerRsvpStatus: "interested" as const } : e) };
       };
-      queryClient.setQueryData(eventKeys.feedPopular(), patchEvents);
-      queryClient.setQueryData(eventKeys.myEvents(), patchEvents);
+      queryClient.setQueryData(eventKeys.myEvents(), patchMyEvents);
 
       return { prevFeed, prevMyEvents };
     },
@@ -263,7 +271,7 @@ export default function DiscoverScreen() {
     },
     onError: (err, _eventId, context) => {
       // Rollback optimistic update
-      if (context?.prevFeed) queryClient.setQueryData(eventKeys.feedPopular(), context.prevFeed);
+      if (context?.prevFeed) queryClient.setQueryData(eventKeys.feedPaginated(), context.prevFeed);
       if (context?.prevMyEvents) queryClient.setQueryData(eventKeys.myEvents(), context.prevMyEvents);
       if (__DEV__) devLog("[DISCOVER_SAVE_ERR]", err);
       safeToast.error("Couldn't save", "Please try again");
@@ -273,16 +281,40 @@ export default function DiscoverScreen() {
   // Surface tokens from theme SSOT
   const tileShadow = !isDark ? TILE_SHADOW : {};
 
-  // SSOT: two event sources merged into one list
-  const { data: feedData, isLoading: loadingFeed, isFetching: fetchingFeed, refetch: refetchFeed, isError: feedError } = useQuery({
-    queryKey: eventKeys.feedPopular(),
-    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
+  // SSOT: paginated feed — uses useInfiniteQuery with cursor-based pagination
+  const FEED_PAGE_SIZE = 20;
+  const lastEndReachedRef = useRef(0);
+  const {
+    data: feedInfiniteData,
+    isLoading: loadingFeed,
+    isFetching: fetchingFeed,
+    refetch: refetchFeed,
+    isError: feedError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: eventKeys.feedPaginated(),
+    queryFn: async ({ pageParam }) => {
+      const url = pageParam
+        ? `/api/events/feed?limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
+        : `/api/events/feed?limit=${FEED_PAGE_SIZE}`;
+      return api.get<GetEventsFeedResponse>(url);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
+    placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev,
   });
+  // Flatten pages into the same shape downstream code expects
+  const feedData = useMemo(() => {
+    if (!feedInfiniteData?.pages) return null;
+    const events = feedInfiniteData.pages.flatMap((p) => p.events ?? []) as unknown as PopularEvent[];
+    return { events };
+  }, [feedInfiniteData?.pages]);
 
   const { data: myEventsData, isLoading: loadingMyEvents, isFetching: fetchingMyEvents, refetch: refetchMyEvents, isError: myEventsError } = useQuery({
     queryKey: eventKeys.myEvents(),
@@ -918,6 +950,19 @@ export default function DiscoverScreen() {
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 16, paddingBottom: TAB_BOTTOM_PADDING }}
+              onEndReached={() => {
+                const now = Date.now();
+                if (now - lastEndReachedRef.current < DEFAULT_ENDREACHED_DEBOUNCE_MS) return;
+                if (!hasNextPage || isFetchingNextPage) return;
+                lastEndReachedRef.current = now;
+                fetchNextPage();
+              }}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={isFetchingNextPage ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color={themeColor} />
+                </View>
+              ) : null}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}

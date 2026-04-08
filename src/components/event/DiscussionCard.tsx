@@ -62,6 +62,9 @@ interface DiscussionCardProps {
   onDeleteComment: (commentId: string) => void;
   onPressUser: (userId: string) => void;
   formatTimeAgo: (date: string) => string;
+  hasMoreComments?: boolean;
+  isFetchingMoreComments?: boolean;
+  onLoadMoreComments?: () => void;
 }
 
 export function DiscussionCard({
@@ -91,6 +94,9 @@ export function DiscussionCard({
   onDeleteComment,
   onPressUser,
   formatTimeAgo,
+  hasMoreComments,
+  isFetchingMoreComments,
+  onLoadMoreComments,
 }: DiscussionCardProps) {
   const acceptedCount = joinRequests?.filter((r) => r.status === "accepted").length ?? 0;
 
@@ -245,6 +251,26 @@ export function DiscussionCard({
           </View>
         ) : (
           <View>
+            {/* Load earlier comments */}
+            {hasMoreComments && (
+              <Pressable
+                onPress={onLoadMoreComments}
+                disabled={isFetchingMoreComments}
+                style={{
+                  alignItems: "center",
+                  paddingVertical: 10,
+                  marginBottom: 8,
+                }}
+              >
+                {isFetchingMoreComments ? (
+                  <ActivityIndicator size="small" color={themeColor} />
+                ) : (
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>
+                    Load earlier messages
+                  </Text>
+                )}
+              </Pressable>
+            )}
             {comments.map((comment, index) => (
               <Animated.View
                 key={comment.id}

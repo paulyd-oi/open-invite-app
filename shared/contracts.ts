@@ -473,8 +473,11 @@ export const eventCommentSchema = z.object({
 export type EventComment = z.infer<typeof eventCommentSchema>;
 
 // GET /api/events/:id/comments - Get event comments
+// Supports pagination: ?limit=N&cursor=ID
 export const getEventCommentsResponseSchema = z.object({
   comments: z.array(eventCommentSchema),
+  nextCursor: z.string().nullable().optional(),
+  hasMore: z.boolean().optional(),
 });
 export type GetEventCommentsResponse = z.infer<typeof getEventCommentsResponseSchema>;
 
