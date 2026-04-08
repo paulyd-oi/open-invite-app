@@ -436,7 +436,8 @@ export default function CreateEventScreen() {
     },
     onError: (error: any) => {
       // Handle backend premium_required gate
-      const errorBody = error?.response?.data ?? error?.data ?? error;
+      // authClient.$fetch attaches parsed JSON body as error.data
+      const errorBody = error?.data ?? error;
       if (errorBody?.error === "premium_required") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         setUpsellSheet({
