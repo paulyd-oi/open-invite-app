@@ -1919,6 +1919,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-maps (1.20.1):
+    - React-Core
   - react-native-menu (2.0.0):
     - DoubleConversion
     - glog
@@ -2804,6 +2806,7 @@ DEPENDENCIES:
   - react-native-ios-context-menu (from `../node_modules/react-native-ios-context-menu`)
   - react-native-ios-utilities (from `../node_modules/react-native-ios-utilities`)
   - react-native-keyboard-controller (from `../node_modules/react-native-keyboard-controller`)
+  - react-native-maps (from `../node_modules/react-native-maps`)
   - "react-native-menu (from `../node_modules/@react-native-menu/menu`)"
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-pager-view (from `../node_modules/react-native-pager-view`)
@@ -3091,6 +3094,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-ios-utilities"
   react-native-keyboard-controller:
     :path: "../node_modules/react-native-keyboard-controller"
+  react-native-maps:
+    :path: "../node_modules/react-native-maps"
   react-native-menu:
     :path: "../node_modules/@react-native-menu/menu"
   react-native-netinfo:
@@ -3315,6 +3320,7 @@ SPEC CHECKSUMS:
   react-native-ios-context-menu: ce6d66e9ecf183fe54da145e1ad8585e02ebe4f0
   react-native-ios-utilities: 2566e851578c74d6902712a71305b76945177953
   react-native-keyboard-controller: 2aab28e199975cf9a4a9d3597e16e0fce982d214
+  react-native-maps: 9febd31278b35cd21e4fad2cf6fa708993be5dab
   react-native-menu: 9914447912b68f40be0bc8f15cfa9055c6090eb4
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-pager-view: 9a5f74c91c2623082043a22b6978083d1c79b563

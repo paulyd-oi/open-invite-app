@@ -72,6 +72,7 @@ import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResp
 import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
+import { formatLocationShort } from "@/lib/locationFormat";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -855,7 +856,7 @@ export default function DiscoverScreen() {
                         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 3 }}>
                           <MapPin size={11} color={colors.textTertiary} />
                           <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>
-                            {event.location}
+                            {formatLocationShort(event.location)}
                           </Text>
                         </View>
                       ) : null}
@@ -1482,7 +1483,7 @@ export default function DiscoverScreen() {
                               style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 12, fontWeight: "500" }}
                               numberOfLines={1}
                             >
-                              {event.location}
+                              {formatLocationShort(event.location)}
                             </Text>
                           </View>
                         ) : null}
@@ -1781,7 +1782,7 @@ export default function DiscoverScreen() {
                                     style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}
                                     numberOfLines={1}
                                   >
-                                    {event.location}
+                                    {formatLocationShort(event.location)}
                                   </Text>
                                 </View>
                               )}

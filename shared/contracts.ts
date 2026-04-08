@@ -49,6 +49,8 @@ export const eventSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   location: z.string().nullable(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
   emoji: z.string(),
   color: z.string().nullable().optional(), // Custom event color (hex)
   startTime: z.string(), // ISO date string

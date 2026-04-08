@@ -25,7 +25,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import { MapPin, Calendar, Users, RefreshCw, FileText } from "@/ui/icons";
+import { MapPin, Calendar, Users, FileText } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { RADIUS } from "@/ui/layout";
 import { STATUS } from "@/ui/tokens";
@@ -818,15 +818,7 @@ export function InviteFlipCard({
                     </View>
                   </View>
 
-                  {/* Flip-back hint */}
-                  <View style={{ alignItems: "center", paddingTop: 10 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", opacity: 0.5 }}>
-                      <RefreshCw size={10} color={colors.textTertiary} />
-                      <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
-                        Tap to flip back
-                      </Text>
-                    </View>
-                  </View>
+                  {/* Flip hint removed — scroll-only interaction */}
                 </View>
               </View>
             </View>
@@ -834,24 +826,7 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Front-face flip hint — subtle bottom-center of card area */}
-      {!isMyEvent && !isScrollDriven && (
-        <View style={{ alignItems: "center", paddingTop: 8, opacity: 0.5 }}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <RefreshCw size={10} color={colors.textTertiary} />
-            <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
-              Tap for details
-            </Text>
-          </View>
-        </View>
-      )}
-      {!isMyEvent && isScrollDriven && (
-        <View style={{ alignItems: "center", paddingTop: 10, opacity: 0.5 }}>
-          <Text style={{ fontSize: 11, color: colors.textTertiary, fontWeight: "500" }}>
-            Scroll down to reveal details
-          </Text>
-        </View>
-      )}
+      {/* Flip hints removed — scroll-only interaction */}
     </View>
   );
 }

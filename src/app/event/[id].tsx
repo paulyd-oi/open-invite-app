@@ -209,6 +209,7 @@ export default function EventDetailScreen() {
 
   // ── Scroll-driven flip shared value ──
   const scrollFlipProgress = useSharedValue(0);
+  const scrollYValue = useSharedValue(0);
   const flipTriggeredRef = useRef(false);
 
   // ── Flip-to-reveal gate (Phase 6C) ──
@@ -232,12 +233,20 @@ export default function EventDetailScreen() {
     onScroll: (event) => {
       'worklet';
       const y = event.contentOffset.y;
+      scrollYValue.value = y;
       const progress = interpolate(y, [0, FLIP_SCROLL_THRESHOLD], [0, 1], Extrapolation.CLAMP);
       scrollFlipProgress.value = progress;
       if (progress >= 0.5 && !flipTriggeredRef.current) {
         runOnJS(handleScrollFlipReveal)();
       }
     },
+  });
+
+  // During flip phase (scrollY 0→FLIP_SCROLL_THRESHOLD): content stays pinned
+  // by counteracting scroll offset. After flip: scrolls normally.
+  const contentPinStyle = useAnimatedStyle(() => {
+    const compensate = Math.min(scrollYValue.value, FLIP_SCROLL_THRESHOLD);
+    return { transform: [{ translateY: -compensate }] };
   });
 
   // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
@@ -2147,25 +2156,15 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* Breathing room between hero card and first content card */}
-        <View style={{ height: 8 }} />
+        {/* Spacer consumed by scroll during flip phase */}
+        <View style={{ height: FLIP_SCROLL_THRESHOLD }} />
 
         {/* ═══ FLIP-TO-REVEAL GATE (Phase 6C) ═══ */}
-        {/* Hosts always see content; guests see blur until first card flip */}
-        <View style={{ position: "relative" }}>
+        {/* Content stays pinned during flip phase, then scrolls normally */}
+        <Animated.View style={[{ position: "relative" }, contentPinStyle]}>
         {!isMyEvent && !contentRevealed && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
             <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
-          </View>
-        )}
-        {/* Below-card hint — over blur, hidden once user has scrolled to reveal */}
-        {!isMyEvent && !hasBeenFlipped && !contentRevealed && (
-          <View style={{ position: "absolute", top: 24, left: 0, right: 0, zIndex: 20, alignItems: "center" }}>
-            <View style={{ backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8 }}>
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600", textAlign: "center" }}>
-                Scroll down to reveal event details
-              </Text>
-            </View>
           </View>
         )}
 
@@ -2468,7 +2467,7 @@ export default function EventDetailScreen() {
           );
         })()}
 
-        </View>{/* close flip-to-reveal gate wrapper */}
+        </Animated.View>{/* close flip-to-reveal gate wrapper */}
 
       </Animated.ScrollView>
       </KeyboardAvoidingView>

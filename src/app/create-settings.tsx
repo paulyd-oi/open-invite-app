@@ -208,7 +208,7 @@ export default function CreateSettingsPage() {
                   }}
                 >
                   <Compass size={18} color={visibility === "all_friends" ? themeColor : glassTertiary} />
-                  <Text style={{ marginLeft: 8, fontWeight: "500", color: visibility === "all_friends" ? themeColor : glassSecondary }}>All Friends</Text>
+                  <Text style={{ marginLeft: 8, fontWeight: "500", color: visibility === "all_friends" ? themeColor : glassSecondary }}>All Friends & Mutuals</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => { Haptics.selectionAsync(); store.set({ visibility: "specific_groups" }); }}
