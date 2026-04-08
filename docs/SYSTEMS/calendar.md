@@ -90,3 +90,14 @@ Pull-to-refresh on the calendar screen triggers two parallel actions:
 - Device calendar resync must never auto-import — always requires user confirmation via import screen.
 - OID markers and `deviceCalendarId` matching prevent duplicate imports.
 - Resync diff runs async and non-blocking — does not delay the normal refresh spinner.
+
+### Imported Event Boundary (Metrics/Privacy Invariant)
+
+Imported calendar events (`isImported: true`) are **personal calendar artifacts**, not native Open Invite events. The canonical rule:
+
+- **Platform metrics exclude imported events by default.** All event counts, host analytics, profile stats, admin dashboards, active host badges, and system-level queries must filter `isImported: false`.
+- **Personal calendar surfaces may include imported events.** User calendar view, imported event detail, daily/weekly digest notifications, and sync-related surfaces intentionally include imported events because they represent the user's personal schedule.
+- **Social feeds already exclude imported events** (`isImported: false` in feed queries).
+- **Subscription quota already excludes imported events** (`isImported: false` in `subscriptionHelpers.ts`).
+- **Canonical discriminator:** `Event.isImported` (boolean, default `false`) in Prisma schema. Do not infer from heuristics when this field exists.
+- **When adding new event count queries**, always ask: "Is this measuring platform activity or personal schedule?" Platform activity → exclude imported. Personal schedule → include.
