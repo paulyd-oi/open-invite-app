@@ -121,8 +121,11 @@ try {
 }
 
 export default function EventDetailScreen() {
-  const { id, from, discoverSource, discoverPill } = useLocalSearchParams<{ id: string; from?: string; discoverSource?: string; discoverPill?: string }>();
+  const { id, from, discoverSource: rawDiscoverSource, discoverPill: rawDiscoverPill } = useLocalSearchParams<{ id: string; from?: string; discoverSource?: string; discoverPill?: string }>();
   const isFromCreate = from === "create";
+  // Normalize empty strings from URL params to null for clean analytics
+  const discoverSource = rawDiscoverSource || null;
+  const discoverPill = rawDiscoverPill || null;
   
   // [P1_EVENT_400] Guard: Log route params immediately
   if (__DEV__) {
@@ -289,8 +292,8 @@ export default function EventDetailScreen() {
       userId: session?.user?.id ?? null,
       isAuthenticated: bootStatus === 'authed',
       isCreator: isFromCreate,
-      discoverSource: discoverSource ?? null,
-      discoverPill: discoverPill ?? null,
+      discoverSource,
+      discoverPill,
     });
   }, [id]);
 
@@ -1232,8 +1235,8 @@ export default function EventDetailScreen() {
         source: "event_detail",
         hasGuests: totalGoing ?? 0,
         ts: new Date().toISOString(),
-        discoverSource: discoverSource ?? null,
-        discoverPill: discoverPill ?? null,
+        discoverSource,
+        discoverPill,
       });
       if (__DEV__) {
         devLog("[P0_POSTHOG_VALUE]", { event: "rsvp_completed", eventId: (id ?? "").slice(0, 8) + "..." });
