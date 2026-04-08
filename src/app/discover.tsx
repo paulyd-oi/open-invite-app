@@ -532,6 +532,10 @@ export default function DiscoverScreen() {
         ids.add(e.id);
       }
     }
+    if (__DEV__) {
+      const withRsvp = enrichedEvents.filter((e) => e.viewerRsvpStatus != null);
+      console.log("[RESPONDED_DEBUG]", `total=${enrichedEvents.length} withRsvp=${withRsvp.length} respondedIds=${ids.size}`, withRsvp.map((e) => `${e.title?.slice(0, 20)}:${e.viewerRsvpStatus}`));
+    }
     return ids;
   }, [enrichedEvents]);
 
@@ -860,6 +864,11 @@ export default function DiscoverScreen() {
                     }}>
                       <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }} numberOfLines={1}>
                         {event.emoji} {event.title}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                        {new Date(event.startTime).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                        {" · "}
+                        {new Date(event.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                       </Text>
                       {urgency.label ? (
                         <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg, marginTop: 2 }}>

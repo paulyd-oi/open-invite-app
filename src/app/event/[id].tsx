@@ -108,6 +108,17 @@ import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveAc
 import { openEventLocation, openGoogleCalendar, addToDeviceCalendar, buildShareInput, shareEvent, formatTimeAgo, deriveLocationDisplay, deriveDateLabels } from "@/lib/eventDetailUtils";
 import { getEventDetailTheme } from "@/lib/eventDetailThemes";
 
+// Dynamic require for react-native-maps (crash-safe for builds without the native pod)
+let RNMapView: any = null;
+let RNMarker: any = null;
+try {
+  const maps = require("react-native-maps");
+  RNMapView = maps.default;
+  RNMarker = maps.Marker;
+} catch {
+  // Native module not available
+}
+
 export default function EventDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const isFromCreate = from === "create";
@@ -2194,6 +2205,34 @@ export default function EventDetailScreen() {
         {/* HostToolsRow merged into HOST ACTION CARD above */}
 
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
+
+        {/* ═══ MINI MAP PREVIEW — non-interactive pin at event location ═══ */}
+        {RNMapView && event.latitude != null && event.longitude != null && event.latitude !== 0 && (
+          <View style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: "hidden", height: 150, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+            <RNMapView
+              style={{ flex: 1 }}
+              initialRegion={{
+                latitude: event.latitude,
+                longitude: event.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              toolbarEnabled={false}
+              showsMyLocationButton={false}
+              liteMode
+            >
+              <RNMarker coordinate={{ latitude: event.latitude, longitude: event.longitude }}>
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: themeColor, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" }}>
+                  <Text style={{ fontSize: 14 }}>{event.emoji}</Text>
+                </View>
+              </RNMarker>
+            </RNMapView>
+          </View>
+        )}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
