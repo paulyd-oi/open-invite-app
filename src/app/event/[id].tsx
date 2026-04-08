@@ -16,13 +16,13 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolation, runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
@@ -204,9 +204,38 @@ export default function EventDetailScreen() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
+  // ── Scroll-driven flip shared value ──
+  const scrollFlipProgress = useSharedValue(0);
+  const flipTriggeredRef = useRef(false);
+
   // ── Flip-to-reveal gate (Phase 6C) ──
   const [contentRevealed, setContentRevealed] = useState(() => isEventRevealed(id as string));
   const [hasBeenFlipped, setHasBeenFlipped] = useState(() => isEventRevealed(id as string));
+
+  // ── Scroll-driven flip handler ──
+  const FLIP_SCROLL_THRESHOLD = 280;
+
+  const handleScrollFlipReveal = useCallback(() => {
+    if (!flipTriggeredRef.current) {
+      flipTriggeredRef.current = true;
+      setContentRevealed(true);
+      setHasBeenFlipped(true);
+      markEventRevealed(id as string);
+      trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
+    }
+  }, [id, session?.user?.id]);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      'worklet';
+      const y = event.contentOffset.y;
+      const progress = interpolate(y, [0, FLIP_SCROLL_THRESHOLD], [0, 1], Extrapolation.CLAMP);
+      scrollFlipProgress.value = progress;
+      if (progress >= 0.5 && !flipTriggeredRef.current) {
+        runOnJS(handleScrollFlipReveal)();
+      }
+    },
+  });
 
   // [GROWTH_FUNNEL] Page view dedup — fire exactly once per mount
   const pageViewFired = useRef(false);
@@ -2018,10 +2047,12 @@ export default function EventDetailScreen() {
         customThemeData={event.customThemeData}
       />
 
-      <KeyboardAwareScrollView
+      <Animated.ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
         <View style={{ position: "relative", paddingTop: insets.top + 44 }}>
@@ -2069,12 +2100,8 @@ export default function EventDetailScreen() {
               colors={colors}
               themeId={event.themeId ?? null}
               cardColor={(event as any)?.cardColor ?? null}
-              onFirstFlip={() => {
-                setContentRevealed(true);
-                setHasBeenFlipped(true);
-                markEventRevealed(id as string);
-                trackEventRevealed({ eventId: id as string, userId: session?.user?.id ?? null });
-              }}
+              scrollFlipProgress={scrollFlipProgress}
+              onFirstFlip={handleScrollFlipReveal}
               editButton={undefined}
               photoNudge={
                 isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
@@ -2105,12 +2132,12 @@ export default function EventDetailScreen() {
             <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
           </View>
         )}
-        {/* Below-card hint — over blur, hidden once user has flipped */}
+        {/* Below-card hint — over blur, hidden once user has scrolled to reveal */}
         {!isMyEvent && !hasBeenFlipped && !contentRevealed && (
           <View style={{ position: "absolute", top: 24, left: 0, right: 0, zIndex: 20, alignItems: "center" }}>
             <View style={{ backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8 }}>
               <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600", textAlign: "center" }}>
-                Tap the invite card to see event details
+                Scroll down to reveal event details
               </Text>
             </View>
           </View>
@@ -2405,7 +2432,7 @@ export default function EventDetailScreen() {
 
         </View>{/* close flip-to-reveal gate wrapper */}
 
-      </KeyboardAwareScrollView>
+      </Animated.ScrollView>
 
       {/* Persistent header controls — fixed above scroll content */}
       <View style={{ position: "absolute", top: 0, left: 0, right: 0 }} pointerEvents="box-none">
