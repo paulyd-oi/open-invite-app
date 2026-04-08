@@ -54,6 +54,8 @@ import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import { getActiveEventCount } from "@/lib/softLimits";
 import { type CreateEventRequest, type CreateEventResponse, type GetCirclesResponse, type GetProfilesResponse, type GetEventsResponse, type UpdateEventRequest, type UpdateEventResponse } from "@/shared/contracts";
+
+type EventCategory = NonNullable<CreateEventRequest["category"]>;
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate, getInvalidateAfterEventEdit } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
@@ -138,7 +140,7 @@ export default function CreateEventScreen() {
     if (visibilityParam === "circle_only") return "circle_only";
     return isCircleEvent ? "circle_only" : "all_friends";
   });
-  const [category, setCategory] = useState("social");
+  const [category, setCategory] = useState<EventCategory>("social");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
   const [sendNotification, setSendNotification] = useState(true);
@@ -286,7 +288,7 @@ export default function CreateEventScreen() {
   // ── Sync settings store → local state when returning from settings modal ──
   useEffect(() => {
     const unsub = useCreateSettingsStore.subscribe((s) => {
-      setCategory(s.category);
+      setCategory(s.category as EventCategory);
       setVisibility(s.visibility);
       setSelectedGroupIds(s.selectedGroupIds);
       setSendNotification(s.sendNotification);
@@ -808,7 +810,7 @@ export default function CreateEventScreen() {
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),
       visibility,
-      category: category !== "social" ? category as any : undefined,
+      category: category !== "social" ? category : undefined,
       groupIds: visibility === "specific_groups" ? selectedGroupIds : undefined,
       circleId: isCircleEvent ? circleId : undefined,
       isPrivateCircleEvent: isCircleEvent ? true : undefined,
