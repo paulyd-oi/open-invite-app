@@ -45,7 +45,9 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
-import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
+// Hidden for v1.3 — replaced with Map
+// import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
+import MapView, { Marker, Callout } from "react-native-maps";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
@@ -57,6 +59,7 @@ import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
 import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
 import { EVENT_CATEGORIES } from "@/shared/contracts";
+import * as Location from "expo-location";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -146,11 +149,15 @@ interface PopularEvent {
   userId?: string;
   eventHook?: string | null;
   category?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
-type Lens = "ideas" | "events" | "saved";
+type Lens = "map" | "events" | "saved";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
-  { key: "ideas", label: "Ideas" },
+  { key: "map", label: "Map" },
   { key: "events", label: "Events" },
   { key: "saved", label: "Saved" },
 ];
@@ -176,6 +183,26 @@ export default function DiscoverScreen() {
   const [eventSort, setEventSort] = useState<EventSort>("soon");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
+
+  // ── Map: user location ──
+  const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
+  const [userRegion, setUserRegion] = useState<{ latitude: number; longitude: number } | null>(null);
+  const mapRef = useRef<MapView | null>(null);
+
+  useEffect(() => {
+    if (lens !== "map") return;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        }
+      } catch {
+        // fallback to San Diego
+      }
+    })();
+  }, [lens]);
 
   // ── For You: save state + toast ──
   const [showSavedToast, setShowSavedToast] = useState(false);
@@ -529,6 +556,15 @@ export default function DiscoverScreen() {
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
 
+  // ── Map events: filter activeFeed to those with coordinates ──
+  const mapEvents = useMemo(() => {
+    return activeFeed.filter((e) => {
+      const lat = e.lat ?? e.latitude;
+      const lng = e.lng ?? e.longitude;
+      return lat != null && lng != null && lat !== 0 && lng !== 0;
+    });
+  }, [activeFeed]);
+
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
   const didLogCreatePill = useRef(false);
@@ -679,10 +715,110 @@ export default function DiscoverScreen() {
         </BlurView>
       </View>
 
-      {lens === "ideas" ? (
-        /* ═══ Ideas Deck ═══ */
+      {lens === "map" ? (
+        /* ═══ Map View ═══ */
         <View style={{ flex: 1, paddingTop: chromeHeight }}>
-          <DailyIdeasDeck />
+          <MapView
+            ref={mapRef}
+            style={{ flex: 1 }}
+            initialRegion={{
+              ...(userRegion ?? SAN_DIEGO),
+              latitudeDelta: 0.15,
+              longitudeDelta: 0.15,
+            }}
+            region={userRegion ? { ...userRegion, latitudeDelta: 0.15, longitudeDelta: 0.15 } : undefined}
+            showsUserLocation
+            showsMyLocationButton
+          >
+            {mapEvents.map((event) => {
+              const lat = (event.lat ?? event.latitude)!;
+              const lng = (event.lng ?? event.longitude)!;
+              const urgency = getUrgencyLabel(event.startTime);
+              return (
+                <Marker
+                  key={event.id}
+                  coordinate={{ latitude: lat, longitude: lng }}
+                  title={`${event.emoji} ${event.title}`}
+                  description={urgency.label || event.location || undefined}
+                  onCalloutPress={() => handleEventPress(event.id)}
+                >
+                  <View style={{
+                    backgroundColor: themeColor,
+                    borderRadius: 20,
+                    width: 36,
+                    height: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 2,
+                    borderColor: "#FFFFFF",
+                    ...(TILE_SHADOW as any),
+                  }}>
+                    <Text style={{ fontSize: 16 }}>{event.emoji}</Text>
+                  </View>
+                  <Callout tooltip onPress={() => handleEventPress(event.id)}>
+                    <View style={{
+                      backgroundColor: colors.surface,
+                      borderRadius: 12,
+                      padding: 12,
+                      width: 220,
+                      ...(TILE_SHADOW as any),
+                    }}>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }} numberOfLines={1}>
+                        {event.emoji} {event.title}
+                      </Text>
+                      {urgency.label ? (
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg, marginTop: 2 }}>
+                          {urgency.label}
+                        </Text>
+                      ) : null}
+                      {event.location ? (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 3 }}>
+                          <MapPin size={11} color={colors.textTertiary} />
+                          <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>
+                            {event.location}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {event.attendeeCount > 0 ? (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 3 }}>
+                          <Users size={11} color={STATUS.going.fg} />
+                          <Text style={{ fontSize: 12, color: STATUS.going.fg, fontWeight: "600" }}>
+                            {event.attendeeCount} going
+                          </Text>
+                        </View>
+                      ) : null}
+                      <Text style={{ fontSize: 11, color: themeColor, fontWeight: "600", marginTop: 6 }}>
+                        Tap to view →
+                      </Text>
+                    </View>
+                  </Callout>
+                </Marker>
+              );
+            })}
+          </MapView>
+
+          {/* Event count overlay */}
+          <View style={{
+            position: "absolute",
+            bottom: TAB_BOTTOM_PADDING + 16,
+            left: 20,
+            right: 20,
+            alignItems: "center",
+          }}>
+            <View style={{
+              backgroundColor: colors.surface,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              ...(TILE_SHADOW as any),
+            }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
+                {mapEvents.length === 0
+                  ? "No events with locations nearby"
+                  : `${mapEvents.length} event${mapEvents.length !== 1 ? "s" : ""} on map`}
+              </Text>
+            </View>
+          </View>
         </View>
       ) : lens === "events" ? (
         /* ═══ Events Feed ═══ */

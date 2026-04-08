@@ -128,6 +128,7 @@
     "react-native-ios-context-menu": "3.1.0",
     "react-native-ios-utilities": "5.1.2",
     "react-native-keyboard-controller": "^1.19.2",
+    "react-native-maps": "1.20.1",
     "react-native-markdown-display": "^7.0.2",
     "react-native-mask-text": "^0.15.0",
     "react-native-pager-view": "6.7.1",
