@@ -1103,7 +1103,7 @@ export default function ProfileScreen() {
               style={{ backgroundColor: colors.surface, borderColor: "#FFD70050" }}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/subscription");
+                router.push("/host-analytics" as any);
               }}
             >
               <View className="flex-row items-center mb-2">
@@ -1166,7 +1166,7 @@ export default function ProfileScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/calendar");
+                router.push("/host-analytics" as any);
               }}
               className="flex-1 rounded-xl p-4 mr-1 border"
               style={{ backgroundColor: colors.surface, borderColor: colors.border }}

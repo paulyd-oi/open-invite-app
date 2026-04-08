@@ -20,13 +20,15 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { usePremiumStatusContract } from "@/lib/entitlements";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { Crown, ChevronLeft } from "@/ui/icons";
+import { Crown, CalendarDays, Users, TrendingUp, Clock, Star } from "@/ui/icons";
 import { RADIUS } from "@/ui/layout";
 import type { HostAnalyticsResponse } from "@/shared/contracts";
 
-function StatCard({ label, value, color, isDark, colors }: {
+/* ─── Stat Card ─── */
+function StatCard({ label, value, icon, color, isDark, colors }: {
   label: string;
   value: string | number;
+  icon: React.ReactNode;
   color: string;
   isDark: boolean;
   colors: any;
@@ -35,10 +37,22 @@ function StatCard({ label, value, color, isDark, colors }: {
     <View style={{
       flex: 1,
       backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
-      borderRadius: 14,
-      padding: 14,
+      borderRadius: 16,
+      padding: 16,
       minWidth: 140,
     }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <View style={{
+          width: 32,
+          height: 32,
+          borderRadius: 10,
+          backgroundColor: `${color}18`,
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          {icon}
+        </View>
+      </View>
       <Text style={{ fontSize: 28, fontWeight: "800", color, letterSpacing: -1 }}>
         {value}
       </Text>
@@ -49,25 +63,36 @@ function StatCard({ label, value, color, isDark, colors }: {
   );
 }
 
-function AttendanceBar({ title, count, maxCount, color, isDark, colors }: {
+/* ─── Attendance Bar ─── */
+function AttendanceBar({ title, count, maxCount, color, isDark, colors, onPress }: {
   title: string;
   count: number;
   maxCount: number;
   color: string;
   isDark: boolean;
   colors: any;
+  onPress?: () => void;
 }) {
   const width = maxCount > 0 ? Math.max(8, (count / maxCount) * 100) : 8;
   return (
-    <View style={{ marginBottom: 10 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 3 }}>
-        <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1 }} numberOfLines={1}>{title}</Text>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginLeft: 8 }}>{count}</Text>
+    <Pressable onPress={onPress} style={{ marginBottom: 12 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.text, flex: 1 }} numberOfLines={1}>{title}</Text>
+        <Text style={{ fontSize: 13, fontWeight: "700", color, marginLeft: 8 }}>{count}</Text>
       </View>
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
-        <View style={{ height: 6, borderRadius: 3, backgroundColor: color, width: `${width}%` }} />
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
+        <View style={{ height: 8, borderRadius: 4, backgroundColor: color, width: `${width}%` }} />
       </View>
-    </View>
+    </Pressable>
+  );
+}
+
+/* ─── Section Header ─── */
+function SectionHeader({ title, colors }: { title: string; colors: any }) {
+  return (
+    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textTertiary, letterSpacing: 0.8, marginBottom: 12, textTransform: "uppercase" }}>
+      {title}
+    </Text>
   );
 }
 
@@ -114,93 +139,163 @@ export default function HostAnalyticsScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
     >
-      {/* Stats Grid */}
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
-        <StatCard label="Events Hosted" value={analytics?.totalEvents ?? 0} color={themeColor} isDark={isDark} colors={colors} />
-        <StatCard label="Total RSVPs" value={analytics?.totalRsvps ?? 0} color={themeColor} isDark={isDark} colors={colors} />
+      {/* ═══ Overview Stats ═══ */}
+      <SectionHeader title="Overview" colors={colors} />
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+        <StatCard
+          label="Events Hosted"
+          value={analytics?.totalEvents ?? 0}
+          icon={<CalendarDays size={16} color={themeColor} />}
+          color={themeColor}
+          isDark={isDark}
+          colors={colors}
+        />
+        <StatCard
+          label="Total RSVPs"
+          value={analytics?.totalRsvps ?? 0}
+          icon={<Users size={16} color="#6366F1" />}
+          color="#6366F1"
+          isDark={isDark}
+          colors={colors}
+        />
       </View>
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
-        <StatCard label="Avg Attendance" value={analytics?.avgAttendance?.toFixed(1) ?? "0"} color="#22C55E" isDark={isDark} colors={colors} />
-        <StatCard label="Conversion Rate" value={`${analytics?.rsvpConversionRate ?? 0}%`} color="#F59E0B" isDark={isDark} colors={colors} />
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 28 }}>
+        <StatCard
+          label="Avg Attendance"
+          value={analytics?.avgAttendance?.toFixed(1) ?? "0"}
+          icon={<TrendingUp size={16} color="#22C55E" />}
+          color="#22C55E"
+          isDark={isDark}
+          colors={colors}
+        />
+        <StatCard
+          label="RSVP Rate"
+          value={`${analytics?.rsvpConversionRate ?? 0}%`}
+          icon={<Star size={16} color="#F59E0B" />}
+          color="#F59E0B"
+          isDark={isDark}
+          colors={colors}
+        />
       </View>
 
-      {/* Insights Row */}
+      {/* ═══ Insights ═══ */}
       {(analytics?.topDay || analytics?.topTime) && (
-        <View style={{
-          flexDirection: "row",
-          gap: 10,
-          marginBottom: 24,
-          backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
-          borderRadius: 12,
-          padding: 14,
-        }}>
-          {analytics.topDay && (
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary }}>Best Day</Text>
-              <Text style={{ fontSize: 16, fontWeight: "700", color: colors.text, marginTop: 2 }}>{analytics.topDay}</Text>
-            </View>
-          )}
-          {analytics.topTime && (
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary }}>Best Time</Text>
-              <Text style={{ fontSize: 16, fontWeight: "700", color: colors.text, marginTop: 2 }}>{analytics.topTime}</Text>
-            </View>
-          )}
-        </View>
+        <>
+          <SectionHeader title="Insights" colors={colors} />
+          <View style={{
+            flexDirection: "row",
+            gap: 10,
+            marginBottom: 28,
+          }}>
+            {analytics.topDay && (
+              <View style={{
+                flex: 1,
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                borderRadius: 14,
+                padding: 16,
+              }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                  <CalendarDays size={14} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary, marginLeft: 6 }}>Best Day</Text>
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text }}>{analytics.topDay}</Text>
+              </View>
+            )}
+            {analytics.topTime && (
+              <View style={{
+                flex: 1,
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                borderRadius: 14,
+                padding: 16,
+              }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                  <Clock size={14} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary, marginLeft: 6 }}>Best Time</Text>
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text }}>{analytics.topTime}</Text>
+              </View>
+            )}
+          </View>
+        </>
       )}
 
-      {/* Attendance per Event */}
+      {/* ═══ Attendance by Event ═══ */}
       {(analytics?.eventBreakdown?.length ?? 0) > 0 && (
-        <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text, marginBottom: 12 }}>
-            Attendance by Event
-          </Text>
-          {analytics!.eventBreakdown.slice(0, 10).map((evt) => (
-            <AttendanceBar
-              key={evt.eventId}
-              title={evt.title}
-              count={evt.goingCount}
-              maxCount={maxGoing}
-              color={themeColor}
-              isDark={isDark}
-              colors={colors}
-            />
-          ))}
+        <View style={{ marginBottom: 28 }}>
+          <SectionHeader title="Attendance by Event" colors={colors} />
+          <View style={{
+            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+            borderRadius: 14,
+            padding: 16,
+          }}>
+            {analytics!.eventBreakdown.slice(0, 10).map((evt, i) => (
+              <AttendanceBar
+                key={evt.eventId}
+                title={evt.title}
+                count={evt.goingCount}
+                maxCount={maxGoing}
+                color={themeColor}
+                isDark={isDark}
+                colors={colors}
+                onPress={userIsPro ? () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/event/${evt.eventId}` as any);
+                } : undefined}
+              />
+            ))}
+          </View>
         </View>
       )}
 
-      {/* Top Attendees */}
+      {/* ═══ Your Regulars ═══ */}
       {(analytics?.repeatAttendees?.length ?? 0) > 0 && (
-        <View>
-          <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text, marginBottom: 12 }}>
-            Your Regulars
-          </Text>
-          {analytics!.repeatAttendees.map((a, i) => (
-            <View key={a.userId} style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 10,
-              borderBottomWidth: i < analytics!.repeatAttendees.length - 1 ? 1 : 0,
-              borderBottomColor: colors.separator,
-            }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.textTertiary, width: 24 }}>
-                {i + 1}
-              </Text>
-              <EntityAvatar
-                initials={a.name[0]}
-                size={32}
-                backgroundColor={`${themeColor}15`}
-                foregroundColor={themeColor}
-                fallbackIcon="person-outline"
-              />
-              <Text style={{ flex: 1, fontSize: 14, fontWeight: "500", color: colors.text, marginLeft: 10 }}>
-                {a.name}
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>
-                {a.count} events
-              </Text>
-            </View>
-          ))}
+        <View style={{ marginBottom: 20 }}>
+          <SectionHeader title="Your Regulars" colors={colors} />
+          <View style={{
+            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+            borderRadius: 14,
+            overflow: "hidden",
+          }}>
+            {analytics!.repeatAttendees.map((a, i) => (
+              <View key={a.userId} style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                borderTopWidth: i > 0 ? 1 : 0,
+                borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              }}>
+                <Text style={{
+                  fontSize: 15,
+                  fontWeight: "800",
+                  color: i === 0 ? themeColor : colors.textTertiary,
+                  width: 24,
+                }}>
+                  {i + 1}
+                </Text>
+                <EntityAvatar
+                  initials={a.name[0]}
+                  size={36}
+                  backgroundColor={`${themeColor}15`}
+                  foregroundColor={themeColor}
+                  fallbackIcon="person-outline"
+                />
+                <Text style={{ flex: 1, fontSize: 15, fontWeight: "500", color: colors.text, marginLeft: 12 }}>
+                  {a.name}
+                </Text>
+                <View style={{
+                  backgroundColor: `${themeColor}18`,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: themeColor }}>
+                    {a.count}×
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       )}
     </ScrollView>
