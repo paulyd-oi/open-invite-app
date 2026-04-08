@@ -10,6 +10,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   Animated as RNAnimated,
+  KeyboardAvoidingView,
 } from "react-native";
 import { trackEventRsvp, trackRsvpCompleted, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -2049,12 +2050,19 @@ export default function EventDetailScreen() {
         customThemeData={event.customThemeData}
       />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
+      >
       <Animated.ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: showStickyRsvp ? stickyBarHeight + 16 : STACK_BOTTOM_PADDING + insets.bottom }}
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ═══ HERO ZONE — card floats directly on page atmosphere ═══ */}
         <View style={{ position: "relative", paddingTop: insets.top + 44 }}>
@@ -2444,6 +2452,7 @@ export default function EventDetailScreen() {
         </View>{/* close flip-to-reveal gate wrapper */}
 
       </Animated.ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Persistent header controls — fixed above scroll content */}
       <View style={{ position: "absolute", top: 0, left: 0, right: 0 }} pointerEvents="box-none">
