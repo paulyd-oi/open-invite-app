@@ -557,6 +557,15 @@ export default function UserProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId && isFriend,
   });
 
+  // ── Host stats derived from friend events data ──
+  const hostStats = useMemo(() => {
+    const events = friendEventsData?.events ?? [];
+    if (events.length === 0) return null;
+    const totalHosted = events.length;
+    const totalGuests = events.reduce((sum, e) => sum + (e.goingCount ?? 0), 0);
+    return { totalHosted, totalGuests };
+  }, [friendEventsData?.events]);
+
   // [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes query removed — /api/friends/:id/notes returns 404
 
   // Minute tick to force rerender when events pass their end time
@@ -992,6 +1001,46 @@ export default function UserProfileScreen() {
                       </Text>
                     )}
                   </View>
+
+                {/* Host Stats Row */}
+                {hostStats && hostStats.totalHosted > 0 && (
+                  <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: 12,
+                    gap: 16,
+                  }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Calendar size={13} color={colors.textTertiary} />
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary }}>
+                        {hostStats.totalHosted} event{hostStats.totalHosted !== 1 ? "s" : ""} hosted
+                      </Text>
+                    </View>
+                    {hostStats.totalGuests > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Users size={13} color={colors.textTertiary} />
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary }}>
+                          {hostStats.totalGuests} total guests
+                        </Text>
+                      </View>
+                    )}
+                    {hostStats.totalHosted >= 5 && (
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "#FEF3C7",
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        gap: 2,
+                      }}>
+                        <Text style={{ fontSize: 10 }}>⭐</Text>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#B45309" }}>Active Host</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {/* Add Friend Button (if not already friends) */}
                 {!isFriend && (

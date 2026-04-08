@@ -556,6 +556,16 @@ export default function DiscoverScreen() {
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
 
+  // ── Host event count: derive "Active Host" badge (5+ events) ──
+  const hostEventCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of enrichedEvents) {
+      const hostId = e.user?.id;
+      if (hostId) counts.set(hostId, (counts.get(hostId) ?? 0) + 1);
+    }
+    return counts;
+  }, [enrichedEvents]);
+
   // ── Map events: filter activeFeed to those with coordinates ──
   const mapEvents = useMemo(() => {
     return activeFeed.filter((e) => {
@@ -1330,6 +1340,20 @@ export default function DiscoverScreen() {
                             <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
                               {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
                             </Text>
+                            {(hostEventCounts.get(event.user!.id) ?? 0) >= 5 && (
+                              <View style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                backgroundColor: "#FEF3C7",
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                gap: 2,
+                              }}>
+                                <Text style={{ fontSize: 10 }}>⭐</Text>
+                                <Text style={{ fontSize: 10, fontWeight: "700", color: "#B45309" }}>Active Host</Text>
+                              </View>
+                            )}
                           </View>
                         )}
 

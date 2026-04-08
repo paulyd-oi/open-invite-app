@@ -56,6 +56,7 @@ import { ThemeBackgroundLayers } from "@/components/event/ThemeBackgroundLayers"
 import { EventModals } from "@/components/event/EventModals";
 import { ShareFlyerSheet } from "@/components/event/ShareFlyerSheet";
 import { ShareToFriendsSheet } from "@/components/event/ShareToFriendsSheet";
+import { InviteViaTextSheet } from "@/components/event/InviteViaTextSheet";
 import { useSaveEvent } from "@/hooks/useSaveEvent";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
@@ -155,6 +156,7 @@ export default function EventDetailScreen() {
   const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
   const [showShareFlyerSheet, setShowShareFlyerSheet] = useState(false);
   const [showShareToFriendsSheet, setShowShareToFriendsSheet] = useState(false);
+  const [showInviteViaTextSheet, setShowInviteViaTextSheet] = useState(false);
 
   // Attendees modal state (P0: Who's Coming)
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
@@ -2173,6 +2175,15 @@ export default function EventDetailScreen() {
                 trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
                 shareEvent({ ...event, location: locationDisplay ?? null });
               }}
+              onInviteViaText={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackShareTriggered({ eventId: event.id, method: "sms", userId: session?.user?.id ?? null, isCreator: isMyEvent });
+                setShowInviteViaTextSheet(true);
+              }}
+              onSendInApp={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowShareToFriendsSheet(true);
+              }}
             />
           </Animated.View>
         )}
@@ -2767,6 +2778,16 @@ export default function EventDetailScreen() {
         isDark={isDark}
         themeColor={themeColor}
       />
+
+      {/* Invite via Text (Contact Picker → SMS) */}
+      {event && (
+        <InviteViaTextSheet
+          visible={showInviteViaTextSheet}
+          onClose={() => setShowInviteViaTextSheet(false)}
+          smsBody={buildEventSmsBody(buildShareInput({ ...event, location: locationDisplay ?? null }))}
+          themeColor={themeColor}
+        />
+      )}
 
       {/* Send to Friends/Circles Sheet */}
       <ShareToFriendsSheet

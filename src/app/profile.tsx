@@ -1178,6 +1178,12 @@ export default function ProfileScreen() {
                 <Star size={16} color={themeColor} />
               </View>
               <Text className="text-xs" style={{ color: colors.textTertiary }}>Hosted</Text>
+              {(stats?.hostedCount ?? 0) >= 5 && (
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 2 }}>
+                  <Text style={{ fontSize: 10 }}>⭐</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#B45309" }}>Active Host</Text>
+                </View>
+              )}
             </Pressable>
             {/* Attended */}
             <View

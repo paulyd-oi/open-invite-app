@@ -6,6 +6,7 @@ import {
   Share2,
   ListChecks,
   HandCoins,
+  UserPlus,
 } from "@/ui/icons";
 
 interface HostActionCardProps {
@@ -20,6 +21,8 @@ interface HostActionCardProps {
   onCopyLink: () => void;
   onText: () => void;
   onShare: () => void;
+  onInviteViaText?: () => void;
+  onSendInApp?: () => void;
 }
 
 export function HostActionCard({
@@ -34,6 +37,8 @@ export function HostActionCard({
   onCopyLink,
   onText,
   onShare,
+  onInviteViaText,
+  onSendInApp,
 }: HostActionCardProps) {
   const cardSurfaceBg = isDark ? "rgba(20,20,24,0.62)" : "rgba(255,255,255,0.82)";
 
@@ -87,6 +92,38 @@ export function HostActionCard({
           <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>Share</Text>
         </Pressable>
       </View>
+
+      {/* Second row: Invite via Text + Send in App */}
+      {(onInviteViaText || onSendInApp) && (
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {onInviteViaText && (
+            <Pressable
+              onPress={onInviteViaText}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                paddingVertical: 10, borderRadius: 12,
+                backgroundColor: "#34C759",
+              }}
+            >
+              <UserPlus size={14} color="#FFFFFF" />
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 5 }}>Invite via Text</Text>
+            </Pressable>
+          )}
+          {onSendInApp && (
+            <Pressable
+              onPress={onSendInApp}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                paddingVertical: 10, borderRadius: 12,
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+              }}
+            >
+              <MessageCircle size={14} color={colors.text} />
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 5 }}>Send in App</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* Coordination summaries — bring list + pitch in */}
       {(!!bringListEnabled && bringListItems.length > 0 || !!pitchInEnabled && !!pitchInHandle) && (
