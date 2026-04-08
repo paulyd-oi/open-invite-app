@@ -947,6 +947,7 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="host-analytics" />
         <Stack.Screen
           name="login"
           options={{

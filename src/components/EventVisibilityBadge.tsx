@@ -16,12 +16,12 @@
 
 import React, { useRef } from "react";
 import { View, Text } from "react-native";
-import { Lock, UsersRound, Users } from "@/ui/icons";
+import { Lock, UsersRound, Users, Globe } from "@/ui/icons";
 import { devLog } from "@/lib/devLog";
 
 // ---------- types ----------
 
-export type ResolvedVisibility = "all_friends" | "specific_groups" | "circle_only" | "private";
+export type ResolvedVisibility = "public" | "all_friends" | "specific_groups" | "circle_only" | "private";
 
 interface EventVisibilityBadgeProps {
   /** Raw visibility string from the event, may be undefined. */
@@ -48,6 +48,7 @@ export function resolveVisibility(
   isBusy?: boolean,
 ): ResolvedVisibility {
   if (visibility === "private" || isBusy) return "private";
+  if (visibility === "public") return "public";
   if (visibility === "circle_only" || (!visibility && circleId)) return "circle_only";
   if (visibility === "specific_groups") return "specific_groups";
   return "all_friends";
@@ -66,6 +67,14 @@ const BADGE_CONFIG: Record<
     fgDark: string;
   }
 > = {
+  public: {
+    label: "Public",
+    Icon: Globe,
+    bgLight: "#DBEAFE",
+    bgDark: "rgba(59,130,246,0.2)",
+    fgLight: "#1D4ED8",
+    fgDark: "#60A5FA",
+  },
   circle_only: {
     label: "Circle",
     Icon: UsersRound,

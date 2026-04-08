@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated, trackCreateCompleted } from "@/analytics/analyticsEventsSSOT";
 import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -62,22 +62,6 @@ import { useCreateSettingsStore } from "@/lib/createSettingsStore";
 // DEV-only: last create-event error receipt for inspection
 let __lastCreateEventReceipt: CreateEventErrorReceipt | null = null;
 
-// ── Free premium event tracking (client-side until backend adds premiumEventsCreated) ──
-const PREMIUM_EVENTS_KEY = "premiumEventsCreated";
-
-async function getPremiumEventsCreated(): Promise<number> {
-  try {
-    const val = await AsyncStorage.getItem(PREMIUM_EVENTS_KEY);
-    return val ? parseInt(val, 10) || 0 : 0;
-  } catch { return 0; }
-}
-
-async function incrementPremiumEventsCreated(): Promise<void> {
-  try {
-    const current = await getPremiumEventsCreated();
-    await AsyncStorage.setItem(PREMIUM_EVENTS_KEY, String(current + 1));
-  } catch { /* best-effort */ }
-}
 
 export default function CreateEventScreen() {
   const { data: session } = useSession();
@@ -148,11 +132,13 @@ export default function CreateEventScreen() {
     return new Date(start.getTime() + ONE_HOUR);
   });
   const [userModifiedEndTime, setUserModifiedEndTime] = useState(false);
-  const [visibility, setVisibility] = useState<"all_friends" | "specific_groups" | "circle_only">(() => {
+  const [visibility, setVisibility] = useState<"public" | "all_friends" | "specific_groups" | "circle_only">(() => {
+    if (visibilityParam === "public") return "public";
     if (visibilityParam === "open_invite") return "all_friends";
     if (visibilityParam === "circle_only") return "circle_only";
     return isCircleEvent ? "circle_only" : "all_friends";
   });
+  const [category, setCategory] = useState("social");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
   const [sendNotification, setSendNotification] = useState(true);
@@ -245,13 +231,7 @@ export default function CreateEventScreen() {
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
-  // ── Free premium event count (client-side tracking) ──
-  const [premiumEventsCreated, setPremiumEventsCreated] = useState(0);
-  useEffect(() => {
-    getPremiumEventsCreated().then(setPremiumEventsCreated);
-  }, []);
-
-  // ── Premium upsell sheet state (gate-on-save: shown when saving with premium content) ──
+  // ── Premium upsell sheet state (gate-on-save: shown when backend rejects premium content) ──
   const [upsellSheet, setUpsellSheet] = useState<{
     visible: boolean;
     title: string;
@@ -306,6 +286,7 @@ export default function CreateEventScreen() {
   // ── Sync settings store → local state when returning from settings modal ──
   useEffect(() => {
     const unsub = useCreateSettingsStore.subscribe((s) => {
+      setCategory(s.category);
       setVisibility(s.visibility);
       setSelectedGroupIds(s.selectedGroupIds);
       setSendNotification(s.sendNotification);
@@ -431,15 +412,7 @@ export default function CreateEventScreen() {
       // Mark user as event creator — suppresses post-RSVP notification prompts
       markUserHasCreatedEvent(session?.user?.id);
 
-      // Track premium event creation for free-tier allowance
-      const createdWithPremium =
-        (selectedThemeId && isPremiumTheme(selectedThemeId)) ||
-        !!selectedCustomTheme ||
-        !!selectedEffectId;
-      if (createdWithPremium && !userIsPro) {
-        incrementPremiumEventsCreated();
-        setPremiumEventsCreated((c) => c + 1);
-      }
+      // Premium event counting is now handled server-side
 
       // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {
@@ -462,6 +435,24 @@ export default function CreateEventScreen() {
       }
     },
     onError: (error: any) => {
+      // Handle backend premium_required gate
+      const errorBody = error?.response?.data ?? error?.data ?? error;
+      if (errorBody?.error === "premium_required") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setUpsellSheet({
+          visible: true,
+          title: "Upgrade to keep creating",
+          subtitle: errorBody.message ?? "You've used your free premium event. Subscribe to Pro for unlimited premium themes, effects, and more.",
+          analyticsShowEvent: "premium_save_gate_shown",
+          analyticsUpgradeEvent: "premium_save_gate_tapped",
+          analyticsProps: {
+            hasPremiumTheme: !!(selectedThemeId && isPremiumTheme(selectedThemeId)),
+            hasCustomTheme: !!selectedCustomTheme,
+            hasEffect: !!selectedEffectId,
+          },
+        });
+        return;
+      }
       const receipt = normalizeCreateEventError(error, circleId ?? null);
       if (__DEV__) __lastCreateEventReceipt = receipt;
       logError("Create Event", error);
@@ -707,6 +698,7 @@ export default function CreateEventScreen() {
     if (mode === "settings") {
       // Sync local state → Zustand store, then open full-screen settings modal
       useCreateSettingsStore.getState().set({
+        category,
         visibility,
         selectedGroupIds,
         sendNotification,
@@ -786,36 +778,8 @@ export default function CreateEventScreen() {
       return;
     }
 
-    // Gate-on-save: check if free user is trying to save with premium content
-    if (!userIsPro) {
-      const hasPremiumContent =
-        (selectedThemeId && isPremiumTheme(selectedThemeId)) ||
-        !!selectedCustomTheme ||
-        !!selectedEffectId;
-      if (hasPremiumContent) {
-        // First premium event is free for everyone
-        if (premiumEventsCreated < 1) {
-          safeToast.success("Your first premium event is on us!", "Enjoy the full experience.");
-          // Count will be incremented in createMutation.onSuccess
-        } else {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          setUpsellSheet({
-            visible: true,
-            title: "Upgrade to keep creating",
-            subtitle: "You've used your free premium event. Subscribe to Pro for unlimited premium themes, effects, and more.",
-            analyticsShowEvent: "premium_save_gate_shown",
-            analyticsUpgradeEvent: "premium_save_gate_tapped",
-            analyticsProps: {
-              hasPremiumTheme: !!(selectedThemeId && isPremiumTheme(selectedThemeId)),
-              hasCustomTheme: !!selectedCustomTheme,
-              hasEffect: !!selectedEffectId,
-              premiumEventsCreated,
-            },
-          });
-          return;
-        }
-      }
-    }
+    // Premium gating is handled server-side — backend returns premium_required error
+    // if free user exceeds their free premium event allowance
 
     const isRecurring = frequency !== "once";
     const anyLoading =
@@ -843,6 +807,7 @@ export default function CreateEventScreen() {
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),
       visibility,
+      category: category !== "social" ? category as any : undefined,
       groupIds: visibility === "specific_groups" ? selectedGroupIds : undefined,
       circleId: isCircleEvent ? circleId : undefined,
       isPrivateCircleEvent: isCircleEvent ? true : undefined,

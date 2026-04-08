@@ -159,7 +159,7 @@ export const eventSchema = z.object({
 export type Event = z.infer<typeof eventSchema>;
 
 /** Canonical visibility values accepted by create/update and returned by read. */
-export type EventVisibility = "all_friends" | "specific_groups" | "circle_only" | "open_invite" | "private";
+export type EventVisibility = "public" | "all_friends" | "specific_groups" | "circle_only" | "open_invite" | "private";
 /** RSVP status values the viewer can set (outbound mutations). */
 export type RsvpStatusMutation = "going" | "interested" | "not_going";
 /** RSVP status values the server may return (includes legacy "maybe"). */
@@ -277,7 +277,8 @@ export const createEventRequestSchema = z.object({
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().optional(),
-  visibility: z.enum(["all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
+  visibility: z.enum(["public", "all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
+  category: z.enum(["social", "sports", "food", "entertainment", "outdoor", "work", "travel", "wellness", "other"]).optional(),
   groupIds: z.array(z.string()).optional(), // Required if visibility is specific_groups
   circleId: z.string().optional(), // Required if visibility is circle_only
   isPrivateCircleEvent: z.boolean().optional(), // If true, shows as "busy" to non-circle members
@@ -2253,3 +2254,26 @@ export const reportEventResponseSchema = z.object({
   success: z.literal(true),
 });
 export type ReportEventResponse = z.infer<typeof reportEventResponseSchema>;
+
+// GET /api/events/analytics - Host analytics (Pro-only)
+export const hostAnalyticsResponseSchema = z.object({
+  totalEvents: z.number(),
+  totalRsvps: z.number(),
+  avgAttendance: z.number(),
+  rsvpConversionRate: z.number(),
+  topDay: z.string().nullable(),
+  topTime: z.string().nullable(),
+  repeatAttendees: z.array(z.object({
+    userId: z.string(),
+    name: z.string(),
+    count: z.number(),
+  })),
+  eventBreakdown: z.array(z.object({
+    eventId: z.string(),
+    title: z.string(),
+    date: z.string(),
+    goingCount: z.number(),
+    notGoingCount: z.number(),
+  })),
+});
+export type HostAnalyticsResponse = z.infer<typeof hostAnalyticsResponseSchema>;

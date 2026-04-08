@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -32,6 +33,7 @@ import { Image as ExpoImage } from "expo-image";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
+import { buildAppSharePayload } from "@/lib/shareSSOT";
 import { TAB_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
@@ -54,6 +56,7 @@ import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
 import type { GetEventsResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
+import { EVENT_CATEGORIES } from "@/shared/contracts";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -142,6 +145,7 @@ interface PopularEvent {
   groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }> | null;
   userId?: string;
   eventHook?: string | null;
+  category?: string | null;
 }
 
 type Lens = "ideas" | "events" | "saved";
@@ -799,33 +803,44 @@ export default function DiscoverScreen() {
                 </>
               }
               ListEmptyComponent={
-                eventSort === "friends" && !loadingFriendsFeed ? (
+                eventSort === "friends" && loadingFriendsFeed ? (
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
+                  <ActivityIndicator size="small" color={themeColor} />
+                </View>
+                ) : eventSort === "friends" ? (
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
                   <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDC4B"}</Text>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
                     No friend activity yet
                   </Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                    None of your friends have RSVP'd to upcoming events yet
+                    Invite friends to Open Invite to see what they're up to!
                   </Text>
                   <Pressable
-                    onPress={() => router.push("/add-friends")}
+                    onPress={async () => {
+                      const payload = buildAppSharePayload("Join me on Open Invite — let's make plans!");
+                      await Share.share({ message: payload.message, url: payload.url });
+                    }}
                     style={{
                       paddingHorizontal: 24,
                       paddingVertical: 12,
                       borderRadius: RADIUS.lg,
                       backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
                     }}
                   >
-                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Find Friends</Text>
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Invite Friends</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/add-friends")}
+                    style={{ marginTop: 14 }}
+                  >
+                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>Find Friends</Text>
                   </Pressable>
                 </View>
-                ) : eventSort === "friends" && loadingFriendsFeed ? (
-                <View style={{ alignItems: "center", paddingTop: 60 }}>
-                  <ActivityIndicator size="small" color={themeColor} />
-                </View>
                 ) : eventSort === "responded" ? (
-                <View style={{ alignItems: "center", paddingTop: 60 }}>
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
                   <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDCEC"}</Text>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
                     No responses yet
@@ -833,15 +848,54 @@ export default function DiscoverScreen() {
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
                     Events you RSVP to will appear here
                   </Text>
+                  <Pressable
+                    onPress={() => {
+                      setEventSort("soon");
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Browse Events</Text>
+                  </Pressable>
                 </View>
-                ) : (
-                <View style={{ alignItems: "center", paddingTop: 60 }}>
-                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u2728"}</Text>
+                ) : eventSort === "group" ? (
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDC65"}</Text>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                    No events yet
+                    No circle events yet
                   </Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                    Events from your network will appear here.
+                    Join or create a circle to see events from your groups
+                  </Text>
+                  <Pressable
+                    onPress={() => router.push("/social")}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Explore Circles</Text>
+                  </Pressable>
+                </View>
+                ) : eventSort === "popular" ? (
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDD25"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No trending events yet
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    Events with the most RSVPs show up here. Create one and spread the word!
                   </Text>
                   <Pressable
                     onPress={() => {
@@ -854,9 +908,48 @@ export default function DiscoverScreen() {
                       paddingVertical: 12,
                       borderRadius: RADIUS.lg,
                       backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
                     }}
                   >
-                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create an Event</Text>
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create Event</Text>
+                  </Pressable>
+                </View>
+                ) : (
+                /* Soon (default) */
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u2728"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No upcoming events yet
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    Be the first to host! Create an event and invite your friends.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      if (!guardEmailVerification(session)) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      router.push("/create");
+                    }}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create Event</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={async () => {
+                      const payload = buildAppSharePayload("Join me on Open Invite — let's make plans!");
+                      await Share.share({ message: payload.message, url: payload.url });
+                    }}
+                    style={{ marginTop: 14 }}
+                  >
+                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>Invite Friends</Text>
                   </Pressable>
                 </View>
                 )
@@ -1066,6 +1159,27 @@ export default function DiscoverScreen() {
                           </Text>
                         ) : null}
 
+                        {/* Category badge */}
+                        {event.category && event.category !== "social" && (() => {
+                          const cat = EVENT_CATEGORIES.find((c) => c.value === event.category);
+                          if (!cat) return null;
+                          return (
+                            <View style={{ flexDirection: "row", marginTop: 6 }}>
+                              <View style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingHorizontal: 7,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                              }}>
+                                <Text style={{ fontSize: 10 }}>{cat.emoji}</Text>
+                                <Text style={{ fontSize: 10, fontWeight: "600", color: ccSecondary ?? colors.textTertiary, marginLeft: 3 }}>{cat.label}</Text>
+                              </View>
+                            </View>
+                          );
+                        })()}
+
                         {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
                         {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
@@ -1113,6 +1227,19 @@ export default function DiscoverScreen() {
                             </View>
                           );
                         })()}
+
+                        {/* Location — compact single line */}
+                        {event.location ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
+                            <MapPin size={12} color={ccSecondary ?? colors.textTertiary} />
+                            <Text
+                              style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 12, fontWeight: "500" }}
+                              numberOfLines={1}
+                            >
+                              {event.location}
+                            </Text>
+                          </View>
+                        ) : null}
 
                         {/* FOOTER ROW: date/time + availability | attendees */}
                         <View style={{

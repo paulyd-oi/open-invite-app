@@ -33,6 +33,7 @@ import {
   ExternalLink,
   Gift,
   CalendarDays,
+  BarChart3,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -1017,6 +1018,16 @@ export default function SettingsScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 devLog("[P0_PUSH_REG] FORCE_REREGISTER triggered from Settings");
                 await ensurePushRegistered({ reason: "settings_force", force: true });
+              }}
+            />
+            <SettingItem
+              icon={<BarChart3 size={20} color={themeColor} />}
+              title="Host Analytics"
+              subtitle="Stats and insights from your events"
+              isDark={isDark}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/host-analytics" as any);
               }}
             />
           </View>

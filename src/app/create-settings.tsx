@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   Compass,
+  Globe,
   Users,
   Bell,
   BellOff,
@@ -36,6 +37,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useCreateSettingsStore } from "@/lib/createSettingsStore";
 import type { Circle, GetCirclesResponse } from "@/shared/contracts";
+import { EVENT_CATEGORIES } from "@/shared/contracts";
 
 export default function CreateSettingsPage() {
   const router = useRouter();
@@ -70,6 +72,7 @@ export default function CreateSettingsPage() {
   // Store state
   const store = useCreateSettingsStore();
   const {
+    category,
     visibility, selectedGroupIds,
     sendNotification,
     hasCapacity, capacityInput,
@@ -132,6 +135,37 @@ export default function CreateSettingsPage() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 16 }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* ── Category ── */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {EVENT_CATEGORIES.map((cat) => {
+                const active = category === cat.value;
+                return (
+                  <Pressable
+                    key={cat.value}
+                    onPress={() => { Haptics.selectionAsync(); store.set({ category: cat.value }); }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 10,
+                      paddingVertical: 7,
+                      borderRadius: 20,
+                      backgroundColor: active ? `${themeColor}15` : glassSurface,
+                      borderWidth: 1,
+                      borderColor: active ? `${themeColor}40` : glassBorder,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14 }}>{cat.emoji}</Text>
+                    <Text style={{ marginLeft: 4, fontSize: 12, fontWeight: active ? "600" : "400", color: active ? themeColor : glassSecondary }}>{cat.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
         {/* ── Visibility ── */}
         <View style={{ marginBottom: 16 }}>
           <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500", marginBottom: 6 }}>Who's Invited?</Text>
@@ -145,6 +179,24 @@ export default function CreateSettingsPage() {
             </View>
           ) : (
             <>
+              {/* Public option */}
+              <Pressable
+                onPress={() => { Haptics.selectionAsync(); store.set({ visibility: "public" }); }}
+                style={{
+                  borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: "row", alignItems: "center",
+                  backgroundColor: visibility === "public" ? `${themeColor}15` : glassSurface,
+                  borderWidth: 1,
+                  borderColor: visibility === "public" ? `${themeColor}40` : glassBorder,
+                }}
+              >
+                <Globe size={18} color={visibility === "public" ? themeColor : glassTertiary} />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontWeight: "500", color: visibility === "public" ? themeColor : glassSecondary }}>Public</Text>
+                  <Text style={{ fontSize: 11, color: glassTertiary, marginTop: 1 }}>Anyone on Open Invite can discover this event</Text>
+                </View>
+                {visibility === "public" && <Check size={18} color={themeColor} />}
+              </Pressable>
+
               <View style={{ flexDirection: "row", marginBottom: 8 }}>
                 <Pressable
                   onPress={() => { Haptics.selectionAsync(); store.set({ visibility: "all_friends" }); }}

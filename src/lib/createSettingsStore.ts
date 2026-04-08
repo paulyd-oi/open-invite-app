@@ -9,8 +9,11 @@
 import { create } from "zustand";
 
 export interface CreateSettingsState {
+  // Category
+  category: string;
+
   // Visibility
-  visibility: "all_friends" | "specific_groups" | "circle_only";
+  visibility: "public" | "all_friends" | "specific_groups" | "circle_only";
   selectedGroupIds: string[];
 
   // Notification
@@ -53,6 +56,7 @@ export interface CreateSettingsState {
 }
 
 const DEFAULTS: Omit<CreateSettingsState, "set" | "toggleGroup" | "reset"> = {
+  category: "social",
   visibility: "all_friends",
   selectedGroupIds: [],
   sendNotification: true,

@@ -75,6 +75,7 @@ export const Gift = ion("gift-outline");
 export const Crown = ion("ribbon-outline");
 export const Zap = ion("flash-outline");
 export const Compass = ion("compass-outline");
+export const Globe = ion("globe-outline");
 
 export const AlertCircle = ion("alert-circle-outline");
 export const AlertTriangle = ion("alert-outline"); // used by ErrorBoundary
