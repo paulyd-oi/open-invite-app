@@ -2216,11 +2216,13 @@ export default function EventDetailScreen() {
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ IMPORTED EVENT PROVENANCE ═══ */}
-        {!!event?.isImported && isMyEvent && (
+        {!!event?.isImported && (
           <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 8 }}>
             <CalendarDays size={14} color={colors.textTertiary} />
             <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
-              {Platform.OS === "ios" ? "Synced from Apple Calendar" : Platform.OS === "android" ? "Synced from Google Calendar" : "Synced from calendar"}
+              {(event as any).deviceCalendarName
+                ? `Synced from ${(event as any).deviceCalendarName}`
+                : "Synced from calendar"}
             </Text>
           </View>
         )}
