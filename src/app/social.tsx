@@ -51,6 +51,7 @@ import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type Ge
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { qk } from "@/lib/queryKeys";
+import { formatTime } from "@/lib/eventTime";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
@@ -167,13 +168,10 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
     day: "numeric",
   });
 
-  // Show time range if endTime exists
+  // Show time range if endTime exists (uses shared formatTime — drops :00)
   const timeLabel = endDate
-    ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-    : startDate.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+    ? `${formatTime(startDate)} – ${formatTime(endDate)}`
+    : formatTime(startDate);
 
   // [SOCIAL_GESTURE] Suppress tap when user was swiping or scrolling
   const wasSwiping = useRef(false);
@@ -394,7 +392,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
 
         {!isSeries && (
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
+          <View className="flex-row mt-3 pt-3 flex-wrap items-center" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
             <View className="flex-row items-center mr-4">
               <Calendar size={14} color="#9CA3AF" />
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -405,23 +403,20 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{timeLabel}</Text>
             </View>
+            {/* RSVP count — inline with date/time row */}
+            <View className="flex-row items-center">
+              <Users size={14} color={displayEvent.isFull ? "#EF4444" : effectiveGoingCount > 0 ? "#22C55E" : "#9CA3AF"} />
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
+                {displayEvent.capacity != null
+                  ? displayEvent.isFull
+                    ? `Full • ${effectiveGoingCount} going`
+                    : `${effectiveGoingCount}/${displayEvent.capacity} filled`
+                  : `${effectiveGoingCount} going`
+                }
+              </Text>
+            </View>
             {/* P3#11: location hidden for compact scannable cards */}
-          </View>
-        )}
-
-        {/* RSVP / capacity indicator — always show going count for scannable cards (P3#11) */}
-        {!isSeries && (
-          <View className="flex-row items-center mt-2">
-            <Users size={14} color={displayEvent.isFull ? "#EF4444" : effectiveGoingCount > 0 ? "#22C55E" : "#9CA3AF"} />
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
-              {displayEvent.capacity != null
-                ? displayEvent.isFull
-                  ? `Full • ${effectiveGoingCount} going`
-                  : `${effectiveGoingCount}/${displayEvent.capacity} filled`
-                : `${effectiveGoingCount} going`
-              }
-            </Text>
           </View>
         )}
 

@@ -4,10 +4,15 @@
  */
 
 /**
- * Format a single time for display
+ * Format a single time for display.
+ * Drops ":00" when minutes are zero: "5 PM" instead of "5:00 PM".
  */
 export function formatTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  const minutes = d.getMinutes();
+  if (minutes === 0) {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+  }
   return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",

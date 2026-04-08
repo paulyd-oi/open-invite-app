@@ -817,7 +817,17 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Front-face flip hint removed — below-card hint in [id].tsx instead */}
+      {/* Front-face flip hint — subtle bottom-center of card area */}
+      {!isMyEvent && (
+        <View style={{ alignItems: "center", paddingTop: 8, opacity: 0.5 }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <RefreshCw size={10} color={colors.textTertiary} />
+            <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
+              Tap for details
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

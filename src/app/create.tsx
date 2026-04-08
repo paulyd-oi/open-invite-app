@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated, trackCreateCompleted } from "@/analytics/analyticsEventsSSOT";
 import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -60,6 +61,23 @@ import { useCreateSettingsStore } from "@/lib/createSettingsStore";
 
 // DEV-only: last create-event error receipt for inspection
 let __lastCreateEventReceipt: CreateEventErrorReceipt | null = null;
+
+// ── Free premium event tracking (client-side until backend adds premiumEventsCreated) ──
+const PREMIUM_EVENTS_KEY = "premiumEventsCreated";
+
+async function getPremiumEventsCreated(): Promise<number> {
+  try {
+    const val = await AsyncStorage.getItem(PREMIUM_EVENTS_KEY);
+    return val ? parseInt(val, 10) || 0 : 0;
+  } catch { return 0; }
+}
+
+async function incrementPremiumEventsCreated(): Promise<void> {
+  try {
+    const current = await getPremiumEventsCreated();
+    await AsyncStorage.setItem(PREMIUM_EVENTS_KEY, String(current + 1));
+  } catch { /* best-effort */ }
+}
 
 export default function CreateEventScreen() {
   const { data: session } = useSession();
@@ -226,6 +244,12 @@ export default function CreateEventScreen() {
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("RECURRING_EVENTS");
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+
+  // ── Free premium event count (client-side tracking) ──
+  const [premiumEventsCreated, setPremiumEventsCreated] = useState(0);
+  useEffect(() => {
+    getPremiumEventsCreated().then(setPremiumEventsCreated);
+  }, []);
 
   // ── Premium upsell sheet state (gate-on-save: shown when saving with premium content) ──
   const [upsellSheet, setUpsellSheet] = useState<{
@@ -406,6 +430,16 @@ export default function CreateEventScreen() {
 
       // Mark user as event creator — suppresses post-RSVP notification prompts
       markUserHasCreatedEvent(session?.user?.id);
+
+      // Track premium event creation for free-tier allowance
+      const createdWithPremium =
+        (selectedThemeId && isPremiumTheme(selectedThemeId)) ||
+        !!selectedCustomTheme ||
+        !!selectedEffectId;
+      if (createdWithPremium && !userIsPro) {
+        incrementPremiumEventsCreated();
+        setPremiumEventsCreated((c) => c + 1);
+      }
 
       // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {
@@ -759,20 +793,27 @@ export default function CreateEventScreen() {
         !!selectedCustomTheme ||
         !!selectedEffectId;
       if (hasPremiumContent) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setUpsellSheet({
-          visible: true,
-          title: "Pro Feature",
-          subtitle: "Subscribe to save events with premium themes and effects",
-          analyticsShowEvent: "premium_save_gate_shown",
-          analyticsUpgradeEvent: "premium_save_gate_tapped",
-          analyticsProps: {
-            hasPremiumTheme: !!(selectedThemeId && isPremiumTheme(selectedThemeId)),
-            hasCustomTheme: !!selectedCustomTheme,
-            hasEffect: !!selectedEffectId,
-          },
-        });
-        return;
+        // First premium event is free for everyone
+        if (premiumEventsCreated < 1) {
+          safeToast.success("Your first premium event is on us!", "Enjoy the full experience.");
+          // Count will be incremented in createMutation.onSuccess
+        } else {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setUpsellSheet({
+            visible: true,
+            title: "Upgrade to keep creating",
+            subtitle: "You've used your free premium event. Subscribe to Pro for unlimited premium themes, effects, and more.",
+            analyticsShowEvent: "premium_save_gate_shown",
+            analyticsUpgradeEvent: "premium_save_gate_tapped",
+            analyticsProps: {
+              hasPremiumTheme: !!(selectedThemeId && isPremiumTheme(selectedThemeId)),
+              hasCustomTheme: !!selectedCustomTheme,
+              hasEffect: !!selectedEffectId,
+              premiumEventsCreated,
+            },
+          });
+          return;
+        }
       }
     }
 

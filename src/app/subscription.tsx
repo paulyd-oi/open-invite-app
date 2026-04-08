@@ -273,10 +273,15 @@ export default function SubscriptionScreen() {
       };
     }
     if (isTrial) {
+      const trialEnd = subscriptionData?.subscription.trialEndDate
+        ?? subscriptionData?.subscription.expiresAt;
+      const trialSubtitle = trialEnd
+        ? `Trial ends ${formatDate(trialEnd)}`
+        : "You're exploring Pro planning tools.";
       return {
         badge: "Pro Trial",
         title: "Pro trial active",
-        subtitle: "You're exploring Pro planning tools.",
+        subtitle: trialSubtitle,
         icon: <Crown size={20} color={STATUS.going.fg} />,
         badgeColor: STATUS.going.fg,
       };

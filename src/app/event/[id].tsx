@@ -2093,15 +2093,6 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* Below-card hint — hidden once user has flipped at least once */}
-        {!isMyEvent && !hasBeenFlipped && (
-          <View style={{ alignItems: "center", paddingVertical: 8 }}>
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
-              Tap the invite card to see event details
-            </Text>
-          </View>
-        )}
-
         {/* Breathing room between hero card and first content card */}
         <View style={{ height: 8 }} />
 
@@ -2111,6 +2102,16 @@ export default function EventDetailScreen() {
         {!isMyEvent && !contentRevealed && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
             <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
+          </View>
+        )}
+        {/* Below-card hint — over blur, hidden once user has flipped */}
+        {!isMyEvent && !hasBeenFlipped && !contentRevealed && (
+          <View style={{ position: "absolute", top: 24, left: 0, right: 0, zIndex: 20, alignItems: "center" }}>
+            <View style={{ backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8 }}>
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600", textAlign: "center" }}>
+                Tap the invite card to see event details
+              </Text>
+            </View>
           </View>
         )}
 
