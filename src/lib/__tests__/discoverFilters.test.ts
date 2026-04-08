@@ -4,6 +4,8 @@ import {
   isEventVisibleInFeed,
   hasValidCoordinates,
   getDiscoverVisibility,
+  isEventEligibleForDiscoverPool,
+  getEffectiveTime,
   type ClassifiableEvent,
 } from "../discoverFilters";
 
@@ -12,6 +14,7 @@ import {
 function makeEvent(overrides: Partial<ClassifiableEvent> = {}): ClassifiableEvent {
   return {
     id: "evt-1",
+    startTime: new Date(Date.now() + 86400000).toISOString(), // tomorrow by default
     visibility: "public",
     viewerRsvpStatus: null,
     hideDetailsUntilRsvp: false,
@@ -160,5 +163,81 @@ describe("getDiscoverVisibility", () => {
       isVisibleInMap: false,
       isVisibleInFeed: true,
     });
+  });
+});
+
+// ── getEffectiveTime ──
+
+describe("getEffectiveTime", () => {
+  it("uses startTime for non-recurring events", () => {
+    const t = "2026-04-10T18:00:00Z";
+    expect(getEffectiveTime(makeEvent({ startTime: t }))).toBe(new Date(t).getTime());
+  });
+
+  it("uses nextOccurrence for recurring events", () => {
+    const next = "2026-04-12T18:00:00Z";
+    expect(
+      getEffectiveTime(makeEvent({ isRecurring: true, nextOccurrence: next, startTime: "2026-01-01T00:00:00Z" })),
+    ).toBe(new Date(next).getTime());
+  });
+
+  it("falls back to startTime when recurring but no nextOccurrence", () => {
+    const start = "2026-04-10T18:00:00Z";
+    expect(
+      getEffectiveTime(makeEvent({ isRecurring: true, nextOccurrence: null, startTime: start })),
+    ).toBe(new Date(start).getTime());
+  });
+});
+
+// ── isEventEligibleForDiscoverPool ──
+
+describe("isEventEligibleForDiscoverPool", () => {
+  const NOW = new Date("2026-04-08T12:00:00Z").getTime();
+
+  it("allows public future event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "public", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(true);
+  });
+
+  it("allows open_invite future event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "open_invite", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(true);
+  });
+
+  it("allows all_friends future event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "all_friends", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(true);
+  });
+
+  it("blocks circle_only event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "circle_only", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(false);
+  });
+
+  it("blocks specific_groups event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "specific_groups", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(false);
+  });
+
+  it("blocks private event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "private", startTime: "2026-04-10T18:00:00Z" }), NOW)).toBe(false);
+  });
+
+  it("blocks past event", () => {
+    expect(isEventEligibleForDiscoverPool(makeEvent({ visibility: "public", startTime: "2026-04-07T18:00:00Z" }), NOW)).toBe(false);
+  });
+
+  it("uses nextOccurrence for recurring event eligibility", () => {
+    // startTime is in the past but nextOccurrence is future → eligible
+    expect(
+      isEventEligibleForDiscoverPool(
+        makeEvent({ visibility: "public", startTime: "2026-01-01T00:00:00Z", isRecurring: true, nextOccurrence: "2026-04-10T18:00:00Z" }),
+        NOW,
+      ),
+    ).toBe(true);
+  });
+
+  it("blocks recurring event whose nextOccurrence is past", () => {
+    expect(
+      isEventEligibleForDiscoverPool(
+        makeEvent({ visibility: "public", startTime: "2026-01-01T00:00:00Z", isRecurring: true, nextOccurrence: "2026-04-07T00:00:00Z" }),
+        NOW,
+      ),
+    ).toBe(false);
   });
 });

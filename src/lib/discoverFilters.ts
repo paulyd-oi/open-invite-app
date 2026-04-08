@@ -1,10 +1,11 @@
 /**
  * discoverFilters.ts — SSOT for Discover event classification.
  *
- * Pure functions that determine event visibility across Discover surfaces:
- * - Responded pane (isResponded)
- * - Map tab (isVisibleInMap)
- * - Events tab pills (isVisibleInFeed)
+ * Two-layer model:
+ *   Layer A — Discover pool eligibility (isEventEligibleForDiscoverPool)
+ *     Determines whether a raw event belongs in the discover pool at all.
+ *   Layer B — Surface visibility/classification (isResponded, isVisibleInMap, isVisibleInFeed)
+ *     Determines where an eligible event appears across Discover surfaces.
  *
  * Also exports hasValidCoordinates for reuse (Discover map + event detail mini map).
  */
@@ -21,6 +22,9 @@ export interface ClassifiableEvent {
   lng?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  startTime: string;
+  isRecurring?: boolean;
+  nextOccurrence?: string | null;
 }
 
 export interface DiscoverVisibility {
@@ -42,10 +46,39 @@ export const RESPONDED_STATUSES: ReadonlyArray<string> = [
 /** Visibility values allowed on the map. */
 const MAP_VISIBLE_VISIBILITIES = new Set(["public", "open_invite", "all_friends"]);
 
-/** Visibility values blocked from the base enriched feed. */
-export const FEED_BLOCKED_VISIBILITIES = new Set(["circle_only", "specific_groups", "private"]);
+/** Visibility values blocked from the discover pool entirely. */
+export const POOL_BLOCKED_VISIBILITIES = new Set(["circle_only", "specific_groups", "private"]);
 
-// ── Pure functions ──
+// ── Layer A: Discover pool eligibility ──
+
+/**
+ * Returns the effective display time for an event (nextOccurrence for recurring, startTime otherwise).
+ */
+export function getEffectiveTime(event: ClassifiableEvent): number {
+  return new Date(
+    event.isRecurring && event.nextOccurrence ? event.nextOccurrence : event.startTime,
+  ).getTime();
+}
+
+/**
+ * Returns true when an event belongs in the discover pool.
+ *
+ * Rules:
+ * - Visibility must NOT be circle_only, specific_groups, or private
+ * - Event must not be in the past (effective time >= now)
+ *
+ * @param now - current timestamp in ms (pass Date.now() from caller for testability)
+ */
+export function isEventEligibleForDiscoverPool(
+  event: ClassifiableEvent,
+  now: number = Date.now(),
+): boolean {
+  if (event.visibility && POOL_BLOCKED_VISIBILITIES.has(event.visibility)) return false;
+  if (getEffectiveTime(event) < now) return false;
+  return true;
+}
+
+// ── Layer B: Surface visibility/classification ──
 
 /**
  * Returns true when the viewer has any RSVP status on the event.

@@ -73,7 +73,7 @@ import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
-import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed } from "@/lib/discoverFilters";
+import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime } from "@/lib/discoverFilters";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -490,18 +490,11 @@ export default function DiscoverScreen() {
     const allEvents = [...seriesMap.values(), ...titleDedupMap.values()];
 
     if (__DEV__) console.log("[DISCOVER_DEDUP] after series collapse:", allEvents.length, "(series:", seriesMap.size, "title:", titleDedupMap.size, ")");
-    const now = new Date();
+    const now = Date.now();
 
-    // Enrich with canonical attendee count + filter to upcoming + non-private
-    const BLOCKED_VIS = ["circle_only", "specific_groups", "private"];
-
+    // Enrich with canonical attendee count + filter to eligible discover pool
     return allEvents
-      .filter((e) => {
-        if (e.visibility && BLOCKED_VIS.includes(e.visibility)) return false;
-        const effectiveTime = e.isRecurring && e.nextOccurrence ? new Date(e.nextOccurrence) : new Date(e.startTime);
-        if (effectiveTime < now) return false;
-        return true;
-      })
+      .filter((e) => isEventEligibleForDiscoverPool(e, now))
       .map((event) => {
         const derivedCount = deriveAttendeeCount(event);
         const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
@@ -527,9 +520,6 @@ export default function DiscoverScreen() {
   );
 
   // ── Sort-derived lists (all from enrichedEvents SSOT) ──
-  // Helper: effective display time for sorting (nextOccurrence for recurring, startTime otherwise)
-  const getEffectiveTime = (e: PopularEvent) => new Date(e.nextOccurrence ?? e.startTime).getTime();
-
   const respondedSorted = useMemo(() => {
     return enrichedEvents
       .filter(isEventResponded)
@@ -559,15 +549,14 @@ export default function DiscoverScreen() {
   // Group events: circle/group-visibility events from own + attending data (sorted soonest-first)
   const groupSorted = useMemo(() => {
     const myEvents = myEventsData?.events ?? [];
-    const now = new Date();
+    const now = Date.now();
     const GROUP_VIS = ["circle_only", "specific_groups"];
     return myEvents
       .filter((e) => {
         // Include events with circleId OR circle/group visibility
         const isGroup = !!e.circleId || (e.visibility && GROUP_VIS.includes(e.visibility));
         if (!isGroup) return false;
-        const effectiveTime = e.isRecurring && e.nextOccurrence ? new Date(e.nextOccurrence) : new Date(e.startTime);
-        return effectiveTime >= now;
+        return getEffectiveTime(e) >= now;
       })
       .map((event) => {
         const derivedCount = deriveAttendeeCount(event);
@@ -613,10 +602,10 @@ export default function DiscoverScreen() {
     return counts;
   }, [enrichedEvents]);
 
-  // ── Map events: filter to public/open events with valid coordinates ──
+  // ── Map events: filter from full discover pool (not pill-specific activeFeed) ──
   const mapEvents = useMemo(() => {
-    return activeFeed.filter(isEventVisibleInMap);
-  }, [activeFeed]);
+    return enrichedEvents.filter(isEventVisibleInMap);
+  }, [enrichedEvents]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
