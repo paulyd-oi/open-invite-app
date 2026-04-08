@@ -132,11 +132,11 @@ export async function ensureCookieInitialized(): Promise<void> {
   if (cookieInitialized) {
     return;
   }
-  
+
   if (cookieInitPromise) {
     return cookieInitPromise;
   }
-  
+
   cookieInitPromise = (async () => {
     if (AUTH_DEBUG) {
       devLog('[authClient] Initializing cookie cache from SecureStore...');
@@ -151,8 +151,30 @@ export async function ensureCookieInitialized(): Promise<void> {
       devLog('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
     }
   })();
-  
+
   return cookieInitPromise;
+}
+
+/**
+ * Force re-read cookie and OI token from SecureStore into memory cache.
+ * Used by bootstrap retry when first credential load returned empty
+ * (iOS Keychain can be transiently unavailable after device unlock).
+ *
+ * Unlike ensureCookieInitialized, this always performs the read,
+ * bypassing the cookieInitialized / oiSessionTokenInitialized guards.
+ */
+export async function reinitializeCookieCache(): Promise<{ hasCookie: boolean; hasOiToken: boolean }> {
+  devLog('[authClient] reinitializeCookieCache: force re-reading from SecureStore');
+  // Reset guards so the load functions actually re-read
+  oiSessionTokenInitialized = false;
+  await Promise.all([
+    refreshExplicitCookie(),
+    loadOiSessionToken(),
+  ]);
+  const hasCookie = !!explicitCookieValue;
+  const hasOiToken = !!oiSessionToken;
+  devLog('[authClient] reinitializeCookieCache: hasCookie=' + hasCookie + ' hasOiToken=' + hasOiToken);
+  return { hasCookie, hasOiToken };
 }
 
 // NOTE: Cookie initialization is NOT started on module load.

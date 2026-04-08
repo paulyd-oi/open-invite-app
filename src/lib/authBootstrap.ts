@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { safeDeleteItemAsync, safeGetItemAsync } from "./safeSecureStore";
 import { Platform } from "react-native";
-import { authClient, hasAuthToken, clearAuthToken, ensureCookieInitialized } from "./authClient";
+import { authClient, hasAuthToken, clearAuthToken, ensureCookieInitialized, reinitializeCookieCache } from "./authClient";
 import { getSessionCached, clearSessionCache } from "./sessionCache";
 import { clearSessionCookie, SESSION_COOKIE_KEY } from "./sessionCookie";
 import { isNetworkError, shouldLogoutOnError, isRateLimitError } from "./networkStatus";
@@ -388,9 +388,65 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       hasValidSession = false;
       
       // STATUS-CODE BASED DECISION:
-      // 401/403 = not authenticated → return loggedOut (no need to reset, just not authed)
-      if (status === 401 || status === 403) {
-        log(`  → Not authenticated (${status}) - returning loggedOut`);
+      // 401 = not authenticated.
+      // [P0_FALSE_LOGOUT] Before giving up, retry ONCE after re-reading credentials
+      // from SecureStore. iOS Keychain can be transiently unavailable right after
+      // device unlock, causing the first cookie/token load to return null. A single
+      // retry with fresh SecureStore reads catches this without masking real expiry.
+      if (status === 401) {
+        log("  ⚠️ Got 401 — retrying after credential re-init (iOS Keychain transient)");
+        try {
+          const reinit = await reinitializeCookieCache();
+          log(`  → reinit result: hasCookie=${reinit.hasCookie} hasOiToken=${reinit.hasOiToken}`);
+
+          if (reinit.hasCookie || reinit.hasOiToken) {
+            // Credentials were recovered — retry the session fetch
+            log("  → Credentials recovered, retrying /api/auth/session");
+            const retryTimeout = new Promise<never>((_, reject) => {
+              setTimeout(() => {
+                const err: any = new Error('Retry request timeout');
+                err.isTimeout = true;
+                reject(err);
+              }, 3000);
+            });
+            try {
+              const retryResponse = await Promise.race([
+                authClient.$fetch<any>('/api/auth/session'),
+                retryTimeout,
+              ]);
+              const retryHasUser = !!(retryResponse?.user?.id);
+              if (retryHasUser) {
+                log("  ✓ Retry succeeded — session valid");
+                hasValidSession = true;
+                session = retryResponse;
+                sessionError = null;
+                // Fall through to continue bootstrap
+              } else {
+                log("  → Retry returned OK but no user.id — loggedOut");
+                authTrace("authBootstrap:not_authenticated_retry", { status: 200 });
+                return { state: "loggedOut", session: null };
+              }
+            } catch (retryErr: any) {
+              const retryStatus = retryErr?.status || retryErr?.response?.status;
+              log(`  → Retry failed (${retryStatus || retryErr?.message}) — loggedOut`);
+              authTrace("authBootstrap:not_authenticated_retry_fail", { status: retryStatus ?? 0 });
+              return { state: "loggedOut", session: null };
+            }
+          } else {
+            // No credentials in SecureStore at all — genuinely logged out
+            log("  → No credentials recovered on retry — loggedOut (genuine)");
+            authTrace("authBootstrap:not_authenticated", { status });
+            return { state: "loggedOut", session: null };
+          }
+        } catch (reinitErr) {
+          log("  → reinit error — falling through to loggedOut");
+          return { state: "loggedOut", session: null };
+        }
+      }
+
+      // 403 = not authenticated (from session endpoint specifically)
+      if (status === 403) {
+        log(`  → Not authenticated (403) - returning loggedOut`);
         authTrace("authBootstrap:not_authenticated", { status });
         return { state: "loggedOut", session: null };
       }
@@ -609,6 +665,18 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       log(`[onboarding gate] session: ${session ? 'exists' : 'null'}, progressV2: ${!!onboardingProgressV2}, progress: ${!!onboardingProgress}`);
     }
 
+    // [P0_FALSE_LOGOUT] Persist session to bootstrap fallback cache.
+    // This cache is read by bootstrap error paths so future cold starts with
+    // transient failures can avoid false logouts.
+    if (session && (bootstrapState === "authed" || bootstrapState === "onboarding")) {
+      try {
+        await AsyncStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
+        log("  ✓ Session saved to bootstrap fallback cache");
+      } catch (e) {
+        log("  ⚠️ Failed to save bootstrap cache (non-fatal):", e);
+      }
+    }
+
     const elapsed = Date.now() - startTime;
     log(`✅ Bootstrap complete in ${elapsed}ms`);
     return { state: bootstrapState, session };
@@ -619,7 +687,6 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
     log(`⚠️ Bootstrap failed in ${elapsed}ms`);
 
     // Only treat true auth errors as logout
-    // For transient errors, return 'loggedOut' but preserve cached session
     if (shouldLogoutOnError(error)) {
       return {
         state: "loggedOut",
@@ -627,8 +694,8 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
         error: error.message
       };
     }
-    
-    // For transient errors, try to use cached session if available
+
+    // For transient/unknown errors, try to use cached session if available
     try {
       const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
       if (cached) {
@@ -640,9 +707,10 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       log("  ⚠️ Error loading cached session:", e);
     }
 
-    // No cached session available - treat as logged out but don't clear cache
+    // [P0_FALSE_LOGOUT] No cached session — return degraded instead of loggedOut
+    // to avoid false logout on unexpected non-auth errors.
     return {
-      state: "loggedOut",
+      state: "degraded",
       session: null,
       error: error.message
     };
