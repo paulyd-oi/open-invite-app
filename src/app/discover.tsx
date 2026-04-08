@@ -610,12 +610,17 @@ export default function DiscoverScreen() {
     return counts;
   }, [enrichedEvents]);
 
-  // ── Map events: filter activeFeed to those with coordinates ──
+  // ── Map events: filter to public/open events with valid coordinates ──
+  const MAP_VISIBLE_VIS = new Set(["public", "open_invite", "all_friends"]);
   const mapEvents = useMemo(() => {
     return activeFeed.filter((e) => {
       const lat = e.lat ?? e.latitude;
       const lng = e.lng ?? e.longitude;
-      return lat != null && lng != null && lat !== 0 && lng !== 0;
+      return (
+        lat != null && lng != null && lat !== 0 && lng !== 0 &&
+        MAP_VISIBLE_VIS.has(e.visibility ?? "") &&
+        !(e as any).hideDetailsUntilRsvp
+      );
     });
   }, [activeFeed]);
 
@@ -824,17 +829,26 @@ export default function DiscoverScreen() {
                   onCalloutPress={() => handleEventPress(event.id)}
                 >
                   <View style={{
-                    backgroundColor: themeColor,
+                    width: 40,
+                    height: 40,
                     borderRadius: 20,
-                    width: 36,
-                    height: 36,
-                    alignItems: "center",
-                    justifyContent: "center",
+                    overflow: "hidden",
                     borderWidth: 2,
                     borderColor: "#FFFFFF",
                     ...(TILE_SHADOW as any),
                   }}>
-                    <Text style={{ fontSize: 16 }}>{event.emoji}</Text>
+                    {event.eventPhotoUrl ? (
+                      <ExpoImage
+                        source={{ uri: event.eventPhotoUrl }}
+                        style={{ width: 40, height: 40 }}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <View style={{ width: 40, height: 40, backgroundColor: themeColor, alignItems: "center", justifyContent: "center" }}>
+                        <Text style={{ fontSize: 18 }}>{event.emoji}</Text>
+                      </View>
+                    )}
                   </View>
                   <RNCallout tooltip onPress={() => handleEventPress(event.id)}>
                     <View style={{
@@ -1413,36 +1427,18 @@ export default function DiscoverScreen() {
                           );
                         })()}
 
-                        {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
-                        {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
-                            <EntityAvatar
-                              photoUrl={event.user.image}
-                              initials={event.user.name?.[0] ?? "?"}
-                              size={20}
-                              backgroundColor={event.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
-                              foregroundColor={cardAccent ?? themeColor}
-                              fallbackIcon="person-outline"
-                            />
-                            <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
-                              {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
+                        {/* Location — compact single line */}
+                        {event.location ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
+                            <MapPin size={12} color={ccSecondary ?? colors.textTertiary} />
+                            <Text
+                              style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 12, fontWeight: "500" }}
+                              numberOfLines={1}
+                            >
+                              {formatLocationShort(event.location)}
                             </Text>
-                            {(hostEventCounts.get(event.user!.id) ?? 0) >= 5 && (
-                              <View style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                backgroundColor: "#FEF3C7",
-                                paddingHorizontal: 6,
-                                paddingVertical: 2,
-                                borderRadius: 6,
-                                gap: 2,
-                              }}>
-                                <Text style={{ fontSize: 10 }}>⭐</Text>
-                                <Text style={{ fontSize: 10, fontWeight: "700", color: "#B45309" }}>Active Host</Text>
-                              </View>
-                            )}
                           </View>
-                        )}
+                        ) : null}
 
                         {/* [FRIENDS_PILL] Social proof — friend avatars + "Sarah is going" */}
                         {eventSort === "friends" && (event.attendeePreview?.length ?? 0) > 0 && (() => {
@@ -1475,18 +1471,36 @@ export default function DiscoverScreen() {
                           );
                         })()}
 
-                        {/* Location — compact single line */}
-                        {event.location ? (
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
-                            <MapPin size={12} color={ccSecondary ?? colors.textTertiary} />
-                            <Text
-                              style={{ color: ccSecondary ?? colors.textSecondary, fontSize: 12, fontWeight: "500" }}
-                              numberOfLines={1}
-                            >
-                              {formatLocationShort(event.location)}
+                        {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
+                        {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
+                            <EntityAvatar
+                              photoUrl={event.user.image}
+                              initials={event.user.name?.[0] ?? "?"}
+                              size={20}
+                              backgroundColor={event.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}20`}
+                              foregroundColor={cardAccent ?? themeColor}
+                              fallbackIcon="person-outline"
+                            />
+                            <Text style={{ fontSize: 12, fontWeight: "500", color: cardAccent ?? themeColor }}>
+                              {isMyEvent ? "Hosted by you" : `Hosted by ${hostName ?? "a friend"}`}
                             </Text>
+                            {(hostEventCounts.get(event.user!.id) ?? 0) >= 5 && (
+                              <View style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                backgroundColor: "#FEF3C7",
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                gap: 2,
+                              }}>
+                                <Text style={{ fontSize: 10 }}>⭐</Text>
+                                <Text style={{ fontSize: 10, fontWeight: "700", color: "#B45309" }}>Active Host</Text>
+                              </View>
+                            )}
                           </View>
-                        ) : null}
+                        )}
 
                         {/* FOOTER ROW: date/time + availability | attendees */}
                         <View style={{

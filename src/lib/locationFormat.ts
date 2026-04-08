@@ -19,6 +19,9 @@ export function formatLocationShort(location: string | null | undefined): string
     // "City, State" or "Venue, City" — return the first part
     return parts[0];
   }
-  // Single value — return as-is
+  // No commas — truncate long strings (e.g. "Coronado beach San Diego")
+  if (trimmed.length > 30) {
+    return trimmed.substring(0, 27) + "…";
+  }
   return trimmed;
 }
