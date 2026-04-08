@@ -794,10 +794,10 @@ export default function DiscoverScreen() {
 
       {lens === "map" ? (
         /* ═══ Map View ═══ */
-        <View style={{ flex: 1, paddingTop: chromeHeight }}>
+        <View style={{ flex: 1 }}>
           {!RNMapView ? (
             /* Fallback when native module is missing (OTA on builds 315-320) */
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32, paddingTop: chromeHeight + 32 }}>
               <MapPin size={40} color={colors.textTertiary} />
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, textAlign: "center", marginTop: 12, marginBottom: 8 }}>
                 Map requires an app update
@@ -825,6 +825,7 @@ export default function DiscoverScreen() {
           <RNMapView
             ref={mapRef}
             style={{ flex: 1 }}
+            mapPadding={{ top: chromeHeight, right: 0, bottom: 0, left: 0 }}
             initialRegion={{
               ...(userRegion ?? SAN_DIEGO),
               latitudeDelta: 0.15,
