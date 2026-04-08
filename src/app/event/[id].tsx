@@ -28,7 +28,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MapPin, Compass, ArrowRight } from "@/ui/icons";
+import { MapPin, Compass, ArrowRight, CalendarDays } from "@/ui/icons";
 import { hasValidCoordinates } from "@/lib/discoverFilters";
 
 import { useSession } from "@/lib/useSession";
@@ -2214,6 +2214,16 @@ export default function EventDetailScreen() {
         {/* HostToolsRow merged into HOST ACTION CARD above */}
 
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
+
+        {/* ═══ IMPORTED EVENT PROVENANCE ═══ */}
+        {!!event?.isImported && isMyEvent && (
+          <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 8 }}>
+            <CalendarDays size={14} color={colors.textTertiary} />
+            <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
+              {Platform.OS === "ios" ? "Synced from Apple Calendar" : Platform.OS === "android" ? "Synced from Google Calendar" : "Synced from calendar"}
+            </Text>
+          </View>
+        )}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>

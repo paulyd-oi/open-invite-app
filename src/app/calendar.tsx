@@ -1400,6 +1400,13 @@ export default function CalendarScreen() {
               </Pressable>
             </Animated.View>
           )}
+          {/* Subtle resync hint */}
+          {!showCalendarImportNudge && (
+            <Text style={{ color: colors.textTertiary, fontSize: 11, fontWeight: "500", textAlign: "center", marginBottom: 6, opacity: 0.6 }}>
+              Pull down to resync calendar
+            </Text>
+          )}
+
           {isListView ? (
           <ListView
             events={allEvents}

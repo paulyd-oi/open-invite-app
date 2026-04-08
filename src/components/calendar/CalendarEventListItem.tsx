@@ -264,6 +264,11 @@ export function EventListItem({
     router.push(`/create?copyEventId=${event.id}`);
   };
 
+  const handleEditEvent = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/create?editEventId=${event.id}&emoji=${encodeURIComponent(event.emoji ?? "📅")}` as Href);
+  };
+
   const handleToggleBusy = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onToggleBusy?.(event.id, !event.isBusy);
@@ -584,6 +589,14 @@ export function EventListItem({
           </Pressable>
         </ContextMenu.Trigger>
         <ContextMenu.Content>
+          {/* Edit — owner only */}
+          {isOwner && !event.isBusy && (
+            <ContextMenu.Item key="edit" onSelect={handleEditEvent}>
+              <ContextMenu.ItemTitle>Edit Event</ContextMenu.ItemTitle>
+              <ContextMenu.ItemIcon ios={{ name: "pencil" }} />
+            </ContextMenu.Item>
+          )}
+
           {/* Share */}
           <ContextMenu.Item key="share" onSelect={handleShare}>
             <ContextMenu.ItemTitle>Share Event</ContextMenu.ItemTitle>
