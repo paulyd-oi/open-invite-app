@@ -168,20 +168,26 @@ interface PopularEvent {
   longitude?: number | null;
 }
 
-type Lens = "map" | "events" | "saved";
+type Lens = "map" | "events" | "responded";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "map", label: "Map" },
   { key: "events", label: "Events" },
-  { key: "saved", label: "Saved" },
+  { key: "responded", label: "Responded" },
 ];
 
-type EventSort = "popular" | "soon" | "friends" | "responded" | "group";
+type EventSort = "popular" | "soon" | "friends" | "saved" | "group";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "soon", label: "Soon" },
   { key: "popular", label: "Popular" },
   { key: "friends", label: "Friends" },
-  { key: "responded", label: "Responded" },
+  { key: "saved", label: "Saved" },
   { key: "group", label: "Group" },
+];
+
+type RespondedSubFilter = "going" | "not_going";
+const RESPONDED_SUB_OPTIONS: { key: RespondedSubFilter; label: string }[] = [
+  { key: "going", label: "Going" },
+  { key: "not_going", label: "Not Going" },
 ];
 
 export default function DiscoverScreen() {
@@ -194,6 +200,7 @@ export default function DiscoverScreen() {
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("events");
   const [eventSort, setEventSort] = useState<EventSort>("soon");
+  const [respondedSubFilter, setRespondedSubFilter] = useState<RespondedSubFilter>("going");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
 
@@ -534,7 +541,6 @@ export default function DiscoverScreen() {
     }
     if (__DEV__) {
       const withRsvp = enrichedEvents.filter((e) => e.viewerRsvpStatus != null);
-      console.log("[RESPONDED_DEBUG]", `total=${enrichedEvents.length} withRsvp=${withRsvp.length} respondedIds=${ids.size}`, withRsvp.map((e) => `${e.title?.slice(0, 20)}:${e.viewerRsvpStatus}`));
     }
     return ids;
   }, [enrichedEvents]);
@@ -544,6 +550,14 @@ export default function DiscoverScreen() {
       .filter((e) => e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus))
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
+
+  const respondedGoingSorted = useMemo(() => {
+    return respondedSorted.filter((e) => e.viewerRsvpStatus === "going");
+  }, [respondedSorted]);
+
+  const respondedNotGoingSorted = useMemo(() => {
+    return respondedSorted.filter((e) => e.viewerRsvpStatus === "not_going");
+  }, [respondedSorted]);
 
   const popularSorted = useMemo(() => {
     return [...enrichedEvents]
@@ -590,9 +604,6 @@ export default function DiscoverScreen() {
       });
   }, [friendsFeedData?.events, respondedEventIds]);
 
-  // Active Events feed based on sort control
-  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "responded" ? respondedSorted : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
-
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
     const now = Date.now();
@@ -603,6 +614,9 @@ export default function DiscoverScreen() {
       })
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
+
+  // Active Events feed based on sort control
+  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "saved" ? savedEventsList : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
 
   // ── Host event count: derive "Active Host" badge (5+ events) ──
   const hostEventCounts = useMemo(() => {
@@ -1095,14 +1109,21 @@ export default function DiscoverScreen() {
                     <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>Find Friends</Text>
                   </Pressable>
                 </View>
-                ) : eventSort === "responded" ? (
+                ) : eventSort === "saved" ? (
                 <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
-                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83D\uDCEC"}</Text>
+                  <View style={{
+                    width: 56, height: 56, borderRadius: 28,
+                    alignItems: "center", justifyContent: "center",
+                    backgroundColor: isDark ? "rgba(236,72,153,0.12)" : "rgba(236,72,153,0.08)",
+                    marginBottom: 16,
+                  }}>
+                    <Bookmark size={24} color={STATUS.interested.fg} />
+                  </View>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                    No responses yet
+                    No saved events
                   </Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                    Events you RSVP to will appear here
+                    Tap the heart on any event to save it.{"\n"}Saved events appear here.
                   </Text>
                   <Pressable
                     onPress={() => {
@@ -1646,52 +1667,13 @@ export default function DiscoverScreen() {
           )}
         </View>
       ) : (
-        /* ═══ Saved Tab ═══ */
+        /* ═══ Responded Pane ═══ */
         <View style={{ flex: 1 }}>
           {showDiscoverLoading ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="small" color={themeColor} />
             </View>
-          ) : savedEventsList.length === 0 ? (
-            /* ═══ Saved V2 — Empty State ═══ */
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
-              <View style={{
-                width: 56, height: 56, borderRadius: 28,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: isDark ? "rgba(236,72,153,0.12)" : "rgba(236,72,153,0.08)",
-                marginBottom: 16,
-              }}>
-                <Bookmark size={24} color={STATUS.interested.fg} />
-              </View>
-              <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                Your shortlist
-              </Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 6 }}>
-                Save events you're considering.{"\n"}They'll be here when you're ready to decide.
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: "center", lineHeight: 18, marginBottom: 24 }}>
-                Tap the heart on any event to save it.
-              </Text>
-              <Pressable
-                testID="discover-saved-empty-browse-events"
-                onPress={() => {
-                  setLens("events");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={{
-                  paddingHorizontal: 24,
-                  paddingVertical: 12,
-                  borderRadius: RADIUS.lg,
-                  backgroundColor: themeColor,
-                }}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>
-                  Browse Events
-                </Text>
-              </Pressable>
-            </View>
           ) : (
-            /* ═══ Saved V2 — Event List with Time Groups ═══ */
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: TAB_BOTTOM_PADDING }}
@@ -1705,24 +1687,90 @@ export default function DiscoverScreen() {
                 />
               }
             >
+              {/* Sub-filter pills: Going | Not Going */}
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, justifyContent: "center" }}>
+                {RESPONDED_SUB_OPTIONS.map((opt) => {
+                  const active = respondedSubFilter === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => {
+                        setRespondedSubFilter(opt.key);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: RADIUS.lg,
+                        backgroundColor: active ? themeColor : colors.surface,
+                        borderWidth: active ? 0 : 1,
+                        borderColor: colors.borderSubtle,
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: active ? "#FFFFFF" : colors.textSecondary,
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               {(() => {
+                const filteredList = respondedSubFilter === "going" ? respondedGoingSorted : respondedNotGoingSorted;
+
+                if (filteredList.length === 0) {
+                  return (
+                    <View style={{ alignItems: "center", paddingTop: 40, paddingHorizontal: 16 }}>
+                      <Text style={{ fontSize: 40, marginBottom: 12 }}>
+                        {respondedSubFilter === "going" ? "\u{1F389}" : "\u{1F44B}"}
+                      </Text>
+                      <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                        {respondedSubFilter === "going" ? "No events you're going to" : "No declined events"}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                        {respondedSubFilter === "going"
+                          ? "RSVP \"Going\" to events and they'll show up here."
+                          : "Events you decline will appear here in case you change your mind."}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setLens("events");
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        style={{
+                          paddingHorizontal: 24,
+                          paddingVertical: 12,
+                          borderRadius: RADIUS.lg,
+                          backgroundColor: themeColor,
+                        }}
+                      >
+                        <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>
+                          Browse Events
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                }
+
                 let lastGroup = "";
                 let itemIndex = 0;
-                return savedEventsList.map((event) => {
-                  const savedDisplayTime = event.nextOccurrence ?? event.startTime;
-                  const group = getSavedTimeGroup(savedDisplayTime);
+                return filteredList.map((event) => {
+                  const displayTime = event.nextOccurrence ?? event.startTime;
+                  const group = getSavedTimeGroup(displayTime);
                   const showHeader = group !== lastGroup;
                   lastGroup = group;
                   const idx = itemIndex++;
 
-                  const timeStr = new Date(savedDisplayTime).toLocaleTimeString([], {
+                  const timeStr = new Date(displayTime).toLocaleTimeString([], {
                     hour: "numeric", minute: "2-digit",
                   });
-                  const dateStr = new Date(savedDisplayTime).toLocaleDateString([], {
+                  const dateStr = new Date(displayTime).toLocaleDateString([], {
                     weekday: "short", month: "short", day: "numeric",
                   });
-                  const savedUrgency = getUrgencyLabel(savedDisplayTime);
-                  const savedAvailChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
                   const isToday = group === "Today";
                   const isTomorrow = group === "Tomorrow";
 
@@ -1746,7 +1794,6 @@ export default function DiscoverScreen() {
                         style={{ marginBottom: 10 }}
                       >
                         <Pressable
-                          testID="discover-saved-row-open"
                           onPress={() => handleEventPress(event.id)}
                           style={({ pressed }) => ({
                             backgroundColor: colors.surface,
@@ -1809,7 +1856,6 @@ export default function DiscoverScreen() {
                                   </Text>
                                 </View>
                               )}
-                              {/* Hosted by — social proof for decision making */}
                               {event.user?.name && (
                                 <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }} numberOfLines={1}>
                                   Hosted by {event.user.name}
@@ -1818,39 +1864,6 @@ export default function DiscoverScreen() {
                             </View>
 
                             <View style={{ alignItems: "flex-end", gap: 4 }}>
-                              {savedUrgency.label ? (
-                                <View style={{
-                                  backgroundColor: savedUrgency.tone === "soon" ? STATUS.soon.bgSoft : STATUS.info.bgSoft,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 6,
-                                }}>
-                                  <Text style={{
-                                    fontSize: 11,
-                                    fontWeight: "700",
-                                    color: savedUrgency.tone === "soon" ? STATUS.soon.fg : STATUS.info.fg,
-                                  }}>
-                                    {savedUrgency.label}
-                                  </Text>
-                                </View>
-                              ) : null}
-                              {/* [SAVED_V2] Show availability alongside urgency — both useful for decisions */}
-                              {savedAvailChip && (
-                                <View style={{
-                                  backgroundColor: savedAvailChip.tone ? STATUS[savedAvailChip.tone].bgSoft : undefined,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 6,
-                                }}>
-                                  <Text style={{
-                                    fontSize: 11,
-                                    fontWeight: "600",
-                                    color: savedAvailChip.tone ? STATUS[savedAvailChip.tone].fg : colors.textSecondary,
-                                  }}>
-                                    {savedAvailChip.label}
-                                  </Text>
-                                </View>
-                              )}
                               {event.attendeeCount > 0 && (
                                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                                   <Users size={11} color={STATUS.going.fg} />
