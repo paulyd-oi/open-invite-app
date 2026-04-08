@@ -69,6 +69,8 @@ export const eventSchema = z.object({
   capacity: z.number().nullable().optional(), // Max attendees (null = unlimited)
   goingCount: z.number().optional(), // Current count of GOING RSVPs
   isFull: z.boolean().optional(), // Computed: capacity != null && goingCount >= capacity
+  waitlistEnabled: z.boolean().optional(), // Whether waitlist is enabled when full
+  waitlistCount: z.number().optional(), // Number of users on waitlist
   viewerRsvpStatus: z.enum(["going", "interested", "maybe", "not_going"]).nullable().optional(), // Requesting user's RSVP
   viewerColor: z.string().nullable().optional(), // Viewer-scoped color override
   // Co-hosts
@@ -266,6 +268,59 @@ export const getCalendarEventsResponseSchema = z.object({
 });
 export type GetCalendarEventsResponse = z.infer<typeof getCalendarEventsResponseSchema>;
 
+// Imported calendar event schema (from device)
+export const importedCalendarEventSchema = z.object({
+  deviceEventId: z.string(), // ID from device calendar
+  title: z.string(),
+  startTime: z.string(), // ISO date string
+  endTime: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  calendarId: z.string(), // Device calendar ID
+  calendarName: z.string().optional(), // Device calendar name (e.g., "iCloud", "Work")
+});
+export type ImportedCalendarEvent = z.infer<typeof importedCalendarEventSchema>;
+
+// POST /api/events/import - Import events from device calendar
+export const importCalendarEventsRequestSchema = z.object({
+  events: z.array(importedCalendarEventSchema),
+  defaultVisibility: z.enum(["all_friends", "specific_groups", "open_invite", "circle_only", "private"]).optional(),
+});
+export type ImportCalendarEventsRequest = z.infer<typeof importCalendarEventsRequestSchema>;
+
+export const importCalendarEventsResponseSchema = z.object({
+  success: z.boolean(),
+  imported: z.number(),
+  updated: z.number(),
+  skipped: z.number(),
+  events: z.array(eventSchema),
+});
+export type ImportCalendarEventsResponse = z.infer<typeof importCalendarEventsResponseSchema>;
+
+// GET /api/events/imported - Get user's imported events
+export const getImportedEventsResponseSchema = z.object({
+  events: z.array(eventSchema.extend({
+    isImported: z.boolean(),
+    deviceCalendarId: z.string().nullable(),
+    deviceCalendarName: z.string().nullable(),
+    importedAt: z.string().nullable(),
+  })),
+});
+export type GetImportedEventsResponse = z.infer<typeof getImportedEventsResponseSchema>;
+
+// PUT /api/events/:id/visibility - Update event visibility
+export const updateEventVisibilityRequestSchema = z.object({
+  visibility: z.enum(["public", "all_friends", "specific_groups", "open_invite", "circle_only", "private"]),
+  groupIds: z.array(z.string()).optional(),
+});
+export type UpdateEventVisibilityRequest = z.infer<typeof updateEventVisibilityRequestSchema>;
+
+export const updateEventVisibilityResponseSchema = z.object({
+  success: z.boolean(),
+  event: eventSchema,
+});
+export type UpdateEventVisibilityResponse = z.infer<typeof updateEventVisibilityResponseSchema>;
+
 // POST /api/events - Create new event
 export const createEventRequestSchema = z.object({
   title: z.string().min(1),
@@ -285,6 +340,7 @@ export const createEventRequestSchema = z.object({
   sendNotification: z.boolean().optional(), // Whether to notify friends about this event
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
   capacity: z.number().int().positive().nullable().optional(), // Max attendees (null = unlimited)
+  waitlistEnabled: z.boolean().optional(), // Enable waitlist when event is full
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
   costPerPerson: z.string().max(100).nullable().optional(), // Display-only cost info e.g. "$20", "Free"
   eventHook: z.string().max(60).nullable().optional(), // Short tagline/hook for Discover card
