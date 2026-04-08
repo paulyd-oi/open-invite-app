@@ -29,9 +29,9 @@ interface AboutCardProps {
   description: string | null | undefined;
   descriptionExpanded: boolean;
   onToggleDescription: () => void;
-  // Location
-  locationDisplay: string | null;
-  onGetDirections: () => void;
+  // Location (optional — rendered in separate LOCATION section when omitted)
+  locationDisplay?: string | null;
+  onGetDirections?: () => void;
   // Visibility (host only)
   isMyEvent: boolean;
   isBusy: boolean;

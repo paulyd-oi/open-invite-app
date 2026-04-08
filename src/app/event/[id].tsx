@@ -28,6 +28,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MapPin, Compass, ArrowRight } from "@/ui/icons";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -2206,34 +2207,6 @@ export default function EventDetailScreen() {
 
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
-        {/* ═══ MINI MAP PREVIEW — non-interactive pin at event location ═══ */}
-        {RNMapView && event.latitude != null && event.longitude != null && event.latitude !== 0 && (
-          <View style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: "hidden", height: 150, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
-            <RNMapView
-              style={{ flex: 1 }}
-              initialRegion={{
-                latitude: event.latitude,
-                longitude: event.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-              toolbarEnabled={false}
-              showsMyLocationButton={false}
-              liteMode
-            >
-              <RNMarker coordinate={{ latitude: event.latitude, longitude: event.longitude }}>
-                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: themeColor, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" }}>
-                  <Text style={{ fontSize: 14 }}>{event.emoji}</Text>
-                </View>
-              </RNMarker>
-            </RNMapView>
-          </View>
-        )}
-
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
 
@@ -2241,11 +2214,6 @@ export default function EventDetailScreen() {
           description={event.description}
           descriptionExpanded={descriptionExpanded}
           onToggleDescription={() => setDescriptionExpanded(!descriptionExpanded)}
-          locationDisplay={effectiveLocationDisplay}
-          onGetDirections={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            openEventLocation(effectiveLocationQuery ?? effectiveLocationDisplay ?? "", event, event.id);
-          }}
           isMyEvent={isMyEvent}
           isBusy={event.isBusy ?? false}
           visibility={event.visibility}
@@ -2332,6 +2300,67 @@ export default function EventDetailScreen() {
           }}
           onToggleInterestedUsers={() => setShowInterestedUsers(!showInterestedUsers)}
         />
+        </View>
+        )}
+
+        {/* ═══ LOCATION CARD — map + address + directions ═══ */}
+        {effectiveLocationDisplay && (
+        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", overflow: "hidden" }}>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+            Location
+          </Text>
+
+          {/* Mini map */}
+          {RNMapView && event.latitude != null && event.longitude != null && event.latitude !== 0 && (
+            <View style={{ height: 150, marginHorizontal: 16, borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+              <RNMapView
+                style={{ flex: 1 }}
+                initialRegion={{
+                  latitude: event.latitude,
+                  longitude: event.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+                toolbarEnabled={false}
+                showsMyLocationButton={false}
+                liteMode
+              >
+                <RNMarker coordinate={{ latitude: event.latitude, longitude: event.longitude }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: themeColor, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" }}>
+                    <Text style={{ fontSize: 14 }}>{event.emoji}</Text>
+                  </View>
+                </RNMarker>
+              </RNMapView>
+            </View>
+          )}
+
+          {/* Address + Get Directions */}
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              openEventLocation(effectiveLocationQuery ?? effectiveLocationDisplay ?? "", event, event.id);
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              marginBottom: 4,
+            }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(20,184,166,0.15)" : "rgba(20,184,166,0.1)", alignItems: "center", justifyContent: "center" }}>
+              <Compass size={18} color="#14B8A6" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={1}>{effectiveLocationDisplay}</Text>
+              <Text style={{ fontSize: 12, color: "#14B8A6", marginTop: 2, fontWeight: "500" }}>Get Directions</Text>
+            </View>
+            <ArrowRight size={16} color="#14B8A6" />
+          </Pressable>
         </View>
         )}
 
