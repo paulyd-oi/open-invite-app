@@ -101,5 +101,5 @@ Imported calendar events (`isImported: true`) are **personal calendar artifacts*
 - **Subscription quota already excludes imported events** (`isImported: false` in `subscriptionHelpers.ts`).
 - **Canonical discriminator:** `Event.isImported` (boolean, default `false`) in Prisma schema. Do not infer from heuristics when this field exists.
 - **Backend guardrail:** Use `nativeEventWhere()` from `src/utils/nativeEventWhere.ts` for platform metric queries. E.g., `db.event.count({ where: nativeEventWhere({ userId }) })`. This merges `isImported: false` into the where clause.
-- **Provenance label:** Imported events show "Synced from {deviceCalendarName}" if the field exists, otherwise "Synced from calendar". No Platform.OS guessing. Shown for all imported events regardless of ownership.
+- **Provenance label:** Imported events normalize `deviceCalendarName` to a polished provider: iCloud/Apple → "Apple Calendar", Google/Gmail → "Google Calendar", anything else → generic "calendar". Raw calendar names (e.g., "Work", "Personal") are never shown. Shown for all imported events regardless of ownership.
 - **When adding new event count queries**, always ask: "Is this measuring platform activity or personal schedule?" Platform activity → exclude imported. Personal schedule → include.

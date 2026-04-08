@@ -2216,16 +2216,22 @@ export default function EventDetailScreen() {
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ IMPORTED EVENT PROVENANCE ═══ */}
-        {!!event?.isImported && (
-          <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 8 }}>
-            <CalendarDays size={14} color={colors.textTertiary} />
-            <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
-              {(event as any).deviceCalendarName
-                ? `Synced from ${(event as any).deviceCalendarName}`
-                : "Synced from calendar"}
-            </Text>
-          </View>
-        )}
+        {!!event?.isImported && (() => {
+          const raw = ((event as any).deviceCalendarName ?? "").toLowerCase();
+          const provider = raw.includes("icloud") || raw.includes("apple")
+            ? "Apple Calendar"
+            : raw.includes("google") || raw.includes("gmail")
+              ? "Google Calendar"
+              : null;
+          return (
+            <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 8 }}>
+              <CalendarDays size={14} color={colors.textTertiary} />
+              <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
+                {provider ? `Synced from ${provider}` : "Synced from calendar"}
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
