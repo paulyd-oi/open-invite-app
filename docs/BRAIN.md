@@ -1,563 +1,1060 @@
 # Open Invite — App Brain
 
-<!-- GENERATED: 2026-04-06. Re-run the brain-scan prompt to refresh. -->
-
-You are advising on **Open Invite**, a social calendar app for coordinating real-life plans with friends. This document is the single source of truth for what the product is, how it works, and the current state of the codebase and user base.
-
----
-
-## 1. Product Identity
-
-Open Invite is a friendly, calendar-native social planning app. The tagline is **"Your plans, finally social."** Users create events, invite friends, RSVP in seconds, chat in Circles, and keep their social life organized in one place. It is built for iOS (primary) and Android (confirmed target).
-
-**Core thesis:** Existing tools (group chats, iCal, Eventbrite) fragment social coordination. Open Invite collapses event creation, invitations, RSVP, chat, and discovery into a single app optimized for small-group, real-life plans.
-
-**Target audience:** Young adults (18–35) in tight friend groups, with early traction in faith-based / church communities. The distribution strategy leans on church networks — promo codes like `AWAKEN`, `SHEPHERD`, and `LOVEPEOPLE` reflect this, and the "Founder" / "Legacy Leader" discount tiers target community leaders.
-
-**Monetization — Free vs Premium:**
-- **Free tier:** Create up to 3 active events, 5 basic profile themes, standard event features.
-- **Premium tier:** Unlimited events, 41 event themes (36 premium), custom theme builder, advanced event features (pitch-in, bring list, event hooks), premium badges.
-- Revenue via RevenueCat (Apple IAP + Google Play). Promo codes and discount codes grant free months/years/lifetime.
-- Current premium subscribers: 3 active (2 expiring 2027+, 1 expired).
-
-**App Store IDs:**
-- iOS: `id6757429210` (bundle: `com.vibecode.openinvite.0qi5wk`)
-- Android: `com.vibecode.openinvite.x0qi5wk`
+<!-- GENERATED: 2026-04-07. Re-run the brain-scan prompt to refresh. -->
+<!-- Scanned: open-invite-app, my-app-backend, openinvite-website, production DB -->
 
 ---
 
-## 2. Feature Map — User-Facing
+## PRODUCT
 
-### Events
-| Feature | Description |
-|---------|-------------|
-| **Create Event** (`create.tsx`) | Full event creation: title, emoji, date/time, location (Google Places), description, visibility, capacity, recurrence, theme, cover photo, event hook tagline, pitch-in/bring-list settings |
-| **Create Settings** (`create-settings.tsx`) | Advanced event settings during creation: visibility controls, guest list display, location visibility |
-| **Event Detail** (`event/[id].tsx`) | 3D flip card (InviteFlipCard) with hero image, countdown, social proof. Below: RSVP bar, about card, photo gallery, comments, attendees, co-hosts |
-| **Event Edit** (`event/edit.tsx`) | Edit all event fields post-creation |
-| **Event Photos** | Attendees can upload photos during/after events (Cloudinary). Gallery view with captions |
-| **Event Comments** | Threaded comments on events |
-| **Event Templates** | Save and reuse event configurations |
-| **Event Requests** (`create-event-request.tsx`, `event-request/`) | Propose an event to a group, members vote, auto-creates event when accepted |
-| **Calendar Import** (`import-calendar.tsx`) | Import device calendar events into Open Invite |
-| **RSVP** | Three states: Going, Interested, Not Going. Join requests for private events |
-| **Event Reminders** | Configurable per-event reminders |
-| **Event Reporting** | Report inappropriate events/users |
-| **Recurring Events** | Daily/weekly/monthly recurrence with series tracking |
+### What Open Invite Is
 
-### Discovery
-| Feature | Description |
-|---------|-------------|
-| **Discover Feed** (`discover.tsx`) | Main feed with sort pills: Popular, Soon, Friends, Group. Cards show cover image, theme, countdown, social proof |
-| **Saved Events** | Bookmark events as "Interested", view in dedicated saved tab |
-| **Friend Suggestions** (`suggestions.tsx`) | Algorithmic friend suggestions based on mutual connections |
-| **Who's Free** (`whos-free.tsx`) | See which friends are available based on work schedules |
+Open Invite is a social calendar app for coordinating real-life plans with friends. Users create events, RSVP, discover what friends are doing, chat in circles (group conversations), and build a friend graph. The app prioritizes spontaneous, low-friction planning over formal event management. Available on iOS (App Store ID: 6757429210, Bundle ID: com.vibecode.openinvite.0qi5wk).
 
-### Social / Friends
-| Feature | Description |
-|---------|-------------|
-| **Friends List** (`friends.tsx`) | View all friends, friend requests, mutual friends |
-| **Add Friends** (`add-friends.tsx`) | Search by name/handle, contact matching, friend suggestions |
-| **Friend Groups** | Organize friends into named groups with colors/icons. Used for event visibility targeting |
-| **Friend Profile** (`friend/[id].tsx`) | View friend's profile, upcoming events, hangout history |
-| **Friend Notes** | Private notes on friends (DB table exists, feature in FAQ) |
-| **Pinned Friends** | Pin favorite friends to top of list |
-| **Blocked Contacts** (`blocked-contacts.tsx`) | Block users, hide from suggestions |
-| **Hangout History** | Track which friends you've attended events with |
-| **Hangout Streaks** | Weekly streak tracking for consistent hangouts |
+### Core User Flows
 
-### Chat (Circles)
-| Feature | Description |
-|---------|-------------|
-| **Circles** (`circles.tsx`) | Group chat system. Each circle has name, emoji, photo, members |
-| **Circle Chat** (`circle/[id].tsx`) | Real-time messaging via WebSocket. Supports text, images, replies, reactions |
-| **Circle Polls** | Create polls within circles for group decisions |
-| **Circle Events** | Link events to circles for coordinated planning |
-| **DMs** | Direct messages via 2-person circles (dmMemberSetKey) |
-| **Plan Lock** | Lock/unlock planning state in a circle |
+**Create Event:** Home/Calendar tab > Create button > Title, date, time, location, emoji, visibility, theme > Optional: cover photo, description, co-hosts, capacity, RSVP deadline, Pitch In, Bring List > Publish. Events can be open_invite (public), all_friends, specific_groups, circle_only, or private.
 
-### Profile
-| Feature | Description |
-|---------|-------------|
-| **Profile** (`profile.tsx`) | View own profile: avatar, banner, bio, calendar bio, handle, birthday settings |
-| **Edit Profile** (`edit-profile.tsx`) | Edit all profile fields, upload avatar/banner via Cloudinary |
-| **Public Profile** (`public-profile.tsx`) | View another user's public profile |
-| **Profile Themes** | 24 themes available for profile surface (5 free, 19 premium) |
-| **Theme Builder** (`theme-builder.tsx`) | Custom theme creation (premium) |
-| **Badges** | Achievement badges with tiers. Featured badge on profile |
-| **Work Schedule** | Set weekly availability blocks, visible to friends |
+**RSVP:** Discover/Calendar/Friend feed > Tap event > Going / Interested / Maybe / Not Going. Join requests for capacity-limited events. RSVP deadline enforcement. Sticky RSVP bar on scroll.
 
-### Subscriptions & Monetization
-| Feature | Description |
-|---------|-------------|
-| **Paywall** (`paywall.tsx`) | Premium upgrade screen with feature comparison |
-| **Subscription** (`subscription.tsx`) | Manage subscription, view tier details |
-| **Redeem Code** (`redeem-code.tsx`) | Enter promo/discount codes for premium access |
-| **Referrals** (`referrals.tsx`) | Invite friends via referral code, earn rewards |
+**Discover:** Discover tab shows events from friends, friends-of-friends (2nd degree), and open_invite events. Tabs: For You, Friends (events friends RSVPed to), Nearby. Social proof (X friends going).
 
-### Notifications
-| Feature | Description |
-|---------|-------------|
-| **Activity Feed** (`activity.tsx`) | In-app notification center |
-| **Push Notifications** | Expo push notifications with 26 active tokens |
-| **Notification Settings** (`notification-settings.tsx`) | Granular per-category toggles (30+ categories: events, friends, circles, FOMO, digest) |
-| **Smart Notifications** | FOMO triggers (friend joined popular event), reconnect suggestions, daily digest |
-| **Event Reminders** | Configurable reminder timing per event |
+**Chat (Circles):** Circles are group chats or DMs. Create circle > Add members > Chat. Features: replies, reactions, polls, plan locks, typing indicators, event sharing, read receipts, notification levels. DMs are get-or-create with deterministic key.
 
-### Onboarding & Auth
-| Feature | Description |
-|---------|-------------|
-| **Login** (`login.tsx`) | Email/password + Apple Sign-In |
-| **Onboarding** (`onboarding.tsx`) | First-run flow with checklist |
-| **Email Verification** (`verify-email.tsx`) | 6-digit code verification |
-| **Welcome** (`welcome.tsx`) | Post-onboarding welcome screen |
-| **Password Reset** | Via website reset-password page |
+**Friend Graph:** Add friends via contacts, search, or referral links. Friend requests with accept/decline. Friend groups for event visibility segmentation. Friend notes, mutual friends, reconnection suggestions, hangout history.
 
-### Admin
-| Feature | Description |
-|---------|-------------|
-| **Admin Dashboard** (`admin.tsx`) | User management, badge management, report review |
-| **Admin Reports** (`admin-reports.tsx`, `admin-report-detail.tsx`) | Review user/event reports |
+### Monetization Model
+
+**Free tier:** 5 events/month, 2 circles, 15 circle members, 5 friend notes, 7-day Who's Free, 7-day birthdays, 5 basic themes.
+**Founder Pro (premium):** Unlimited events, circles, members, notes. 90-day Who's Free & birthdays. 21 premium themes, custom Theme Studio, effects, recurring events, analytics, priority sync. Pricing: $10/year (early adopter), $25-40/year (future), $60 lifetime. Via RevenueCat (App Store IAP). Offering ID: "default", Entitlement: "premium".
+
+### Current State
+
+- **Users:** 46 registered, ~47 with guests
+- **Events:** 172 created
+- **Messages:** 584 circle messages
+- **Friendships:** 192
+- **Sessions:** 427
+- **Deployment:** Backend on Render (auto-deploy from main), Website on Vercel, App via App Store + OTA
+- **App Store ID:** 6757429210
+- **Bundle ID:** com.vibecode.openinvite.0qi5wk
+- **Android Package:** com.vibecode.openinvite.x0qi5wk
 
 ---
 
-## 3. Feature Map — Backend
+## ARCHITECTURE
 
-The backend is a **Hono** server running on **Render** (Node.js runtime). Database: **PostgreSQL on Render**. ORM: **Prisma 6.17**. Auth: **Better Auth** with email/password + Apple Sign-In.
+### Frontend: React Native / Expo
 
-Production URL: `https://open-invite-api.onrender.com`
+- **Framework:** React Native 0.79.6 + Expo 53.0.27
+- **Language:** TypeScript (strict)
+- **Routing:** Expo Router 5.1.10 (file-based, typed routes)
+- **State:** React Query 5.90.2 (server state), Zustand 5.0.9 (2 stores), SecureStore (auth tokens)
+- **Styling:** NativeWind 4.1.23 (Tailwind for RN)
+- **Animation:** React Native Reanimated 3.17.4, Skia, Lottie
+- **Auth:** Better Auth 1.4.7 + expo plugin + Apple Sign-In
+- **Monetization:** RevenueCat 9.6.7
+- **Analytics:** PostHog 4.35.1
+- **Error Tracking:** Sentry 6.14.0
+- **Navigation:** 5-tab bottom bar: Discover | Calendar | Social (center) | Friends | Profile
+- **Key libs:** expo-notifications, expo-calendar, expo-location, expo-image-picker, @gorhom/bottom-sheet
 
-### API Route Groups
+### Backend: Hono on Render
 
-| Route Group | Key Endpoints | Auth | Description |
-|-------------|---------------|------|-------------|
-| **Auth** `/api/auth/*` | POST apple, GET apple/status | No (public) | Apple Sign-In + Better Auth session management. Rate limited (20/min) |
-| **Custom Auth** `/api/auth` | POST sign-in/email, POST sign-up/email | No | Email/password auth with verification |
-| **Events CRUD** `/api/events` | GET /, POST /, GET /pending-summaries | Yes | List user events, create event (idempotent), pending summaries |
-| **Events Feed** `/api/events` | GET /feed, GET /friends-hosted-feed, GET /attending | Yes | Discover feed (hot-path rate limited), friends feed, attending list |
-| **Events RSVP** `/api/events/:id` | POST /join, POST /rsvp, GET /rsvp, DELETE /rsvp, GET /rsvps | Yes | RSVP management with idempotency |
-| **Events Interactions** `/api/events/:id` | POST /report, GET /photos, POST /photos, DELETE /photos/:photoId, GET /comments, POST /comments | Yes | Photos, comments, reporting |
-| **Events Settings** `/api/events/:id` | PUT /summary, PUT /visibility, PUT /busy, PUT /color, PUT /photo, PUT /hosts | Yes | Event configuration |
-| **Events Misc** `/api/events` | GET /templates, POST /templates, DELETE /templates/:id, POST /import, GET /imported | Yes | Templates, calendar import |
-| **Events Social** `/api/events` | GET /suggestions, GET /streaks, GET /whos-free, GET /friends-availability | Yes | Social features, hangout streaks, availability |
-| **Event Requests** `/api/event-requests` | GET /, GET /:id, POST /, PUT /:id/respond, DELETE /:id, POST /:id/nudge, POST /:id/suggest-time | Yes | Group event proposals |
-| **Friends** `/api/friends` | GET /, GET /paginated, GET /requests, POST /request, PUT /request/:id, DELETE /:id, PUT /:id/block, GET /:id/events, GET /suggestions, GET /:id/mutual | Yes | Full friend graph management |
-| **Groups** `/api/groups` | GET /, POST /, PUT /:id, DELETE /:id, POST /:id/members, DELETE /:id/members/:friendshipId | Yes | Friend group CRUD |
-| **Circles** `/api/circles` | GET /, GET /:id | Yes | Chat circles with messages, polls, events |
-| **Profile** `/api/profile` | GET /, PUT /, GET /search, POST /search, GET /stats, GET /:id/profile, PUT /featured-badge | Yes | Profile management, user search |
-| **Notifications** `/api/notifications` | GET /, GET /paginated, GET /unseen-count, POST /mark-all-seen, GET /preferences, PUT /preferences, POST /register-token, POST /status | Yes | Full notification system |
-| **Push** `/api/push` | GET /me, POST /deactivate, POST /clear-mine, POST /test-self, POST /register, POST /test | Yes | Push token management |
-| **Subscription** `/api/subscription` | GET /, GET /limits, POST /upgrade, POST /restore, GET /check-feature/:feature, GET /details, GET /pro-features | Yes | Subscription & entitlement checks |
-| **Entitlements** `/api/entitlements` | GET /, POST /check, GET /events/active/count | Yes | Feature gating, active event limits |
-| **Hosting** `/api/hosting` | GET /quota | Yes | Event hosting quota checks |
-| **Discount Codes** `/api/discount` | GET /validate/:code, POST /redeem, POST /seed, POST /update-limits | Mixed | Discount code system |
-| **Promo Codes** `/api/promo` | POST /redeem | Yes | Promo code redemption |
-| **Referral** `/api/referral` | GET /me, POST /accept, GET /stats, GET /code, POST /track, POST /apply, GET /leaderboard, GET /validate/:code, POST /claim-reward, GET /pending-rewards | Yes | Full referral system with leaderboard |
-| **Public Events** `/api/events/:id` | GET /public, GET /calendar.ics, POST /rsvp/guest | No (rate limited) | Public event page, iCal export, guest RSVP |
-| **Webhooks** `/api/webhooks` | POST /revenuecat | Webhook auth | RevenueCat subscription events |
-| **Achievements** `/api/achievements` | GET /, GET /:id, PUT /badge | Yes | Badge/achievement system |
-| **Badges** `/api/badges` | GET /catalog | Yes | Badge catalog |
-| **Birthdays** `/api/birthdays` | GET / | Yes | Friend birthday list |
-| **Blocked** `/api/blocked` | GET /, POST /, DELETE /:id, POST /search | Yes | Block/unblock users |
-| **Contacts** `/api/contacts` | POST /match | Yes | Contact book matching |
-| **Privacy** `/api/privacy` | GET /, PUT /, GET /export, DELETE /account | Yes | Privacy settings, data export, account deletion |
-| **Onboarding** `/api/onboarding` | GET /status, POST /complete, GET /checklist | Yes | Onboarding progress |
-| **Work Schedule** `/api/work-schedule` | GET /, PUT /settings, PUT /:dayOfWeek, PUT /, GET /user/:userId, GET /check | Yes | Weekly availability |
-| **Places** `/api/places` | GET /search | Yes | Google Places search proxy |
-| **Reports** `/api/reports` | POST /user, POST /event | Yes | User/event reporting |
-| **Widget** `/api/widget` | GET /today, GET /upcoming, GET /summary | Yes | iOS Today Widget data |
-| **Upload** `/api/uploads` | Static file serving | No | Uploaded file delivery |
-| **Cloudinary** `/api/cloudinary` | POST /upload (event photos, profile photos) | Yes | Direct Cloudinary upload with event-window and rate limits |
-| **Share Pages** `/api/share` | GET /event/:id, GET /invite/:code | Rate limited | HTML share pages for link previews |
-| **App Config** `/api/config` | GET / | No | Version gates, announcements, feature flags |
-| **Cron** `/api/cron` | POST /reminders/run, POST /digest/run | Cron auth | Scheduled reminder and digest dispatch |
-| **Admin** `/api/admin` | Multiple CRUD endpoints | Admin auth | User/badge/report management |
-| **Health** `/api/health` | GET / | No | Health check |
-| **Inventory** `/api/inventory` | GET /founder-spots, GET /early-member-spots | No | Scarcity counters |
+- **Framework:** Hono (TypeScript)
+- **Runtime:** Node.js on Render
+- **Database:** PostgreSQL (Prisma 6.19.1 ORM)
+- **Auth:** Better Auth (Prisma adapter, sessions, Apple Sign-In, phone OTP via Twilio)
+- **Email:** Resend (verification, password reset, RSVP confirmation)
+- **Images:** Cloudinary (signed uploads, server-side transforms)
+- **Push:** Expo Push Notifications (with async job worker fanout)
+- **Realtime:** WebSocket server with optional Redis fanout
+- **Cron:** 8 scheduled jobs with lease-based distributed locking
+- **Rate Limiting:** In-memory, per-user/per-IP, 6 presets (auth/write/hotpath/heavy/global/email)
 
-### Realtime
-- **WebSocket server** (`src/realtime/`) for circle chat: Redis pub/sub for cross-instance broadcast, auth via session token, rate limiting, presence
-- **Redis** (ioredis) for WS broadcast and optional caching
+### Website: Next.js on Vercel
 
-### Middleware
-- `requireAuth` — session-based auth enforcement
-- `requireVerifiedEmail` — email verification gate
-- `rateLimit` — global, hot-path, write, heavy, auth-specific rate limiters
-- `idempotency` — deduplication for write endpoints
-- `requestId` — UUID tracking per request
-- `requestLogger` — structured logging
-- `adminAuth` / `cronAuth` / `bearerAuth` — specialized auth for admin/cron/API
-
----
-
-## 4. Feature Map — Website
-
-The website is a **Next.js 16** app hosted on **Vercel** at `https://openinvite.cloud` and `https://www.openinvite.cloud`.
-
-| Route | Description |
-|-------|-------------|
-| `/` | Landing page: hero with tagline, app store links, feature pills (Circles, Calendar-native, Public + private events, RSVP in seconds), demo embed, contact form |
-| `/event/[id]` | Public event page: server-rendered with dynamic OG metadata (title, date, location, cover image). Theme-aware backgrounds. Guest RSVP form. Deep link to app (`open-invite://event/:id`) |
-| `/support` | Help/support page with demo video, FAQ, contact info, app store links |
-| `/privacy` | Privacy policy (effective Feb 2, 2026) |
-| `/terms` | Terms of service (effective Feb 2, 2026) |
-| `/delete-account` | Account deletion instructions |
-| `/presskit` | Press kit with logos, screenshots, product details |
-| `/reset-password` | Password reset flow (calls backend API) |
-| `/sitemap.ts` | Dynamic sitemap generation |
-| `/robots.ts` | Robots.txt |
-
-### Guest RSVP Flow
-1. User shares event link → `openinvite.cloud/event/:id`
-2. Website fetches public event data from backend (`GET /api/events/:id/public`)
-3. Guest enters name + email/phone → `POST /api/events/:id/rsvp/guest`
-4. Backend creates `guest_rsvp` record with token
-5. Page shows "Get the App" CTA with app store links
-
-### OG Metadata
-Dynamic per-event: title, date + location line, host name, cover image (falls back to default OG banner). Apple Smart App Banner meta tag for deep linking (`app-id=6757429210, app-argument=open-invite://event/:id`).
-
-### Deep Linking
-- `/.well-known/apple-app-site-association` — AASA for iOS universal links on `/event/*` paths
-- URL rewrite: `/share/event/:id` → `/event/:id` (canonicalization for OG metadata)
-- Attribution tracking: URL params (`?src=`, `?ref=`, `?campaign=`) captured and sent to PostHog
-
----
-
-## 5. Database Schema
-
-80 tables in PostgreSQL on Render. Key tables:
-
-| Table | Purpose | Key Columns | Rows |
-|-------|---------|-------------|------|
-| `user` | App users | id, email, phone, name, image, referralCode, premiumExpiresAt, onboardingCompleted | 47 |
-| `account` | Auth provider links | userId, providerId (credential/apple), accessToken | 44 |
-| `session` | Active sessions | userId, token, expiresAt | 371 |
-| `Profile` | Extended user profile | userId, handle, bio, avatarUrl, bannerUrl, profileThemeId, profileCardColor, birthday | 1 |
-| `event` | Events | title, description, location, emoji, startTime, endTime, visibility, capacity, eventPhotoUrl, themeId, cardColor, hostIds[], isRecurring, pitchIn*, bringList*, eventHook (56 cols) | 167 |
-| `event_interest` | RSVPs | eventId, userId, status (going/interested/not_going) | 151 |
-| `event_photo` | Event gallery photos | eventId, userId, imageUrl, caption, publicId | 11 |
-| `event_comment` | Event comments | eventId, userId, content | 15 |
-| `event_group_visibility` | Event → friend group targeting | eventId, groupId | varies |
-| `event_join_request` | Private event join requests | eventId, userId, status, message | 0 |
-| `event_reminder` | Per-user event reminders | userId, eventId, minutesBefore, isEnabled | 0 |
-| `event_template` | Saved event templates | name, emoji, duration, description, userId | 0 |
-| `event_request` | Group event proposals | title, description, creatorId, status | 0 |
-| `event_request_member` | Proposal responses | eventRequestId, userId, status | 0 |
-| `friendship` | Bidirectional friendships | userId, friendId, isBlocked | 192 |
-| `friend_request` | Pending friend requests | senderId, receiverId, status | 96 |
-| `friend_group` | Named friend groups | name, color, icon, userId | 5 |
-| `friend_group_membership` | Friend → group assignments | friendshipId, groupId | varies |
-| `friend_note` | Private notes on friends | (exists in schema, minimal use) | 0 |
-| `pinned_friendship` | Pinned/favorite friends | userId, friendshipId | 0 |
-| `circle` | Chat circles/groups | name, emoji, createdById, type, dmMemberSetKey, lastMessageAt | 33 |
-| `circle_member` | Circle membership | circleId, userId, isPinned, isMuted, lastReadAt | varies |
-| `circle_message` | Chat messages | circleId, userId, content, imageUrl, replyTo* | 582 |
-| `circle_message_reaction` | Message reactions | messageId, userId, emoji | 0 |
-| `circle_poll` | In-circle polls | circleId, question | 0 |
-| `circle_event` | Circle ↔ event links | circleId, eventId | 0 |
-| `notification` | In-app notifications | userId, type, title, body, data, read, actorId | 1,060 |
-| `notification_preferences` | Per-user notification toggles | 30+ boolean columns covering every notification type | 2 |
-| `notification_delivery_log` | Push deduplication | userId, dedupeKey, sentAt | 4 |
-| `push_token` | Expo push tokens | userId, token, platform, isActive, deviceId | 26 |
-| `subscription` | Premium subscriptions | userId, tier (free/premium), expiresAt, transactionId | 4 |
-| `promo_code` | Redeemable promo codes | code, maxRedemptions, usedCount, durationDays | 1 |
-| `promo_redemption` | Promo code usage log | userId, promoCodeId, redeemedAt | 0 |
-| `discount_code` | Discount codes (separate system) | code, type (month_free/year_free/lifetime), maxUses, isActive | 7 |
-| `referral` | User referrals | referrerId, referredUserId, status, rewardClaimed | 2 |
-| `referral_reward` | Referral rewards | userId, rewardType, referralCount | 0 |
-| `entitlement_override` | Manual premium grants | userId, entitlementKey, expiresAt, grantedBy, reason | 0 |
-| `purchase_event` | RevenueCat webhook events | transactionId, userId, productId, eventType | 0 |
-| `story` | User stories (photos/text) | userId, type, content, imageUrl, eventId, visibility, expiresAt | 0 |
-| `story_view` | Story view tracking | storyId, userId, viewedAt | 0 |
-| `hangout_history` | Friend hangout records | userId, friendId, eventId, hangoutDate | 0 |
-| `work_schedule` | Weekly work blocks | userId, dayOfWeek, startTime, endTime, label | 278 |
-| `badge_definition` | Achievement badge catalog | key, name, emoji, tierColor, tier, isExclusive | 0 |
-| `badge_grant` | Admin-granted badges | userId, badgeKey, grantedBy, reason | 0 |
-| `user_badge` | User achievement progress | userId, achievementId | 0 |
-| `user_stats` | Aggregate user stats | hostedCompleted, attendedCompleted, referralsVerifiedCount | 0 |
-| `business` | Business profiles (planned) | name, handle, category, location, isVerified | 0 |
-| `business_event` | Business-hosted events | businessId, title, maxAttendees | 0 |
-| `guest_rsvp` | Website guest RSVPs | eventId, name, email, phone, status, token | 3 |
-| `blocked_contact` | User blocks | userId, blockedUserId, reason | 0 |
-| `event_report` | Event content reports | eventId, reporterId, reason, status, action | 2 |
-| `user_report` | User behavior reports | (standard report fields) | 1 |
-| `admin_audit_log` | Admin action log | adminUserId, action, targetUserId, payload | 0 |
-| `job` | Background job queue | type, payload, status, attempts, maxAttempts | 0 |
-| `cron_job_lease` | Distributed cron locks | jobName, ownerId, lockedUntil | 0 |
-| `idempotency_record` | Request deduplication | userId, key, route, status, responseJson | varies |
-
----
-
-## 6. Live Metrics Snapshot
-
-<!-- METRICS: Generated 2026-04-06. Re-run to refresh. -->
-
-### Users
-| Metric | Value |
-|--------|-------|
-| Total users | 47 |
-| Auth: email/password | 40 |
-| Auth: Apple Sign-In | 4 |
-| Onboarding completed | (check `onboardingCompleted` col) |
-
-**Signup trend (last 8 weeks):**
-| Week | Signups |
-|------|---------|
-| Feb 16 | 1 |
-| Feb 23 | 5 |
-| Mar 2 | 5 |
-| Mar 16 | 1 |
-| Mar 30 | 4 |
-| Apr 6 | 1 |
-
-### Events
-| Metric | Value |
-|--------|-------|
-| Total events | 167 |
-| Active (future) | 26 |
-| Past | 141 |
-| This week | 9 |
-| Recurring | 1 |
-| With cover photos | 36 |
-| With themes | 25 |
-
-**Visibility breakdown:**
-| Mode | Count |
-|------|-------|
-| All friends | 91 |
-| Private | 67 |
-| Circle only | 8 |
-| Specific groups | 1 |
-
-**Category breakdown:** Social (30), Entertainment (2), Food (2), Outdoors (1). 132 uncategorized.
-
-### RSVPs
-| Metric | Value |
-|--------|-------|
-| Total RSVPs | 151 |
-| Going | 139 |
-| Interested | 11 |
-| Not going | 1 |
-| Avg RSVPs/event | 0.90 |
-| Guest RSVPs (website) | 3 |
-
-### Social
-| Metric | Value |
-|--------|-------|
-| Friendships | 192 |
-| Friend requests | 96 |
-| Friend groups | 5 |
-| Circles | 33 |
-| Circle messages | 582 |
-
-### Premium & Codes
-| Metric | Value |
-|--------|-------|
-| Subscriptions | 4 (2 premium active, 1 expired premium, 1 free) |
-| Active premium | Alex Duarte (exp 2028-01), Andrew Navagonzalez (exp 2027-02) |
-
-**Discount codes (7):**
-| Code | Type | Active | Used/Max |
-|------|------|--------|----------|
-| AWAKEN | year_free | Yes | 2/10,000 |
-| SHEPHERD | year_free | Yes | 0/1,000 |
-| LEGACYLEADER | lifetime | Yes | 0/500 |
-| LOVEPEOPLE | month_free | Yes | 2/10,000 |
-| MONTH1FREE | month_free | No | 0/500 |
-| YEAR1FREE | year_free | No | 0/200 |
-| LIFETIME4U | lifetime | No | 4/100 |
-
-**Promo codes (1):** AWAKEN — 365 days, 1 used, expires 2026-04-29
-
-### Top Hosts
-| Host | Events Created |
-|------|---------------|
-| Paul Dal | 65 |
-| Alex Duarte | 28 |
-| valhaus23 | 22 |
-| Andrew Navagonzalez | 20 |
-| Casey Martinez | 3 |
-
-### Top Events (by RSVPs)
-| Event | RSVPs | Date |
-|-------|-------|------|
-| [DEMO] Sunrise Yoga | 6 | Jan 28 |
-| [DEMO] LAN Party | 6 | Feb 18 |
-| [DEMO] Morning Coffee | 6 | Feb 25 |
-| [DEMO] Gym Session | 5 | Feb 9 |
-| [DEMO] Movie Marathon | 5 | Jan 9 |
-
-*Note: Top RSVP'd events are all demo/seed data.*
-
-### Notifications
-| Type | Count |
-|------|-------|
-| EVENT_REMINDER | 304 |
-| new_event | 267 |
-| event_invite | 221 |
-| friend_request | 106 |
-| request_accepted | 89 |
-| new_attendee | 35 |
-| event_rsvp | 12 |
-| event_comment | 12 |
-| Total | 1,060 |
-
----
-
-## 7. Technical Architecture
-
-### Frontend (React Native / Expo)
-- **Framework:** Expo SDK 53, React Native 0.76.7
-- **Router:** expo-router (file-based, `src/app/`)
-- **Styling:** NativeWind + Tailwind v3
-- **State:** React Query (@tanstack/react-query) for server state, Zustand for local state
-- **Auth:** Better Auth (@better-auth/expo) with Apple Sign-In
-- **Payments:** RevenueCat (react-native-purchases + react-native-purchases-ui)
-- **Analytics:** PostHog (posthog-react-native)
-- **Images:** expo-image (ExpoImage) + Cloudinary transforms
-- **Animations:** react-native-reanimated v3
-- **Gestures:** react-native-gesture-handler
-- **Chat UI:** react-native-gifted-chat
-- **Graphics:** @shopify/react-native-skia (effects), expo-mesh-gradient
-- **Icons:** lucide-react-native (via `@/ui/icons`)
-- **Lists:** @shopify/flash-list
-- **Calendar:** react-native-calendars
-- **Bottom Sheet:** @gorhom/bottom-sheet
-- **Package manager:** bun
-- **Build:** EAS Build (eas.json)
-
-### Backend (Hono)
-- **Runtime:** Node.js (Bun for dev)
-- **Framework:** Hono 4.6.0
-- **ORM:** Prisma 6.17.1
-- **Auth:** Better Auth 1.4.7
-- **Database:** PostgreSQL on Render
-- **Cache/PubSub:** Redis (ioredis 5.9.3)
-- **Realtime:** WebSocket (ws 8.19.0) with Redis broadcast
-- **Monitoring:** Sentry (@sentry/node 10.47.0)
-- **Email:** Resend (transactional email for verification, password reset)
-- **SMS:** Twilio (phone number OTP verification)
-- **Push:** Expo Push Notifications (batch fanout, 100/request, deduplication)
-- **Image hosting:** Cloudinary (signed uploads, public ID lifecycle tracking)
-- **Location:** Google Places API
-- **Hosting:** Render (web service, port 10000)
-- **Deploy:** `npm install && prisma generate` → `prisma migrate deploy && npx tsx src/server.ts`
-- **Cron:** Render cron → event reminders (5min), daily digest (15min), weekly digest (Mon 02:00 UTC), token/session cleanup (weekly)
-
-### Website (Next.js)
-- **Framework:** Next.js 16.1.6 with React 19
-- **Hosting:** Vercel
-- **Analytics:** @vercel/analytics, @vercel/speed-insights, PostHog
-- **Font:** DM Sans (Google Fonts)
+- **Framework:** Next.js 16.1.6 (App Router)
 - **Styling:** Tailwind CSS v4
+- **Font:** DM Sans (via next/font)
+- **Analytics:** Vercel Analytics, PostHog
+- **Pages:** Landing, public event page (ISR, 30s revalidation), privacy, terms, support, presskit, delete-account, reset-password
+- **Domain:** openinvite.cloud (www redirect), go.openinvite.cloud (share links)
 
-### Infrastructure Diagram
+### How They Connect
+
+- **API:** Frontend → https://open-invite-api.onrender.com/api/*
+- **Website → Backend:** Server-side fetch for public events, client-side for guest RSVP
+- **Shared Types:** `shared/contracts.ts` synced between frontend and backend (Zod schemas)
+- **Auth:** Better Auth cookies (web) + x-oi-session-token header (mobile)
+- **Deep Links:** open-invite:// scheme, Universal Links via openinvite.cloud/.well-known/apple-app-site-association
+- **Push:** Backend → Expo Push Service → APNs/FCM → Device
+
+### Infrastructure
+
+- **paulsmbp:** Primary development machine (macOS). All three repos here.
+- **paulyd-mini:** Mac mini running PM2 services (OpenClaw operator, attribution engine). Receives BRAIN.md for content generation context.
+- **Render:** Backend hosting. Auto-deploys from main branch. PostgreSQL database.
+- **Vercel:** Website hosting. Auto-deploys.
+- **Cloudinary:** Image CDN. Signed uploads, server-side transforms (webp, resize).
+- **RevenueCat:** Subscription management. Webhook to backend for purchase events.
+- **Expo:** OTA updates, push notification service, build service (EAS).
+
+---
+
+## SCREENS & FEATURES (Frontend)
+
+### Tab Bar (5 Tabs — INVARIANT order)
+
+| Index | Key | Icon | Route | Description |
+|-------|-----|------|-------|-------------|
+| 0 | discover | Sparkles | /discover | Discover events feed (For You, Friends, Nearby) |
+| 1 | calendar | Calendar | /calendar | Personal calendar with day/list views, work schedule overlay |
+| 2 | social | List | /social | Social feed (CENTER tab, emphasized) |
+| 3 | friends | Users | /friends | Friends list with People/Chats/Activity panes |
+| 4 | profile | User | /profile | User profile, settings, subscription |
+
+### All Screen Files
+
+| Screen | File Path | Description |
+|--------|-----------|-------------|
+| Home/Entry | `app/index.tsx` | App entry point |
+| Login | `app/login.tsx` | Email/password + Apple Sign-In |
+| Welcome | `app/welcome.tsx` | Post-signup welcome |
+| Onboarding | `app/onboarding.tsx` | Guided onboarding flow |
+| Discover | `app/discover.tsx` | Event discovery feed |
+| Calendar | `app/calendar.tsx` | Personal calendar |
+| Social | `app/social.tsx` | Social feed |
+| Friends | `app/friends.tsx` | Friends management |
+| Profile | `app/profile.tsx` | User profile |
+| Event Detail | `app/event/[id].tsx` | Event view/RSVP/comments/photos |
+| Event Request | `app/event-request/[id].tsx` | Group event request detail |
+| Circle Detail | `app/circle/[id].tsx` | Circle chat/members/events |
+| Friend Profile | `app/friend/[id].tsx` | Friend detail view |
+| User Profile | `app/user/[id].tsx` | Public user profile |
+| Create Event | `app/create.tsx` | Event creation form (SSOT for authoring) |
+| Create Settings | `app/create-settings.tsx` | Advanced event settings |
+| Create Request | `app/create-event-request.tsx` | Event request creation |
+| Settings | `app/settings.tsx` | Main settings |
+| Account Settings | `app/account-settings.tsx` | Account management |
+| Account Center | `app/account-center.tsx` | Account center |
+| Edit Profile | `app/edit-profile.tsx` | Profile editor |
+| Privacy Settings | `app/privacy-settings.tsx` | Privacy controls |
+| Notification Settings | `app/notification-settings.tsx` | Push notification preferences |
+| Circles | `app/circles.tsx` | Circles management |
+| Add Friends | `app/add-friends.tsx` | Friend discovery/search |
+| Activity | `app/activity.tsx` | Activity feed |
+| Suggestions | `app/suggestions.tsx` | Event suggestions |
+| Who's Free | `app/whos-free.tsx` | Friend availability view |
+| Import Calendar | `app/import-calendar.tsx` | Device calendar import |
+| Calendar Import Help | `app/calendar-import-help.tsx` | Import instructions |
+| Subscription | `app/subscription.tsx` | Subscription management |
+| Paywall | `app/paywall.tsx` | Premium paywall |
+| Referrals | `app/referrals.tsx` | Referral program |
+| Redeem Code | `app/redeem-code.tsx` | Promo code redemption |
+| Help/FAQ | `app/help-faq.tsx` | Help & FAQ |
+| Public Profile | `app/public-profile.tsx` | Shareable public profile |
+| Verify Email | `app/verify-email.tsx` | Email verification |
+| Theme Builder | `app/theme-builder.tsx` | Custom theme creator (Theme Studio) |
+| Admin | `app/admin.tsx` | Admin panel |
+| Admin Reports | `app/admin-reports.tsx` | Admin reports list |
+| Admin Report Detail | `app/admin-report-detail.tsx` | Report detail |
+| Blocked Contacts | `app/blocked-contacts.tsx` | Blocked contacts list |
+
+---
+
+## COMPONENT INVENTORY (Frontend)
+
+### 169 Total Components across 14+ groups
+
+### Core Shared Components
+
+| Component | File | Key Props |
+|-----------|------|-----------|
+| BottomSheet | `src/components/BottomSheet.tsx` | visible, onClose, title, heightPct, maxHeightPct, backdropOpacity, enableBackdropClose, keyboardMode, headerRight, children |
+| InviteFlipCard | `src/components/InviteFlipCard.tsx` | title, imageUri, emoji, countdownLabel, dateLabel, timeLabel, locationDisplay, hostedBy, heroImage, theme, isFlipped, onFlip, attendees |
+| ThemePicker | `src/components/customization/ThemePicker.tsx` | themeIds, packs, selectedThemeId, userIsPro, themeColor, isDark, onThemeSelect, onPremiumUpsell, layout |
+| EffectTray | `src/components/create/EffectTray.tsx` | Premium effect filtering, visual effects selection |
+| ShareApp | `src/components/ShareApp.tsx` | variant (icon/compact/full) |
+| ShareToFriendsSheet | `src/components/event/ShareToFriendsSheet.tsx` | Share event with friends overlay |
+| BottomNavigation | `src/components/BottomNavigation.tsx` | Floating island design, 56px height |
+| AppHeader | `src/components/AppHeader.tsx` | Header chrome |
+| ConfirmModal | `src/components/ConfirmModal.tsx` | Generic confirmation dialog |
+| EmptyState | `src/components/EmptyState.tsx` | Empty state placeholder |
+| EntityAvatar | `src/components/EntityAvatar.tsx` | Avatar for users/circles |
+| Toast | `src/components/Toast.tsx` | Toast notifications |
+| Skeleton | `src/components/Skeleton.tsx` | Loading skeletons |
+
+### Calendar Components (`src/components/calendar/`)
+
+- CalendarBirthdaysSection.tsx
+- CalendarBusyBlockModal.tsx
+- CalendarDayCells.tsx
+- CalendarEventListItem.tsx
+- CalendarFirstLoginGuideModal.tsx
+- CalendarHeaderChrome.tsx
+- CalendarListView.tsx
+
+### Circle/Chat Components (`src/components/circle/`)
+
+- CircleAddMembersModal.tsx
+- CircleAvailabilitySection.tsx / Sheet.tsx
+- CircleChatOverlays.tsx / Section.tsx
+- CircleCreateEventModal.tsx
+- CircleEditMessageOverlay.tsx
+- CircleFriendSuggestionModal.tsx
+- CircleHeaderChrome.tsx
+- CircleLifecycleChips.tsx
+- CircleMembersSection.tsx / Sheet.tsx
+- CircleNextEventCard.tsx
+- CircleNotifyLevelSheet.tsx
+- CirclePlanLockSheet.tsx
+- CirclePollSheet.tsx
+- CircleReactionPicker.tsx
+- CircleRemoveMemberModal.tsx
+- CircleSettingsSheet.tsx
+
+### Create Event Components (`src/components/create/`)
+
+- CardColorPicker.tsx
+- CoverMediaPickerSheet.tsx
+- CreateBottomDock.tsx
+- CreateCoverRow.tsx
+- CreateDateTimeSection.tsx
+- CreateEditorHeader.tsx
+- CreateFormFields.tsx
+- CreateLocationSection.tsx
+- CreatePreviewHero.tsx
+- CreateSheets.tsx
+- EffectTray.tsx
+- MotifOverlay.tsx
+- SettingsSheetContent.tsx
+- ThemeTray.tsx
+
+### Event Detail Components (`src/components/event/`)
+
+- AboutCard.tsx — Event description/details
+- AttendeesSheet.tsx — Full attendee list
+- BusyBlockGate.tsx — Busy event access gate
+- CalendarSyncModal.tsx — Add to device calendar
+- ColorPickerSheet.tsx — Per-event color override
+- ConfirmedAttendeeBanner.tsx — "You're going" banner
+- DiscussionCard.tsx — Comments section
+- EditPhotoButton.tsx — Photo editing
+- EventActionsSheet.tsx — Action sheet (share, report, etc.)
+- EventDetailErrorState.tsx — Error fallback
+- EventFlyer.tsx — Shareable event flyer
+- EventHeroBackdrop.tsx — Hero image backdrop
+- EventHeroNav.tsx — Navigation over hero
+- EventModals.tsx — Modal container
+- EventSettingsAccordion.tsx — Host settings panel
+- FindFriendsNudge.tsx — Friend discovery nudge
+- HostActionCard.tsx — Host-specific actions
+- HostReflectionCard.tsx — Post-event reflection
+- HostToolsRow.tsx — Host tools (edit, delete, co-host)
+- MemoriesRow.tsx — Event memory photos
+- PhotoNudge.tsx — Photo upload prompt
+- PhotoUploadSheet.tsx — Photo upload
+- PostCreateNudge.tsx — After event creation
+- PrivacyRestrictedGate.tsx — Privacy-restricted content
+- ReportModal.tsx — Report event/user
+- RsvpButtonGroup.tsx — RSVP buttons
+- RsvpStatusDisplay.tsx — Current RSVP status
+- RsvpSuccessPrompt.tsx — Post-RSVP prompt
+- ShareFlyerSheet.tsx — Share flyer
+- ShareToFriendsSheet.tsx — Share to friends
+- SocialProofRow.tsx — "X friends going"
+- StickyRsvpBar.tsx — Sticky RSVP on scroll
+- ThemeBackgroundLayers.tsx — Theme visual layers
+- WhosComingCard.tsx — Attendee preview
+
+### Friends Components (`src/components/friends/`)
+
+- FriendsActivityPane.tsx — Activity feed
+- FriendsChatsPane.tsx — DM/circle chats
+- FriendsPeoplePane.tsx — Friends list
+
+### Settings Components (`src/components/settings/`)
+
+- ReferralCounterSection.tsx
+- SettingsAdminPasscodeModal.tsx
+- SettingsBirthdaySection.tsx
+- SettingsEditProfileSection.tsx
+- SettingsNotificationsDevTools.tsx
+- SettingsProfileAppearanceSection.tsx
+- SettingsProfileCard.tsx
+- SettingsPushDiagnosticsModal.tsx
+- SettingsSubscriptionSection.tsx
+- SettingsThemeSection.tsx
+- SettingsWorkScheduleSection.tsx
+
+### Paywall Components (`src/components/paywall/`)
+
+- PaywallModal.tsx
+- PremiumUpsellSheet.tsx
+
+### Chat Components (`src/components/chat/`)
+
+- EventShareCard.tsx — Rich event card in chat messages
+
+### UI Primitives (`src/ui/`)
+
+- Button.tsx, IconButton.tsx, Chip.tsx
+- Tile.tsx
+- icons.tsx (Lucide)
+- tokens.ts, glassTokens.ts (design tokens)
+- layout.ts, motion.ts
+- SafeAreaScreen.tsx
+
+---
+
+## API SURFACE (Backend)
+
+### Route Groups with File Paths
+
+All routes mounted at `/api/` prefix. Auth required unless noted.
+
+#### Admin (`src/routes/admin.ts`) — requireAdmin
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/me | Current admin user |
+| GET | /admin/users | List users (paginated) |
+| GET | /admin/users/search | Search users |
+| GET | /admin/users/:userId | User detail |
+| POST | /admin/users/:userId/subscription | Set subscription |
+| GET | /admin/users/:userId/badges | User badges |
+| POST | /admin/users/:userId/badges/grant | Grant badge |
+| POST | /admin/users/:userId/badges/revoke | Revoke badge |
+| GET | /admin/users/:userId/entitlements | User entitlements |
+| POST | /admin/entitlements/grant | Grant entitlement override |
+| POST | /admin/entitlements/revoke | Revoke entitlement override |
+| GET | /admin/badges | All badge definitions |
+| POST | /admin/badges | Create badge definition |
+| PATCH | /admin/badges/:key | Update badge |
+| POST | /admin/badges/grant | Grant badge by key |
+| POST | /admin/badges/revoke | Revoke badge by key |
+| GET | /admin/reports | All reports |
+| GET | /admin/reports/:reportId | Report detail |
+| POST | /admin/reports/:reportId/resolve | Resolve report |
+| POST | /admin/events/:id/clear-under-review | Clear review flag |
+| GET | /admin/events/:id/goingcount-audit | Audit going count |
+| GET | /admin/health/hotpath | Hotpath health |
+| GET | /admin/ws-stats | WebSocket stats |
+| GET | /admin/realtime-status | Realtime status |
+| GET | /admin/analytics | Dashboard analytics |
+| GET | /admin/analytics/users | User analytics |
+
+#### Auth (`src/routes/appleAuth.ts`, `src/routes/customAuth.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /auth/apple | Apple Sign-In |
+| GET | /auth/apple/status | Apple auth status |
+| POST | /auth/sign-in/email | Email sign-in |
+| POST | /auth/sign-up/email | Email sign-up |
+
+#### Events — CRUD (`src/routes/events-crud.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /events | User's events |
+| GET | /events/pending-summaries | Events needing summary |
+| POST | /events | Create event (idempotent, rate-limited) |
+| GET | /events/:id | Event detail |
+| PUT | /events/:id | Update event |
+| DELETE | /events/:id | Delete event |
+
+#### Events — Feed (`src/routes/events-feed.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /events/feed | Discover feed (FoF visibility) |
+| GET | /events/friends-hosted-feed | Friends-hosted events |
+| GET | /events/attending | Events user is attending |
+| GET | /events/calendar-events | Calendar view events |
+| GET | /events/activity-feed | Activity feed |
+
+#### Events — RSVP (`src/routes/events-rsvp.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /events/:id/join | Join event (capacity-gated) |
+| POST | /events/:id/rsvp | Set RSVP status |
+| GET | /events/:id/rsvp | Get viewer's RSVP |
+| DELETE | /events/:id/rsvp | Remove RSVP |
+| GET | /events/:id/rsvps | All RSVPs |
+| GET | /events/:id/attendees | Attendee list |
+
+#### Events — Social (`src/routes/events-social.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /events/suggestions | Friend reconnection suggestions |
+| GET | /events/streaks | Hosting streaks |
+| GET | /events/whos-free | Who's free availability |
+| GET | /events/friends-availability | Friends' availability |
+| POST | /events/shared-availability | Check shared availability |
+| GET | /events/nearby | Nearby events |
+| POST | /events/hangout | Record hangout |
+| POST | /events/suggested-times | AI time suggestions |
+| POST | /events/:eventId/share | Share event to DMs/circles |
+
+#### Events — Settings (`src/routes/events-settings.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| PUT | /events/:id/summary | Set post-event summary |
+| POST | /events/:id/summary/dismiss | Dismiss summary prompt |
+| PUT | /events/:id/visibility | Change visibility |
+| PUT | /events/:id/busy | Toggle busy status |
+| PUT | /events/:id/color | Set card color |
+| PUT | /events/:id/photo | Set/remove event photo |
+| PUT | /events/:id/hosts | Set co-hosts |
+| POST | /events/:id/bring-list/:itemId/claim | Claim bring-list item |
+| POST | /events/:id/bring-list/:itemId/unclaim | Unclaim item |
+
+#### Events — Interactions (`src/routes/events-interactions.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /events/:eventId/report | Report event |
+| GET | /events/:id/photos | Event photos |
+| POST | /events/:id/photos | Upload photo |
+| DELETE | /events/:eventId/photos/:photoId | Delete photo |
+| GET | /events/:id/comments | Event comments |
+| POST | /events/:id/comments | Post comment |
+| DELETE | /events/:eventId/comments/:commentId | Delete comment |
+
+#### Events — Misc (`src/routes/events-misc.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /events/templates | User's event templates |
+| POST | /events/templates | Create template |
+| DELETE | /events/templates/:id | Delete template |
+| POST | /events/import | Import device calendar (batch) |
+| GET | /events/imported | List imported events |
+| DELETE | /events/imported/clear | Clear all imports |
+
+#### Event Requests (`src/routes/eventRequests.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /event-requests | User's event requests |
+| GET | /event-requests/:id | Request detail |
+| POST | /event-requests | Create request |
+| PUT | /event-requests/:id/respond | Respond to request |
+| DELETE | /event-requests/:id | Delete request |
+| POST | /event-requests/:id/nudge | Nudge members |
+| POST | /event-requests/:id/suggest-time | Suggest time |
+
+#### Circles (`src/routes/circles.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /circles | User's circles |
+| GET | /circles/:id | Circle detail |
+| POST | /circles | Create circle |
+| PUT | /circles/:id | Update circle |
+| DELETE | /circles/:id | Delete circle |
+| POST | /circles/:id/pin | Pin/unpin circle |
+| POST | /circles/:id/mute | Mute/unmute circle |
+| POST | /circles/:id/members | Add members |
+| DELETE | /circles/:id/members/:userId | Remove member |
+| GET | /circles/:id/messages | Get messages (paginated, cursor) |
+| POST | /circles/:id/messages | Send message (idempotent) |
+| POST | /circles/:id/messages/:messageId/reactions | Add reaction |
+| GET | /circles/:id/availability-summary | Group availability |
+| GET | /circles/:id/availability | Detailed availability |
+| POST | /circles/:id/events | Create circle event |
+| POST | /circles/:id/read | Mark read |
+| POST | /circles/:id/read-horizon | Update read horizon |
+| GET | /circles/unread/count | Unread count |
+| POST | /circles/:id/typing | Send typing indicator |
+| GET | /circles/:id/typing | Get typing users |
+| GET | /circles/:id/plan-lock | Get plan lock |
+| POST | /circles/:id/plan-lock | Set plan lock |
+| POST | /circles/:id/polls | Create poll |
+| POST | /circles/:id/polls/:pollId/vote | Vote on poll |
+| GET | /circles/:id/polls | Get polls |
+| GET | /circles/:id/notification-level | Get notification level |
+| POST | /circles/:id/notification-level | Set notification level |
+| GET | /circles/:id/lifecycle | Get lifecycle state |
+| POST | /circles/:id/lifecycle | Set lifecycle state |
+| POST | /circles/dm | Get-or-create DM |
+| POST | /circles/friends/:friendshipId/pin | Pin friendship |
+| GET | /circles/friends/pinned | Get pinned friendships |
+
+#### Friends (`src/routes/friends.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /friends | All friends |
+| GET | /friends/paginated | Paginated friends |
+| GET | /friends/requests | Friend requests |
+| POST | /friends/request | Send friend request |
+| PUT | /friends/request/:id | Accept/decline |
+| DELETE | /friends/:id | Unfriend |
+| PUT | /friends/:id/block | Block friend |
+| GET | /friends/:id/events | Friend's events |
+| GET | /friends/suggestions | Friend suggestions |
+| GET | /friends/:id/mutual | Mutual friends |
+| GET | /friends/reconnect | Reconnection suggestions |
+
+#### Friend Notes (`src/routes/friendNotes.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /friend-notes/:friendshipId/notes | Get notes |
+| POST | /friend-notes/:friendshipId/notes | Create note |
+| PUT | /friend-notes/:friendshipId/notes/:noteId | Update note |
+| DELETE | /friend-notes/:friendshipId/notes/:noteId | Delete note |
+
+#### Friend Groups (`src/routes/groups.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /friend-groups | User's groups |
+| POST | /friend-groups | Create group |
+| PUT | /friend-groups/:id | Update group |
+| DELETE | /friend-groups/:id | Delete group |
+| POST | /friend-groups/:id/members | Add member |
+| DELETE | /friend-groups/:id/members/:friendshipId | Remove member |
+
+#### Profile (`src/routes/profile.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /profile | Current user profile |
+| PUT | /profile | Update profile |
+| GET | /profile/search | Search users (GET) |
+| POST | /profile/search | Search users (POST) |
+| GET | /profile/stats | Profile statistics |
+| GET | /profile/:id/profile | Public profile |
+| PUT | /profile/featured-badge | Set featured badge |
+| DELETE | /profile/admin/delete-user/:email | Admin: delete user |
+
+#### Notifications (`src/routes/notifications.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /notifications | All notifications |
+| GET | /notifications/paginated | Paginated notifications |
+| GET | /notifications/unseen-count | Unseen count |
+| POST | /notifications/mark-all-seen | Mark all seen |
+| GET | /notifications/event/:eventId | Event notifications |
+| POST | /notifications/event/:eventId | Create event notification |
+| GET | /notifications/preferences | Get preferences |
+| PUT | /notifications/preferences | Update preferences |
+| POST | /notifications/register-token | Register push token |
+| POST | /notifications/status | Update push status |
+| GET | /notifications/nudge-eligibility | Nudge eligibility |
+| DELETE | /notifications/unregister-token | Unregister token |
+| PUT | /notifications/:id/read | Mark read |
+| PUT | /notifications/read-all | Mark all read |
+
+#### Push (`src/routes/push.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /push/me | Current user's push tokens |
+| POST | /push/deactivate | Deactivate token |
+| POST | /push/clear-mine | Clear all tokens |
+| POST | /push/register | Register push token |
+| POST | /push/test-self | Test push (env-gated) |
+| POST | /push/test | Test push (dev-only) |
+
+#### Subscription (`src/routes/subscription.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /subscription | Current subscription |
+| GET | /subscription/limits | Usage limits |
+| POST | /subscription/upgrade | Upgrade (placeholder) |
+| POST | /subscription/restore | Restore purchases |
+| GET | /subscription/check-feature/:feature | Check feature access |
+| GET | /subscription/details | Subscription details |
+| GET | /subscription/pro-features | Pro features list |
+
+#### Entitlements (`src/routes/entitlements.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /entitlements | User entitlements |
+| POST | /entitlements/check | Check specific entitlement |
+| GET | /entitlements/events/active/count | Active event count |
+| GET | /entitlements/hosting/quota | Hosting quota |
+
+#### Public Events (`src/routes/publicEvents.ts`) — No auth required
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /public-events/:id/public | Public event page data |
+| GET | /public-events/:id/calendar.ics | iCal download |
+| POST | /public-events/:id/rsvp/guest | Guest RSVP (no auth) |
+
+#### Webhooks (`src/routes/webhooks.ts`)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /webhooks/revenuecat | RevenueCat subscription webhook (HMAC verified) |
+| GET | /webhooks/_debug | Debug info |
+
+#### Cron (`src/routes/cron.ts`) — Requires CRON_SECRET
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /cron/reminders/run | Event reminders (every 5min) |
+| POST | /cron/digest/run | Daily digest (every 15min) |
+| POST | /cron/weekly-digest/run | Weekly plan digest (Mon 2:00 UTC) |
+| POST | /cron/cleanup/tokens | Stale push token cleanup (weekly) |
+| POST | /cron/cleanup/dedupe | Old notification log cleanup (weekly) |
+| POST | /cron/cleanup/sessions | Expired session cleanup (weekly) |
+| POST | /cron/finalize-events | Mark events completed |
+| GET | /cron/health | Health check |
+
+#### Other Routes
+
+| Route File | Prefix | Description |
+|------------|--------|-------------|
+| `appConfig.ts` | /app-config | App config (public, no auth) |
+| `birthdays.ts` | /birthdays | Friend birthdays |
+| `blocked.ts` | /blocked | Blocked contacts CRUD |
+| `cloudinaryUploads.ts` | /cloudinary | Signed upload params |
+| `contacts.ts` | /contacts | Contact matching |
+| `dev.ts` | /dev | Dev-only endpoints |
+| `emailVerification.ts` | /email-verification | Email verify flow |
+| `health.ts` | /health | Health check |
+| `inventory.ts` | /inventory | Founder/early spots |
+| `operatorAttribution.ts` | /operator-attribution | Mac mini attribution |
+| `places.ts` | /places | Place search proxy |
+| `privacy.ts` | /privacy | Privacy settings + data export + delete |
+| `profiles.ts` | /profiles | Multi-profile support |
+| `proofs.ts` | /proofs | Friend boundary proofs |
+| `referral.ts` | /referral | Referral program |
+| `reports.ts` | /reports | User/event reporting |
+| `sharePages.ts` | /share-pages | Share page rendering |
+| `suggestions.ts` | /suggestions | Suggestion feed |
+| `upload.ts` | /upload | Image upload |
+| `widget.ts` | /widget | iOS widget data |
+| `workSchedule.ts` | /work-schedule | Work schedule CRUD |
+
+---
+
+## DATA MODEL
+
+### Production Database: 80 Tables, PostgreSQL
+
+### Core Tables (with row counts from production)
+
+#### user (46 rows)
+- id, name, email (unique), emailVerified, image, phone (unique), createdAt, updatedAt
+- referralCode (unique), pushPermissionStatus, pushPermissionUpdatedAt
+
+#### account (44 rows)
+- id, accountId, providerId (credential/apple), userId, accessToken, refreshToken, idToken, scope, password, createdAt, updatedAt
+
+#### session (427 rows)
+- id, expiresAt, token (unique), createdAt, updatedAt, ipAddress, userAgent, userId
+- Index on userId, expiresAt
+
+#### Profile (32 rows)
+- id, userId (unique), handle (unique), bio, calendarBio, avatarUrl, avatarPublicId, bannerUrl, bannerPublicId
+- birthday, showBirthdayToFriends, hideBirthdays, omitBirthdayYear, usernameLastChangedAt
+- profileThemeId, profileCardColor
+
+#### event (172 rows)
+- **Core:** id, title, description, location, emoji, color, startTime, endTime, userId
+- **Recurrence:** isRecurring, recurrence, seriesId, seriesIndex
+- **Visibility:** visibility (all_friends/specific_groups/circle_only/open_invite/private)
+- **Capacity:** capacity, goingCount, isFull
+- **Photos:** eventPhotoPublicId, eventPhotoUrl, eventMemoryPhotoPublicId, eventMemoryPhotoUrl
+- **Co-hosting:** hostIds (String[])
+- **Themes:** themeId, customThemeData, effectId, customEffectConfig, cardColor
+- **Features:** pitchInEnabled, pitchInTone, pitchInAmount, pitchInMethod, pitchInHandle, pitchInNote, bringListEnabled, bringListItems (JSON)
+- **Privacy:** hideDetailsUntilRsvp, showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation
+- **Status:** isUnderReview, underReviewAt, underReviewReason, isBusy, isImported, importedAt, deviceCalendarId, deviceCalendarName
+- **Summary:** summary, summaryNotifiedAt, summaryRating, reflectionEnabled
+- **RSVP:** rsvpDeadline, costPerPerson, eventHook
+- Indexes: userId, startTime, (userId, startTime), createdAt, (userId, deviceCalendarId), seriesId
+
+#### event_interest (136 rows) — RSVP records
+- eventId, userId, status (going/interested/maybe/not_going), createdAt
+- Unique: (eventId, userId)
+
+#### event_join_request (12 rows)
+- eventId, userId, status (pending/approved/rejected), message, createdAt, updatedAt
+- Unique: (eventId, userId)
+
+#### event_comment (15 rows)
+- eventId, userId, content, imageUrl, createdAt, updatedAt
+
+#### event_photo (1 row)
+- eventId, userId, imageUrl, publicId, bytes, width, height, caption, createdAt
+
+#### friendship (192 rows)
+- userId, friendId, status, isBlocked, createdAt, updatedAt
+- Unique: (userId, friendId)
+
+#### friend_request (96 rows)
+- senderId, receiverId, status (pending/accepted/rejected), createdAt, updatedAt
+- Unique: (senderId, receiverId)
+
+#### friend_group (4 rows)
+- id, name, color, icon, userId
+
+#### friend_group_membership (5 rows)
+- id, groupId, friendshipId
+
+#### friend_note (0 rows)
+- id, friendshipId, content, createdAt
+
+#### circle (32 rows)
+- id, name, description, emoji, type (group/dm), dmMemberSetKey (unique), photoUrl, photoPublicId, createdById, createdAt, updatedAt, lastMessageAt
+
+#### circle_member (113 rows)
+- id, circleId, userId, isPinned, isMuted, joinedAt, lastReadAt
+- Unique: (circleId, userId)
+
+#### circle_message (584 rows)
+- id, circleId, userId, content, messageType (text/event_share/system), sharedEventId
+- imageUrl, clientMessageId, replyToMessageId, replyToUserId, replyToUserName, replyToSnippet, createdAt
+- Unique: (circleId, userId, clientMessageId)
+- FK: sharedEventId → event.id (ON DELETE SET NULL)
+
+#### circle_message_reaction (0 rows)
+- circleId, messageId, userId, emoji, createdAt
+- Unique: (messageId, userId, emoji)
+
+#### circle_poll (111 rows) / circle_poll_option (171) / circle_poll_vote (104)
+- Lightweight polling in circles
+
+#### circle_plan_lock (2 rows)
+- circleId (unique), locked, note, lifecycleState, updatedBy, updatedAt
+
+#### circle_notification_pref (2 rows)
+- circleId, userId, level (all/smart/mute), updatedAt
+- Unique: (circleId, userId)
+
+#### notification (1,026 rows)
+- id, userId, type, title, body, entityId, entityType, read, seenAt, createdAt, data (JSON)
+- Unique: (userId, type, entityId)
+
+#### notification_preferences (41 rows)
+- userId (unique), pushEnabled, quietHoursEnabled, quietHoursStart, quietHoursEnd
+- 20+ type-specific boolean flags (all default false)
+
+#### notification_delivery_log (557 rows)
+- userId, dedupeKey (unique pair), notificationType, sentAt
+
+#### push_token (27 rows)
+- userId, token, platform, isActive, lastSeenAt, lastUsedAt, createdAt, updatedAt
+- Unique: (userId, token)
+
+#### work_schedule (278 rows)
+- userId, dayOfWeek (0-6), isEnabled, startTime, endTime, block2StartTime, block2EndTime, label
+- Unique: (userId, dayOfWeek)
+
+#### work_schedule_settings (66 rows)
+- userId (unique), showOnCalendar, timezone
+
+#### work_schedule_block (83 rows)
+- userId, startTime, endTime, label, createdAt
+
+#### email_verification_code (9 rows)
+- email, code, expiresAt, verified, attempts, createdAt
+
+#### event_template (32 rows)
+- id, name, emoji, duration, description, userId, isDefault
+
+#### idempotency_record (111 rows)
+- userId, key, route, status, responseJson, responseStatus, expiresAt
+- Unique: (userId, key)
+
+#### cron_job_lease (0 rows)
+- jobName (unique), ownerId, lockedUntil, acquiredAt
+
+#### guest_rsvp (~0 rows)
+- eventId, guestEmail, guestName, status, guestToken, rsvpedAt, createdAt
+
+#### referral (0 rows)
+- referrerId, referredUserId, status, badgeCredited, createdAt
+
+#### event_report (2 rows)
+- eventId, reporterId, reason, details, status, createdAt
+
+#### event_color_preference (0 rows)
+- eventId, userId, color
+
+#### event_notification_mute (0 rows)
+- eventId, userId
+
+#### blocked_contact (0 rows)
+- userId, blockedUserId, blockedEmail, blockedPhone, reason, createdAt
+
+### Inactive/Future Tables (marked @ignore or empty)
+- business, business_event, business_event_attendee, business_event_comment, business_event_interest, business_follow, business_team_member
+- subscription, discount_code, discount_code_redemption, promo_code, promo_redemption
+- story, story_view, story_group_visibility
+- badge_definition, badge_grant, user_badge, user_featured_badge, unlocked_achievement
+- user_stats, user_sequence, user_cohort
+- event_finalize_marker, event_reminder, event_report_snapshot
+- pinned_friendship, hangout_history
+- entitlement_override, admin_audit_log
+- job, purchase_event
+
+---
+
+## SYSTEMS & SSOT
+
+### Theme System
+- **SSOT:** `src/lib/eventThemes.ts` (frontend)
+- 5 free themes (neutral, chill_hang, dinner_night, game_night, worship_night)
+- 21 premium themes (birthday_bash, summer_splash, winter_glow, etc.)
+- Surface mapping: each theme defines gradient, text colors, card opacity
+- Custom Theme Studio: users build themes with gradient + shader + particles + filter + image layers
+- Premium gating: gate-on-save model (free users can preview, save requires Pro)
+- Backend stores: themeId, customThemeData (JSON), effectId, customEffectConfig (JSON)
+
+### Share System
+- **SSOT:** `src/lib/shareSSOT.ts` + `src/lib/config.ts` (frontend)
+- Deep links: open-invite://event/<id>, open-invite://circle/<id>, open-invite://user/<id>, open-invite://invite/<code>
+- Universal links: https://www.openinvite.cloud/event/<id>
+- Share domain: go.openinvite.cloud
+- App Store URL: https://apps.apple.com/app/id6757429210
+- Builders: buildEventSharePayload, buildEventSmsBody, buildReferralSharePayload, buildAppSharePayload, buildProfileSharePayload, buildCircleSharePayload
+
+### Subscription/Premium
+- **Frontend SSOT:** `src/lib/revenuecatClient.ts`
+- **Backend SSOT:** `src/routes/entitlements.ts` + `src/utils/subscriptionHelpers.ts`
+- RevenueCat offering: "default"
+- Entitlement: "premium"
+- Packages: $rc_annual, $rc_monthly, $rc_lifetime
+- Feature gates checked via `/api/entitlements` endpoint
+
+### Notification System
+- **SSOT:** `src/lib/expoPush.ts` (backend)
+- 31 notification types with per-type preference mapping
+- Push governance: OS permission > global pushEnabled > type-specific pref > quiet hours > dedupe
+- Async fanout: PUSH_ASYNC=1 enables job queue (push_fanout → push_send)
+- Delivery logging: notification_delivery_log with (userId, dedupeKey) uniqueness
+
+### Image Transform
+- **SSOT:** `src/lib/mediaTransformSSOT.ts` (frontend)
+- Cloudinary presets: HERO_BANNER, HERO_DETAIL, THUMBNAIL_SQUARE, AVATAR_THUMB
+- Default format: f_webp
+- Transform function: toCloudinaryTransformedUrl()
+
+### Location Search
+- **SSOT:** `src/components/create/placeSearch.ts` (frontend)
+- Cascade: Google Places → Apple Maps → proxy → custom
+- Backend proxy: GET /api/places/search
+
+### Premium Gating
+- Gate-on-save model: users can preview premium themes/effects, saving requires Pro
+- isPremiumTheme() checks PREMIUM_THEME_IDS
+- Entitlements API returns plan, limits, features
+
+---
+
+## STATE MANAGEMENT (Frontend)
+
+### React Query (Primary Server State)
+- QueryClient configured in app/_layout.tsx
+- Query key conventions defined in infiniteQuerySSOT.ts
+- Mutations with optimistic updates for RSVP, friend requests
+- Invalidation patterns: key-based, entity-scoped
+
+### Zustand Stores (2)
+1. **useCreateSettingsStore** (`src/lib/createSettingsStore.ts`) — Event creation form state: visibility, selectedGroupIds, notification flag, capacity, RSVP deadline, cost, Pitch In, bring list, privacy toggles
+2. **useThemeBuilderStore** (`src/lib/themeBuilderStore.ts`) — Theme Studio: name, gradient, shader, particles, filter, image layers
+
+### Storage
+- **expo-secure-store:** Auth tokens, sensitive user-scoped data, onboarding guide state
+- **AsyncStorage:** Session throttling, push token timestamps, notification preferences
+- **MMKV:** Not used
+- **React Query cache:** Server state (events, friends, circles, notifications)
+
+### Context Providers (app/_layout.tsx)
+1. ThemeProvider (AppThemeProvider)
+2. SubscriptionProvider
+3. SafeAreaProvider
+4. GestureHandlerRootView
+5. KeyboardProvider
+6. QueryClientProvider
+7. PostHogProvider
+8. ErrorBoundary
+
+---
+
+## THIRD-PARTY INTEGRATIONS
+
+### RevenueCat (Subscriptions)
+- **Package:** react-native-purchases 9.6.7
+- **Offering ID:** "default"
+- **Entitlement ID:** "premium"
+- **Packages:** $rc_annual, $rc_monthly, $rc_lifetime
+- **Webhook:** POST /api/webhooks/revenuecat (HMAC-SHA256 verified)
+- **Backend env:** REVENUECAT_WEBHOOK_AUTH, REVENUECAT_WEBHOOK_SECRET
+
+### Cloudinary (Images)
+- **Upload flow:** Client gets signed params from backend → direct upload to Cloudinary → backend records URL
+- **Backend endpoints:** POST /api/cloudinary/sign-avatar, POST /api/cloudinary/sign-event-photo
+- **Transforms:** Server-side resize/optimize on upload completion (w_X,h_X,c_limit/q_auto/f_webp)
+- **Size limits:** avatar 5MB/512px, banner 5MB/1200px, event_photo 10MB/1600px, event_cover 5MB/1200px
+- **Frontend transform:** toCloudinaryTransformedUrl() for display-time optimization
+
+### PostHog (Analytics)
+- **Frontend:** posthog-react-native, initialized in _layout.tsx
+- **Website:** posthog-js
+- **Events tracked:** push notification opens, errors, key user actions
+
+### Sentry (Error Tracking)
+- **Frontend:** @sentry/react-native 6.14.0
+- **Config:** Native frames, screenshot attachment, 20% trace sample rate
+- **Status:** Installed and configured
+
+### Expo
+- **Push Notifications:** expo-notifications → Expo Push Service → APNs/FCM
+- **OTA Updates:** expo-updates (production branch, runtime 1.0.0)
+- **Calendar:** expo-calendar (device calendar sync)
+- **Location:** expo-location (geolocation)
+- **Image Picker:** expo-image-picker
+- **Build:** EAS Build (eas.json configured)
+
+### Better Auth
+- **Backend:** betterAuth() with Prisma adapter, PostgreSQL
+- **Plugins:** expo(), phoneNumber() (Twilio)
+- **Session:** 90-day TTL, 24h sliding window refresh
+- **Cookies:** httpOnly, secure, partitioned (CHIPS), sameSite: none
+- **Mobile:** x-oi-session-token header fallback
+- **CSRF:** Disabled (documented — mobile apps don't send Origin headers reliably)
+
+### Twilio (SMS)
+- **Purpose:** Phone number OTP verification
+- **Backend env:** TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+
+### Resend (Email)
+- **Purpose:** Password reset, email verification, RSVP confirmation
+- **From:** verify@mail.openinvite.cloud
+- **Backend env:** RESEND_API_KEY
+
+---
+
+## INVARIANTS
+
+- NEVER run `expo prebuild --clean` — destroys native customizations
+- All hooks in `event/[id].tsx` must be above all early returns (React rules of hooks)
+- Both `contracts.ts` files must stay in sync (frontend `shared/contracts.ts` + backend `src/shared/contracts.ts`)
+- Create page (`app/create.tsx`) is SSOT for event authoring — all event creation flows through it
+- Version bump requires syncing: app.json (version + buildNumber), 3 iOS plists (CFBundleShortVersionString + CFBundleVersion)
+- Archive to `~/Library/Developer/Xcode/Archives/` for Organizer visibility
+- Native module pbxproj entries: use `name = X; path = OpenInvite/X;` pattern
+- Backend auto-deploys from main via Render — never restart PM2 for backend
+- Tab bar order is a product-level invariant: Discover | Calendar | Social (center) | Friends | Profile
+- zsh: use `>|` not `>` for file overwrites, quote bracketed paths
+- Long-running CLI commands: pipe to `tee /tmp/<descriptive>.log`
+- FLOATING_TAB_INSET = 84px for screen contentContainerStyle paddingBottom
+- Deep link scheme: `open-invite://`
+- Universal link domain: openinvite.cloud
+- Frontend path aliases: `@/` = `src/`
+
+---
+
+## CURRENT STATE
+
+### Version & Build
+- **Version:** 1.2.2
+- **iOS Build:** 319
+- **Android Version Code:** 267
+
+### App Store Status
+- **Live:** 1.2.0 (build 315)
+- **In Review:** 1.2.1 (build 318) waiting for review
+- **Uploaded:** 1.2.2 (build 319)
+
+### OTA Updates
+- 3 updates pushed to production branch (runtime 1.0.0)
+
+### Backend
+- Deployed on Render, auto-deploy from main
+- Last commit: `5b3b6e7` (feat: add event sharing via chat messages)
+- Database: 80 tables, 46 users, 172 events
+
+### Website
+- Deployed on Vercel
+- Last commit: `226e1c4` (feat: register favicon + icons)
+
+### Known Issues
+- None blocking
+
+### Queued Work
+- Admin dashboard V2 (OpenClaw operator upgrades)
+- Podfile cleanup
+- Re-add Sentry (installed, needs verification)
+- EAS Build fix
+- Android readiness
+- event/[id].tsx extraction (file too large)
+
+---
+
+## FILE TREE SUMMARY
+
+### Frontend (`open-invite-app`)
 ```
-┌─────────────┐     ┌──────────────────┐     ┌────────────────┐
-│  Expo App   │────▶│  Render (Hono)   │────▶│  PostgreSQL    │
-│  (iOS/Droid)│     │  + WebSocket     │     │  (Render)      │
-└─────────────┘     │  + Redis PubSub  │     └────────────────┘
-                    └──────────────────┘
-┌─────────────┐            │
-│  Next.js    │────────────┘
-│  (Vercel)   │
-└─────────────┘
-                    ┌──────────────────┐
-                    │  Cloudinary      │  (images)
-                    │  RevenueCat      │  (payments)
-                    │  Expo Push       │  (notifications)
-                    │  Google Places   │  (location)
-                    │  Sentry          │  (errors)
-                    │  PostHog         │  (analytics)
-                    └──────────────────┘
+src/
+  app/           (44 screen files — Expo Router)
+  components/    (169 components in 14+ subdirectories)
+  hooks/         (23 custom hooks)
+  lib/           (133 utility/business logic files)
+  ui/            (design system primitives)
+  utils/         (helper utilities)
+  constants/     (navigation constants)
+  dev/           (development tools)
+  analytics/     (analytics event tracking)
+shared/
+  contracts.ts   (shared Zod schemas — synced with backend)
 ```
 
-### Key Environment Variables
+### Backend (`my-app-backend`)
+```
+src/
+  routes/        (44 route files — 250+ endpoints)
+  middleware/    (9 middleware files)
+  lib/           (23+ library files)
+  services/      (1 service — operator ingest)
+  realtime/      (WebSocket server + Redis fanout)
+  shared/        (contracts.ts — synced with frontend)
+  utils/         (helpers)
+prisma/
+  schema.prisma  (80 models)
+  migrations/    (99 migrations)
+```
 
-**Frontend:**
-`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY`, `EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY`, `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY`, `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST`, `EXPO_PUBLIC_REALTIME_WS`, `EXPO_PUBLIC_ADMIN_UNLOCK_CODE`
+### Website (`openinvite-website`)
+```
+app/
+  page.tsx        (landing page)
+  event/[id]/     (public event page + loading + not-found)
+  privacy/        (privacy policy)
+  terms/          (terms of service)
+  support/        (support page)
+  presskit/       (press kit)
+  delete-account/ (account deletion)
+  reset-password/ (password reset)
+  .well-known/    (AASA for Universal Links)
+src/
+  components/     (8 components — EventPageClient, RsvpSection, etc.)
+  lib/            (API client)
+  data/           (theme definitions)
+components/       (Nav, Footer, WaitlistForm)
+```
 
-**Backend:**
-`DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `GOOGLE_PLACES_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `SENTRY_DSN`, `CRON_API_KEY`, `CRON_SECRET`, `ADMIN_API_KEY`, `APPLE_IOS_CLIENT_ID`, `REALTIME_WS_ENABLED`, `RESEND_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `OPERATOR_INGEST_URL`, `OPERATOR_INGEST_SECRET`
+### Most Recently Edited Files (across all repos)
 
-**Website:**
-`NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_GA_ID` + Vercel auto-env
+**Frontend (open-invite-app):**
+1. app.json (6 edits)
+2. package.json (4 edits)
+3. src/app/event/[id].tsx (4 edits)
+4. ios/OpenInvite.xcodeproj/project.pbxproj (3 edits)
+5. eas.json (3 edits)
+6. src/lib/revenuecatClient.ts (2 edits)
+7. src/components/create/placeSearch.ts (2 edits)
+8. src/components/CircleCard.tsx (2 edits)
 
----
+**Backend (my-app-backend):**
+1. src/routes/events-social.ts
+2. src/routes/circles.ts
+3. src/shared/contracts.ts
+4. prisma/schema.prisma
+5. src/lib/expoPush.ts
+6. src/routes/events-crud.ts
+7. src/routes/admin.ts
+8. src/auth.ts
+9. src/routes/events-settings.ts
+10. src/routes/events-misc.ts
 
-## 8. Content & Growth Context
-
-### Brand Voice
-Friendly, casual, action-oriented. "Your plans, finally social." Marketing emphasizes effortlessness, showing up, and real-life connection over digital. Pills on landing page: Circles, Calendar-native, Public + private events, RSVP in seconds.
-
-### Distribution Strategy
-Church/faith community networks are the initial wedge:
-- Promo codes: `AWAKEN` (year free, 10K max), `SHEPHERD` (year free, 1K), `LEGACYLEADER` (lifetime, 500), `LOVEPEOPLE` (month free, 10K)
-- These codes target community leaders and congregations for viral adoption
-
-### Growth Hooks
-1. **Referral system** — unique referral codes per user, leaderboard, rewards at milestones
-2. **Guest RSVP funnel** — non-users can RSVP via website → "Get the App" CTA
-3. **Event sharing** — deep links to `openinvite.cloud/event/:id` with rich OG previews
-4. **FOMO notifications** — "Friend joined a popular event" triggers
-5. **Invite links** — `/invite/:code` for direct circle/event invites
-6. **Social proof on cards** — friend avatars + "Sarah +2 friends going" on Discover cards
-7. **Scarcity** — "Founder spots" and "Early member spots" inventory counters
-8. **Smart notifications** — daily digest, reconnect suggestions, weekly summary
-
-### Active Promo Codes
-| Code | Grants | Max Uses | Status |
-|------|--------|----------|--------|
-| AWAKEN | 1 year premium | 10,000 | Active |
-| SHEPHERD | 1 year premium | 1,000 | Active |
-| LEGACYLEADER | Lifetime premium | 500 | Active |
-| LOVEPEOPLE | 1 month premium | 10,000 | Active |
-
----
-
-## 9. Known Limitations & TODOs
-
-### From Codebase Scans
-1. `src/lib/entitlements.ts:247` — `TODO: Connect to real analytics provider` (analytics tracking stub)
-2. `admin-dashboard.html` — `TODO: Implement ban user endpoint`, `TODO: Implement delete user endpoint`
-3. **Stories feature** — full schema exists (story, story_view, story_group_visibility) but 0 rows, likely not shipped to users
-4. **Business features** — full schema exists (business, business_event, business_team_member, business_follow) but 0 rows, not launched
-5. **Badge system** — badge_definition, badge_grant, user_badge tables exist with 0 rows, catalog endpoint exists but no badges defined
-6. **Hangout history** — table and streak logic exist but 0 rows, not yet populating
-7. **Circle polls** — schema and poll options exist but 0 usage
-8. **Event requests** — full propose/vote/confirm flow built but 0 usage
-9. **Friend notes** — table exists, route exists, but feature may not be prominent in UI
-10. **AVIF decoder removed** — `scripts/patch-expo-image.sh` strips AVIF support from expo-image for build compatibility. Cloudinary `f_auto` was changed to `f_webp` to avoid serving undecodable AVIF
-11. **Profile table** — only 1 row despite 47 users, suggesting most users haven't set up extended profiles
-12. **Android untested in production** — iOS is primary, Android is "confirmed target" but Google Play link exists
-13. **Push tokens** — only 26 active tokens for 47 users (55% coverage)
-14. **No automated tests** — no test runner or test files found in frontend
-15. **WebSocket scaling** — Redis pub/sub for cross-instance WS broadcast, but unknown if multiple Render instances are running
-
-### Platform Gaps
-- Android readiness: `edgeToEdgeEnabled` set, permissions declared, but primary testing is iOS
-- `presentCodeRedemptionSheet` (iOS-only) replaced with universal App Store deep link
-- iOS Today Widget data endpoints exist (`/api/widget/*`)
-
----
-
-## 10. Active Goals
-
-### Product State
-- **Version:** 1.2.1 (build 317)
-- **Stage:** Early/beta with ~47 users, primarily from founder's network
-- **Growth channel:** Church community network (promo codes)
-
-### Inferred Goals (from recent activity)
-1. **Fix production bugs** — P0 promo code redemption fixed, P1 blank cover images (AVIF → WebP)
-2. **Feature polish for v1.2.x** — Friends filter on Discover, group name display, theme expansion
-3. **Grow user base** — referral system, guest RSVP funnel, church network codes
-4. **Premium conversion** — 2/47 users are paying subscribers, most features are free
-5. **Content** — help sheets, FAQ, info sheets actively maintained and audited
-6. **Build reliability** — EAS build pipeline issues with lottie-ios, AVIF pods, Xcode compatibility
-
-### Not Yet Launched Features (Built but unused)
-- Stories, Business profiles, Badge system, Hangout streaks, Circle polls, Event requests
-
-<!-- END BRAIN.md — Generated 2026-04-06 by Claude Code brain-scan -->
+**Website (openinvite-website):**
+1. app/event/[id]/page.tsx
+2. src/components/EventPageClient.tsx
+3. src/components/RsvpSection.tsx
+4. app/page.tsx
