@@ -47,7 +47,18 @@ import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 // Hidden for v1.3 — replaced with Map
 // import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
-import MapView, { Marker, Callout } from "react-native-maps";
+// Safe dynamic require — native pod may not exist on older builds (315-320)
+let RNMapView: any = null;
+let RNMarker: any = null;
+let RNCallout: any = null;
+try {
+  const maps = require("react-native-maps");
+  RNMapView = maps.default;
+  RNMarker = maps.Marker;
+  RNCallout = maps.Callout;
+} catch {
+  // Native module not available — builds without pod install
+}
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
@@ -187,7 +198,7 @@ export default function DiscoverScreen() {
   // ── Map: user location ──
   const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
   const [userRegion, setUserRegion] = useState<{ latitude: number; longitude: number } | null>(null);
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     if (lens !== "map") return;
@@ -728,7 +739,34 @@ export default function DiscoverScreen() {
       {lens === "map" ? (
         /* ═══ Map View ═══ */
         <View style={{ flex: 1, paddingTop: chromeHeight }}>
-          <MapView
+          {!RNMapView ? (
+            /* Fallback when native module is missing (OTA on builds 315-320) */
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+              <MapPin size={40} color={colors.textTertiary} />
+              <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, textAlign: "center", marginTop: 12, marginBottom: 8 }}>
+                Map requires an app update
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", marginBottom: 20, lineHeight: 20 }}>
+                Update Open Invite to use the Map view.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const { Linking } = require("react-native");
+                  Linking.openURL("https://apps.apple.com/app/id6757429210");
+                }}
+                style={{
+                  backgroundColor: themeColor,
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: RADIUS.lg,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>Update Now</Text>
+              </Pressable>
+            </View>
+          ) : (
+          <RNMapView
             ref={mapRef}
             style={{ flex: 1 }}
             initialRegion={{
@@ -745,7 +783,7 @@ export default function DiscoverScreen() {
               const lng = (event.lng ?? event.longitude)!;
               const urgency = getUrgencyLabel(event.startTime);
               return (
-                <Marker
+                <RNMarker
                   key={event.id}
                   coordinate={{ latitude: lat, longitude: lng }}
                   title={`${event.emoji} ${event.title}`}
@@ -765,7 +803,7 @@ export default function DiscoverScreen() {
                   }}>
                     <Text style={{ fontSize: 16 }}>{event.emoji}</Text>
                   </View>
-                  <Callout tooltip onPress={() => handleEventPress(event.id)}>
+                  <RNCallout tooltip onPress={() => handleEventPress(event.id)}>
                     <View style={{
                       backgroundColor: colors.surface,
                       borderRadius: 12,
@@ -801,13 +839,15 @@ export default function DiscoverScreen() {
                         Tap to view →
                       </Text>
                     </View>
-                  </Callout>
-                </Marker>
+                  </RNCallout>
+                </RNMarker>
               );
             })}
-          </MapView>
+          </RNMapView>
+          )}
 
-          {/* Event count overlay */}
+          {/* Event count overlay — only when map is available */}
+          {RNMapView && (
           <View style={{
             position: "absolute",
             bottom: TAB_BOTTOM_PADDING + 16,
@@ -829,6 +869,7 @@ export default function DiscoverScreen() {
               </Text>
             </View>
           </View>
+          )}
         </View>
       ) : lens === "events" ? (
         /* ═══ Events Feed ═══ */
