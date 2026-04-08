@@ -73,6 +73,7 @@ import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
+import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed } from "@/lib/discoverFilters";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -529,25 +530,9 @@ export default function DiscoverScreen() {
   // Helper: effective display time for sorting (nextOccurrence for recurring, startTime otherwise)
   const getEffectiveTime = (e: PopularEvent) => new Date(e.nextOccurrence ?? e.startTime).getTime();
 
-  // [RESPONDED_PILL] Responded statuses + IDs (computed first so other filters can exclude them)
-  const RESPONDED_STATUSES = ["going", "not_going", "interested", "maybe"];
-
-  const respondedEventIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const e of enrichedEvents) {
-      if (e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus)) {
-        ids.add(e.id);
-      }
-    }
-    if (__DEV__) {
-      const withRsvp = enrichedEvents.filter((e) => e.viewerRsvpStatus != null);
-    }
-    return ids;
-  }, [enrichedEvents]);
-
   const respondedSorted = useMemo(() => {
     return enrichedEvents
-      .filter((e) => e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus))
+      .filter(isEventResponded)
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
 
@@ -561,15 +546,15 @@ export default function DiscoverScreen() {
 
   const popularSorted = useMemo(() => {
     return [...enrichedEvents]
-      .filter((e) => !respondedEventIds.has(e.id))
+      .filter(isEventVisibleInFeed)
       .sort((a, b) => b.attendeeCount - a.attendeeCount || getEffectiveTime(b) - getEffectiveTime(a));
-  }, [enrichedEvents, respondedEventIds]);
+  }, [enrichedEvents]);
 
   const soonSorted = useMemo(() => {
     return [...enrichedEvents]
-      .filter((e) => !respondedEventIds.has(e.id))
+      .filter(isEventVisibleInFeed)
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [enrichedEvents, respondedEventIds]);
+  }, [enrichedEvents]);
 
   // Group events: circle/group-visibility events from own + attending data (sorted soonest-first)
   const groupSorted = useMemo(() => {
@@ -589,20 +574,20 @@ export default function DiscoverScreen() {
         const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
         return { ...event, attendeeCount };
       })
-      .filter((e) => !respondedEventIds.has(e.id))
+      .filter(isEventVisibleInFeed)
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [myEventsData?.events, respondedEventIds]);
+  }, [myEventsData?.events]);
 
   // [FRIENDS_PILL] Friends feed from backend (already filtered/sorted by goingCount desc)
   const friendsSorted = useMemo(() => {
     return (friendsFeedData?.events ?? [])
-      .filter((e) => !respondedEventIds.has(e.id))
+      .filter(isEventVisibleInFeed)
       .map((event) => {
         const derivedCount = deriveAttendeeCount(event);
         const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
         return { ...event, attendeeCount };
       });
-  }, [friendsFeedData?.events, respondedEventIds]);
+  }, [friendsFeedData?.events]);
 
   // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
   const savedEventsList = useMemo(() => {
@@ -629,17 +614,8 @@ export default function DiscoverScreen() {
   }, [enrichedEvents]);
 
   // ── Map events: filter to public/open events with valid coordinates ──
-  const MAP_VISIBLE_VIS = new Set(["public", "open_invite", "all_friends"]);
   const mapEvents = useMemo(() => {
-    return activeFeed.filter((e) => {
-      const lat = e.lat ?? e.latitude;
-      const lng = e.lng ?? e.longitude;
-      return (
-        lat != null && lng != null && lat !== 0 && lng !== 0 &&
-        MAP_VISIBLE_VIS.has(e.visibility ?? "") &&
-        !(e as any).hideDetailsUntilRsvp
-      );
-    });
+    return activeFeed.filter(isEventVisibleInMap);
   }, [activeFeed]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
