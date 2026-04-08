@@ -74,6 +74,7 @@ import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
 import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime } from "@/lib/discoverFilters";
+import { trackDiscoverSurfaceViewed, trackDiscoverEventOpened } from "@/analytics/analyticsEventsSSOT";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -204,6 +205,16 @@ export default function DiscoverScreen() {
   const [respondedSubFilter, setRespondedSubFilter] = useState<RespondedSubFilter>("going");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
+
+  // ── Discover surface view tracking (dedupe per pane+pill combo) ──
+  const lastTrackedSurface = useRef<string>("");
+  useEffect(() => {
+    const pill = lens === "events" ? eventSort : lens === "responded" ? respondedSubFilter : null;
+    const key = `${lens}:${pill ?? ""}`;
+    if (key === lastTrackedSurface.current) return;
+    lastTrackedSurface.current = key;
+    trackDiscoverSurfaceViewed({ pane: lens, pill });
+  }, [lens, eventSort, respondedSubFilter]);
 
   // ── Map: user location ──
   const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
@@ -632,9 +643,18 @@ export default function DiscoverScreen() {
     });
   }
 
-  const handleEventPress = (eventId: string) => {
+  const handleEventPress = (eventId: string, interactionMode: "map_pin" | "map_callout" | "event_card" | "list_row", event?: PopularEvent) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/event/${eventId}`);
+    const pane = lens;
+    const pill = lens === "events" ? eventSort : lens === "responded" ? respondedSubFilter : null;
+    trackDiscoverEventOpened({
+      eventId,
+      pane,
+      pill,
+      interactionMode,
+      viewerRsvpStatus: event?.viewerRsvpStatus ?? null,
+    });
+    router.push(`/event/${eventId}?from=discover&discoverSource=${pane}&discoverPill=${pill ?? ""}`);
   };
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
@@ -810,7 +830,7 @@ export default function DiscoverScreen() {
                   coordinate={{ latitude: lat, longitude: lng }}
                   title={`${event.emoji} ${event.title}`}
                   description={urgency.label || event.location || undefined}
-                  onCalloutPress={() => handleEventPress(event.id)}
+                  onCalloutPress={() => handleEventPress(event.id, "map_callout", event)}
                 >
                   <View style={{
                     width: 40,
@@ -834,7 +854,7 @@ export default function DiscoverScreen() {
                       </View>
                     )}
                   </View>
-                  <RNCallout tooltip onPress={() => handleEventPress(event.id)}>
+                  <RNCallout tooltip onPress={() => handleEventPress(event.id, "map_callout", event)}>
                     <View style={{
                       backgroundColor: colors.surface,
                       borderRadius: 12,
@@ -1236,7 +1256,7 @@ export default function DiscoverScreen() {
                   <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).duration(220)} style={{ marginBottom: 18 }}>
                     <Pressable
                       testID="discover-card-open"
-                      onPress={() => handleEventPress(event.id)}
+                      onPress={() => handleEventPress(event.id, "event_card", event)}
                       style={{
                         borderRadius: 20,
                         overflow: "hidden",
@@ -1760,7 +1780,7 @@ export default function DiscoverScreen() {
                         style={{ marginBottom: 10 }}
                       >
                         <Pressable
-                          onPress={() => handleEventPress(event.id)}
+                          onPress={() => handleEventPress(event.id, "list_row", event)}
                           style={({ pressed }) => ({
                             backgroundColor: colors.surface,
                             borderColor: isToday ? STATUS.soon.fg + "30" : colors.borderSubtle,

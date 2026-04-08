@@ -81,6 +81,10 @@ export const AnalyticsEvent = {
   // Activation audit — empty state CTAs
   SOCIAL_EMPTY_CTA_TAP: "social_empty_cta_tap",
 
+  // Discover attribution — top-of-funnel instrumentation
+  DISCOVER_SURFACE_VIEWED: "discover_surface_viewed",
+  DISCOVER_EVENT_OPENED: "discover_event_opened",
+
   // Friends lens — Discover browse loop telemetry
   FRIENDS_LENS_VIEWED: "friends_lens_viewed",
   FRIENDS_LENS_EMPTY_VIEWED: "friends_lens_empty_viewed",
@@ -292,6 +296,8 @@ export function trackRsvpCompleted(props: {
   source: "feed" | "calendar" | "event_detail" | "circle" | "unknown";
   hasGuests: number;
   ts: string;
+  discoverSource?: string | null;
+  discoverPill?: string | null;
 }): void {
   track(AnalyticsEvent.RSVP_COMPLETED, props);
 }
@@ -786,6 +792,29 @@ export function trackFriendsLensLoaded(props: {
 }
 
 // ---------------------------------------------------------------------------
+// Discover attribution — top-of-funnel instrumentation
+// ---------------------------------------------------------------------------
+
+/** discover_surface_viewed — fires on pane/pill change (dedupe in caller). No PII. [DISCOVER_ATTRIBUTION] */
+export function trackDiscoverSurfaceViewed(props: {
+  pane: "map" | "events" | "responded";
+  pill?: string | null;
+}): void {
+  track(AnalyticsEvent.DISCOVER_SURFACE_VIEWED, props);
+}
+
+/** discover_event_opened — fires when user taps into event detail from discover. No PII. [DISCOVER_ATTRIBUTION] */
+export function trackDiscoverEventOpened(props: {
+  eventId: string;
+  pane: "map" | "events" | "responded";
+  pill?: string | null;
+  interactionMode: "map_pin" | "map_callout" | "event_card" | "list_row";
+  viewerRsvpStatus?: string | null;
+}): void {
+  track(AnalyticsEvent.DISCOVER_EVENT_OPENED, props);
+}
+
+// ---------------------------------------------------------------------------
 // Growth funnel — core page/action tracking
 // ---------------------------------------------------------------------------
 
@@ -796,6 +825,8 @@ export function trackEventPageViewed(props: {
   userId: string | null;
   isAuthenticated: boolean;
   isCreator: boolean;
+  discoverSource?: string | null;
+  discoverPill?: string | null;
 }): void {
   track(AnalyticsEvent.EVENT_PAGE_VIEWED, props);
 }
