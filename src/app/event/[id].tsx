@@ -2226,7 +2226,8 @@ export default function EventDetailScreen() {
 
         </View>{/* close About card */}
 
-        {/* ═══ WHO'S COMING CARD ═══ */}
+        {/* ═══ WHO'S COMING CARD — hidden for imported/busy calendar events ═══ */}
+        {!isBusyBlock && (
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
 
         {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
@@ -2263,9 +2264,11 @@ export default function EventDetailScreen() {
           }}
           onToggleInterestedUsers={() => setShowInterestedUsers(!showInterestedUsers)}
         />
-        </View>{/* close Who's Coming card */}
+        </View>
+        )}
 
-        {/* ═══ DISCUSSION CARD ═══ */}
+        {/* ═══ DISCUSSION CARD — hidden for imported/busy calendar events ═══ */}
+        {!isBusyBlock && (
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
 
         {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
@@ -2327,9 +2330,11 @@ export default function EventDetailScreen() {
           }}
         />
 
-        </View>{/* close Discussion card */}
+        </View>
+        )}
 
-        {/* ═══ [EVENT_LIVE_UI] Collapsed Event Settings ═══ */}
+        {/* ═══ [EVENT_LIVE_UI] Collapsed Event Settings — hidden for imported/busy ═══ */}
+        {!isBusyBlock && (
         <EventSettingsAccordion
           expanded={settingsExpanded}
           isDark={isDark}
@@ -2363,6 +2368,7 @@ export default function EventDetailScreen() {
             setSettingsExpanded((prev) => !prev);
           }}
         />
+        )}
 
         {/* ═══ [EVENT_LIVE_UI] Host Reflection (post-event) ═══ */}
         {isMyEvent && !event.isBusy && (() => {
