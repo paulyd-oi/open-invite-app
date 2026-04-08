@@ -49,6 +49,7 @@ export interface InviteFlipCardProps {
   timeLabel: string;
   locationDisplay: string | null;
   goingCount: number;
+  notGoingCount?: number;
   attendeeAvatars: AttendeeAvatar[];
 
   // Back data
@@ -121,6 +122,7 @@ export function InviteFlipCard({
   timeLabel,
   locationDisplay,
   goingCount,
+  notGoingCount = 0,
   attendeeAvatars,
   description,
   hostName,
@@ -390,6 +392,11 @@ export function InviteFlipCard({
                           <Text style={{ fontSize: 14, fontWeight: "700", color: cText }}>
                             {goingCount} going
                           </Text>
+                          {notGoingCount > 0 && (
+                            <Text style={{ fontSize: 12, color: cTertiary, marginLeft: 6 }}>
+                              · {notGoingCount} can't go
+                            </Text>
+                          )}
                           {capacityText && (
                             <Text style={{ fontSize: 12, color: cTertiary, marginLeft: 6 }}>
                               · {capacityText}
@@ -513,7 +520,7 @@ export function InviteFlipCard({
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
                           <Users size={13} color={contrastText ?? STATUS.going.fg} />
                           <Text style={{ fontSize: 13, fontWeight: "600", color: contrastText ?? STATUS.going.fg, marginLeft: 5 }}>
-                            {goingCount} going
+                            {goingCount} going{notGoingCount > 0 ? ` · ${notGoingCount} can't go` : ""}
                           </Text>
                         </View>
                       ) : (

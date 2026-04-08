@@ -2041,6 +2041,7 @@ export default function EventDetailScreen() {
               timeLabel={timeLabel}
               locationDisplay={effectiveLocationDisplay}
               goingCount={effectiveGoingCount}
+              notGoingCount={notGoingUsers.length + guestNotGoingList.length}
               attendeeAvatars={(() => {
                 const hostId = event?.user?.id;
                 const hostInList = attendeesList.find((a: AttendeeInfo) => a.id === hostId);

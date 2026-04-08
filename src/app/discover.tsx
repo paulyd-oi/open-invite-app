@@ -274,10 +274,11 @@ export default function DiscoverScreen() {
   });
 
   // [FRIENDS_PILL] Friends feed — events where viewer's friends RSVP'd going
+  // Fetch eagerly (not gated on pill selection) so data is ready when user taps Friends pill
   const { data: friendsFeedData, isLoading: loadingFriendsFeed, refetch: refetchFriendsFeed } = useQuery({
     queryKey: eventKeys.friendsFeed(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?tab=friends"),
-    enabled: isAuthedForNetwork(bootStatus, session) && eventSort === "friends",
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -446,17 +447,36 @@ export default function DiscoverScreen() {
   // Helper: effective display time for sorting (nextOccurrence for recurring, startTime otherwise)
   const getEffectiveTime = (e: PopularEvent) => new Date(e.nextOccurrence ?? e.startTime).getTime();
 
-  const popularSorted = useMemo(() => {
-    return [...enrichedEvents].sort(
-      (a, b) => b.attendeeCount - a.attendeeCount || getEffectiveTime(b) - getEffectiveTime(a),
-    );
+  // [RESPONDED_PILL] Responded statuses + IDs (computed first so other filters can exclude them)
+  const RESPONDED_STATUSES = ["going", "not_going", "interested", "maybe"];
+
+  const respondedEventIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of enrichedEvents) {
+      if (e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus)) {
+        ids.add(e.id);
+      }
+    }
+    return ids;
   }, [enrichedEvents]);
 
-  const soonSorted = useMemo(() => {
-    return [...enrichedEvents].sort(
-      (a, b) => getEffectiveTime(a) - getEffectiveTime(b),
-    );
+  const respondedSorted = useMemo(() => {
+    return enrichedEvents
+      .filter((e) => e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus))
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
+
+  const popularSorted = useMemo(() => {
+    return [...enrichedEvents]
+      .filter((e) => !respondedEventIds.has(e.id))
+      .sort((a, b) => b.attendeeCount - a.attendeeCount || getEffectiveTime(b) - getEffectiveTime(a));
+  }, [enrichedEvents, respondedEventIds]);
+
+  const soonSorted = useMemo(() => {
+    return [...enrichedEvents]
+      .filter((e) => !respondedEventIds.has(e.id))
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
+  }, [enrichedEvents, respondedEventIds]);
 
   // Group events: circle/group-visibility events from own + attending data (sorted soonest-first)
   const groupSorted = useMemo(() => {
@@ -476,25 +496,20 @@ export default function DiscoverScreen() {
         const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
         return { ...event, attendeeCount };
       })
+      .filter((e) => !respondedEventIds.has(e.id))
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [myEventsData?.events]);
+  }, [myEventsData?.events, respondedEventIds]);
 
   // [FRIENDS_PILL] Friends feed from backend (already filtered/sorted by goingCount desc)
   const friendsSorted = useMemo(() => {
-    return (friendsFeedData?.events ?? []).map((event) => {
-      const derivedCount = deriveAttendeeCount(event);
-      const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
-      return { ...event, attendeeCount };
-    });
-  }, [friendsFeedData?.events]);
-
-  // [RESPONDED_PILL] Events the viewer has RSVP'd to (going, not_going, interested, maybe)
-  const respondedSorted = useMemo(() => {
-    const RESPONDED_STATUSES = ["going", "not_going", "interested", "maybe"];
-    return enrichedEvents
-      .filter((e) => e.viewerRsvpStatus && RESPONDED_STATUSES.includes(e.viewerRsvpStatus))
-      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [enrichedEvents]);
+    return (friendsFeedData?.events ?? [])
+      .filter((e) => !respondedEventIds.has(e.id))
+      .map((event) => {
+        const derivedCount = deriveAttendeeCount(event);
+        const attendeeCount = event.displayGoingCount ?? event.goingCount ?? derivedCount;
+        return { ...event, attendeeCount };
+      });
+  }, [friendsFeedData?.events, respondedEventIds]);
 
   // Active Events feed based on sort control
   const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "responded" ? respondedSorted : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;

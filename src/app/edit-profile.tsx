@@ -507,75 +507,107 @@ export default function EditProfileScreen() {
             </View>
 
             {/* ── Fields card (glass panel matching live profile) ── */}
-            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, gap: 12 }}>
               {/* Display Name */}
-              <TextInput
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Your name"
-                placeholderTextColor={colors.textTertiary}
-                textAlign="center"
-                style={{
-                  color: colors.text,
-                  fontSize: 20,
-                  fontWeight: "700",
-                  paddingVertical: 6,
-                  letterSpacing: -0.3,
-                }}
-              />
+              <View>
+                <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "500", marginBottom: 4, marginLeft: 4 }}>
+                  Display Name
+                </Text>
+                <View style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                  paddingHorizontal: 12,
+                }}>
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Your name"
+                    placeholderTextColor={colors.textTertiary}
+                    textAlign="center"
+                    style={{
+                      color: colors.text,
+                      fontSize: 20,
+                      fontWeight: "700",
+                      paddingVertical: 10,
+                      letterSpacing: -0.3,
+                    }}
+                  />
+                </View>
+              </View>
 
               {/* Username */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: colors.textSecondary, fontSize: 14 }}>@</Text>
-                <TextInput
-                  value={editHandle}
-                  onChangeText={(text) => {
-                    setEditHandle(text.replace(/^@+/, "").toLowerCase());
-                    setHandleError(null);
-                  }}
-                  placeholder="username"
-                  placeholderTextColor={colors.textTertiary}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textAlign="center"
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: 14,
-                    paddingVertical: 4,
-                  }}
-                />
+              <View>
+                <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "500", marginBottom: 4, marginLeft: 4 }}>
+                  Username
+                </Text>
+                <View style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                  paddingHorizontal: 12,
+                  justifyContent: "center",
+                }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 14 }}>@</Text>
+                  <TextInput
+                    value={editHandle}
+                    onChangeText={(text) => {
+                      setEditHandle(text.replace(/^@+/, "").toLowerCase());
+                      setHandleError(null);
+                    }}
+                    placeholder="username"
+                    placeholderTextColor={colors.textTertiary}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textAlign="center"
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: 14,
+                      paddingVertical: 10,
+                    }}
+                  />
+                </View>
+                {handleError && (
+                  <Text style={{ color: "#FF3B30", fontSize: 12, marginTop: 4, textAlign: "center" }}>{handleError}</Text>
+                )}
               </View>
-              {handleError && (
-                <Text style={{ color: "#FF3B30", fontSize: 12, marginTop: 2, textAlign: "center" }}>{handleError}</Text>
-              )}
-
-              {/* Divider */}
-              <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
 
               {/* Calendar Bio */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 6 }}>
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
+              <View>
+                <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "500", marginBottom: 4, marginLeft: 4 }}>
                   My calendar looks like...
                 </Text>
+                <View style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                  paddingHorizontal: 12,
+                }}>
+                  <TextInput
+                    value={editCalendarBio}
+                    onChangeText={(text) => setEditCalendarBio(text.slice(0, 300))}
+                    placeholder="Busy weeks, chill weekends"
+                    placeholderTextColor={colors.textTertiary}
+                    multiline
+                    maxLength={300}
+                    textAlign="center"
+                    style={{
+                      color: colors.text,
+                      fontSize: 15,
+                      paddingVertical: 10,
+                      minHeight: 40,
+                    }}
+                  />
+                </View>
+                <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: "right", marginTop: 4 }}>
+                  {editCalendarBio.length}/300
+                </Text>
               </View>
-              <TextInput
-                value={editCalendarBio}
-                onChangeText={(text) => setEditCalendarBio(text.slice(0, 300))}
-                placeholder="Busy weeks, chill weekends"
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                maxLength={300}
-                textAlign="center"
-                style={{
-                  color: colors.text,
-                  fontSize: 15,
-                  paddingVertical: 4,
-                  minHeight: 40,
-                }}
-              />
-              <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: "right", marginTop: 2 }}>
-                {editCalendarBio.length}/300
-              </Text>
             </View>
           </View>
         </ScrollView>
