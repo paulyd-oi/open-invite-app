@@ -565,6 +565,18 @@ export function InviteFlipCard({
                   {editButton}
                 </View>
               )}
+
+              {/* Front-face flip hint — inside card */}
+              {!isMyEvent && (
+                <View style={{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", opacity: 0.5 }}>
+                    <RefreshCw size={10} color={cTertiary} />
+                    <Text style={{ fontSize: 11, color: cTertiary, marginLeft: 5, fontWeight: "500" }}>
+                      Tap for details
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Photo nudge below card */}
@@ -824,17 +836,6 @@ export function InviteFlipCard({
         </View>
       </Pressable>
 
-      {/* Front-face flip hint */}
-      {!isMyEvent && (
-        <View style={{ alignItems: "center", paddingTop: 8, opacity: 0.5 }}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <RefreshCw size={10} color={colors.textTertiary} />
-            <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
-              Tap for details
-            </Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 }

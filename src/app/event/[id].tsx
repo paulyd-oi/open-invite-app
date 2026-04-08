@@ -2216,7 +2216,15 @@ export default function EventDetailScreen() {
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
-        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)" }}>
+        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
+
+        {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
+        {shouldBlurDetails && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+            <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+            <Text style={{ color: isDark ? "#FFFFFF" : "#000000", fontSize: 14, fontWeight: "600", textAlign: "center", zIndex: 11 }}>Tap card above to reveal details</Text>
+          </View>
+        )}
 
         <AboutCard
           description={event.description}

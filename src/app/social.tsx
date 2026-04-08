@@ -318,7 +318,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         className="rounded-2xl p-4 mb-4"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
-          backgroundColor: (displayEvent as any).cardColor || glass.card.backgroundColor,
+          backgroundColor: glass.card.backgroundColor,
           ...getBorderStyle(),
           borderRadius: glass.card.borderRadius,
         }}
