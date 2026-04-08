@@ -29,6 +29,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MapPin, Compass, ArrowRight } from "@/ui/icons";
+import { hasValidCoordinates } from "@/lib/discoverFilters";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -2317,8 +2318,8 @@ export default function EventDetailScreen() {
             Location
           </Text>
 
-          {/* Mini map */}
-          {RNMapView && event.latitude != null && event.longitude != null && event.latitude !== 0 && (
+          {/* Mini map — only when valid coordinates exist */}
+          {RNMapView && hasValidCoordinates(event) && (
             <View style={{ height: 150, marginHorizontal: 16, borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
               <RNMapView
                 style={{ flex: 1 }}
