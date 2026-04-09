@@ -2240,7 +2240,7 @@ export default function EventDetailScreen() {
         {shouldBlurDetails && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
             <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3, textAlign: "center", zIndex: 11 }}>Tap card above to reveal details</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>Tap card above to reveal details</Text>
           </View>
         )}
 
@@ -2304,7 +2304,7 @@ export default function EventDetailScreen() {
         {shouldBlurDetails && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
             <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3, textAlign: "center", zIndex: 11 }}>RSVP to see who's coming</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>RSVP to see who's coming</Text>
           </View>
         )}
 
@@ -2406,7 +2406,7 @@ export default function EventDetailScreen() {
         {shouldBlurDetails && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
             <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3, textAlign: "center", zIndex: 11 }}>RSVP to see discussion</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>RSVP to see discussion</Text>
           </View>
         )}
 
