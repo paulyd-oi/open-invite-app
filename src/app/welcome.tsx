@@ -65,6 +65,7 @@ import { api } from "@/lib/api";
 import { getAttributionContext } from "@/lib/attribution";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
+import { qk } from "@/lib/queryKeys";
 import { isAppleSignInAvailable, runAppleSignInDiagnostics, classifyAppleAuthError, decodeAppleAuthError } from "@/lib/appleSignIn";
 import { handleSharedAppleSignIn } from "@/lib/sharedAppleAuth";
 import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
@@ -958,7 +959,7 @@ export default function WelcomeOnboardingScreen() {
           name: trimmedName || old?.user?.name, // Sync to user object too
         },
       }));
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: qk.profile() });
 
       // Request bootstrap refresh so status updates from 'onboarding' to 'authed'
       // This prevents the onboarding loop issue

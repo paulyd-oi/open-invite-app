@@ -70,6 +70,7 @@ import {
 } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
+import { qk } from "@/lib/queryKeys";
 import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
@@ -679,7 +680,7 @@ export default function CalendarScreen() {
       api.put(`/api/work-schedule/${params.dayOfWeek}`, params.payload),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
+      queryClient.invalidateQueries({ queryKey: qk.workSchedule() });
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -733,7 +734,7 @@ export default function CalendarScreen() {
     showOnCalendar: boolean;
   }
   const { data: workScheduleData } = useQuery({
-    queryKey: ["workSchedule"],
+    queryKey: qk.workSchedule(),
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
     // Gate on SSOT to prevent queries during logout
     enabled: isAuthedForNetwork(bootStatus, session),

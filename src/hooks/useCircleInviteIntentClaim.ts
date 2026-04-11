@@ -15,6 +15,7 @@ import { getPendingCircleInvite, clearPendingCircleInvite } from '@/lib/pendingC
 import { api } from '@/lib/api';
 import { devLog, devError } from '@/lib/devLog';
 import { trackCircleInviteClaimPostauth } from '@/analytics/analyticsEventsSSOT';
+import { circleKeys } from '@/lib/circleQueryKeys';
 
 interface UseCircleInviteIntentClaimOptions {
   /** bootStatus from useBootAuthority — must be 'authed' */
@@ -59,7 +60,7 @@ export function useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete }:
         if (__DEV__) devLog('[useCircleInviteIntentClaim] success');
 
         // Invalidate circle queries so data refreshes
-        queryClient.invalidateQueries({ queryKey: ['circles'] });
+        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       } catch (err) {
         trackCircleInviteClaimPostauth({
           success: false,
