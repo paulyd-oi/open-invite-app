@@ -166,6 +166,16 @@ export function useResilientSession() {
       return cachedSession;
     }
 
+    // If server returned null/empty session (no error) but we have a cached session,
+    // keep it to prevent transient logout flash on app resume. The 401 handler
+    // (authExpiry.ts) will trigger proper logout if the session is truly expired.
+    if (!betterAuthSession.data && !betterAuthSession.isPending && !betterAuthSession.error && cachedSession) {
+      if (__DEV__) {
+        devLog("[useResilientSession] Server returned empty session, using cache to prevent logout flash");
+      }
+      return cachedSession;
+    }
+
     // No session available
     return null;
   })();
