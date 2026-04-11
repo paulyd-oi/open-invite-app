@@ -64,7 +64,8 @@
       "android": {
         "buildType": "app-bundle",
         "image": "latest"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
