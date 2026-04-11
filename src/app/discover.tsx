@@ -73,7 +73,7 @@ import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
-import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime, isVisibleInPublicFeed, PUBLIC_NEARBY_MILES, type GeoPoint } from "@/lib/discoverFilters";
+import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime, isVisibleInPublicFeed, comparePublicFeedOrder, PUBLIC_NEARBY_MILES, type GeoPoint } from "@/lib/discoverFilters";
 import { trackDiscoverSurfaceViewed, trackDiscoverEventOpened } from "@/analytics/analyticsEventsSSOT";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
@@ -605,13 +605,14 @@ export default function DiscoverScreen() {
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
 
-  // Public events: visibility === "public", within 50mi if location available, soonest-first
+  // Public events: visibility === "public", within 50mi if location available
+  // Sort: nearby coord events first (distance ASC), then no-coord events (time ASC)
   const publicSorted = useMemo(() => {
     const now = Date.now();
     const loc: GeoPoint | null = userRegion;
     return enrichedEvents
       .filter((e) => isVisibleInPublicFeed(e, loc, now))
-      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
+      .sort((a, b) => comparePublicFeedOrder(a, b, loc));
   }, [enrichedEvents, userRegion]);
 
   // Active Events feed based on sort control
@@ -1189,8 +1190,11 @@ export default function DiscoverScreen() {
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
                     No public events nearby
                   </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 6 }}>
+                    Public events are visible to everyone nearby — great for meetups, open runs, community hangouts, and more.
+                  </Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                    Public events within 50 miles will appear here
+                    Be the first to host one in your area!
                   </Text>
                   <Pressable
                     onPress={() => {

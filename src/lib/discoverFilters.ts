@@ -194,6 +194,37 @@ export function isWithinMiles(
 }
 
 /**
+ * Sort comparator for the Public feed.
+ * When userLocation is available: nearby coord events first (by distance ASC),
+ * then no-coord events (by time ASC). When no location: time ASC only.
+ */
+export function comparePublicFeedOrder(
+  a: ClassifiableEvent,
+  b: ClassifiableEvent,
+  userLocation?: GeoPoint | null,
+): number {
+  if (userLocation) {
+    const aHasCoords = hasValidCoordinates(a);
+    const bHasCoords = hasValidCoordinates(b);
+    // Coord events rank above no-coord events
+    if (aHasCoords && !bHasCoords) return -1;
+    if (!aHasCoords && bHasCoords) return 1;
+    // Both have coords: sort by distance, then time
+    if (aHasCoords && bHasCoords) {
+      const aLat = a.lat ?? a.latitude ?? 0;
+      const aLng = a.lng ?? a.longitude ?? 0;
+      const bLat = b.lat ?? b.latitude ?? 0;
+      const bLng = b.lng ?? b.longitude ?? 0;
+      const distA = distanceMiles(userLocation, { latitude: aLat, longitude: aLng });
+      const distB = distanceMiles(userLocation, { latitude: bLat, longitude: bLng });
+      if (distA !== distB) return distA - distB;
+    }
+  }
+  // Fallback: soonest first
+  return getEffectiveTime(a) - getEffectiveTime(b);
+}
+
+/**
  * Returns true when an event should appear in the Public discovery feed.
  *
  * Rules:
