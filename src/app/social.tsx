@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator, Linking, AppState } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
@@ -775,17 +775,21 @@ export default function SocialScreen() {
 
   // ── Public Invite pane: lazy location fetch (only when pane active) ──
   const [publicPaneLocation, setPublicPaneLocation] = useState<GeoPoint | null>(null);
+  const [locationPermBlocked, setLocationPermBlocked] = useState(false);
   const publicLocationFetchedRef = useRef(false);
 
   useEffect(() => {
     if (activePane !== "public" || publicLocationFetchedRef.current) return;
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.status === "granted") {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setPublicPaneLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           publicLocationFetchedRef.current = true;
+          setLocationPermBlocked(false);
+        } else if (!perm.canAskAgain) {
+          setLocationPermBlocked(true);
         }
       } catch {
         // no location — fallback to time-only sort
@@ -796,16 +800,39 @@ export default function SocialScreen() {
   // Manual location request for Public Invite CTA (re-triggers if initial auto-fetch was denied)
   const requestPublicPaneLocation = useCallback(async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status === "granted") {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setPublicPaneLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
         publicLocationFetchedRef.current = true;
+        setLocationPermBlocked(false);
+      } else if (!perm.canAskAgain) {
+        setLocationPermBlocked(true);
       }
     } catch {
       // permission denied or location unavailable
     }
   }, []);
+
+  // Re-check location permission when returning from Settings (app becomes active)
+  useEffect(() => {
+    if (activePane !== "public" || !locationPermBlocked) return;
+    const sub = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setPublicPaneLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          publicLocationFetchedRef.current = true;
+          setLocationPermBlocked(false);
+        }
+      } catch {
+        // still no location
+      }
+    });
+    return () => sub.remove();
+  }, [activePane, locationPermBlocked]);
 
   // [GROWTH_P14] Weekly digest — reuse paginated notifications (first page only)
   const { notifications: allNotifications } = usePaginatedNotifications({
@@ -1972,20 +1999,26 @@ export default function SocialScreen() {
                       >
                         {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                         <Text className="text-xs flex-1 mr-3" style={{ color: colors.textSecondary }}>
-                          Showing all public events. Enable location for nearby results.
+                          {locationPermBlocked
+                            ? "Location is off. Enable it in Settings to see nearby events."
+                            : "Showing all public events. Enable location for nearby results."}
                         </Text>
                         <Pressable
                           /* INVARIANT_ALLOW_INLINE_HANDLER */
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            requestPublicPaneLocation();
+                            if (locationPermBlocked) {
+                              Linking.openSettings();
+                            } else {
+                              requestPublicPaneLocation();
+                            }
                           }}
                           className="px-3 py-1.5 rounded-lg"
                           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                           style={{ backgroundColor: themeColor }}
                         >
                           <Text className="text-xs font-semibold" style={{ color: "#FFFFFF" }}>
-                            Enable Location
+                            {locationPermBlocked ? "Open Settings" : "Enable Location"}
                           </Text>
                         </Pressable>
                       </View>
