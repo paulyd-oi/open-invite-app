@@ -73,7 +73,7 @@ import { EVENT_CATEGORIES } from "@/shared/contracts";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
-import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime } from "@/lib/discoverFilters";
+import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime, isVisibleInPublicFeed, PUBLIC_NEARBY_MILES, type GeoPoint } from "@/lib/discoverFilters";
 import { trackDiscoverSurfaceViewed, trackDiscoverEventOpened } from "@/analytics/analyticsEventsSSOT";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
@@ -177,13 +177,14 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "responded", label: "Responded" },
 ];
 
-type EventSort = "popular" | "soon" | "friends" | "saved" | "group";
+type EventSort = "popular" | "soon" | "friends" | "saved" | "group" | "public";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "soon", label: "Soon" },
   { key: "popular", label: "Popular" },
   { key: "friends", label: "Friends" },
   { key: "saved", label: "Saved" },
   { key: "group", label: "Group" },
+  { key: "public", label: "Public" },
 ];
 
 type RespondedSubFilter = "going" | "not_going";
@@ -216,25 +217,29 @@ export default function DiscoverScreen() {
     trackDiscoverSurfaceViewed({ pane: lens, pill });
   }, [lens, eventSort, respondedSubFilter]);
 
-  // ── Map: user location ──
+  // ── User location (shared by Map pane + Public pill distance cap) ──
   const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
   const [userRegion, setUserRegion] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<any>(null);
+  const locationFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (lens !== "map") return;
+    // Fetch location when Map pane or Public pill is active (one-time)
+    if (lens !== "map" && eventSort !== "public") return;
+    if (locationFetchedRef.current) return;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setUserRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          locationFetchedRef.current = true;
         }
       } catch {
-        // fallback to San Diego
+        // fallback — no location available
       }
     })();
-  }, [lens]);
+  }, [lens, eventSort]);
 
   // ── For You: save state + toast ──
   const [showSavedToast, setShowSavedToast] = useState(false);
@@ -600,8 +605,17 @@ export default function DiscoverScreen() {
       .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
   }, [enrichedEvents]);
 
+  // Public events: visibility === "public", within 50mi if location available, soonest-first
+  const publicSorted = useMemo(() => {
+    const now = Date.now();
+    const loc: GeoPoint | null = userRegion;
+    return enrichedEvents
+      .filter((e) => isVisibleInPublicFeed(e, loc, now))
+      .sort((a, b) => getEffectiveTime(a) - getEffectiveTime(b));
+  }, [enrichedEvents, userRegion]);
+
   // Active Events feed based on sort control
-  const activeFeed = eventSort === "friends" ? friendsSorted : eventSort === "saved" ? savedEventsList : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
+  const activeFeed = eventSort === "public" ? publicSorted : eventSort === "friends" ? friendsSorted : eventSort === "saved" ? savedEventsList : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
 
   // ── Host event count: derive "Active Host" badge (5+ events) ──
   const hostEventCounts = useMemo(() => {
@@ -997,8 +1011,8 @@ export default function DiscoverScreen() {
               }
               ListHeaderComponent={
                 <>
-                {/* ═══ Sort Chips ═══ */}
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                {/* ═══ Sort Chips (scrollable for 6 pills) ═══ */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
                   {/* INVARIANT_ALLOW_SMALL_MAP */}
                   {SORT_OPTIONS.map((opt) => {
                     const active = eventSort === opt.key;
@@ -1031,7 +1045,25 @@ export default function DiscoverScreen() {
                       </Pressable>
                     );
                   })}
-                </View>
+                </ScrollView>
+                {/* ═══ Public pill: location helper ═══ */}
+                {eventSort === "public" && !userRegion && activeFeed.length > 0 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                      borderRadius: 10,
+                      padding: 10,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <MapPin size={14} color={colors.textTertiary} />
+                    <Text style={{ flex: 1, fontSize: 12, color: colors.textTertiary, marginLeft: 8 }}>
+                      Enable location for nearby ranking
+                    </Text>
+                  </View>
+                )}
                 {/* ═══ Friend Nudge — zero friends ═══ */}
                 {friendCount === 0 && activeFeed.length > 0 && (
                   <Pressable
@@ -1150,6 +1182,38 @@ export default function DiscoverScreen() {
                   >
                     <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Explore Circles</Text>
                   </Pressable>
+                </View>
+                ) : eventSort === "public" ? (
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83C\uDF0D"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No public events nearby
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    Public events within 50 miles will appear here
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      if (!guardEmailVerification(session)) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      router.push("/create?visibility=public");
+                    }}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                      width: "100%",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create Public Event</Text>
+                  </Pressable>
+                  {!userRegion && (
+                    <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: "center", marginTop: 12 }}>
+                      Enable location for nearby filtering
+                    </Text>
+                  )}
                 </View>
                 ) : eventSort === "popular" ? (
                 <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>

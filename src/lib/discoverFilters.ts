@@ -35,6 +35,9 @@ export interface DiscoverVisibility {
 
 // ── Constants ──
 
+/** Distance cap (miles) for public event discovery surfaces. */
+export const PUBLIC_NEARBY_MILES = 50;
+
 /** RSVP statuses that classify an event as "responded". */
 export const RESPONDED_STATUSES: ReadonlyArray<string> = [
   "going",
@@ -121,7 +124,7 @@ export function isEventVisibleInMap(event: ClassifiableEvent): boolean {
 
 /**
  * Returns true when an event should appear in Events tab pills
- * (Soon, Popular, Friends, Saved, Group).
+ * (Soon, Popular, Friends, Saved, Group, Public).
  *
  * Rule: event must NOT be responded. Responded events live exclusively
  * in the top-level Responded pane.
@@ -141,4 +144,74 @@ export function getDiscoverVisibility(event: ClassifiableEvent): DiscoverVisibil
     isVisibleInMap: isEventVisibleInMap(event),
     isVisibleInFeed: !isResponded,
   };
+}
+
+// ── Layer C: Public event discovery helpers ──
+
+/** Minimal location shape for distance calculations. */
+export interface GeoPoint {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Returns true when an event has visibility === "public".
+ */
+export function isPublicEvent(event: ClassifiableEvent): boolean {
+  return event.visibility === "public";
+}
+
+/**
+ * Haversine distance between two points in miles.
+ */
+export function distanceMiles(a: GeoPoint, b: GeoPoint): number {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const aVal =
+    sinDLat * sinDLat +
+    Math.cos((a.latitude * Math.PI) / 180) *
+      Math.cos((b.latitude * Math.PI) / 180) *
+      sinDLng * sinDLng;
+  return R * 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+}
+
+/**
+ * Returns true when an event is within `miles` of `userLocation`.
+ * Returns true (no cap) when the event has no coordinates.
+ */
+export function isWithinMiles(
+  userLocation: GeoPoint,
+  event: ClassifiableEvent,
+  miles: number,
+): boolean {
+  const lat = event.lat ?? event.latitude;
+  const lng = event.lng ?? event.longitude;
+  if (lat == null || lng == null || lat === 0 || lng === 0) return true; // no coords → don't exclude
+  return distanceMiles(userLocation, { latitude: lat, longitude: lng }) <= miles;
+}
+
+/**
+ * Returns true when an event should appear in the Public discovery feed.
+ *
+ * Rules:
+ * - visibility === "public"
+ * - Must pass discover pool eligibility (not past, not blocked visibility)
+ * - Must not be responded (follows Events-pane responded exclusion invariant)
+ * - If userLocation provided, must be within PUBLIC_NEARBY_MILES
+ */
+export function isVisibleInPublicFeed(
+  event: ClassifiableEvent,
+  userLocation?: GeoPoint | null,
+  now: number = Date.now(),
+): boolean {
+  if (!isPublicEvent(event)) return false;
+  if (!isEventEligibleForDiscoverPool(event, now)) return false;
+  if (isEventResponded(event)) return false;
+  if (userLocation) {
+    if (!isWithinMiles(userLocation, event, PUBLIC_NEARBY_MILES)) return false;
+  }
+  return true;
 }

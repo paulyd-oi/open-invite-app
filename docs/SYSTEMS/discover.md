@@ -9,11 +9,24 @@
 
 | Pane | Key | Component | Description |
 |------|-----|-----------|-------------|
-| **Ideas** | `"ideas"` | `DailyIdeasDeck` | Swipeable card deck of daily suggestions |
-| **Events** | `"events"` | Inline FlatList | Popular/soon feed with sort toggle |
-| **Saved** | `"saved"` | Inline ScrollView | Time-grouped shortlist (Today/Tomorrow/This Week/Later) |
+| **Map** | `"map"` | `RNMapView` | Map with event pins |
+| **Events** | `"events"` | Inline FlatList | Feed with pill sub-filters |
+| **Responded** | `"responded"` | Inline FlatList | Events user has RSVP'd to |
 
 State: `const [lens, setLens] = useState<Lens>("events")`
+
+### Events Pane Pills
+
+| Pill | Key | Description |
+|------|-----|-------------|
+| Soon | `"soon"` | Soonest upcoming events |
+| Popular | `"popular"` | Highest attendee count |
+| Friends | `"friends"` | Events friends are going to |
+| Saved | `"saved"` | Bookmarked / interested events |
+| Group | `"group"` | Circle/group-visibility events |
+| Public | `"public"` | `visibility === "public"`, within 50mi if location available |
+
+Pills scroll horizontally. All pills exclude responded events (Events-pane responded exclusion invariant).
 
 ---
 
@@ -35,10 +48,22 @@ State: `const [lens, setLens] = useState<Lens>("events")`
 2. Filter: exclude circle_only, specific_groups, private visibility
 3. Filter: exclude past events (startTime or nextOccurrence < now)
 4. Enrich: deriveAttendeeCount() = 1 (host) + accepted joinRequests
-5. Sort:
+5. Sort per pill:
    - Popular: attendeeCount DESC, then effectiveTime ASC
    - Soon: effectiveTime ASC
+   - Friends: backend-sorted by goingCount DESC
+   - Saved: interested/maybe events, effectiveTime ASC
+   - Group: circle/group-visibility events, effectiveTime ASC
+   - Public: visibility === "public" + 50mi distance cap (if location) + effectiveTime ASC
 ```
+
+### Public Pill Distance Logic
+
+- Uses `isVisibleInPublicFeed()` from `discoverFilters.ts`
+- 50-mile hard cap via `PUBLIC_NEARBY_MILES` constant
+- Location fetched on demand (when Public pill or Map pane activated)
+- Without location: shows all public events sorted by time (no distance filter)
+- With location: haversine distance filter, events without coords still included
 
 `getEffectiveTime(e)` = `nextOccurrence ?? startTime` (handles recurring events).
 
@@ -141,8 +166,8 @@ Uses `getInvalidateAfterRsvpJoin(eventId)` — invalidates 11 keys:
 
 | File | Purpose |
 |------|---------|
-| `src/app/discover.tsx` | Main screen (1152 lines) |
-| `src/components/ideas/DailyIdeasDeck.tsx` | Ideas deck component |
+| `src/app/discover.tsx` | Main screen |
+| `src/lib/discoverFilters.ts` | SSOT for discover pool eligibility + surface classification + public/distance helpers |
 | `src/lib/eventQueryKeys.ts` | Query keys + invalidation contracts |
 | `src/lib/availabilitySignal.ts` | Availability chip logic |
 | `src/lib/useLiveRefreshContract.ts` | Pull-to-refresh + foreground refetch |
@@ -157,3 +182,6 @@ Uses `getInvalidateAfterRsvpJoin(eventId)` — invalidates 11 keys:
 - `feedPopular` and `friendsHostedFeed` must be invalidated on any RSVP mutation.
 - Ideas deck regenerates daily — stale decks cleared by date-keyed AsyncStorage.
 - Save action is dual-tracked: server (`interested` RSVP) + local Set (session-only).
+- Public pill respects Events-pane responded exclusion invariant (responded events excluded).
+- Public/distance logic lives in `discoverFilters.ts` SSOT — not inline in screens.
+- Imported events (`isImported: true`) must never appear in Public discovery surfaces.
