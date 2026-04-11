@@ -185,3 +185,4 @@ Uses `getInvalidateAfterRsvpJoin(eventId)` — invalidates 11 keys:
 - Public pill respects Events-pane responded exclusion invariant (responded events excluded).
 - Public/distance logic lives in `discoverFilters.ts` SSOT — not inline in screens.
 - Imported events (`isImported: true`) must never appear in Public discovery surfaces.
+- **Center tab lane separation:** Group Invite = circle events only. Open Invite = non-public social/open events (`visibility !== "public"`). Public Invite = `visibility === "public"` only, distance-filtered via `isVisibleInPublicFeed()` + `comparePublicFeedOrder()`. No public event may appear in both Open Invite and Public Invite panes.

@@ -82,19 +82,6 @@ Pull-to-refresh on the calendar screen triggers two parallel actions:
 
 ---
 
-## Show Public Nearby
-
-Toggle chip on the selected-date section that overlays nearby public events for the selected date.
-
-- **Not personal calendar items** — public events shown here are discovery objects, not owned/imported events
-- Toggle label: "Public" chip alongside Busy and Free? chips
-- When enabled: fetches discover feed, filters to `visibility === "public"` within 50mi, shows for selected date
-- When disabled: calendar behaves as normal
-- Location fetched on demand (only when toggle activated)
-- Uses `isVisibleInPublicFeed()` from `discoverFilters.ts` (shared SSOT with Discover Public pill)
-- Imported events excluded (`isImported: true` filtered out)
-- Empty state: "No public events on this date"
-
 ---
 
 ## Invariants

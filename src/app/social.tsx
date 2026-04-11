@@ -57,6 +57,8 @@ import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 import { trackFeedLoadTime, trackFeedPageLoaded, trackWeeklyDigestCardShown, trackWeeklyDigestCardTap, trackSocialEmptyCtaTap } from "@/analytics/analyticsEventsSSOT";
+import * as Location from "expo-location";
+import { PUBLIC_NEARBY_MILES, isVisibleInPublicFeed, comparePublicFeedOrder, type GeoPoint } from "@/lib/discoverFilters";
 import { usePaginatedNotifications } from "@/hooks/usePaginatedNotifications";
 import type { Notification } from "@/shared/contracts";
 
@@ -768,8 +770,28 @@ export default function SocialScreen() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Pane + date selection state for social calendar
-  const [activePane, setActivePane] = useState<"group" | "open">("open");
+  const [activePane, setActivePane] = useState<"group" | "open" | "public">("open");
   const [selectedCalDate, setSelectedCalDate] = useState<Date | null>(null);
+
+  // ── Public Invite pane: lazy location fetch (only when pane active) ──
+  const [publicPaneLocation, setPublicPaneLocation] = useState<GeoPoint | null>(null);
+  const publicLocationFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (activePane !== "public" || publicLocationFetchedRef.current) return;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setPublicPaneLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          publicLocationFetchedRef.current = true;
+        }
+      } catch {
+        // no location — fallback to time-only sort
+      }
+    })();
+  }, [activePane]);
 
   // [GROWTH_P14] Weekly digest — reuse paginated notifications (first page only)
   const { notifications: allNotifications } = usePaginatedNotifications({
@@ -1404,9 +1426,13 @@ export default function SocialScreen() {
     return Array.from(eventMap.values());
   }, [myEventsData?.events, attendingData?.events]);
 
-  // Group discovery events by time (feed sections show ONLY discovery)
+  // Group discovery events by time (feed sections show ONLY non-public discovery)
+  // Lane separation: Open Invite excludes visibility === "public" (those go to Public Invite pane)
   const groupedEvents = useMemo(
-    () => groupEventsByTime(discoveryEvents, session?.user?.id),
+    () => groupEventsByTime(
+      discoveryEvents.filter(e => e.visibility !== "public"),
+      session?.user?.id,
+    ),
     [discoveryEvents, session?.user?.id]
   );
 
@@ -1423,6 +1449,27 @@ export default function SocialScreen() {
       .filter(e => new Date(e.startTime) >= new Date(new Date().setHours(0, 0, 0, 0)))
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }, [myEventsData?.events, attendingData?.events, session?.user?.id]);
+
+  // "Public Invite" pane events: visibility === "public", distance-filtered + geo-ranked
+  // Uses SSOT helpers from discoverFilters.ts (same as Discover Public pill)
+  const publicPaneEvents = useMemo(() => {
+    const now = Date.now();
+    const loc = publicPaneLocation;
+    return discoveryEvents
+      .filter(e => isVisibleInPublicFeed(e, loc, now))
+      .sort((a, b) => comparePublicFeedOrder(a, b, loc));
+  }, [discoveryEvents, publicPaneLocation]);
+
+  const publicPaneGrouped = useMemo(
+    () => groupEventsByTime(publicPaneEvents, session?.user?.id),
+    [publicPaneEvents, session?.user?.id],
+  );
+
+  const hasPublicEvents =
+    publicPaneGrouped.today.length > 0 ||
+    publicPaneGrouped.tomorrow.length > 0 ||
+    publicPaneGrouped.thisWeek.length > 0 ||
+    publicPaneGrouped.upcoming.length > 0;
 
   // Events for the selected calendar date (from all events)
   const selectedDateEvents = useMemo(() => {
@@ -1572,7 +1619,7 @@ export default function SocialScreen() {
     groupedEvents.thisWeek.length > 0 ||
     groupedEvents.upcoming.length > 0;
   const hasGroupEvents = groupPaneEvents.length > 0;
-  const hasEvents = hasOpenInviteEvents || hasGroupEvents;
+  const hasEvents = hasOpenInviteEvents || hasGroupEvents || hasPublicEvents;
     
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => {
@@ -1750,7 +1797,7 @@ export default function SocialScreen() {
               )}
             </View>
           ) : (
-            /* ═══ MODE A: Default — Group | Open Invite pane ═══ */
+            /* ═══ MODE A: Default — Group | Open | Public Invite pane ═══ */
             <View className="mt-4">
               {/* Pane selector */}
               <View className="flex-row mb-4" style={{ ...glass.card, borderRadius: 12, padding: 4 }}>
@@ -1776,6 +1823,18 @@ export default function SocialScreen() {
                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-sm font-semibold" style={{ color: activePane === "open" ? "#FFFFFF" : colors.textSecondary }}>
                     Open Invite
+                  </Text>
+                </Pressable>
+                <Pressable
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => { Haptics.selectionAsync(); setActivePane("public"); }}
+                  className="flex-1 items-center py-2.5 rounded-lg"
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  style={{ backgroundColor: activePane === "public" ? themeColor : "transparent" }}
+                >
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="text-sm font-semibold" style={{ color: activePane === "public" ? "#FFFFFF" : colors.textSecondary }}>
+                    Public Invite
                   </Text>
                 </Pressable>
               </View>
@@ -1881,6 +1940,110 @@ export default function SocialScreen() {
                         if (!guardEmailVerification(session)) return;
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         router.push("/create");
+                      }}
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ marginTop: 12 }}
+                    />
+                  </View>
+                )
+              ) : activePane === "public" ? (
+                /* Public Invite pane — public visibility events, distance-filtered + geo-ranked */
+                hasPublicEvents ? (
+                  <>
+                    {!publicPaneLocation && (
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      <Text className="text-xs text-center mb-3" style={{ color: colors.textTertiary }}>
+                        Enable location for nearby events within 50 miles
+                      </Text>
+                    )}
+                    <EventSection
+                      title="Today"
+                      events={publicPaneGrouped.today}
+                      startIndex={0}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("pub_today")}
+                      onToggle={() => toggleSection("pub_today")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="Tomorrow"
+                      events={publicPaneGrouped.tomorrow}
+                      startIndex={publicPaneGrouped.today.length}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("pub_tomorrow")}
+                      onToggle={() => toggleSection("pub_tomorrow")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="This Week"
+                      events={publicPaneGrouped.thisWeek}
+                      startIndex={publicPaneGrouped.today.length + publicPaneGrouped.tomorrow.length}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("pub_thisWeek")}
+                      onToggle={() => toggleSection("pub_thisWeek")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="Upcoming"
+                      events={publicPaneGrouped.upcoming}
+                      startIndex={
+                        publicPaneGrouped.today.length +
+                        publicPaneGrouped.tomorrow.length +
+                        publicPaneGrouped.thisWeek.length
+                      }
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("pub_upcoming")}
+                      onToggle={() => toggleSection("pub_upcoming")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                  </>
+                ) : (
+                  <View className="py-8 items-center px-8" style={{ ...glass.card, padding: 24 }}>
+                    <Text className="text-4xl mb-3">🌍</Text>
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>
+                      No public invites yet
+                    </Text>
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="text-sm text-center mt-1" style={{ color: colors.textTertiary }}>
+                      Public events are visible to everyone — great for meetups, open runs, and community hangouts
+                    </Text>
+                    <Button
+                      variant="ghost"
+                      label="Create a Public Invite"
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push("/create?visibility=public");
                       }}
                       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                       style={{ marginTop: 12 }}

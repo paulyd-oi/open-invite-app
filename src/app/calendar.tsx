@@ -28,7 +28,6 @@ import {
   Palette,
   Briefcase,
   CalendarDays,
-  Globe,
 } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -85,8 +84,6 @@ import { CalendarBusyBlockModal } from "@/components/calendar/CalendarBusyBlockM
 import { CalendarFirstLoginGuideModal } from "@/components/calendar/CalendarFirstLoginGuideModal";
 import { CalendarHeaderChrome, MONTHS, CALENDAR_VIEW_MODES, type ViewMode } from "@/components/calendar/CalendarHeaderChrome";
 import { DAYS, DAYS_FULL, CALENDAR_VIEW_HEIGHT_KEY, GUIDE_SEEN_KEY_PREFIX, UNIFIED_MIN_HEIGHT, UNIFIED_MAX_HEIGHT, COMPACT_TO_STACKED_THRESHOLD, STACKED_TO_DETAILS_THRESHOLD, getDaysInMonth, getFirstDayOfMonth, getOrdinalSuffix, formatDateShort, getViewModeFromHeight, getHeightMultiplierForMode } from "@/lib/calendarUtils";
-import * as Location from "expo-location";
-import { isVisibleInPublicFeed, PUBLIC_NEARBY_MILES, type GeoPoint, getEffectiveTime } from "@/lib/discoverFilters";
 
 // NOTE: getEventPalette, EventPalette, and assertGreyPaletteInvariant are now imported from @/lib/eventPalette
 // This is the single source of truth for busy/work grey rendering
@@ -410,27 +407,6 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [isListView, setIsListView] = useState(false);
 
-  // ── Show Public Nearby toggle ──
-  const [showPublicNearby, setShowPublicNearby] = useState(false);
-  const [calendarUserLocation, setCalendarUserLocation] = useState<GeoPoint | null>(null);
-  const calLocationFetchedRef = useRef(false);
-
-  // Fetch location when public nearby toggle is enabled
-  useEffect(() => {
-    if (!showPublicNearby || calLocationFetchedRef.current) return;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          setCalendarUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          calLocationFetchedRef.current = true;
-        }
-      } catch {
-        // no location
-      }
-    })();
-  }, [showPublicNearby]);
 
   // ScrollView ref (kept for programmatic scrollTo if needed)
   const scrollViewRef = useRef<ScrollView>(null);
@@ -611,35 +587,6 @@ export default function CalendarScreen() {
     placeholderData: (prev: GetFriendBirthdaysResponse | undefined) => prev,
   });
 
-  // ── Public nearby: fetch discover feed (only when toggle is on) ──
-  const { data: publicFeedData } = useQuery({
-    queryKey: eventKeys.feedPopular(),
-    queryFn: () => api.get<{ events: Array<any> }>("/api/events/feed"),
-    enabled: showPublicNearby && isAuthedForNetwork(bootStatus, session),
-    staleTime: 30_000,
-  });
-
-  // Filter public events for selected date
-  const publicNearbyEventsForDate = useMemo(() => {
-    if (!showPublicNearby || !publicFeedData?.events) return [];
-    const now = Date.now();
-    const loc = calendarUserLocation;
-    const dayStart = new Date(selectedDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(selectedDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    return publicFeedData.events
-      .filter((e: any) => {
-        if (!isVisibleInPublicFeed(e, loc, now)) return false;
-        // isImported events must be excluded
-        if (e.isImported) return false;
-        // Filter to selected date
-        const effectiveMs = getEffectiveTime(e);
-        return effectiveMs >= dayStart.getTime() && effectiveMs <= dayEnd.getTime();
-      })
-      .sort((a: any, b: any) => getEffectiveTime(a) - getEffectiveTime(b));
-  }, [showPublicNearby, publicFeedData?.events, calendarUserLocation, selectedDate]);
 
   // QueryClient for invalidating queries
   const queryClient = useQueryClient();
@@ -1574,17 +1521,6 @@ export default function CalendarScreen() {
                     }}
                     size="sm"
                   />
-                  <Chip
-                    variant={showPublicNearby ? "accent" : "muted"}
-                    label="Public"
-                    leftIcon={<Globe size={12} color={showPublicNearby ? themeColor : colors.chipMutedText} />}
-                    /* INVARIANT_ALLOW_INLINE_HANDLER */
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowPublicNearby((prev) => !prev);
-                    }}
-                    size="sm"
-                  />
                 </View>
               </View>
 
@@ -1673,86 +1609,6 @@ export default function CalendarScreen() {
                 ))
               )}
             </View>
-
-            {/* ═══ Public Nearby Events (overlay — not personal calendar items) ═══ */}
-            {showPublicNearby && (
-              <View className="px-5 mt-4">
-                <View className="flex-row items-center mb-3">
-                  <Globe size={16} color={themeColor} />
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>
-                    Public Nearby
-                  </Text>
-                  {!calendarUserLocation && (
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    <Text className="text-xs ml-2" style={{ color: colors.textTertiary }}>
-                      (enable location for nearby filtering)
-                    </Text>
-                  )}
-                </View>
-                {publicNearbyEventsForDate.length === 0 ? (
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  <View
-                    className="rounded-xl p-4 items-center"
-                    style={{ backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", borderRadius: 12 }}
-                  >
-                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                      No public events on this date
-                    </Text>
-                  </View>
-                ) : (
-                  publicNearbyEventsForDate.map((event: any, idx: number) => {
-                    const startDate = new Date(event.nextOccurrence ?? event.startTime);
-                    return (
-                      <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
-                        <Pressable
-                          /* INVARIANT_ALLOW_INLINE_HANDLER */
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.push(`/event/${event.id}?from=calendar`);
-                          }}
-                          className="rounded-xl p-3 mb-2"
-                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                          style={{
-                            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                            borderWidth: 1,
-                            borderColor: `${themeColor}20`,
-                            borderRadius: 12,
-                          }}
-                        >
-                          <View className="flex-row items-center">
-                            <Text style={{ fontSize: 24, marginRight: 10 }}>{event.emoji}</Text>
-                            <View className="flex-1">
-                              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                              <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>{event.title}</Text>
-                              <View className="flex-row items-center mt-1">
-                                <Clock size={12} color={colors.textSecondary} />
-                                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                                <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>
-                                  {startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                                </Text>
-                                {event.location && (
-                                  <>
-                                    <MapPin size={12} color={colors.textTertiary} style={{ marginLeft: 8 }} />
-                                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                                    <Text className="text-xs ml-1 flex-1" style={{ color: colors.textTertiary }} numberOfLines={1}>{event.location}</Text>
-                                  </>
-                                )}
-                              </View>
-                            </View>
-                            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                            <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: `${themeColor}15` }}>
-                              <Text className="text-xs font-medium" style={{ color: themeColor }}>Public</Text>
-                            </View>
-                          </View>
-                        </Pressable>
-                      </Animated.View>
-                    );
-                  })
-                )}
-              </View>
-            )}
 
             {/* Proposed Events Section (formerly Event Requests) */}
             {eventRequests.length > 0 && (
