@@ -16,7 +16,7 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { refreshAfterFriendAccept, refreshAfterFriendReject, refreshAfterCircleCreate, refreshAfterCircleLeave } from "@/lib/refreshAfterMutation";
+import { refreshAfterFriendAccept, refreshAfterFriendReject, refreshAfterCircleCreate, refreshAfterCircleLeave, friendKeys } from "@/lib/refreshAfterMutation";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -1083,7 +1083,7 @@ export default function FriendsScreen() {
 
   // Fetch pinned friendships
   const { data: pinnedData, isFetched: pinnedFetched } = useQuery({
-    queryKey: ["pinnedFriendships"],
+    queryKey: friendKeys.pinned(),
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min
@@ -1215,7 +1215,7 @@ export default function FriendsScreen() {
       }
       setPinnedFriendshipIds(newPinned);
       // Invalidate the query to ensure persistence across remounts
-      queryClient.invalidateQueries({ queryKey: ["pinnedFriendships"] });
+      queryClient.invalidateQueries({ queryKey: friendKeys.pinned() });
       if (__DEV__) devLog("[DEV_DECISION] pin persisted", { friendId: friendshipId, isPinned: data.isPinned, source: "server" });
     },
   });

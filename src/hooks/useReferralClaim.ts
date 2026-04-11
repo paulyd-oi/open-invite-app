@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getPendingReferralCode, clearPendingReferralCode } from '@/lib/referral';
 import { devLog, devWarn, devError } from '@/lib/devLog';
 import { claimReferral, type ClaimErrorCode } from '@/lib/referralsApi';
+import { qk } from '@/lib/queryKeys';
 
 interface UseReferralClaimOptions {
   /** bootStatus from useBootAuthority - must be 'authed' */
@@ -75,7 +76,7 @@ export function useReferralClaim({ bootStatus, isOnboardingComplete }: UseReferr
             devLog('[useReferralClaim] Successfully claimed referral code');
           }
           await clearPendingReferralCode();
-          queryClient.invalidateQueries({ queryKey: ['referralStats'] });
+          queryClient.invalidateQueries({ queryKey: qk.referralStats() });
           return;
         }
 

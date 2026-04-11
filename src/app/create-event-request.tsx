@@ -48,6 +48,8 @@ import {
 } from "@/shared/contracts";
 import { computeSchedule } from "@/lib/scheduling/engine";
 import type { BusyWindow } from "@/lib/scheduling/types";
+import { qk } from "@/lib/queryKeys";
+import { friendKeys } from "@/lib/refreshAfterMutation";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 import EmojiPicker from "rn-emoji-keyboard";
 
@@ -114,7 +116,7 @@ export default function CreateEventRequestScreen() {
 
   // Fetch friends
   const { data: friendsData } = useQuery({
-    queryKey: ["friends"],
+    queryKey: friendKeys.all(),
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -141,7 +143,7 @@ export default function CreateEventRequestScreen() {
 
   // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule
   const { data: workScheduleData } = useQuery({
-    queryKey: ["workSchedule"],
+    queryKey: qk.workSchedule(),
     queryFn: () => api.get<{ schedules: WorkScheduleDay[] }>("/api/work-schedule"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -265,7 +267,7 @@ export default function CreateEventRequestScreen() {
     }) => api.post<CreateEventRequestResponse>("/api/event-requests", data),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["event-requests"] });
+      queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
       router.back();
     },
     onError: (error) => {

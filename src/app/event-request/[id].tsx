@@ -46,6 +46,7 @@ import {
   type SuggestTimeResponse,
 } from "@/shared/contracts";
 import { Button } from "@/ui/Button";
+import { qk } from "@/lib/queryKeys";
 
 export default function EventRequestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -93,7 +94,7 @@ export default function EventRequestDetailScreen() {
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["event-request", id] });
-      queryClient.invalidateQueries({ queryKey: ["event-requests"] });
+      queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
       if (data.eventCreated && data.eventId) {
         // Event was created - show confetti and navigate
         setShowConfetti(true);
@@ -117,7 +118,7 @@ export default function EventRequestDetailScreen() {
     mutationFn: () => api.delete<DeleteEventRequestResponse>(`/api/event-requests/${id}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["event-requests"] });
+      queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
       router.back();
     },
     onError: (error) => {

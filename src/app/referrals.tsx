@@ -25,6 +25,7 @@ import { safeToast } from "@/lib/safeToast";
 import { buildReferralSharePayload } from "@/lib/shareSSOT";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { devError, devLog } from "@/lib/devLog";
+import { qk } from "@/lib/queryKeys";
 
 interface ReferralHistoryItem {
   id: string;
@@ -129,7 +130,7 @@ export default function ReferralsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["referralStats"],
+    queryKey: qk.referralStats(),
     queryFn: () => api.get<ReferralStatsResponse>("/api/referral/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -143,7 +144,7 @@ export default function ReferralsScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["referralStats"] }),
+      queryClient.invalidateQueries({ queryKey: qk.referralStats() }),
       queryClient.invalidateQueries({ queryKey: ["referralHistory"] }),
     ]);
     setRefreshing(false);

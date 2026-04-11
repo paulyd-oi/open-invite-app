@@ -23,6 +23,7 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { handlePushEvent } from "@/lib/pushRouter";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
+import { qk } from "@/lib/queryKeys";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -912,7 +913,7 @@ export function useNotifications() {
         }
         
         // Always refresh notifications/activity list on any notification
-        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: qk.notifications() });
       }
     );
 

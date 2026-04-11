@@ -36,6 +36,7 @@ import { devLog } from "@/lib/devLog";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { qk } from "@/lib/queryKeys";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,7 +84,7 @@ export default function AdminReportDetail() {
 
   // Admin gate
   const { data: adminStatus, isLoading: adminLoading } = useQuery({
-    queryKey: ["adminStatus"],
+    queryKey: qk.adminStatus(),
     queryFn: checkAdminStatus,
     retry: false,
     enabled: authed,
