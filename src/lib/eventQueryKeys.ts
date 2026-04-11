@@ -184,14 +184,22 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
 /**
  * Keys to invalidate after join request approval/rejection.
  * Updates event details and feeds but not user's own RSVP.
+ * [INVALIDATION_GAPS_V2] Added feedPopular, friendsHostedFeed, attending, calendar
+ * for count/lane coherence across all surfaces.
  */
 export function getInvalidateAfterJoinRequestAction(eventId: string): Array<readonly string[]> {
   return [
     eventKeys.single(eventId),
+    eventKeys.attendees(eventId), // [INVALIDATION_GAPS_V2] Who's Coming list
+    eventKeys.rsvps(eventId), // [INVALIDATION_GAPS_V2] Grouped RSVPs
     eventKeys.interests(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
+    eventKeys.feedPopular(), // [INVALIDATION_GAPS_V2] Discover popular feed (count changed)
+    eventKeys.friendsHostedFeed(), // [INVALIDATION_GAPS_V2] Friends pill badge
     eventKeys.myEvents(),
+    eventKeys.calendar(),
+    eventKeys.attending(), // [INVALIDATION_GAPS_V2] social tab + availability
   ];
 }
 
@@ -221,12 +229,14 @@ export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]
 /**
  * Keys to invalidate after event creation.
  * Updates all feed views.
+ * [INVALIDATION_GAPS_V2] Added friendsHostedFeed — friends see your new event in their Discover.
  */
 export function getInvalidateAfterEventCreate(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
+    eventKeys.friendsHostedFeed(), // [INVALIDATION_GAPS_V2] Friends pill + social tab
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
@@ -255,15 +265,18 @@ export function getInvalidateAfterEventEdit(eventId: string): Array<readonly str
 
 /**
  * Keys to invalidate after event delete.
+ * [INVALIDATION_GAPS_V2] Added friendsHostedFeed + attending for lane coherence.
  */
 export function getInvalidateAfterEventDelete(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
+    eventKeys.friendsHostedFeed(), // [INVALIDATION_GAPS_V2] Discover Friends pill + social tab
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
+    eventKeys.attending(), // [INVALIDATION_GAPS_V2] social tab + availability signals
   ];
 }
 

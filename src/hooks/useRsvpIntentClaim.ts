@@ -15,6 +15,7 @@ import { postIdempotent } from '@/lib/idempotencyKey';
 import { devLog, devError } from '@/lib/devLog';
 import { safeToast } from '@/lib/safeToast';
 import { trackRsvpIntentAppliedPostauth } from '@/analytics/analyticsEventsSSOT';
+import { getInvalidateAfterRsvpJoin, invalidateEventKeys } from '@/lib/eventQueryKeys';
 
 interface UseRsvpIntentClaimOptions {
   /** bootStatus from useBootAuthority — must be 'authed' */
@@ -56,9 +57,8 @@ export function useRsvpIntentClaim({ bootStatus, isOnboardingComplete }: UseRsvp
 
         if (__DEV__) devLog('[useRsvpIntentClaim] success');
 
-        // Invalidate event queries so the RSVP shows up
-        queryClient.invalidateQueries({ queryKey: ['event', intent.eventId] });
-        queryClient.invalidateQueries({ queryKey: ['events'] });
+        // [INVALIDATION_GAPS_V2] Use SSOT invalidation contract
+        invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(intent.eventId), 'rsvpIntentClaim');
       } catch (err: any) {
         const msg = err?.message ?? '';
         const is409 = msg.includes('409') || msg.toLowerCase().includes('full') || msg.toLowerCase().includes('capacity');
