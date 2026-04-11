@@ -793,6 +793,20 @@ export default function SocialScreen() {
     })();
   }, [activePane]);
 
+  // Manual location request for Public Invite CTA (re-triggers if initial auto-fetch was denied)
+  const requestPublicPaneLocation = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setPublicPaneLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        publicLocationFetchedRef.current = true;
+      }
+    } catch {
+      // permission denied or location unavailable
+    }
+  }, []);
+
   // [GROWTH_P14] Weekly digest — reuse paginated notifications (first page only)
   const { notifications: allNotifications } = usePaginatedNotifications({
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -1952,9 +1966,29 @@ export default function SocialScreen() {
                   <>
                     {!publicPaneLocation && (
                       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      <Text className="text-xs text-center mb-3" style={{ color: colors.textTertiary }}>
-                        Enable location for nearby events within 50 miles
-                      </Text>
+                      <View
+                        className="flex-row items-center justify-between rounded-xl px-4 py-3 mb-4"
+                        style={{ backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderRadius: 12 }}
+                      >
+                        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                        <Text className="text-xs flex-1 mr-3" style={{ color: colors.textSecondary }}>
+                          Showing all public events. Enable location for nearby results.
+                        </Text>
+                        <Pressable
+                          /* INVARIANT_ALLOW_INLINE_HANDLER */
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            requestPublicPaneLocation();
+                          }}
+                          className="px-3 py-1.5 rounded-lg"
+                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          <Text className="text-xs font-semibold" style={{ color: "#FFFFFF" }}>
+                            Enable Location
+                          </Text>
+                        </Pressable>
+                      </View>
                     )}
                     <EventSection
                       title="Today"
