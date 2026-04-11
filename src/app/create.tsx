@@ -497,10 +497,11 @@ export default function CreateEventScreen() {
       setUserModifiedEndTime(true);
     }
 
-    // Visibility — map backend values to the 3 UI-supported options
+    // Visibility — map backend values to UI-supported options
     const rawVis = editEvent.visibility;
-    const vis: "all_friends" | "specific_groups" | "circle_only" =
-      rawVis === "specific_groups" ? "specific_groups"
+    const vis: "public" | "all_friends" | "specific_groups" | "circle_only" =
+      rawVis === "public" ? "public"
+      : rawVis === "specific_groups" ? "specific_groups"
       : rawVis === "circle_only" ? "circle_only"
       : "all_friends"; // open_invite, private, etc. map to all_friends
     setVisibility(vis);

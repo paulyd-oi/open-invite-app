@@ -235,6 +235,9 @@ export function getInvalidateAfterEventCreate(): Array<readonly string[]> {
 
 /**
  * Keys to invalidate after event edit.
+ * [VISIBILITY_TRANSITION_V1] Must cover all surfaces affected by visibility changes:
+ *   friendsHostedFeed: Discover Friends pill badge + social tab friend-hosted events
+ *   attending: social tab calendar events + availability signals
  */
 export function getInvalidateAfterEventEdit(eventId: string): Array<readonly string[]> {
   return [
@@ -242,9 +245,11 @@ export function getInvalidateAfterEventEdit(eventId: string): Array<readonly str
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.feedPopular(), // [INVALIDATION_GAPS_V1] Discover popular feed
+    eventKeys.friendsHostedFeed(), // [VISIBILITY_TRANSITION_V1] lane separation coherence
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
+    eventKeys.attending(), // [VISIBILITY_TRANSITION_V1] social tab + availability
   ];
 }
 
