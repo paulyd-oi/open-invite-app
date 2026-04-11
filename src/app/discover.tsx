@@ -204,6 +204,8 @@ export default function DiscoverScreen() {
   const [lens, setLens] = useState<Lens>("events");
   const [eventSort, setEventSort] = useState<EventSort>("soon");
   const [respondedSubFilter, setRespondedSubFilter] = useState<RespondedSubFilter>("going");
+  type MapFilter = "friends" | "public";
+  const [mapFilter, setMapFilter] = useState<MapFilter>("friends");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
 
@@ -628,10 +630,18 @@ export default function DiscoverScreen() {
     return counts;
   }, [enrichedEvents]);
 
-  // ── Map events: filter from full discover pool (not pill-specific activeFeed) ──
+  // ── Map events: filter by Friends | Public map sub-filter ──
   const mapEvents = useMemo(() => {
-    return enrichedEvents.filter(isEventVisibleInMap);
-  }, [enrichedEvents]);
+    const visibleOnMap = enrichedEvents.filter(isEventVisibleInMap);
+    if (mapFilter === "public") {
+      const now = Date.now();
+      const loc: GeoPoint | null = userRegion;
+      return visibleOnMap
+        .filter(e => isVisibleInPublicFeed(e, loc, now));
+    }
+    // Friends: exclude public events
+    return visibleOnMap.filter(e => e.visibility !== "public");
+  }, [enrichedEvents, mapFilter, userRegion]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
@@ -915,6 +925,51 @@ export default function DiscoverScreen() {
               );
             })}
           </RNMapView>
+          )}
+
+          {/* Friends | Public map filter selector */}
+          {RNMapView && (
+          <View style={{
+            position: "absolute",
+            top: chromeHeight + 12,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+            zIndex: 90,
+          }} pointerEvents="box-none">
+            <View style={{
+              flexDirection: "row",
+              backgroundColor: colors.surface,
+              borderRadius: 10,
+              padding: 3,
+              ...(TILE_SHADOW as any),
+            }}>
+              {(["friends", "public"] as const).map((key) => {
+                const active = mapFilter === key;
+                return (
+                  <Pressable
+                    key={key}
+                    /* INVARIANT_ALLOW_INLINE_HANDLER */
+                    onPress={() => { Haptics.selectionAsync(); setMapFilter(key); }}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      backgroundColor: active ? themeColor : "transparent",
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: active ? "#FFFFFF" : colors.textSecondary,
+                    }}>
+                      {key === "friends" ? "Friends" : "Public"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
           )}
 
           {/* Event count overlay — only when map is available */}

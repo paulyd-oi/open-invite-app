@@ -15,6 +15,17 @@
 
 State: `const [lens, setLens] = useState<Lens>("events")`
 
+### Map Sub-Filter
+
+| Mode | Key | Description |
+|------|-----|-------------|
+| Friends | `"friends"` | Non-public social graph events (excludes `visibility === "public"`) |
+| Public | `"public"` | Public events only, 50mi cap when location available |
+
+State: `const [mapFilter, setMapFilter] = useState<MapFilter>("friends")`
+
+Strict lane separation: no public events in Friends, no non-public events in Public.
+
 ### Events Pane Pills
 
 | Pill | Key | Description |
@@ -186,3 +197,4 @@ Uses `getInvalidateAfterRsvpJoin(eventId)` — invalidates 11 keys:
 - Public/distance logic lives in `discoverFilters.ts` SSOT — not inline in screens.
 - Imported events (`isImported: true`) must never appear in Public discovery surfaces.
 - **Center tab lane separation:** Group Invite = circle events only. Open Invite = non-public social/open events (`visibility !== "public"`). Public Invite = `visibility === "public"` only, distance-filtered via `isVisibleInPublicFeed()` + `comparePublicFeedOrder()`. No public event may appear in both Open Invite and Public Invite panes.
+- **Discover Map lane separation:** Friends = non-public map events (`visibility !== "public"`). Public = public-only map events, 50mi cap via `isVisibleInPublicFeed()`. No mixed inventory between map sub-filter modes.
