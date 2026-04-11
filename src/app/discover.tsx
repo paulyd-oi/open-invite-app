@@ -8,6 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Share,
+  Linking,
+  AppState,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -222,6 +224,7 @@ export default function DiscoverScreen() {
   // ── User location (shared by Map pane + Public pill distance cap) ──
   const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
   const [userRegion, setUserRegion] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapLocationPermBlocked, setMapLocationPermBlocked] = useState(false);
   const mapRef = useRef<any>(null);
   const locationFetchedRef = useRef(false);
 
@@ -231,17 +234,57 @@ export default function DiscoverScreen() {
     if (locationFetchedRef.current) return;
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.status === "granted") {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setUserRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           locationFetchedRef.current = true;
+          setMapLocationPermBlocked(false);
+        } else if (!perm.canAskAgain) {
+          setMapLocationPermBlocked(true);
         }
       } catch {
         // fallback — no location available
       }
     })();
   }, [lens, eventSort]);
+
+  // Manual location request for Map Public CTA
+  const requestMapLocation = useCallback(async () => {
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        locationFetchedRef.current = true;
+        setMapLocationPermBlocked(false);
+      } else if (!perm.canAskAgain) {
+        setMapLocationPermBlocked(true);
+      }
+    } catch {
+      // permission denied or location unavailable
+    }
+  }, []);
+
+  // Re-check location permission when returning from Settings
+  useEffect(() => {
+    if (lens !== "map" || mapFilter !== "public" || !mapLocationPermBlocked) return;
+    const sub = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          locationFetchedRef.current = true;
+          setMapLocationPermBlocked(false);
+        }
+      } catch {
+        // still no location
+      }
+    });
+    return () => sub.remove();
+  }, [lens, mapFilter, mapLocationPermBlocked]);
 
   // ── For You: save state + toast ──
   const [showSavedToast, setShowSavedToast] = useState(false);
@@ -968,6 +1011,55 @@ export default function DiscoverScreen() {
                   </Pressable>
                 );
               })}
+            </View>
+          </View>
+          )}
+
+          {/* Map Public no-location helper banner */}
+          {RNMapView && mapFilter === "public" && !userRegion && (
+          <View style={{
+            position: "absolute",
+            top: chromeHeight + 52,
+            left: 16,
+            right: 16,
+            zIndex: 89,
+          }} pointerEvents="box-none">
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: colors.surface,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              ...(TILE_SHADOW as any),
+            }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1, marginRight: 10 }}>
+                {mapLocationPermBlocked
+                  ? "Location is off. Enable it in Settings to see nearby public events."
+                  : "Showing all public events. Enable location for nearby results."}
+              </Text>
+              <Pressable
+                /* INVARIANT_ALLOW_INLINE_HANDLER */
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (mapLocationPermBlocked) {
+                    Linking.openSettings();
+                  } else {
+                    requestMapLocation();
+                  }
+                }}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 8,
+                  backgroundColor: themeColor,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#FFFFFF" }}>
+                  {mapLocationPermBlocked ? "Open Settings" : "Enable Location"}
+                </Text>
+              </Pressable>
             </View>
           </View>
           )}
