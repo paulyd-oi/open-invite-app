@@ -74,3 +74,45 @@
 - Grep confirms `DEFAULT VISIBILITY`, `VISIBILITY_OPTIONS`, `showVisibilityModal`, `currentVisibilityOption`, `VisibilityOption` are no longer present in `import-calendar.tsx`.
 - New copy `PRIVACY` / `All imported events are private — only you can see them. You can change visibility anytime after import.` is present at lines 647/659.
 - OTA-safe: no native module or native config changes.
+
+---
+
+## 2026-04-12 — Event detail scroll jank with video themes
+
+### Context
+Report: "Event page scroll becomes sluggish/janky when a video theme is active." Core product surface; premium visuals must not degrade RSVP/detail experience.
+
+### Files read
+- `docs/SYSTEMS/event-page.md` — render layers list, particle exclusivity invariant
+- `src/components/event/ThemeBackgroundLayers.tsx` — orchestrator mounting all background layers (called once from `event/[id].tsx:2060`)
+- `src/components/ThemeVideoLayer.tsx` — `expo-video` looping player, handles its own reducedMotion + failure poster fallback, AppState pause/resume
+- `src/components/ThemeEffectLayer.tsx` (first ~100 lines) — Skia Canvas + Reanimated useFrameCallback particle simulation
+- `src/components/create/MotifOverlay.tsx` (first ~80 lines) — same Skia particle engine, used for user-selected `effectId`
+- `src/components/ThemeFilterLayer.tsx` — single Skia canvas, static post-processing (no per-frame animation)
+- `src/components/AnimatedGradientLayer.tsx` — two LinearGradients with Reanimated opacity crossfade (withRepeat, withTiming)
+- `src/app/event/[id].tsx` (around line 2050) — confirmed `ThemeBackgroundLayers` is the single mount site; ScrollView is `Animated.ScrollView` with no `removeClippedSubviews`
+
+### Root cause
+When a theme video is active, four animated/composited systems run simultaneously behind content: (1) Reanimated gradient crossfade, (2) looping `expo-video` H.264 decode, (3) Skia Canvas with `useFrameCallback` driving particle positions every frame, (4) Skia filter canvas. During scroll the entire layered view hierarchy re-composites, amplifying the cost of the redundant animated layers.
+
+### Fix
+Containment rule added to `ThemeBackgroundLayers.tsx` (proof tag `[PERF_VIDEO_CONTAINMENT_V1]`):
+- Compute `hasActiveVideo = Boolean(visualStack?.video && THEME_VIDEOS[source])`.
+- When `hasActiveVideo`: skip `AnimatedGradientLayer` (video + poster fallback cover the atmosphere) and skip the particle layer (`MotifOverlay` / `ThemeEffectLayer`).
+- Keep `ThemeVideoLayer` and `ThemeFilterLayer` (static filter, single Skia canvas, no per-frame work).
+- Non-video themes: behavior unchanged.
+
+### Files changed
+- `src/components/event/ThemeBackgroundLayers.tsx` — containment rule + docblock.
+- `docs/SYSTEMS/event-page.md` — updated render-layer list + added "Video Containment Rule" section + invariant.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — forensic entry with guardrail.
+
+### Scope deviation from expected file list
+Expected list named `src/app/event/[id].tsx`, `ThemeVideoLayer.tsx`, `ThemeEffectLayer.tsx`, `MotifOverlay.tsx`. After freshness check, all layer mounting flows through the single orchestrator `src/components/event/ThemeBackgroundLayers.tsx`. Putting the rule there is the smallest, highest-visibility surgical change: the layer components stay pure/reusable (create page still mounts the full stack), and the decision is co-located with the render. No edits to `event/[id].tsx` (no call-site change needed), no edits to the layer components themselves.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Layer gating visible in `ThemeBackgroundLayers.tsx` via `!hasActiveVideo` guards on gradient + particle blocks.
+- Particle exclusivity (effect vs theme particles) still honored inside the particle branch.
+- OTA-safe: pure JS/TS, no native module, native config, or package changes.

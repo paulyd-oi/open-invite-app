@@ -9,15 +9,30 @@
 
 ```
 1. SafeAreaView (canvasColor from theme)
-2. AnimatedGradientLayer (if visualStack.gradient)
+2. AnimatedGradientLayer (if visualStack.gradient AND no active video)  ← suppressed when video is active
 3. ThemeVideoLayer (if visualStack.video)
-4. Particle layer (EXCLUSIVE):
+4. Particle layer (EXCLUSIVE, and ALSO suppressed when video is active):
    - IF effectId: MotifOverlay (user-selected effect)
    - ELSE: ThemeEffectLayer (theme-bundled particles/lottie)
-5. ThemeFilterLayer (if visualStack.filter)
+5. ThemeFilterLayer (if visualStack.filter) ← kept; static Skia, no per-frame work
 6. Blurred photo backdrop (Cloudinary blur + gradient scrim)
 7. Content: InviteFlipCard + event details
 ```
+
+### Video Containment Rule (scroll-perf invariant)
+
+Orchestrator: `src/components/event/ThemeBackgroundLayers.tsx`
+Proof tag: `[PERF_VIDEO_CONTAINMENT_V1]`
+
+When a theme video is both declared AND resolvable via `THEME_VIDEOS`, only one animated visual system runs behind content on event detail: the video itself. Specifically:
+
+- `AnimatedGradientLayer` is **not rendered** — the video (and its poster fallback for reducedMotion / load-failure paths) already covers the atmosphere layer.
+- Particle layer (`MotifOverlay` or `ThemeEffectLayer`) is **not rendered** — Skia per-frame simulation (useFrameCallback) composited over video decode caused scroll jank.
+- `ThemeFilterLayer` is preserved — it's a single static Skia canvas with no per-frame animation, so it remains cheap and gives the video its post-processed look.
+
+Rationale: stacking Reanimated gradient crossfade + Skia particle simulation + video decode + Skia filter canvas created four contended compositors on scroll. Containing to (video + static filter) keeps the premium look while returning scroll headroom.
+
+This rule is enforced inside `ThemeBackgroundLayers.tsx`. Do not re-enable gradient or particle layers alongside a video in that component without re-validating scroll perf on device.
 
 ---
 
@@ -195,6 +210,7 @@ create_completed → share_triggered → event_page_viewed
 
 - Particle layer is exclusive: effect OR theme particles, never both.
 - Theme gradient, video, styling, and filters are NOT suppressed by effects — only particles are exclusive.
+- **Active theme video suppresses animated gradient + particle layer on event detail** (see Video Containment Rule above). Only `ThemeFilterLayer` remains alongside the video. Create/edit/other surfaces keep full stack.
 - Edit page uses same ThemeTray + EffectTray components as create flow.
 - Edit hydrates theme/effect state from event data on load.
 - Post-create navigation must use `router.replace` (not push) to prevent stacking create screen in history.

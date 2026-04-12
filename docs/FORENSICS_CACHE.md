@@ -75,3 +75,36 @@ from a commit BEFORE the 7.3.6 upgrade was complete, OR from EAS running
 - Created `docs/SYSTEMS/calendar-import.md` as SSOT; fixed stale bullet in `calendar.md`.
 
 **Guardrail:** The new SSOT doc declares that the import screen MUST NOT render any interactive default-visibility control. Reintroducing one requires an explicit product decision and an update to both `calendar-import.md` and `calendar.md`.
+
+---
+
+## Investigation: Event detail scroll jank with video-backed themes (2026-04-12)
+**Status:** RESOLVED (pending device validation)
+
+**Symptom:** Scroll on `src/app/event/[id].tsx` becomes janky when a theme video is active.
+
+**Active render stack (before fix) when theme video is present:**
+1. `AnimatedGradientLayer` — Reanimated opacity crossfade with `withRepeat(withTiming(...))` on 5–22s cycle.
+2. `ThemeVideoLayer` — `expo-video` looping `VideoView` (decode + composite per frame).
+3. Particle layer (either `MotifOverlay` for custom effects or `ThemeEffectLayer` for theme-bundled particles) — Skia `Canvas` driven by Reanimated `useFrameCallback` per-frame particle simulation.
+4. `ThemeFilterLayer` — static Skia canvas (film grain / vignette / noise / color shift).
+
+All four mount via `src/components/event/ThemeBackgroundLayers.tsx`, which is called exactly once from `event/[id].tsx:2060`. During `Animated.ScrollView` scroll, the layered absolute-positioned hierarchy re-composites with all four animated systems still live.
+
+**Fix (proof tag `[PERF_VIDEO_CONTAINMENT_V1]`):**
+- Added `hasActiveVideo = Boolean(visualStack?.video && THEME_VIDEOS[source])` in the orchestrator.
+- Gated the gradient and particle blocks on `!hasActiveVideo`.
+- Kept the video + static filter layer.
+- Non-video themes unchanged — they keep the full stack because video isn't contributing motion there.
+
+**Why this is surgical:**
+- Single file (`ThemeBackgroundLayers.tsx`). No touching of `event/[id].tsx`, `ThemeVideoLayer.tsx`, `ThemeEffectLayer.tsx`, or `MotifOverlay.tsx` (those stay reusable by create/edit flows which still want the full stack).
+- No entitlement changes, no catalog changes, no native changes.
+- Reduced-motion / video-load-failure paths already render a poster inside `ThemeVideoLayer`, so suppressing the gradient is visually safe (the poster fills the same background real estate).
+
+**Guardrail:** Re-enabling gradient or particles alongside a video in `ThemeBackgroundLayers.tsx` requires re-validating scroll perf on device first. The rule is encoded as an invariant in `docs/SYSTEMS/event-page.md`.
+
+**Open follow-ups (out of scope for this fix):**
+- Consider `shouldRasterizeIOS`/`renderToHardwareTextureAndroid` on the scroll content if further wins are needed.
+- Audit whether the `InviteFlipCard` re-renders on every scroll frame (no evidence yet; would need profiler trace).
+- Consider conditionally suppressing the scroll-contended inline discussion composer re-renders if they show up in traces.
