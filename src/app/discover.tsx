@@ -47,6 +47,8 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
+import { useActivationNudge } from "@/hooks/useActivationNudge";
+import { ActivationNudgeCard } from "@/components/activation/ActivationNudgeCard";
 // Hidden for v1.3 — replaced with Map
 // import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
 // Safe dynamic require — native pod may not exist on older builds (315-320)
@@ -439,6 +441,21 @@ export default function DiscoverScreen() {
     refetchOnWindowFocus: false,
   });
   const friendCount = friendsData?.friends?.length ?? -1; // -1 = not yet loaded
+
+  // [ACTIVATION_NUDGE] Derive first-session signals from already-loaded queries.
+  const hostedCount = myEventsData?.events?.filter((e) => e.user?.id === session?.user?.id).length ?? 0;
+  const myRsvpCount = (feedInfiniteData?.pages ?? []).reduce((n, p) => {
+    return n + (p.events ?? []).filter((e) => e.viewerRsvpStatus === "going" || e.viewerRsvpStatus === "interested").length;
+  }, 0);
+  const activationSignalsLoading =
+    friendCount === -1 || loadingMyEvents || !feedInfiniteData;
+  const { activeNudge: activationNudge, dismiss: dismissActivationNudge } = useActivationNudge({
+    userId: session?.user?.id,
+    hasFriends: friendCount > 0,
+    hasCreatedEvent: hostedCount > 0,
+    hasRsvpd: myRsvpCount > 0,
+    loading: activationSignalsLoading,
+  });
 
   const friendHostUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1159,6 +1176,27 @@ export default function DiscoverScreen() {
               }
               ListHeaderComponent={
                 <>
+                {/* [ACTIVATION_NUDGE] Shown at most 1 at a time, cooldown+dismiss capped via useActivationNudge */}
+                {activationNudge && (
+                  <ActivationNudgeCard
+                    nudgeKey={activationNudge}
+                    themeColor={themeColor}
+                    colors={colors}
+                    onAction={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (activationNudge === "add_friends") router.push("/add-friends");
+                      else if (activationNudge === "create_event") {
+                        if (!guardEmailVerification(session)) return;
+                        router.push("/create");
+                      } else if (activationNudge === "rsvp_event") setEventSort("soon");
+                      dismissActivationNudge();
+                    }}
+                    onDismiss={() => {
+                      Haptics.selectionAsync();
+                      dismissActivationNudge();
+                    }}
+                  />
+                )}
                 {/* ═══ Sort Chips (scrollable for 6 pills) ═══ */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
                   {/* INVARIANT_ALLOW_SMALL_MAP */}
@@ -1212,8 +1250,8 @@ export default function DiscoverScreen() {
                     </Text>
                   </View>
                 )}
-                {/* ═══ Friend Nudge — zero friends ═══ */}
-                {friendCount === 0 && activeFeed.length > 0 && (
+                {/* ═══ Friend Nudge — zero friends (suppressed if activation nudge already covers it) ═══ */}
+                {friendCount === 0 && activeFeed.length > 0 && activationNudge !== "add_friends" && (
                   <Pressable
                     onPress={() => router.push("/add-friends")}
                     style={{

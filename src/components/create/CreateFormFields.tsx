@@ -45,9 +45,12 @@ export function CreateFormFields({
     return () => clearInterval(interval);
   }, []);
 
+  const labelStyle = { color: glassTertiary, fontSize: 11, fontWeight: "600" as const, letterSpacing: 0.3, textTransform: "uppercase" as const };
+
   return (
     <>
       {/* Title */}
+      <Text style={labelStyle} className="mb-1.5 ml-1">2. Event title</Text>
       <TextInput
         testID="create-input-title"
         value={title}
@@ -59,6 +62,7 @@ export function CreateFormFields({
       />
 
       {/* Headline (optional) — shown on Discover card */}
+      <Text style={labelStyle} className="mb-1.5 ml-1">3. Headline</Text>
       <View className="mb-3">
         <TextInput
           value={eventHook}
@@ -71,7 +75,7 @@ export function CreateFormFields({
           style={{ backgroundColor: glassSurface, borderWidth: 0.5, borderColor: glassBorder, color: glassText, fontSize: 14 }}
         />
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginHorizontal: 4 }}>
-          <Text style={{ color: glassSecondary, fontSize: 11 }}>Headline (optional) · Shown on the Discover card</Text>
+          <Text style={{ color: glassSecondary, fontSize: 11 }}>Optional · Shown on the Discover card</Text>
           {eventHook.length > 0 && (
             <Text style={{ color: eventHook.length >= 55 ? "#EF4444" : glassTertiary, fontSize: 11 }}>
               {eventHook.length}/60
@@ -81,6 +85,7 @@ export function CreateFormFields({
       </View>
 
       {/* Description */}
+      <Text style={labelStyle} className="mb-1.5 ml-1">4. Add some details</Text>
       <TextInput
         testID="create-input-description"
         value={description}

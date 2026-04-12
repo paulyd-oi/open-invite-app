@@ -171,3 +171,14 @@ All imperative reanimated animation (useSharedValue, useAnimatedStyle, withTimin
 - New files importing `useSharedValue` / `useAnimatedStyle` without being added to the motion allowlist.
 
 **Proof tag:** `[MOTION_SSOT_V1]` — present in `motionSSOT.ts` exports.
+
+---
+
+## Profile Banner Aspect Ratio
+
+Render surface is 3:1 (see `profile.tsx`, `public-profile.tsx`, `user/[id].tsx` — all `aspectRatio: 3`).
+Upload target is 3:1 (`COMPRESSION_PROFILES.banner = 1200 × 400` in `src/lib/imageUpload.ts`).
+
+**Invariant:** banner uploads MUST be cropped to 3:1 client-side before upload. Expo `ImagePicker.aspect` is Android-only; iOS forces square unless post-processed. `edit-profile.tsx` runs `ImageManipulator.manipulateAsync` with an explicit center-crop to enforce the ratio on every platform.
+
+If any of the three surfaces, `COMPRESSION_PROFILES.banner`, or the cropper ratio change, all four must be updated in lockstep.

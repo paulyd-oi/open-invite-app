@@ -49,7 +49,7 @@ export function CreateLocationSection({
 }: CreateLocationSectionProps) {
   return (
     <>
-      <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">Location</Text>
+      <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">5. Location</Text>
 
       {/* Selected Place Display */}
       {selectedPlace && !showLocationSearch ? (

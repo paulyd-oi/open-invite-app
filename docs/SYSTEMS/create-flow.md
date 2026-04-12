@@ -97,3 +97,5 @@ themeId?, customThemeData?, effectId?, customEffectConfig?
 - Particle precedence: effectId → MotifOverlay; hasTheme → ThemeEffectLayer; else null.
 - Custom themes stored as transient `CustomTheme` objects until save.
 - `postIdempotent()` prevents duplicate event creation on retry.
+- Form sections render with numbered mini-labels (1. Cover photo, 2. Event title, 3. Headline, 4. Add some details, 5. Location, 6. When). Labels use `glassTertiary`, 11px, uppercase, 0.3 letter-spacing.
+- Cover upload hint text ("Recommended: 1280 × 960 px (4:3)") lives inside `CreateCoverRow` and must match `COMPRESSION_PROFILES.event_cover` in `src/lib/imageUpload.ts`.

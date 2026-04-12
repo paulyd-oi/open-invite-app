@@ -1056,7 +1056,7 @@ export default function CreateEventScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(100).springify()}>
-              <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">When</Text>
+              <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">6. When</Text>
               <CreateDateTimeSection
                 startDate={startDate}
                 endDate={endDate}

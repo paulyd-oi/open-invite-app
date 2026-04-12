@@ -468,6 +468,8 @@ export default function UserProfileScreen() {
   // ===== FRIEND-ONLY STATE (unlocked when isFriend=true) =====
   // [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes state removed — no backend endpoint
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReportReason, setSelectedReportReason] = useState<ReportReason | null>(null);
@@ -782,6 +784,31 @@ export default function UserProfileScreen() {
     Haptics.selectionAsync();
     setShowMenuModal(false);
     setShowReportModal(true);
+  };
+
+  const handleBlockUser = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setShowMenuModal(false);
+    setShowBlockConfirm(true);
+  };
+
+  const confirmBlockUser = async () => {
+    if (!id || isBlocking) return;
+    setIsBlocking(true);
+    try {
+      await api.post('/api/blocked', { userId: id });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success('Blocked', 'You will no longer see this user.');
+      setShowBlockConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ['blocked-contacts'] });
+      refreshAfterUnfriend(queryClient, id);
+      router.back();
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error('Error', "Couldn't block user. Please try again.");
+    } finally {
+      setIsBlocking(false);
+    }
   };
 
   const submitReport = async () => {
@@ -1303,12 +1330,23 @@ export default function UserProfileScreen() {
             </Pressable>
             
             <Pressable
-              className="flex-row items-center py-4"
+              className="flex-row items-center py-4 border-b"
+              style={{ borderColor: colors.border }}
               onPress={handleUnfriend}
             >
-              <Ionicons name="person-remove-outline" size={22} color="#EF4444" />
-              <Text className="ml-3 text-base" style={{ color: '#EF4444' }}>
+              <Ionicons name="person-remove-outline" size={22} color={colors.text} />
+              <Text className="ml-3 text-base" style={{ color: colors.text }}>
                 Unfriend
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className="flex-row items-center py-4"
+              onPress={handleBlockUser}
+            >
+              <Ionicons name="ban-outline" size={22} color="#EF4444" />
+              <Text className="ml-3 text-base" style={{ color: '#EF4444' }}>
+                Block
               </Text>
             </Pressable>
             
@@ -1438,6 +1476,17 @@ export default function UserProfileScreen() {
         isDestructive
         onConfirm={confirmUnfriend}
         onCancel={() => setShowUnfriendConfirm(false)}
+      />
+
+      {/* Block Confirmation Modal */}
+      <ConfirmModal
+        visible={showBlockConfirm}
+        title="Block user?"
+        message="They won't be able to see you or contact you. You can unblock them later from Settings."
+        confirmText={isBlocking ? "Blocking…" : "Block"}
+        isDestructive
+        onConfirm={confirmBlockUser}
+        onCancel={() => setShowBlockConfirm(false)}
       />
     </SafeAreaView>
   );

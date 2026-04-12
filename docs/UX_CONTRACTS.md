@@ -193,4 +193,25 @@ Contracts must describe observable user outcomes, not internal implementation.
 
 This file defines UX law. Regressions are violations of contract, not stylistic preference.
 
+---
+
+FLIP-TO-REVEAL HINT
+
+The flip-to-reveal blur overlay in `src/app/event/[id].tsx` MUST render a visible hint inside the BlurView ("Tap card above to reveal details"). A bare BlurView with no text leaves guests with no affordance.
+
+Contract: any future rework of the flip-to-reveal gate must preserve a hint inside the overlay.
+
+---
+
+ACTIVATION NUDGES
+
+Lightweight activation nudges (`useActivationNudge` + `ActivationNudgeCard`) shown on Discover enforce:
+
+- At most 1 visible at a time.
+- Cooldown: 3 sessions between appearances per nudge key.
+- Cap: hide permanently after 3 dismissals per nudge key (per-user AsyncStorage).
+- Priority order: `add_friends` → `create_event` → `rsvp_event`.
+- No backend component. Signals derived from already-cached React Query data.
+- Mounted on exactly ONE primary surface (Discover tab). Do not duplicate on other tabs.
+
 END OF FILE

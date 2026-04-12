@@ -24,6 +24,7 @@ import { useRouter, Stack } from "expo-router";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import {
   Camera,
   ImagePlus,
@@ -202,7 +203,34 @@ export default function EditProfileScreen() {
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {
-        setEditBanner(result.assets[0].uri);
+        // iOS ignores `aspect` and forces a square crop. Enforce 3:1 client-side
+        // via center-crop so upload always matches the rendered 3:1 surface.
+        const picked = result.assets[0];
+        const targetRatio = 3;
+        const w = picked.width ?? 0;
+        const h = picked.height ?? 0;
+        let finalUri = picked.uri;
+        if (w > 0 && h > 0 && Math.abs(w / h - targetRatio) > 0.02) {
+          try {
+            let cropW = w;
+            let cropH = Math.round(w / targetRatio);
+            if (cropH > h) {
+              cropH = h;
+              cropW = Math.round(h * targetRatio);
+            }
+            const originX = Math.max(0, Math.round((w - cropW) / 2));
+            const originY = Math.max(0, Math.round((h - cropH) / 2));
+            const cropped = await ImageManipulator.manipulateAsync(
+              picked.uri,
+              [{ crop: { originX, originY, width: cropW, height: cropH } }],
+              { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            finalUri = cropped.uri;
+          } catch (cropErr) {
+            logError("Banner Crop", cropErr);
+          }
+        }
+        setEditBanner(finalUri);
       }
     } catch (error) {
       logError("Pick Banner", error);

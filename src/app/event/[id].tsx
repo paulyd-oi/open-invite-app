@@ -2150,8 +2150,11 @@ export default function EventDetailScreen() {
         {/* Hosts always see content; guests see blur until first card flip */}
         <View style={{ position: "relative" }}>
         {!isMyEvent && !contentRevealed && (
-          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden" }}>
-            <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ flex: 1 }} />
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }} pointerEvents="none">
+            <BlurView intensity={40} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", textAlign: "center", backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, overflow: "hidden" }}>
+              Tap card above to reveal details
+            </Text>
           </View>
         )}
 

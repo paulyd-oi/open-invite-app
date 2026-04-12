@@ -21,57 +21,75 @@ export function CreateCoverRow({
   onChangeCover,
   onRemoveCover,
 }: CreateCoverRowProps) {
+  const sectionLabel = (
+    <Text style={{ color: glassTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" }} className="mb-1.5 ml-1">
+      1. Cover photo
+    </Text>
+  );
+
   if (hasCover) {
     return (
-      <View
-        className="rounded-xl mb-4"
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          backgroundColor: glassSurface,
-          borderWidth: 0.5,
-          borderColor: glassBorder,
-        }}
-      >
-        <Pressable
-          onPress={onChangeCover}
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}
+      <>
+        {sectionLabel}
+        <View
+          className="rounded-xl mb-1"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            backgroundColor: glassSurface,
+            borderWidth: 0.5,
+            borderColor: glassBorder,
+          }}
         >
-          <Camera size={16} color={glassSecondary} />
-          <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Change cover</Text>
-        </Pressable>
-        <Pressable
-          onPress={onRemoveCover}
-          hitSlop={8}
-          style={{ padding: 4 }}
-        >
-          <X size={14} color={glassTertiary} />
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={onChangeCover}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}
+          >
+            <Camera size={16} color={glassSecondary} />
+            <Text style={{ color: glassSecondary, fontSize: 13, fontWeight: "500" }}>Change cover</Text>
+          </Pressable>
+          <Pressable
+            onPress={onRemoveCover}
+            hitSlop={8}
+            style={{ padding: 4 }}
+          >
+            <X size={14} color={glassTertiary} />
+          </Pressable>
+        </View>
+        <Text style={{ color: glassTertiary, fontSize: 11 }} className="mb-4 ml-1">
+          Recommended: 1280 × 960 px (4:3)
+        </Text>
+      </>
     );
   }
 
   return (
-    <Pressable
-      onPress={onChangeCover}
-      className="rounded-xl mb-4"
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        backgroundColor: glassSurface,
-        borderWidth: 1,
-        borderColor: glassBorder,
-        borderStyle: "dashed",
-        gap: 8,
-      }}
-    >
-      <Camera size={16} color={glassTertiary} />
-      <Text style={{ color: glassTertiary, fontSize: 13, fontWeight: "500" }}>Add cover photo</Text>
-    </Pressable>
+    <>
+      {sectionLabel}
+      <Pressable
+        onPress={onChangeCover}
+        className="rounded-xl mb-1"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          backgroundColor: glassSurface,
+          borderWidth: 1,
+          borderColor: glassBorder,
+          borderStyle: "dashed",
+          gap: 8,
+        }}
+      >
+        <Camera size={16} color={glassTertiary} />
+        <Text style={{ color: glassTertiary, fontSize: 13, fontWeight: "500" }}>Add cover photo</Text>
+      </Pressable>
+      <Text style={{ color: glassTertiary, fontSize: 11 }} className="mb-4 ml-1">
+        Recommended: 1280 × 960 px (4:3)
+      </Text>
+    </>
   );
 }
