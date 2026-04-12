@@ -59,7 +59,7 @@ Pull-to-refresh on the calendar screen triggers two parallel actions:
 - Auto-loads and filters to only new events
 - Header: "New Calendar Events" / "Found events not yet in Open Invite"
 - Empty state: "Your calendar is up to date"
-- Uses existing import mutation + visibility selector
+- Uses existing import mutation. Imported events are locked to `private` visibility — see `docs/SYSTEMS/calendar-import.md`.
 
 ---
 

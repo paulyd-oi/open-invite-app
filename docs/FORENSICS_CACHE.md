@@ -54,3 +54,24 @@ from a commit BEFORE the 7.3.6 upgrade was complete, OR from EAS running
 - **Risk:** On EAS, the post-install hook patches expo-image BEFORE pod install,
   which is correct. But if expo prebuild regenerates the podspec from node_modules
   AFTER the hook runs, the patch would be overwritten.
+
+---
+
+## Investigation: Calendar import "DEFAULT VISIBILITY" control removal (2026-04-12)
+**Status:** RESOLVED
+
+**Problem:** `src/app/import-calendar.tsx` rendered an interactive DEFAULT VISIBILITY section (chevron row → full-screen picker modal) that implied user choice where none existed. Imported events are treated as private by default; the control was misleading on a trust-sensitive privacy surface.
+
+**Scope confirmed via freshness check:**
+- Only `src/app/import-calendar.tsx` owns this UI. No other screen renders a default-visibility control for imports.
+- `docs/SYSTEMS/calendar.md` had one stale line (resync-mode bullet: "Uses existing import mutation + visibility selector").
+- No dedicated `docs/SYSTEMS/calendar-import.md` existed.
+
+**Fix (UI/copy only, OTA-safe):**
+- Replaced the chevron row with a non-interactive `PRIVACY` section:
+  > All imported events are private — only you can see them. You can change visibility anytime after import.
+- Deleted `VISIBILITY_OPTIONS`, `VisibilityOption`, `defaultVisibility`/`showVisibilityModal` state, `currentVisibilityOption`, and the picker `Modal`.
+- Mutation payload now hard-codes `defaultVisibility: "private"` (request contract unchanged).
+- Created `docs/SYSTEMS/calendar-import.md` as SSOT; fixed stale bullet in `calendar.md`.
+
+**Guardrail:** The new SSOT doc declares that the import screen MUST NOT render any interactive default-visibility control. Reintroducing one requires an explicit product decision and an update to both `calendar-import.md` and `calendar.md`.

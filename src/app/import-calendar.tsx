@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Modal,
   AppState,
   type AppStateStatus,
 } from "react-native";
@@ -21,9 +20,6 @@ import {
   Clock,
   MapPin,
   Upload,
-  Users,
-  Compass,
-  Lock,
   X,
   CheckCircle,
   Settings,
@@ -88,34 +84,6 @@ interface GetImportedEventsResponse {
   events: ImportedEvent[];
 }
 
-type VisibilityOption = "all_friends" | "specific_groups" | "private";
-
-const VISIBILITY_OPTIONS: Array<{
-  value: VisibilityOption;
-  label: string;
-  description: string;
-  icon: typeof Compass;
-}> = [
-  {
-    value: "all_friends",
-    label: "Open to Friends",
-    description: "All friends can see this event",
-    icon: Compass,
-  },
-  {
-    value: "specific_groups",
-    label: "Specific Groups",
-    description: "Only selected groups can see",
-    icon: Users,
-  },
-  {
-    value: "private",
-    label: "Private",
-    description: "Only you can see this event",
-    icon: Lock,
-  },
-];
-
 export default function ImportCalendarScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ returnTo?: string; eventId?: string; mode?: string }>();
@@ -132,8 +100,6 @@ export default function ImportCalendarScreen() {
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [showEvents, setShowEvents] = useState(false);
-  const [defaultVisibility, setDefaultVisibility] = useState<VisibilityOption>("private");
-  const [showVisibilityModal, setShowVisibilityModal] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     imported: number;
     updated: number;
@@ -475,7 +441,7 @@ export default function ImportCalendarScreen() {
 
     importMutation.mutate({
       events: eventsToImport,
-      defaultVisibility,
+      defaultVisibility: "private",
     });
   };
 
@@ -523,10 +489,6 @@ export default function ImportCalendarScreen() {
     },
     [importedEventsData]
   );
-
-  const currentVisibilityOption = VISIBILITY_OPTIONS.find(
-    (opt) => opt.value === defaultVisibility
-  )!;
 
   if (isLoading) {
     return (
@@ -676,39 +638,27 @@ export default function ImportCalendarScreen() {
               </Animated.View>
             )}
 
-            {/* Default Visibility Selector */}
+            {/* Privacy (informational — imports are locked to private by default) */}
             <Animated.View entering={FadeInDown.springify()} className="mb-4">
               <Text
                 className="text-sm font-medium mb-2 ml-2"
                 style={{ color: colors.textSecondary }}
               >
-                DEFAULT VISIBILITY
+                PRIVACY
               </Text>
-              <Pressable
-                onPress={() => setShowVisibilityModal(true)}
-                className="rounded-xl p-4 flex-row items-center"
+              <View
+                className="rounded-xl p-4"
                 style={{ backgroundColor: colors.surface }}
+                accessible
+                accessibilityRole="text"
               >
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center"
-                  style={{ backgroundColor: `${themeColor}20` }}
+                <Text
+                  className="text-sm leading-5"
+                  style={{ color: colors.textSecondary }}
                 >
-                  <currentVisibilityOption.icon size={20} color={themeColor} />
-                </View>
-                <View className="flex-1 ml-3">
-                  <Text className="font-medium" style={{ color: colors.text }}>
-                    {currentVisibilityOption.label}
-                  </Text>
-                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                    {currentVisibilityOption.description}
-                  </Text>
-                </View>
-                <ChevronLeft
-                  size={20}
-                  color={colors.textSecondary}
-                  style={{ transform: [{ rotate: "180deg" }] }}
-                />
-              </Pressable>
+                  All imported events are private — only you can see them. You can change visibility anytime after import.
+                </Text>
+              </View>
             </Animated.View>
 
             {/* Calendar Selection — hidden in resync mode (auto-selected) */}
@@ -1011,90 +961,6 @@ export default function ImportCalendarScreen() {
         </Animated.View>
       )}
 
-      {/* Visibility Selection Modal */}
-      <Modal
-        visible={showVisibilityModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowVisibilityModal(false)}
-      >
-        <View className="flex-1" style={{ backgroundColor: colors.background }}>
-          <SafeAreaView edges={["top"]} className="flex-1">
-            {/* Modal Header */}
-            <View className="flex-row items-center justify-between px-4 py-3 border-b" style={{ borderColor: colors.separator }}>
-              <Pressable onPress={() => setShowVisibilityModal(false)}>
-                <Text style={{ color: themeColor }}>Cancel</Text>
-              </Pressable>
-              <Text className="font-semibold text-lg" style={{ color: colors.text }}>
-                Default Visibility
-              </Text>
-              <Pressable onPress={() => setShowVisibilityModal(false)}>
-                <Text className="font-semibold" style={{ color: themeColor }}>
-                  Done
-                </Text>
-              </Pressable>
-            </View>
-
-            <ScrollView className="flex-1 px-4 pt-4">
-              <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
-                Choose the default visibility for imported events. You can change this for individual events later.
-              </Text>
-
-              <View
-                className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: colors.surface }}
-              >
-                {VISIBILITY_OPTIONS.map((option, index) => (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setDefaultVisibility(option.value);
-                    }}
-                    className="flex-row items-center p-4"
-                    style={{
-                      borderBottomWidth: index < VISIBILITY_OPTIONS.length - 1 ? 1 : 0,
-                      borderBottomColor: colors.separator,
-                    }}
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center"
-                      style={{
-                        backgroundColor:
-                          defaultVisibility === option.value
-                            ? `${themeColor}20`
-                            : isDark
-                            ? "#2C2C2E"
-                            : "#E5E7EB",
-                      }}
-                    >
-                      <option.icon
-                        size={20}
-                        color={
-                          defaultVisibility === option.value
-                            ? themeColor
-                            : colors.textSecondary
-                        }
-                      />
-                    </View>
-                    <View className="flex-1 ml-3">
-                      <Text className="font-medium" style={{ color: colors.text }}>
-                        {option.label}
-                      </Text>
-                      <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                        {option.description}
-                      </Text>
-                    </View>
-                    {defaultVisibility === option.value && (
-                      <Check size={20} color={themeColor} />
-                    )}
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
