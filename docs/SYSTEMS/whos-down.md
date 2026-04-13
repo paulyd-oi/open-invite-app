@@ -112,3 +112,61 @@ Because `feed/whos-down` filters `status === "pending"`, the idea disappears fro
 **No server-side event creation.** Conversion is a pure state transition + notification fanout. The standard event-create pipeline owns event creation.
 
 **No auto-RSVP.** Converted events do NOT auto-RSVP "down" users — they receive a `whos_down_converted` push linking to the event and RSVP through normal channels. This keeps the casual idea decoupled from any invitee mechanic.
+
+---
+
+## Frontend Surface (v1)
+
+### Discover Lens (SSOT: `src/app/discover.tsx`)
+
+Discover tabs are now **Map / Events / Who's Down** (`type Lens = "map" | "events" | "whos_down"`). The former "Responded" lens folded into Events as a `"responded"` pill with Going / Not Going sub-filter. The Who's Down lens label shows a count badge `(N)` when `whosDownActiveCount > 0` (overflow clamps to `99+`).
+
+### Data source
+
+- Query: `useQuery({ queryKey: qk.whosDownFeed(), queryFn: () => api.get<WhosDownFeedResponse>("/api/event-requests/feed/whos-down") })`
+- SSOT key: `qk.whosDownFeed()` → `["whos-down-feed"]` in `src/lib/queryKeys.ts` (registered in `QK_OWNED_ROOTS` for DEV inline-key linting).
+- Refresh: registered in `useLiveRefreshContract.refetchFns` so pull-to-refresh + foreground return both hit it.
+- Staleness: 30s, no refetchOnMount/OnWindowFocus (standard Discover pattern).
+
+### Create flow
+
+No separate screen. The Who's Down pane renders a static explainer card at the top ("Have an idea to do?") + a "Post an Idea" chip. Tap opens a **bottom-sheet Modal** (not full screen) with:
+
+- Idea title (required, maxLength 120).
+- Time hint chips (single-select, optional): `Tonight` · `Tomorrow` · `This Weekend` · `Next Week` · `Anytime`. Stored verbatim as `timeHint` string.
+- `whereText` (optional free text).
+- Friends-only helper row ("Only your friends can see this").
+- "Post Idea" button → `POST /api/event-requests` with `{ mode: "casual", title, timeHint?, whereText? }`. On success invalidates `qk.whosDownFeed()` + `qk.eventRequests()`.
+
+The same pane shows feed cards below: each card has title + emoji avatar, `timeHint` chip, `whereText` row, creator name ("Your idea" / "From {firstName}"), down count with Users icon, and a compact **"I'm Down" / "You're Down"** action (disabled-when-down, hidden for own ideas). Cards are `Pressable` and navigate to `/event-request/{id}` (casual detail branch). Empty state: "No ideas yet · Be the first · Post an Idea".
+
+### Detail branch (SSOT: `src/app/event-request/[id].tsx`)
+
+`mode === "casual"` branches to a distinct view that is NOT the formal invitee-list UI:
+
+- Idea card: emoji + title + "Your idea" / "From {name}"; `timeHint` + `whereText` pills; friends-only helper.
+- Down count header: `"{N} people down"` (pluralized, "No one down yet" when empty).
+- Avatar grid of accepted responders with first names.
+- Non-creator pinned bottom: "I'm Down" (switches to "You're Down ✓" after accept). `respondMutation` on casual mode invalidates `qk.whosDownFeed()` + the detail key and **does not navigate away** (no auto-event-create, no router.back()).
+- Creator: "Make It Happen" (primary) + "Cancel Idea" (destructive).
+- If `status === "confirmed"` and `convertedToEventId` is set, a green confirmed banner links to the real event.
+
+### Conversion UX
+
+"Make It Happen" navigates to `/create` with prefill params:
+
+```
+router.push({ pathname: "/create", params: {
+  title:        eventRequest.title,
+  emoji:        eventRequest.emoji ?? "✨",
+  location:     eventRequest.whereText ?? "",
+  visibility:   "open_invite",
+  fromWhosDownId: eventRequest.id,
+}})
+```
+
+`src/app/create.tsx` accepts `location` and `fromWhosDownId` URL params. `location` is piped through `locationSearch.prefillLocation()` once (ref-guarded). After a successful `POST /api/events` and before `router.replace("/event/{id}?from=create")`, if `fromWhosDownId` is present, the create screen fires `POST /api/event-requests/{fromWhosDownId}/confirm-converted` with `{ eventId }` and invalidates `qk.whosDownFeed()` + `qk.eventRequests()`. Failure is non-blocking (event already exists; only the idea state transition is best-effort).
+
+### Shared contracts (SSOT: `shared/contracts.ts`)
+
+Frontend uses `WhosDownFeedResponse`, `EventRequest` (with `mode` / `timeHint` / `whereText` / `expiresAt` / `convertedToEventId`), `CreateEventRequestResponse`, `RespondEventRequestResponse`, `ConfirmConvertedInput` / `ConfirmConvertedResponse`.

@@ -1,5 +1,31 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Who's Down v1 frontend (Discover nav + casual detail + conversion) [WHOS_DOWN_V1]
+
+### Summary
+Shipped the frontend half of Who's Down: friends-only casual idea posts surfaced in Discover, posted via a bottom-sheet modal, respondable in a dedicated detail branch, and convertible to a real event via the existing `/create` pipeline. Responded (Going / Not Going) fold into the Events pane as a pill + sub-filter; its old lens slot now hosts Who's Down. No new full-screen routes, no backend changes beyond the already-landed Phase 1.
+
+### Files changed
+- `src/lib/queryKeys.ts` — added `qk.whosDownFeed()` + registered `"whos-down-feed"` in `QK_OWNED_ROOTS`.
+- `src/analytics/analyticsEventsSSOT.ts` — discover pane analytics accept `"whos_down"` pane id.
+- `src/app/discover.tsx` — Lens swap (`map` / `events` / `whos_down`), Responded moved to Events pill w/ Going/Not Going sub-filter + empty state, count badge on Who's Down tab, full Who's Down pane (explainer card, feed cards with "I'm Down"/"You're Down"), bottom-sheet creation modal (title + time hint chips + where + post).
+- `src/app/event-request/[id].tsx` — casual-mode branch: idea card, time hint + where pills, down count + avatar grid, pinned "I'm Down"/"You're Down", creator-only "Make It Happen" + "Cancel Idea", confirmed banner linking to real event. Respond mutation stays on screen for casual and invalidates `qk.whosDownFeed()`.
+- `src/app/create.tsx` — accepts `location` + `fromWhosDownId` URL params; ref-guarded `locationSearch.prefillLocation(...)`; fires `POST /api/event-requests/{id}/confirm-converted` on success before navigating to the new event (best-effort, non-blocking).
+- `docs/SYSTEMS/discover.md` — pane table + Responded pill.
+- `docs/SYSTEMS/whos-down.md` — new Frontend Surface section.
+
+### Architecture decisions
+- **No new screens.** Creation is a bottom-sheet Modal inside `discover.tsx`; detail is the existing `/event-request/[id]` route with a casual branch. Keeps navigation surface flat and avoids a parallel router tree.
+- **Responded stays in Events.** Rather than duplicate the enriched-event FlatList, swap `activeFeed` to `respondedGoingSorted` / `respondedNotGoingSorted` when `eventSort === "responded"`. Same renderItem, same cards. Sub-filter strip is additive to the list header.
+- **Conversion is owned by `/create`.** Create screen fires `confirm-converted` after event success. The casual detail screen never mints an event; it only hands off prefill params. `fromWhosDownId` is the one-shot correlation id.
+- **Prefill is ref-guarded.** `locationParam` only applies on first render to avoid fighting user edits.
+- **Pane isolation preserved.** Who's Down pane is wrapped in its own `ErrorBoundary` with the existing `DiscoverPaneErrorFallback`, matching `[DISCOVER_PANE_ISOLATION_V1]`.
+
+### Verification
+- `npx tsc --noEmit` clean (exit 0, 0 errors).
+
+---
+
 ## 2026-04-13 — Who's Down v1 backend (casual event_request) [WHOS_DOWN_V1]
 
 ### Summary

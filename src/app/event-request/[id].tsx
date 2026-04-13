@@ -45,6 +45,7 @@ import {
   type NudgeEventRequestResponse,
   type SuggestTimeResponse,
 } from "@/shared/contracts";
+import { Sparkles } from "@/ui/icons";
 import { Button } from "@/ui/Button";
 import { qk } from "@/lib/queryKeys";
 
@@ -95,6 +96,12 @@ export default function EventRequestDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["event-request", id] });
       queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
+      // [WHOS_DOWN_V1] casual mode also refreshes Who's Down feed and stays on screen.
+      const isCasual = eventRequest?.mode === "casual";
+      if (isCasual) {
+        queryClient.invalidateQueries({ queryKey: qk.whosDownFeed() });
+        return;
+      }
       if (data.eventCreated && data.eventId) {
         // Event was created - show confetti and navigate
         setShowConfetti(true);
@@ -274,8 +281,296 @@ export default function EventRequestDetailScreen() {
   const needsResponse = !isCreator && myMember?.status === "pending" && eventRequest.status === "pending";
   const acceptedCount = members.filter((m) => m.status === "accepted").length;
   const totalMembers = members.length;
-  // [WHOS_DOWN_V1] startTime is nullable for casual mode. Prompt 2 will branch the full UI on mode === "casual".
-  // For now, formal-mode consumers see a Date; casual would surface as Invalid Date until Prompt 2 lands.
+
+  // [WHOS_DOWN_V1] Casual mode branches to a distinct UI (no committed time, friends-only, convert to event).
+  if (eventRequest.mode === "casual") {
+    const imDown = myMember?.status === "accepted";
+    const downMembers = members.filter((m) => m.status === "accepted");
+    const downCount = downMembers.length;
+    const confirmedEventLink = eventRequest.convertedToEventId;
+
+    const handleImDown = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      respondMutation.mutate("accepted");
+    };
+
+    const handleMakeItHappen = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Prefill create screen with idea → event conversion. confirm-converted is fired after event create.
+      router.push({
+        pathname: "/create",
+        params: {
+          title: eventRequest.title,
+          emoji: eventRequest.emoji ?? "✨",
+          location: eventRequest.whereText ?? eventRequest.location ?? "",
+          visibility: "open_invite",
+          fromWhosDownId: eventRequest.id,
+        },
+      });
+    };
+
+    return (
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen
+          options={{
+            title: "Who's Down?",
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ padding: 20 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
+          }
+        >
+          {/* Confirmed banner (after conversion) */}
+          {eventRequest.status === "confirmed" && confirmedEventLink && (
+            <Animated.View entering={FadeInDown.springify()} className="mb-4">
+              <Pressable
+                onPress={() => router.push(`/event/${confirmedEventLink}`)}
+                className="rounded-2xl p-4 flex-row items-center"
+                style={{ backgroundColor: "#22C55E20" }}
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: "#22C55E" }}
+                >
+                  <Check size={24} color="#fff" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-bold" style={{ color: "#22C55E" }}>
+                    Made it happen!
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    Tap to view the event
+                  </Text>
+                </View>
+                <ChevronRight size={20} color="#22C55E" />
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Cancelled banner */}
+          {eventRequest.status === "cancelled" && (
+            <Animated.View entering={FadeInDown.springify()} className="mb-4">
+              <View
+                className="rounded-2xl p-4 flex-row items-center"
+                style={{ backgroundColor: "#EF444420" }}
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: "#EF4444" }}
+                >
+                  <X size={24} color="#fff" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-bold" style={{ color: "#EF4444" }}>
+                    Idea Cancelled
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Idea card */}
+          <Animated.View entering={FadeInDown.delay(50).springify()}>
+            <View
+              className="rounded-2xl p-5 mb-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <View className="flex-row items-start mb-3">
+                <View
+                  className="w-16 h-16 rounded-xl items-center justify-center mr-4"
+                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                >
+                  <Text className="text-4xl">{eventRequest.emoji ?? "✨"}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xl font-bold" style={{ color: colors.text }}>
+                    {eventRequest.title}
+                  </Text>
+                  <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                    {isCreator ? "Your idea" : `From ${eventRequest.creator?.name ?? "a friend"}`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Time hint + Where chips */}
+              {(eventRequest.timeHint || eventRequest.whereText) && (
+                <View className="flex-row flex-wrap mb-1" style={{ gap: 8 }}>
+                  {eventRequest.timeHint && (
+                    <View
+                      className="flex-row items-center px-3 py-1.5 rounded-full"
+                      style={{ backgroundColor: `${themeColor}15` }}
+                    >
+                      <Clock size={13} color={themeColor} />
+                      <Text className="ml-1.5 text-xs font-semibold" style={{ color: themeColor }}>
+                        {eventRequest.timeHint}
+                      </Text>
+                    </View>
+                  )}
+                  {eventRequest.whereText && (
+                    <View
+                      className="flex-row items-center px-3 py-1.5 rounded-full"
+                      style={{ backgroundColor: "#4ECDC415" }}
+                    >
+                      <MapPin size={13} color="#4ECDC4" />
+                      <Text className="ml-1.5 text-xs font-semibold" style={{ color: "#4ECDC4" }}>
+                        {eventRequest.whereText}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Friends-only helper */}
+              <View className="flex-row items-center mt-3">
+                <Users size={12} color={colors.textTertiary} />
+                <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>
+                  Only your friends can see this
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Down count + avatars */}
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                {downCount === 0
+                  ? "No one down yet"
+                  : `${downCount} ${downCount === 1 ? "person" : "people"} down`}
+              </Text>
+            </View>
+
+            {downMembers.length > 0 && (
+              <View
+                className="rounded-2xl p-4 mb-4"
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              >
+                <View className="flex-row flex-wrap" style={{ gap: 12 }}>
+                  {downMembers.map((m) => (
+                    <View key={m.id} className="items-center" style={{ width: 56 }}>
+                      <EntityAvatar
+                        photoUrl={m.user?.image}
+                        initials={m.user?.name?.[0] ?? "?"}
+                        size={44}
+                        backgroundColor={m.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}30`}
+                        foregroundColor={themeColor}
+                      />
+                      <Text
+                        className="text-xs mt-1"
+                        numberOfLines={1}
+                        style={{ color: colors.textSecondary }}
+                      >
+                        {m.user?.name?.split(" ")[0] ?? "?"}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Creator: Make It Happen */}
+          {isCreator && eventRequest.status === "pending" && (
+            <Animated.View entering={FadeInDown.delay(150).springify()} className="mb-4">
+              <Pressable
+                onPress={handleMakeItHappen}
+                style={{
+                  paddingVertical: 16,
+                  borderRadius: 12,
+                  backgroundColor: themeColor,
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                }}
+              >
+                <Sparkles size={20} color="#fff" />
+                <Text className="ml-2 font-bold" style={{ color: "#fff", fontSize: 16 }}>
+                  Make It Happen
+                </Text>
+              </Pressable>
+              <Text className="text-xs text-center mt-2" style={{ color: colors.textTertiary }}>
+                Turn this into a real event. Your friends will be notified.
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Creator: Cancel Idea */}
+          {isCreator && eventRequest.status === "pending" && (
+            <Animated.View entering={FadeInDown.delay(200).springify()}>
+              <Button
+                variant="destructive"
+                label={cancelMutation.isPending ? "Cancelling..." : "Cancel Idea"}
+                onPress={handleCancel}
+                disabled={cancelMutation.isPending}
+                loading={cancelMutation.isPending}
+                leftIcon={!cancelMutation.isPending ? <Trash2 size={20} color="#fff" /> : undefined}
+                style={{ borderRadius: 12 }}
+              />
+            </Animated.View>
+          )}
+
+          <View className="h-8" />
+        </ScrollView>
+
+        {/* Non-creator: I'm Down / You're Down button pinned bottom */}
+        {!isCreator && eventRequest.status === "pending" && (
+          <View
+            className="px-5 pb-6 pt-4"
+            style={{
+              backgroundColor: colors.surface,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
+            }}
+          >
+            <Pressable
+              onPress={imDown ? undefined : handleImDown}
+              disabled={imDown || respondMutation.isPending}
+              style={{
+                paddingVertical: 14,
+                borderRadius: 12,
+                backgroundColor: imDown ? "#22C55E20" : themeColor,
+                alignItems: "center",
+                opacity: respondMutation.isPending ? 0.6 : 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: imDown ? "#22C55E" : "#FFFFFF",
+                }}
+              >
+                {respondMutation.isPending
+                  ? "..."
+                  : imDown
+                  ? "You're Down ✓"
+                  : "I'm Down"}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Cancel Confirm Modal (shared with formal mode below) */}
+        <ConfirmModal
+          visible={showCancelConfirm}
+          title="Cancel Idea"
+          message="Are you sure you want to cancel this idea? It will disappear for everyone."
+          confirmText="Cancel Idea"
+          isDestructive
+          onConfirm={confirmCancel}
+          onCancel={() => setShowCancelConfirm(false)}
+        />
+      </View>
+    );
+  }
+
   const startDate = eventRequest.startTime ? new Date(eventRequest.startTime) : new Date();
   const endDate = eventRequest.endTime ? new Date(eventRequest.endTime) : null;
 

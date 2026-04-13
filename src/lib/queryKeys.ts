@@ -45,6 +45,7 @@ export const qk = {
   notifications: () => ["notifications"] as const,
   notificationPreferences: () => ["notificationPreferences"] as const,
   eventRequests: () => ["event-requests"] as const,
+  whosDownFeed: () => ["whos-down-feed"] as const,
 
   // ── Feed / Discovery ──────────────────────────────────────────────────
   referralStats: () => ["referralStats"] as const,
@@ -87,6 +88,7 @@ const QK_OWNED_ROOTS = new Set([
   "notifications",
   "notificationPreferences",
   "event-requests",
+  "whos-down-feed",
   "referralStats",
   "birthdays",
   "workSchedule",

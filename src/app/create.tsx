@@ -6,7 +6,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { devLog } from "@/lib/devLog";
+import { devLog, devError } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 import { trackEventCreated } from "@/lib/rateApp";
@@ -75,7 +75,7 @@ export default function CreateEventScreen() {
   const params = useLocalSearchParams();
   const isSmartMode = params?.mode === "smart";
 
-  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam, editEventId, copyEventId } = useLocalSearchParams<{
+  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam, editEventId, copyEventId, location: locationParam, fromWhosDownId } = useLocalSearchParams<{
     date?: string;
     template?: string;
     emoji?: string;
@@ -86,6 +86,8 @@ export default function CreateEventScreen() {
     endDate?: string;
     editEventId?: string;
     copyEventId?: string;
+    location?: string;
+    fromWhosDownId?: string;
   }>();
   const isEditMode = !!editEventId;
   const isCopyMode = !!copyEventId;
@@ -317,6 +319,16 @@ export default function CreateEventScreen() {
   // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
   useBestTimePick(setStartDate, setEndDate);
 
+  // [WHOS_DOWN_V1] Prefill location from ?location=... (casual → real event conversion). One-shot.
+  const locationPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (locationPrefilledRef.current) return;
+    if (locationParam && typeof locationParam === "string" && locationParam.length > 0) {
+      locationSearch.prefillLocation(locationParam);
+      locationPrefilledRef.current = true;
+    }
+  }, [locationParam, locationSearch]);
+
   // Check for pending ICS import on mount
   useEffect(() => {
     const loadPendingImport = async () => {
@@ -415,6 +427,19 @@ export default function CreateEventScreen() {
       markUserHasCreatedEvent(session?.user?.id);
 
       // Premium event counting is now handled server-side
+
+      // [WHOS_DOWN_V1] If this create was started from a casual idea, mark it converted
+      // so the idea leaves the Who's Down feed and "down" friends get a conversion push.
+      if (fromWhosDownId && evt?.id) {
+        try {
+          await api.post(`/api/event-requests/${fromWhosDownId}/confirm-converted`, { eventId: evt.id });
+          queryClient.invalidateQueries({ queryKey: qk.whosDownFeed() });
+          queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
+        } catch (err) {
+          // Non-blocking: event is already created. Log and continue.
+          devError("[WHOS_DOWN_V1] confirm-converted failed:", err);
+        }
+      }
 
       // [CORE_LOOP] Navigate immediately — no intermediate UI
       if (evt?.id) {

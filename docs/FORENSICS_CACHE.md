@@ -2,6 +2,32 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Who's Down v1 frontend [WHOS_DOWN_V1]
+
+**Symptom (none — frontend wire-up):** Backend phase 1 landed (casual mode, friends-only feed, respond, confirm-converted). Need the UI to (a) replace Discover's Responded tab with Who's Down while preserving the Responded filters, (b) expose a <15s creation path without a new full-screen route, (c) render casual detail with "I'm Down" instead of accept/decline, and (d) convert ideas to real events via the existing `/create` pipeline.
+
+**Investigation:**
+- Discover `Lens` was `"map" | "events" | "responded"`. Responded pane was an inline ScrollView with date groupings. Reusing the Events FlatList renderItem (already enriched for cards) lets Responded live as an Events pill with Going/Not Going sub-filter — no duplicated card rendering.
+- `event-request/[id].tsx` already gates formal-mode on `needsResponse` (non-creator + pending member). Casual requires a different surface entirely: no invitees, one-tap "I'm Down", creator convert action.
+- `create.tsx` already accepts `title`, `emoji`, `visibility` prefill params. Adding `location` + `fromWhosDownId` is additive. `locationSearch.prefillLocation()` is the SSOT used by edit/copy flows.
+
+**Root cause / decision:** Keep the surface flat. No new screens. Creation = bottom-sheet inside `discover.tsx`. Detail = same `/event-request/[id]` route, branched on `mode`. Conversion owned by `/create`, triggered via URL params + a post-success `confirm-converted` call.
+
+**Fix:**
+1. `qk.whosDownFeed()` added to SSOT registry; `src/lib/queryKeys.ts` `QK_OWNED_ROOTS` includes `"whos-down-feed"`.
+2. Discover: Lens `whos_down` replaces `responded`; Events pane adds `responded` pill with Going/Not Going sub-filter strip + empty state; Who's Down tab shows `(N)` count badge.
+3. Discover: Who's Down pane renders explainer card, friends-only helper, feed cards (title/timeHint/where/creator/down count/"I'm Down"), empty state, error soft-fail banner.
+4. Discover: bottom-sheet creation Modal (title + 5 time-hint chips + where + friends-only helper + Post Idea CTA) firing `POST /api/event-requests` with `mode: "casual"`.
+5. `event-request/[id].tsx`: casual-mode early return with idea card, pills, down count + avatar grid, pinned "I'm Down"/"You're Down" button, creator "Make It Happen" + "Cancel Idea", confirmed banner. `respondMutation` stays on screen for casual and invalidates `qk.whosDownFeed()`.
+6. `create.tsx`: accepts `location` + `fromWhosDownId` URL params; ref-guarded prefill; post-success calls `POST /api/event-requests/:id/confirm-converted` before navigating.
+
+**Verification:**
+- `npx tsc --noEmit` clean (exit 0).
+- Discover pane isolation preserved (ErrorBoundary wraps the Who's Down pane).
+- `qk.whosDownFeed()` refetch registered in `useLiveRefreshContract.refetchFns` (pull-to-refresh + foreground return).
+
+---
+
 ## RESOLVED 2026-04-13 — Who's Down v1 backend [WHOS_DOWN_V1]
 
 **Symptom (none — greenfield feature):** Need a lightweight friends-only "idea post" pre-event-creation primitive without inventing a new table or duplicating event-request infra.

@@ -10,6 +10,10 @@ import {
   Share,
   Linking,
   AppState,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -73,8 +77,9 @@ import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
-import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResponse, GetFriendsResponse } from "@/shared/contracts";
+import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResponse, GetFriendsResponse, WhosDownFeedResponse, EventRequest, CreateEventRequestResponse, RespondEventRequestResponse } from "@/shared/contracts";
 import { EVENT_CATEGORIES } from "@/shared/contracts";
+import { qk } from "@/lib/queryKeys";
 import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
@@ -175,14 +180,15 @@ interface PopularEvent {
   longitude?: number | null;
 }
 
-type Lens = "map" | "events" | "responded";
+// [WHOS_DOWN_V1] Discover nav: Map / Events / Who's Down. Responded folds into Events pills.
+type Lens = "map" | "events" | "whos_down";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "map", label: "Map" },
   { key: "events", label: "Events" },
-  { key: "responded", label: "Responded" },
+  { key: "whos_down", label: "Who's Down" },
 ];
 
-type EventSort = "popular" | "soon" | "friends" | "saved" | "group" | "public";
+type EventSort = "popular" | "soon" | "friends" | "saved" | "group" | "public" | "responded";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "soon", label: "Soon" },
   { key: "popular", label: "Popular" },
@@ -190,6 +196,7 @@ const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "saved", label: "Saved" },
   { key: "group", label: "Group" },
   { key: "public", label: "Public" },
+  { key: "responded", label: "Responded" },
 ];
 
 type RespondedSubFilter = "going" | "not_going";
@@ -257,10 +264,16 @@ export default function DiscoverScreen() {
   const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
 
+  // [WHOS_DOWN_V1] Creation bottom-sheet state
+  const [showCreateWhosDown, setShowCreateWhosDown] = useState(false);
+  const [wdTitle, setWdTitle] = useState("");
+  const [wdTimeHint, setWdTimeHint] = useState<string | null>(null);
+  const [wdWhere, setWdWhere] = useState("");
+
   // ── Discover surface view tracking (dedupe per pane+pill combo) ──
   const lastTrackedSurface = useRef<string>("");
   useEffect(() => {
-    const pill = lens === "events" ? eventSort : lens === "responded" ? respondedSubFilter : null;
+    const pill = lens === "events" ? (eventSort === "responded" ? `responded:${respondedSubFilter}` : eventSort) : null;
     const key = `${lens}:${pill ?? ""}`;
     if (key === lastTrackedSurface.current) return;
     lastTrackedSurface.current = key;
@@ -475,6 +488,57 @@ export default function DiscoverScreen() {
     placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
   });
 
+  // [WHOS_DOWN_V1] Friends-only casual feed. Gated only on auth so the lens badge
+  // count is accurate even before user taps Who's Down.
+  const { data: whosDownData, refetch: refetchWhosDown, error: whosDownError } = useQuery({
+    queryKey: qk.whosDownFeed(),
+    queryFn: () => api.get<WhosDownFeedResponse>("/api/event-requests/feed/whos-down"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+  const whosDownItems = whosDownData?.items ?? [];
+  const whosDownActiveCount = whosDownData?.activeCount ?? 0;
+
+  // [WHOS_DOWN_V1] Create casual idea post
+  const createWhosDownMutation = useMutation({
+    mutationFn: (body: { title: string; timeHint?: string; whereText?: string }) =>
+      api.post<CreateEventRequestResponse>("/api/event-requests", { ...body, mode: "casual" }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowCreateWhosDown(false);
+      setWdTitle("");
+      setWdTimeHint(null);
+      setWdWhere("");
+      queryClient.invalidateQueries({ queryKey: qk.whosDownFeed() });
+      queryClient.invalidateQueries({ queryKey: qk.eventRequests() });
+      safeToast.success("Posted!", "Your friends can see this idea now.");
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Oops", "Couldn't post. Please try again.");
+    },
+  });
+
+  // [WHOS_DOWN_V1] Mark "I'm Down" on a casual post
+  const respondWhosDownMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.put<RespondEventRequestResponse>(`/api/event-requests/${id}/respond`, { status: "accepted" }),
+    onMutate: (id: string) => {
+      // Optimistically bump local down state: surface will refetch on success.
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      return { id };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.whosDownFeed() });
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Oops", "Couldn't respond. Please try again.");
+    },
+  });
+
   // Friend count for nudge gating — shares cache key with Friends/Calendar/etc.
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
@@ -557,7 +621,7 @@ export default function DiscoverScreen() {
   // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
   const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
     screenName: "discover",
-    refetchFns: [refetchFeed, refetchMyEvents, refetchFriendsFeed],
+    refetchFns: [refetchFeed, refetchMyEvents, refetchFriendsFeed, refetchWhosDown],
   });
 
   // ── SSOT: merge + deduplicate + enrich all events ──
@@ -744,7 +808,15 @@ export default function DiscoverScreen() {
   }, [enrichedEvents, userRegion, session?.user?.id]);
 
   // Active Events feed based on sort control
-  const activeFeed = eventSort === "public" ? publicSorted : eventSort === "friends" ? friendsSorted : eventSort === "saved" ? savedEventsList : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
+  // [WHOS_DOWN_V1] "responded" pill folds in the going/not_going sub-filter (was its own pane).
+  const activeFeed = eventSort === "public" ? publicSorted
+    : eventSort === "friends" ? friendsSorted
+    : eventSort === "saved" ? savedEventsList
+    : eventSort === "group" ? groupSorted
+    : eventSort === "soon" ? soonSorted
+    : eventSort === "responded"
+      ? (respondedSubFilter === "going" ? respondedGoingSorted : respondedNotGoingSorted)
+      : popularSorted;
 
   // ── Host event count: derive "Active Host" badge (5+ events) ──
   const hostEventCounts = useMemo(() => {
@@ -803,7 +875,7 @@ export default function DiscoverScreen() {
   const handleEventPress = (eventId: string, interactionMode: "map_pin" | "map_callout" | "event_card" | "list_row", event?: PopularEvent) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const pane = lens;
-    const pill = lens === "events" ? eventSort : lens === "responded" ? respondedSubFilter : null;
+    const pill = lens === "events" ? (eventSort === "responded" ? `responded:${respondedSubFilter}` : eventSort) : null;
     trackDiscoverEventOpened({
       eventId,
       pane,
@@ -907,6 +979,8 @@ export default function DiscoverScreen() {
                 {/* INVARIANT_ALLOW_SMALL_MAP */}
                 {LENS_OPTIONS.map((opt) => {
                   const active = lens === opt.key;
+                  // [WHOS_DOWN_V1] Active count badge on Who's Down tab.
+                  const showBadge = opt.key === "whos_down" && whosDownActiveCount > 0;
                   return (
                     <Pressable
                       key={opt.key}
@@ -919,7 +993,7 @@ export default function DiscoverScreen() {
                           if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length });
                         }
                       }}
-                      className="flex-1 items-center py-2 rounded-full"
+                      className="flex-1 items-center py-2 rounded-full flex-row justify-center"
                       style={active ? { backgroundColor: isDark ? "rgba(58,58,60,0.9)" : "rgba(255,255,255,0.95)", ...tileShadow } : undefined}
                     >
                       <Text
@@ -929,6 +1003,24 @@ export default function DiscoverScreen() {
                       >
                         {opt.label}
                       </Text>
+                      {showBadge && (
+                        <View
+                          style={{
+                            marginLeft: 5,
+                            minWidth: 18,
+                            height: 18,
+                            paddingHorizontal: 5,
+                            borderRadius: 9,
+                            backgroundColor: themeColor,
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: "700", color: "#FFFFFF" }}>
+                            {whosDownActiveCount > 99 ? "99+" : whosDownActiveCount}
+                          </Text>
+                        </View>
+                      )}
                     </Pressable>
                   );
                 })}
@@ -1335,6 +1427,36 @@ export default function DiscoverScreen() {
                     );
                   })}
                 </ScrollView>
+                {/* [WHOS_DOWN_V1] Responded sub-filter: Going | Not Going (shown when Responded pill active) */}
+                {eventSort === "responded" && (
+                  <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                    {RESPONDED_SUB_OPTIONS.map((opt) => {
+                      const active = respondedSubFilter === opt.key;
+                      return (
+                        <Pressable
+                          key={opt.key}
+                          testID={`discover-responded-${opt.key}`}
+                          onPress={() => {
+                            setRespondedSubFilter(opt.key);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
+                          style={{
+                            paddingHorizontal: 14,
+                            paddingVertical: 7,
+                            borderRadius: RADIUS.lg,
+                            backgroundColor: active ? themeColor : colors.surface,
+                            borderWidth: active ? 0 : 1,
+                            borderColor: colors.borderSubtle,
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: active ? "#FFFFFF" : colors.textSecondary }}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
                 {/* ═══ Public pill: location helper ═══ */}
                 {eventSort === "public" && !userRegion && activeFeed.length > 0 && (
                   <View
@@ -1380,7 +1502,35 @@ export default function DiscoverScreen() {
                 </>
               }
               ListEmptyComponent={
-                eventSort === "friends" && loadingFriendsFeed ? (
+                eventSort === "responded" ? (
+                <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>
+                    {respondedSubFilter === "going" ? "\uD83C\uDF89" : "\uD83D\uDC4B"}
+                  </Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    {respondedSubFilter === "going" ? "No events you're going to" : "No declined events"}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    {respondedSubFilter === "going"
+                      ? "RSVP \"Going\" to events and they'll show up here."
+                      : "Events you decline will appear here in case you change your mind."}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setEventSort("soon");
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>Browse Events</Text>
+                  </Pressable>
+                </View>
+                ) : eventSort === "friends" && loadingFriendsFeed ? (
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
                   <ActivityIndicator size="small" color={themeColor} />
                 </View>
@@ -2010,12 +2160,12 @@ export default function DiscoverScreen() {
         </View>
         </ErrorBoundary>
       ) : (
-        /* ═══ Responded Pane ═══ */
+        /* ═══ [WHOS_DOWN_V1] Who's Down Pane ═══ */
         /* [DISCOVER_PANE_ISOLATION_V1] Pane-level error boundary */
         <ErrorBoundary
           fallback={({ reset }) => (
             <DiscoverPaneErrorFallback
-              paneLabel="Responded"
+              paneLabel="Who's Down"
               onRetry={reset}
               textColor={colors.text}
               subTextColor={colors.textSecondary}
@@ -2025,222 +2175,385 @@ export default function DiscoverScreen() {
           )}
         >
         <View style={{ flex: 1 }}>
-          {showDiscoverLoading ? (
-            <View className="flex-1 items-center justify-center">
-              <ActivityIndicator size="small" color={themeColor} />
-            </View>
-          ) : (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: TAB_BOTTOM_PADDING }}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefreshing}
-                  onRefresh={onManualRefresh}
-                  tintColor={themeColor}
-                  progressViewOffset={chromeHeight}
-                />
-              }
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: TAB_BOTTOM_PADDING }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onManualRefresh}
+                tintColor={themeColor}
+                progressViewOffset={chromeHeight}
+              />
+            }
+          >
+            {/* Static explainer + Post an Idea CTA */}
+            <Pressable
+              onPress={() => {
+                if (!guardEmailVerification(session)) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowCreateWhosDown(true);
+              }}
+              style={{
+                backgroundColor: `${themeColor}12`,
+                borderWidth: 1,
+                borderColor: `${themeColor}30`,
+                borderRadius: RADIUS.lg,
+                padding: 16,
+                marginBottom: 16,
+              }}
             >
-              {/* Sub-filter pills: Going | Not Going */}
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, justifyContent: "center" }}>
-                {RESPONDED_SUB_OPTIONS.map((opt) => {
-                  const active = respondedSubFilter === opt.key;
+              <Text style={{ fontSize: 16, fontWeight: "700", color: colors.text, marginBottom: 4 }}>
+                Have an idea to do?
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18, marginBottom: 12 }}>
+                Float it to your friends. See who's down without committing to a time yet.
+              </Text>
+              <View
+                style={{
+                  alignSelf: "flex-start",
+                  paddingHorizontal: 16,
+                  paddingVertical: 9,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: themeColor,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>Post an Idea</Text>
+              </View>
+            </Pressable>
+
+            {/* Friends-only helper */}
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+              <Users size={12} color={colors.textTertiary} />
+              <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 6 }}>
+                Only your friends can see these ideas
+              </Text>
+            </View>
+
+            {/* Whos-down error soft-fail banner */}
+            {whosDownError && whosDownItems.length === 0 && (
+              <View style={{ alignItems: "center", paddingTop: 24, paddingHorizontal: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", marginBottom: 12 }}>
+                  Couldn't load ideas. Pull to refresh.
+                </Text>
+              </View>
+            )}
+
+            {/* Feed cards */}
+            {whosDownItems.length === 0 && !whosDownError ? (
+              <View style={{ alignItems: "center", paddingTop: 32, paddingHorizontal: 16 }}>
+                <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u{1F4A1}"}</Text>
+                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                  No ideas yet
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                  Be the first — post an idea and see who's down.
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    if (!guardEmailVerification(session)) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowCreateWhosDown(true);
+                  }}
+                  style={{
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: RADIUS.lg,
+                    backgroundColor: themeColor,
+                  }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Post an Idea</Text>
+                </Pressable>
+              </View>
+            ) : (
+              whosDownItems.map((item, idx) => {
+                const downCount = item.downCount ?? item.members.filter((m) => m.status === "accepted").length;
+                const isMine = item.creatorId === session.user?.id;
+                const myMember = item.members.find((m) => m.userId === session.user?.id);
+                const imDown = myMember?.status === "accepted";
+                const creatorName = item.creator?.name?.split(" ")[0] ?? "Someone";
+                return (
+                  <Animated.View
+                    key={item.id}
+                    entering={FadeInDown.delay(Math.min(idx * 40, 300)).duration(240)}
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push(`/event-request/${item.id}`);
+                      }}
+                      style={({ pressed }) => ({
+                        backgroundColor: colors.surface,
+                        borderWidth: 1,
+                        borderColor: colors.borderSubtle,
+                        borderRadius: RADIUS.lg,
+                        padding: 14,
+                        opacity: pressed ? 0.85 : 1,
+                        ...tileShadow,
+                      })}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 8 }}>
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: RADIUS.md,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: `${themeColor}20`,
+                            marginRight: 12,
+                          }}
+                        >
+                          <Text style={{ fontSize: 22 }}>{item.emoji || "\u{1F4A1}"}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: "700", fontSize: 15, color: colors.text }} numberOfLines={2}>
+                            {item.title}
+                          </Text>
+                          {item.timeHint ? (
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, flexWrap: "wrap", gap: 2 }}>
+                              <Clock size={12} color={colors.textTertiary} />
+                              <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4 }}>
+                                {item.timeHint}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {item.whereText ? (
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                              <MapPin size={12} color={colors.textTertiary} />
+                              <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }} numberOfLines={1}>
+                                {item.whereText}
+                              </Text>
+                            </View>
+                          ) : null}
+                          <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4 }} numberOfLines={1}>
+                            {isMine ? "Your idea" : `From ${creatorName}`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Users size={12} color={STATUS.going.fg} />
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.going.fg, marginLeft: 4 }}>
+                            {downCount} {downCount === 1 ? "down" : "down"}
+                          </Text>
+                        </View>
+                        {!isMine && (
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              if (imDown) return;
+                              respondWhosDownMutation.mutate(item.id);
+                            }}
+                            disabled={imDown || respondWhosDownMutation.isPending}
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingVertical: 7,
+                              borderRadius: RADIUS.lg,
+                              backgroundColor: imDown ? STATUS.going.bgSoft : themeColor,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "700",
+                                color: imDown ? STATUS.going.fg : "#FFFFFF",
+                              }}
+                            >
+                              {imDown ? "You're Down" : "I'm Down"}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
+        </ErrorBoundary>
+      )}
+
+      {/* [WHOS_DOWN_V1] Bottom-sheet creation modal */}
+      <Modal
+        visible={showCreateWhosDown}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateWhosDown(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
+          <Pressable
+            className="flex-1 justify-end"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onPress={() => setShowCreateWhosDown(false)}
+          >
+            <Pressable
+              onPress={() => {}}
+              className="rounded-t-3xl p-6"
+              style={{ backgroundColor: colors.background }}
+            >
+              <View
+                className="w-12 h-1 rounded-full self-center mb-4"
+                style={{ backgroundColor: colors.border }}
+              />
+
+              <Text className="text-xl font-bold mb-1" style={{ color: colors.text }}>
+                Post an Idea
+              </Text>
+              <Text className="text-sm mb-5" style={{ color: colors.textSecondary }}>
+                Float something to your friends. No commitment.
+              </Text>
+
+              {/* Idea title */}
+              <TextInput
+                value={wdTitle}
+                onChangeText={setWdTitle}
+                placeholder="What's the idea? e.g. Bowling tonight?"
+                placeholderTextColor={colors.textTertiary}
+                maxLength={120}
+                className="p-4 rounded-xl mb-4"
+                style={{
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  fontSize: 16,
+                }}
+                autoFocus
+              />
+
+              {/* Time hint chips */}
+              <Text
+                className="text-xs font-semibold mb-2"
+                style={{ color: colors.textSecondary, letterSpacing: 0.5 }}
+              >
+                WHEN (OPTIONAL)
+              </Text>
+              <View className="flex-row flex-wrap mb-4" style={{ gap: 8 }}>
+                {[
+                  { key: "Tonight", label: "Tonight" },
+                  { key: "Tomorrow", label: "Tomorrow" },
+                  { key: "This Weekend", label: "This Weekend" },
+                  { key: "Next Week", label: "Next Week" },
+                  { key: "Anytime", label: "Anytime" },
+                ].map((chip) => {
+                  const active = wdTimeHint === chip.key;
                   return (
                     <Pressable
-                      key={opt.key}
+                      key={chip.key}
                       onPress={() => {
-                        setRespondedSubFilter(opt.key);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        Haptics.selectionAsync();
+                        setWdTimeHint(active ? null : chip.key);
                       }}
                       style={{
                         paddingHorizontal: 14,
-                        paddingVertical: 7,
+                        paddingVertical: 8,
                         borderRadius: RADIUS.lg,
                         backgroundColor: active ? themeColor : colors.surface,
-                        borderWidth: active ? 0 : 1,
-                        borderColor: colors.borderSubtle,
+                        borderWidth: 1,
+                        borderColor: active ? themeColor : colors.border,
                       }}
                     >
-                      <Text style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: active ? "#FFFFFF" : colors.textSecondary,
-                      }}>
-                        {opt.label}
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: active ? "#FFFFFF" : colors.text,
+                        }}
+                      >
+                        {chip.label}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              {(() => {
-                const filteredList = respondedSubFilter === "going" ? respondedGoingSorted : respondedNotGoingSorted;
+              {/* Where (optional) */}
+              <Text
+                className="text-xs font-semibold mb-2"
+                style={{ color: colors.textSecondary, letterSpacing: 0.5 }}
+              >
+                WHERE (OPTIONAL)
+              </Text>
+              <TextInput
+                value={wdWhere}
+                onChangeText={setWdWhere}
+                placeholder="e.g. Griffith Park"
+                placeholderTextColor={colors.textTertiary}
+                maxLength={120}
+                className="p-4 rounded-xl mb-4"
+                style={{
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  fontSize: 16,
+                }}
+              />
 
-                if (filteredList.length === 0) {
-                  return (
-                    <View style={{ alignItems: "center", paddingTop: 40, paddingHorizontal: 16 }}>
-                      <Text style={{ fontSize: 40, marginBottom: 12 }}>
-                        {respondedSubFilter === "going" ? "\u{1F389}" : "\u{1F44B}"}
-                      </Text>
-                      <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                        {respondedSubFilter === "going" ? "No events you're going to" : "No declined events"}
-                      </Text>
-                      <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                        {respondedSubFilter === "going"
-                          ? "RSVP \"Going\" to events and they'll show up here."
-                          : "Events you decline will appear here in case you change your mind."}
-                      </Text>
-                      <Pressable
-                        onPress={() => {
-                          setLens("events");
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        style={{
-                          paddingHorizontal: 24,
-                          paddingVertical: 12,
-                          borderRadius: RADIUS.lg,
-                          backgroundColor: themeColor,
-                        }}
-                      >
-                        <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>
-                          Browse Events
-                        </Text>
-                      </Pressable>
-                    </View>
-                  );
-                }
+              {/* Friends-only helper */}
+              <View className="flex-row items-center mb-5">
+                <Users size={14} color={colors.textSecondary} />
+                <Text
+                  className="ml-2 text-xs"
+                  style={{ color: colors.textSecondary }}
+                >
+                  Only your friends can see this.
+                </Text>
+              </View>
 
-                let lastGroup = "";
-                let itemIndex = 0;
-                return filteredList.map((event) => {
-                  const displayTime = event.nextOccurrence ?? event.startTime;
-                  const group = getSavedTimeGroup(displayTime);
-                  const showHeader = group !== lastGroup;
-                  lastGroup = group;
-                  const idx = itemIndex++;
-
-                  const timeStr = new Date(displayTime).toLocaleTimeString([], {
-                    hour: "numeric", minute: "2-digit",
+              {/* Post button */}
+              <Pressable
+                onPress={() => {
+                  const trimmed = wdTitle.trim();
+                  if (!trimmed) {
+                    safeToast.error("Add an idea", "Type what you're thinking first.");
+                    return;
+                  }
+                  createWhosDownMutation.mutate({
+                    title: trimmed,
+                    timeHint: wdTimeHint ?? undefined,
+                    whereText: wdWhere.trim() || undefined,
                   });
-                  const dateStr = new Date(displayTime).toLocaleDateString([], {
-                    weekday: "short", month: "short", day: "numeric",
-                  });
-                  const isToday = group === "Today";
-                  const isTomorrow = group === "Tomorrow";
+                }}
+                disabled={createWhosDownMutation.isPending || !wdTitle.trim()}
+                style={{
+                  paddingVertical: 14,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: themeColor,
+                  alignItems: "center",
+                  opacity: createWhosDownMutation.isPending || !wdTitle.trim() ? 0.5 : 1,
+                }}
+              >
+                {createWhosDownMutation.isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                    Post Idea
+                  </Text>
+                )}
+              </Pressable>
 
-                  return (
-                    <React.Fragment key={event.id}>
-                      {showHeader && (
-                        <Animated.View entering={FadeInDown.delay(Math.min(idx * 40, 300)).duration(200)} style={{ marginTop: idx > 0 ? 10 : 0, marginBottom: 8 }}>
-                          <Text style={{
-                            fontSize: 13,
-                            fontWeight: "700",
-                            color: (isToday || isTomorrow) ? STATUS.soon.fg : colors.textSecondary,
-                            textTransform: "uppercase",
-                            letterSpacing: 0.5,
-                          }}>
-                            {group}
-                          </Text>
-                        </Animated.View>
-                      )}
-                      <Animated.View
-                        entering={FadeInDown.delay(Math.min(idx * 40, 300)).duration(240)}
-                        style={{ marginBottom: 10 }}
-                      >
-                        <Pressable
-                          onPress={() => handleEventPress(event.id, "list_row", event)}
-                          style={({ pressed }) => ({
-                            backgroundColor: colors.surface,
-                            borderColor: isToday ? STATUS.soon.fg + "30" : colors.borderSubtle,
-                            borderWidth: 1,
-                            borderRadius: RADIUS.lg,
-                            padding: 14,
-                            opacity: pressed ? 0.85 : 1,
-                            ...tileShadow,
-                          })}
-                        >
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <View
-                              style={{
-                                width: 48,
-                                height: 48,
-                                borderRadius: RADIUS.md,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: themeColor + "20",
-                                overflow: "hidden",
-                                marginRight: 12,
-                              }}
-                            >
-                              {event.visibility !== "private" && event.eventPhotoUrl ? (
-                                <ExpoImage
-                                  source={{ uri: event.eventPhotoUrl }}
-                                  style={{ width: 48, height: 48, borderRadius: RADIUS.md }}
-                                  transition={200}
-                                />
-                              ) : (
-                                <Calendar size={22} color={themeColor} />
-                              )}
-                            </View>
-
-                            <View style={{ flex: 1, marginRight: 8 }}>
-                              <Text
-                                style={{ fontWeight: "600", fontSize: 15, color: colors.text }}
-                                numberOfLines={1}
-                              >
-                                {event.title}
-                              </Text>
-                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3, flexWrap: "wrap", gap: 2 }}>
-                                <Clock size={12} color={colors.textTertiary} />
-                                <Text
-                                  style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }}
-                                  numberOfLines={1}
-                                >
-                                  {isToday ? timeStr : isTomorrow ? timeStr : `${dateStr}, ${timeStr}`}
-                                </Text>
-                              </View>
-                              {event.location && (
-                                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-                                  <MapPin size={12} color={colors.textTertiary} />
-                                  <Text
-                                    style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}
-                                    numberOfLines={1}
-                                  >
-                                    {formatLocationShort(event.location)}
-                                  </Text>
-                                </View>
-                              )}
-                              {event.user?.name && (
-                                <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }} numberOfLines={1}>
-                                  Hosted by {event.user.name}
-                                </Text>
-                              )}
-                            </View>
-
-                            <View style={{ alignItems: "flex-end", gap: 4 }}>
-                              {event.attendeeCount > 0 && (
-                                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                  <Users size={11} color={STATUS.going.fg} />
-                                  <Text style={{ fontSize: 11, color: STATUS.going.fg, fontWeight: "600", marginLeft: 3 }}>
-                                    {event.attendeeCount}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                        </Pressable>
-                      </Animated.View>
-                    </React.Fragment>
-                  );
-                });
-              })()}
-            </ScrollView>
-          )}
-        </View>
-        </ErrorBoundary>
-      )}
+              {/* Cancel */}
+              <Pressable
+                onPress={() => setShowCreateWhosDown(false)}
+                className="py-4 items-center"
+              >
+                <Text className="font-medium" style={{ color: colors.textSecondary }}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <BottomNavigation />
     </SafeAreaView>

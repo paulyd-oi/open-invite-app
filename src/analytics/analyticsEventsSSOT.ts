@@ -751,7 +751,7 @@ export function trackSocialEmptyCtaTap(props: {
 
 /** discover_surface_viewed — fires on pane/pill change (dedupe in caller). No PII. [DISCOVER_ATTRIBUTION] */
 export function trackDiscoverSurfaceViewed(props: {
-  pane: "map" | "events" | "responded";
+  pane: "map" | "events" | "whos_down";
   pill?: string | null;
 }): void {
   track(AnalyticsEvent.DISCOVER_SURFACE_VIEWED, props);
@@ -760,7 +760,7 @@ export function trackDiscoverSurfaceViewed(props: {
 /** discover_event_opened — fires when user taps into event detail from discover. No PII. [DISCOVER_ATTRIBUTION] */
 export function trackDiscoverEventOpened(props: {
   eventId: string;
-  pane: "map" | "events" | "responded";
+  pane: "map" | "events" | "whos_down";
   pill?: string | null;
   interactionMode: "map_pin" | "map_callout" | "event_card" | "list_row";
   viewerRsvpStatus?: string | null;
