@@ -2440,16 +2440,11 @@ export default function EventDetailScreen() {
         })()}
 
         {/* ═══ DISCUSSION CARD — hidden for imported/busy calendar events ═══ */}
+        {/* [P0_COMMENT_ACCESS_PARITY_V1] Discussion is NEVER RSVP-gated.
+            If the viewer can access the event page, they can read + post comments.
+            `hideDetailsUntilRsvp` still blurs Who's Coming and Location — but not discussion. */}
         {!isBusyBlock && (
         <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", position: "relative", overflow: "hidden" }}>
-
-        {/* Blur overlay when hideDetailsUntilRsvp is enabled */}
-        {shouldBlurDetails && (
-          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-            <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>RSVP to see discussion</Text>
-          </View>
-        )}
 
         {/* Comments Section */}
         <DiscussionCard

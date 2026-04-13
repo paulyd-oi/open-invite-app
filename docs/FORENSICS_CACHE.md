@@ -378,3 +378,72 @@ Multiple repro reports on the main acquisition surface. Retry button worked but 
 - Lift a generic `isEventShapeValid` helper into `src/lib/discoverFilters.ts` if a second surface needs the same guard. For now, one call site → no abstraction.
 - Consider pane-level `<ErrorBoundary>` wrappers around Map / Ideas deck / inline feed list — addresses synchronous render-time crashes from any remaining derivation not yet guarded. Noted in prior `[DISCOVER_FAIL_SOFT_V1]` follow-ups.
 - Backend audit pass to validate the frontend's assumed required fields at response boundary (zod parse) would eliminate this class of bug entirely. Not in scope for this resilience pass.
+
+---
+
+## Investigation: Discover pane render isolation (2026-04-12)
+**Status:** RESOLVED
+
+**Symptom potential (prospective):** After the fail-soft fatal guard and derivation shape-guard, a synchronous render-time throw inside one Discover pane (Map marker callback, Events card body, Responded list row) would still bubble past those guards — they catch query errors and malformed records at the derivation boundary, NOT render throws — and replace the whole Discover screen with the root `ErrorBoundary` generic fallback. One pane crash = whole surface gone.
+
+**Forensics path:**
+- `src/app/discover.tsx:897+`: three-way ternary render branches for lens `"map" | "events" | "responded"`. Each branch is a sibling of the shell chrome (header, `BottomNavigation`). No boundary between the pane and the page root.
+- `src/components/ErrorBoundary.tsx`: class-component boundary exists, already hooked into `trackAppCrash` / `[P0_CRASH_CAPTURED]` telemetry. `fallback` prop was typed as `ReactNode` only — no render-function form, so a retry button in the fallback could not reach the boundary's internal `handleReset`.
+- `[DISCOVER_FAIL_SOFT_V1]` covers `feedError && myEventsError && !hasAnyCoreEventData` → query-state fatal only.
+- `[DISCOVER_SHAPE_GUARD_V1]` drops malformed records at the `enrichedEvents` memo boundary → pre-render data sanitization.
+- Neither addresses a synchronous throw during JSX render (invalid hook call inside a card, missing null-safe access in a list row template literal, etc.).
+
+**Root cause:** No pane-level `<ErrorBoundary>`. A render throw in any pane escaped to the top-level boundary and blanked the whole surface.
+
+**Fix (proof tag `[DISCOVER_PANE_ISOLATION_V1]`):**
+- `src/components/ErrorBoundary.tsx`: extended `fallback` prop to accept `ReactNode | ((ctx: { error, reset }) => ReactNode)`. Additive, backwards compatible; legacy static-ReactNode callers unchanged. Render-function form lets the pane fallback wire its retry button to the boundary's internal reset without touching the class state from outside.
+- `src/app/discover.tsx`:
+  - Added `DiscoverPaneErrorFallback` — inline (`flex: 1`) component with copy `"Couldn't render this view"` + `"Try switching tabs or tap retry. The rest of Discover is still available."` + a single retry button.
+  - Wrapped each of the three lens render branches in its own `<ErrorBoundary fallback={({ reset }) => <DiscoverPaneErrorFallback … onRetry={reset} />}>`.
+  - Each boundary has its own state — a crash in Map does not affect Events/Responded boundary state.
+
+**Why surgical:**
+- Two files + three docs. No new dedicated component file (fallback is local to Discover; lifting it to `@/components` would be premature abstraction — it's three call sites in one file).
+- Extended an existing shared component (`ErrorBoundary`) additively rather than duplicating the class + telemetry. The extension is a three-line conditional inside the existing `render()` method.
+- No change to data queries, invalidation, lens state, or shell chrome.
+- Existing top-level `ErrorBoundary` is preserved as a final safety net for throws in the shell/header that are outside the three pane branches.
+
+**Guardrail:** `docs/SYSTEMS/discover.md` gains `[DISCOVER_PANE_ISOLATION_V1]` invariant. Requires per-pane boundary with inline (never full-screen) fallback, separates this contract from `[DISCOVER_FAIL_SOFT_V1]` (query-state) and `[DISCOVER_SHAPE_GUARD_V1]` (derivation-boundary) so future edits don't confuse the three layers.
+
+**Open follow-ups (out of scope):**
+- Extend the same pane-isolation pattern to Social (Group / Open / Public) and Friends (Activity / Chats / People) if live telemetry shows render-throw incidents on those surfaces. Deferred — this pass is Discover-only by spec.
+- Consider a tiny shared `PaneErrorFallback` helper in `@/components` if a second surface adopts the pattern. Premature for a single call site.
+
+---
+
+## RESOLVED 2026-04-13 — Comment permission: RSVP gate (frontend + backend) `[P0_COMMENT_ACCESS_PARITY_V1]`
+
+**Symptom:** User could not post a comment on an event unless they RSVP'd first.
+
+**Investigation — frontend:**
+- `src/app/event/[id].tsx:2443-2488` renders the Discussion card. When host toggles `hideDetailsUntilRsvp` on the event, `shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent` (defined line 1073) evaluates true for any non-host, non-going viewer.
+- An absolute-positioned `BlurView` overlay with the copy `"RSVP to see discussion"` covered the entire card — including the comment composer — making both reading and posting impossible.
+- The overlay was three sibling uses of `shouldBlurDetails`: Who's Coming (~L2242), Location (~L2306, later migrated elsewhere), Discussion (~L2446). The first two are legitimate pre-RSVP privacy gates; the third contradicts product rule.
+
+**Investigation — backend:**
+- `my-app-backend/src/routes/events-interactions.ts` GET `/:id/comments` (L335+) and POST `/:id/comments` (L417+) each enforced: owner/host → RSVP'd → friendship-for-friend-scopes → `else if (visibility !== "open_invite") deny`.
+- This excluded `visibility === "public"` from the non-RSVP pass-through. A public event viewer who hadn't RSVP'd and wasn't a friend received `403`.
+- It also excluded `circle_only` events even for circle members who hadn't RSVP'd yet — a separate bug masked by the same over-broad gate.
+- Compared against `events-crud.ts` GET `/:id` (L680+), which uses the canonical access ladder: owner/host → attending → circle member → public/open_invite → friend with visibility access. The comment route was strictly narrower than the view route.
+
+**Root cause:** Two independent layers (frontend blur overlay + backend permission check) both implemented RSVP-first comment gating. The product rule is "access to the event page = access to the discussion"; both layers violated it.
+
+**Fix:**
+1. Backend: introduced `canAccessEventDiscussion({ eventId, userId })` at the top of `events-interactions.ts`. Mirrors the `events-crud.ts` GET `/:id` access ladder. Both comment routes now call this helper; RSVP is no longer a primary gate.
+2. Frontend: removed the Discussion blur overlay. Who's Coming and Location blur overlays kept intact. Added inline `[P0_COMMENT_ACCESS_PARITY_V1]` comment above the Discussion card.
+
+**Why surgical:**
+- One backend helper + two helper call-sites replacing ~40 lines of duplicated gating logic.
+- One overlay removal in the frontend (~7 lines).
+- No contract/schema changes. No query-key changes. No comment-fetch/display changes. OTA-safe on the frontend; backend deploys on next backend release.
+
+**Guardrail:** `docs/SYSTEMS/event-page.md` gains `[P0_COMMENT_ACCESS_PARITY_V1]` invariant documenting the two-layer enforcement rule and the explicit prohibition on RSVP-gated discussion copy.
+
+**Open follow-ups (out of scope):**
+- Consider promoting `canAccessEventDiscussion` to `events-shared.ts` and reusing it in any other route that enforces event view access inconsistently (e.g. `/photos`, `/reactions` if they exist). Deferred — the current duplication is tolerable and broadening scope risks regressions.
+- The blur overlay for Who's Coming and Location cards on `hideDetailsUntilRsvp` is preserved as product-intended. If UX decides those should also relax, that is a separate product decision.

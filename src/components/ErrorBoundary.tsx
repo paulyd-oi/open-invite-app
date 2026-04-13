@@ -8,9 +8,16 @@ import { trackAppCrash } from "@/analytics/analyticsEventsSSOT";
 // This file is written to NEVER crash even if icons are missing.
 import { AlertTriangle, RefreshCw } from "@/ui/icons";
 
+type FallbackRenderer = (ctx: { error: Error | null; reset: () => void }) => ReactNode;
+
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
+  /**
+   * Static ReactNode OR a render function receiving { error, reset }.
+   * Use the function form when the fallback needs to wire a retry button
+   * back into the boundary's internal reset state (e.g. pane-level isolation).
+   */
+  fallback?: ReactNode | FallbackRenderer;
 }
 
 interface State {
@@ -85,6 +92,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (typeof this.props.fallback === "function") {
+        return (this.props.fallback as FallbackRenderer)({
+          error: this.state.error,
+          reset: this.handleReset,
+        });
+      }
       if (this.props.fallback) return this.props.fallback;
 
       const accent = "#FF6B4A";

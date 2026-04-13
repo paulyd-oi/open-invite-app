@@ -45,6 +45,7 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { useActivationNudge } from "@/hooks/useActivationNudge";
@@ -196,6 +197,49 @@ const RESPONDED_SUB_OPTIONS: { key: RespondedSubFilter; label: string }[] = [
   { key: "going", label: "Going" },
   { key: "not_going", label: "Not Going" },
 ];
+
+// [DISCOVER_PANE_ISOLATION_V1] Inline, non-full-screen fallback used by each
+// Discover pane's <ErrorBoundary>. A render-time crash in one pane shows this
+// local fallback while the shell + sibling panes stay interactive.
+function DiscoverPaneErrorFallback({
+  paneLabel,
+  onRetry,
+  textColor,
+  subTextColor,
+  accentColor,
+  topPadding,
+}: {
+  paneLabel: string;
+  onRetry: () => void;
+  textColor: string;
+  subTextColor: string;
+  accentColor: string;
+  topPadding: number;
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: topPadding }}>
+      <Text style={{ fontSize: 16, fontWeight: "600", color: textColor, textAlign: "center", marginBottom: 6 }}>
+        Couldn&apos;t render this view
+      </Text>
+      <Text style={{ fontSize: 14, color: subTextColor, textAlign: "center", marginBottom: 16, lineHeight: 20 }}>
+        Try switching tabs or tap retry. The rest of Discover is still available.
+      </Text>
+      <Pressable
+        onPress={onRetry}
+        accessibilityRole="button"
+        accessibilityLabel={`Retry ${paneLabel}`}
+        style={{
+          backgroundColor: accentColor,
+          paddingHorizontal: 18,
+          paddingVertical: 10,
+          borderRadius: 10,
+        }}
+      >
+        <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>Try Again</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function DiscoverScreen() {
   const mountTime = useRef(Date.now());
@@ -896,6 +940,19 @@ export default function DiscoverScreen() {
 
       {lens === "map" ? (
         /* ═══ Map View ═══ */
+        /* [DISCOVER_PANE_ISOLATION_V1] Pane-level error boundary */
+        <ErrorBoundary
+          fallback={({ reset }) => (
+            <DiscoverPaneErrorFallback
+              paneLabel="Map"
+              onRetry={reset}
+              textColor={colors.text}
+              subTextColor={colors.textSecondary}
+              accentColor={themeColor}
+              topPadding={chromeHeight + 16}
+            />
+          )}
+        >
         <View style={{ flex: 1 }}>
           {!RNMapView ? (
             /* Fallback when native module is missing (OTA on builds 315-320) */
@@ -1138,8 +1195,22 @@ export default function DiscoverScreen() {
           </View>
           )}
         </View>
+        </ErrorBoundary>
       ) : lens === "events" ? (
         /* ═══ Events Feed ═══ */
+        /* [DISCOVER_PANE_ISOLATION_V1] Pane-level error boundary */
+        <ErrorBoundary
+          fallback={({ reset }) => (
+            <DiscoverPaneErrorFallback
+              paneLabel="Events"
+              onRetry={reset}
+              textColor={colors.text}
+              subTextColor={colors.textSecondary}
+              accentColor={themeColor}
+              topPadding={chromeHeight + 16}
+            />
+          )}
+        >
         <View style={{ flex: 1 }}>
           {/* "Saved" toast */}
           {showSavedToast && (
@@ -1937,8 +2008,22 @@ export default function DiscoverScreen() {
             />
           )}
         </View>
+        </ErrorBoundary>
       ) : (
         /* ═══ Responded Pane ═══ */
+        /* [DISCOVER_PANE_ISOLATION_V1] Pane-level error boundary */
+        <ErrorBoundary
+          fallback={({ reset }) => (
+            <DiscoverPaneErrorFallback
+              paneLabel="Responded"
+              onRetry={reset}
+              textColor={colors.text}
+              subTextColor={colors.textSecondary}
+              accentColor={themeColor}
+              topPadding={chromeHeight + 16}
+            />
+          )}
+        >
         <View style={{ flex: 1 }}>
           {showDiscoverLoading ? (
             <View className="flex-1 items-center justify-center">
@@ -2154,6 +2239,7 @@ export default function DiscoverScreen() {
             </ScrollView>
           )}
         </View>
+        </ErrorBoundary>
       )}
 
       <BottomNavigation />

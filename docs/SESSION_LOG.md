@@ -436,3 +436,87 @@ Expected: one or more of the six surface files + possibly one shared helper + th
 - Frontend-only; OTA-safe.
 - Malformed-record resilience: synthesizing a PopularEvent with `title: undefined` into `feedData.events` no longer throws — the record is silently dropped by `isShapeValid` and the rest of the feed renders.
 - Fail-soft behavior from `[DISCOVER_FAIL_SOFT_V1]` preserved.
+
+---
+
+## 2026-04-12 — Discover pane-level render isolation
+
+### Context
+Closing the remaining resilience gap after the fail-soft fatal guard (`[DISCOVER_FAIL_SOFT_V1]`) and derivation shape-guard (`[DISCOVER_SHAPE_GUARD_V1]`): a synchronous render-time throw inside one Discover pane would still escape those guards (they cover query-state and derivation-memo paths, not render-time crashes) and blank the whole Discover screen through the root error boundary. Add pane-level isolation so Map / Events / Responded fail independently.
+
+### Files read
+- `src/app/discover.tsx` — three lens render branches.
+- `src/components/ErrorBoundary.tsx` — existing class-component boundary with static-ReactNode fallback only.
+- `docs/SYSTEMS/discover.md`.
+
+### Root cause
+No pane-level render boundary. The three-way ternary `{lens === "map" ? ... : lens === "events" ? ... : <Responded>}` rendered each pane inline as a sibling of the shell chrome, with no boundary between them and the page root. A throw inside Events' feed card render or Responded's list row, for example, would bubble to the top-level `ErrorBoundary` and replace the whole screen with the generic "Something went wrong" fallback.
+
+### Fix — proof tag `[DISCOVER_PANE_ISOLATION_V1]`
+- `src/components/ErrorBoundary.tsx`: extended `fallback` prop to accept a render function `(ctx: { error, reset }) => ReactNode` in addition to the existing `ReactNode` form. Backwards compatible — existing static-ReactNode callers are unchanged (branch falls through to the legacy path when `typeof fallback !== "function"`).
+- `src/app/discover.tsx`:
+  - Imported `ErrorBoundary`.
+  - Added a local `DiscoverPaneErrorFallback` component rendering an inline (`flex: 1`) fallback with copy `"Couldn't render this view"` + `"Try switching tabs or tap retry. The rest of Discover is still available."` and a retry button wired to the boundary's `reset()`.
+  - Wrapped each of the three lens render branches (Map / Events / Responded) in its own `<ErrorBoundary>` passing the render-function fallback with the appropriate pane label.
+
+### Files changed
+- `src/components/ErrorBoundary.tsx` — render-function fallback support (additive).
+- `src/app/discover.tsx` — pane-level boundaries + inline fallback component.
+- `docs/SYSTEMS/discover.md` — new `[DISCOVER_PANE_ISOLATION_V1]` invariant.
+- `docs/SESSION_LOG.md` (this entry).
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry.
+
+### Scope vs. expected
+Expected: `src/app/discover.tsx` + possibly one small shared/local boundary component + three docs. Actual: `discover.tsx` + additive patch to existing shared `ErrorBoundary.tsx` + three docs. Chose to extend the existing shared boundary (render-prop fallback) rather than create a new Discover-specific component — the one-line backwards-compatible extension is strictly smaller than duplicating the class component and its telemetry hook (`trackAppCrash` / `[P0_CRASH_CAPTURED]`).
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only; OTA-safe.
+- Render-throw isolation matrix:
+  1. Force a throw inside Map pane rendering (e.g. `throw new Error("map boom")` in a marker callback or memo that runs at render time) → Map pane shows `DiscoverPaneErrorFallback`; Events tab, Responded tab, lens switcher, floating Create pill, `BottomNavigation` remain interactive. Switching to Events pane renders Events normally.
+  2. Force a throw inside Events feed card render → Events pane shows the pane fallback; Map + Responded unaffected.
+  3. Force a throw inside Responded list row render → Responded pane shows the pane fallback; Map + Events unaffected.
+- Retry behavior: tapping "Try Again" inside a pane fallback calls `reset()` on that pane's boundary; the pane re-mounts children and renders normally if the underlying condition cleared.
+- Existing top-level `ErrorBoundary` still catches anything that escapes a pane (e.g. a throw inside the shell/header). The pane boundary narrows the blast radius without replacing the safety net.
+
+---
+
+## 2026-04-13 — Comment permission: RSVP no longer gates discussion
+
+### Summary
+Live-production hotfix. A user reported they could not comment on an event unless they RSVP'd first. This contradicts the product rule: "if a viewer can access the event page, they can comment." Fixed at both layers (frontend + backend) — they were independently enforcing an RSVP gate. Tag: `[P0_COMMENT_ACCESS_PARITY_V1]`.
+
+### Root causes
+1. **Frontend (`src/app/event/[id].tsx`)**: The Discussion card had a blur overlay gated on `shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent`. When the host enabled `hideDetailsUntilRsvp`, the overlay covered the entire Discussion card (including the composer input) with the text "RSVP to see discussion", making it impossible to post a comment pre-RSVP.
+2. **Backend (`my-app-backend/src/routes/events-interactions.ts`)**: GET and POST `/api/events/:id/comments` each enforced a narrower check than event view: `owner/host OR RSVP'd OR (friendship for all_friends|specific_groups)`. Crucially, `visibility === "public"` was NOT in the pass-through list — only `"open_invite"` was. A user who could view a public event but hadn't RSVP'd and wasn't friends with the host would receive `403 "You don't have access to comment on this event"`.
+
+### Fix
+- **Backend**: Added `canAccessEventDiscussion({ eventId, userId })` helper at top of `events-interactions.ts`. Mirrors the access ladder in `events-crud.ts` GET `/:id` — owner/host → attending (accepted join request) → circle member (if circle-scoped) → public or open_invite → friend with visibility access (`all_friends` or `specific_groups` with group-membership intersection). RSVP is no longer a gate. Both GET and POST `/comments` now call this helper and return `404` (event not found) or `403` (no access) appropriately.
+- **Frontend**: Removed the RSVP blur overlay from the Discussion card in `src/app/event/[id].tsx`. Who's Coming and Location cards still honor `shouldBlurDetails` — only discussion is exempted, because discussion is a pre-RSVP clarification channel. Added an inline `[P0_COMMENT_ACCESS_PARITY_V1]` comment above the card documenting the invariant.
+
+### Files changed
+- `my-app-backend/src/routes/events-interactions.ts` — new helper + replaced two gate blocks
+- `src/app/event/[id].tsx` — removed blur overlay on Discussion card
+- `docs/SYSTEMS/event-page.md` — new `[P0_COMMENT_ACCESS_PARITY_V1]` invariant
+- `docs/SESSION_LOG.md` — this entry
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry
+
+### Expected vs actual changed files
+Expected: `src/app/event/[id].tsx` + one backend route + three docs. Actual matches. No shared contract (`shared/contracts.ts`) change needed — the create-comment request schema is unchanged.
+
+### Verification
+- `npx tsc --noEmit` clean on both frontend and backend.
+- Logical matrix:
+  1. Host disables RSVP-gate (`hideDetailsUntilRsvp=false`): viewer sees Discussion card as before, can comment. Unchanged.
+  2. Host enables RSVP-gate, viewer hasn't RSVP'd: Discussion card is no longer blurred; viewer can read + post comments. Who's Coming and Location remain blurred (intended).
+  3. Public event, viewer not RSVP'd, not a friend: backend allows comment creation (previously 403).
+  4. `all_friends` event, viewer not a friend: backend still denies (access rule unchanged, correctly).
+  5. `circle_only` event, viewer not a circle member: backend still denies.
+  6. Private / unknown visibility: backend still denies.
+  7. No stale "RSVP to see discussion" or "RSVP to comment" copy anywhere in the app.
+
+### Scope discipline
+- No redesign of the discussion UI.
+- Comment fetch/display behavior untouched.
+- Moderation / reporting / blocking / rate-limiting (`strictRateLimit`, `relaxedRateLimit`, email-verified gate) all preserved.
+- Frontend blur for Who's Coming and Location cards is intentionally preserved — those are legitimate RSVP-gated surfaces and outside this hotfix's scope.
