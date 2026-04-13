@@ -1652,7 +1652,8 @@ export default function CalendarScreen() {
                 </View>
                 {/* INVARIANT_ALLOW_SMALL_MAP */}
                 {eventRequests.slice(0, 5).map((request, idx) => {
-                  const startDate = new Date(request.startTime);
+                  // [WHOS_DOWN_V1] /api/event-requests filters mode=formal so startTime is non-null here.
+                  const startDate = new Date(request.startTime!);
                   const isCreator = request.creatorId === session?.user?.id;
                   const members = request.members ?? [];
                   const myResponse = members.find((m) => m.userId === session?.user?.id);

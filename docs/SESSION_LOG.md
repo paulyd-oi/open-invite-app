@@ -1,5 +1,53 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Who's Down v1 backend (casual event_request) [WHOS_DOWN_V1]
+
+### Summary
+Implemented Phase 1 backend for Who's Down: lightweight, friends-only idea posts that extend `event_request` with a `mode` field. Formal-mode behavior is fully preserved. No sentinel dates, no new tables, no auto-RSVP, no chat, no invitee mechanic. Conversion to a real event is frontend-driven (opens `/create` prefilled).
+
+### Files changed
+- `my-app-backend/prisma/schema.prisma` — extend `event_request` with `mode`, `timeHint`, `whereText`, `expiresAt`, `thresholdNotifiedAt`; make `startTime` nullable; add two indexes.
+- `my-app-backend/prisma/migrations/20260413000000_add_whos_down_to_event_request/migration.sql` — additive migration.
+- `my-app-backend/src/shared/contracts.ts` — extend `eventRequestSchema` and `createEventRequestInputSchema`; add `whosDownFeedResponseSchema`.
+- `open-invite-app/shared/contracts.ts` — same contract changes (kept in sync with backend).
+- `my-app-backend/src/routes/eventRequests.ts` — casual branches: create, respond (with threshold push), `GET /feed/whos-down`, `GET /:id` access for friends, formal-only guards on nudge + suggest-time.
+- `my-app-backend/docs/INVARIANTS.md` — added WHOS_DOWN_V1 invariants section.
+- `open-invite-app/docs/SYSTEMS/whos-down.md` — new SSOT for the feature (FE + BE).
+
+### Architecture decisions
+- **No sentinel date.** `startTime` made nullable for casual mode. All other `orderBy: { startTime }` on `event_request` is filtered to formal mode (the `GET /` endpoint), guaranteeing non-null.
+- **No backend conversion endpoint.** Frontend opens `/create` prefilled. Casual request expires naturally at 48h. Avoids duplicate event-creation logic and partial-state failures.
+- **Friends-only feed.** `GET /api/event-requests/feed/whos-down` returns active casual posts where `creatorId IN (viewer + friends)`. Single direction friendship lookup matches existing app convention.
+- **Threshold push is one-shot.** New `thresholdNotifiedAt` column gates the "X people are down" push so subsequent accepts past 3 don't re-notify.
+- **Formal-only routes guarded.** `nudge` and `suggest-time` return 400 for casual mode (they're invitee/time-based and don't apply).
+- **No invitee mechanic for converted events.** Down users are notified via threshold push and discover the new event normally; no auto-RSVP.
+
+### Verification
+- TypeScript clean (see verification step in next entry if pending).
+- Schema additive — `mode` defaults to `"formal"` so all existing rows + clients keep working.
+- Existing GET `/api/event-requests` filtered to `mode: "formal"` — casual posts cannot leak into formal lists.
+- All `orderBy: { startTime }` queries on `event_request` audited; only one (formal-only filter applied).
+
+### Scope discipline
+- No frontend code touched in this prompt (Phase 1 = backend only).
+- No new tables.
+- No websockets/subscriptions.
+- No changes to event-create pipeline.
+- No changes to push governance categories (reused `event_request` bucket).
+
+### Follow-up (same day): conversion state transition added
+Per follow-up request: "When an idea is converted to an event, mark the event_request as confirmed and remove it from Who's Down feed immediately."
+
+Added:
+- `event_request.convertedToEventId` column (folded into the same pending migration — not yet applied to prod).
+- `POST /api/event-requests/:id/confirm-converted` endpoint. Creator-only. Body `{ eventId }`. Verifies event exists + same owner. Sets `status = "confirmed"` and `convertedToEventId = eventId`. Notifies "down" friends with the new event link (no auto-RSVP). Idempotent on same eventId.
+- Contract: `confirmConvertedSchema` + `confirmConvertedResponseSchema` in both backend and frontend `shared/contracts.ts`.
+- Removal from feed is automatic — `GET /feed/whos-down` filters `status === "pending"`.
+
+Real-event creation still goes through the standard `POST /api/events` — `/confirm-converted` is a pure state-transition + notification fanout. Frontend orchestrates the two-step write (create event → confirm conversion).
+
+---
+
 ## 2026-04-04 — Forensic audit session
 
 ### Files read

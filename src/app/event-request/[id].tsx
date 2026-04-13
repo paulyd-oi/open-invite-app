@@ -274,7 +274,9 @@ export default function EventRequestDetailScreen() {
   const needsResponse = !isCreator && myMember?.status === "pending" && eventRequest.status === "pending";
   const acceptedCount = members.filter((m) => m.status === "accepted").length;
   const totalMembers = members.length;
-  const startDate = new Date(eventRequest.startTime);
+  // [WHOS_DOWN_V1] startTime is nullable for casual mode. Prompt 2 will branch the full UI on mode === "casual".
+  // For now, formal-mode consumers see a Date; casual would surface as Invalid Date until Prompt 2 lands.
+  const startDate = eventRequest.startTime ? new Date(eventRequest.startTime) : new Date();
   const endDate = eventRequest.endTime ? new Date(eventRequest.endTime) : null;
 
   return (

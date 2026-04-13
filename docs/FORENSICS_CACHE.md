@@ -2,6 +2,30 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Who's Down v1 backend [WHOS_DOWN_V1]
+
+**Symptom (none — greenfield feature):** Need a lightweight friends-only "idea post" pre-event-creation primitive without inventing a new table or duplicating event-request infra.
+
+**Investigation:**
+- `event_request` already has friend member tracking, respond flow, push governance, and notifications. Extending it with a `mode` field is strictly additive vs. building a parallel table.
+- Audited every `orderBy: { startTime }` across the backend. Only `eventRequests.ts:97` (now formal-only filtered) touches `event_request.startTime`. All other `startTime` orderings are on the `event` model (unchanged, NOT NULL).
+- Confirmed `friendship` table direction: single-direction (`userId/friendId`) — matches existing convention; reused for casual visibility.
+
+**Root cause / decision:** Extend `event_request.mode` rather than build a new table or extend circle polls (which lock to circle membership and lack convert semantics).
+
+**Fix:**
+1. Schema: nullable `startTime`, new columns `mode`/`timeHint`/`whereText`/`expiresAt`/`thresholdNotifiedAt`, two indexes.
+2. Routes: casual branches in create + respond + GET /:id; new `GET /feed/whos-down`; formal-only guards on nudge + suggest-time.
+3. Migration: additive SQL, default `mode = "formal"` keeps existing rows + clients working.
+4. Threshold push: one-shot guarded by `thresholdNotifiedAt`.
+
+**Guardrail / invariant:**
+- `[WHOS_DOWN_V1]` invariants in `my-app-backend/docs/INVARIANTS.md` and `open-invite-app/docs/SYSTEMS/whos-down.md`.
+- Any future `orderBy: { startTime }` on `event_request` MUST include `mode: "formal"` filter.
+- Conversion = two-step write: standard `POST /api/events` then `POST /api/event-requests/:id/confirm-converted` with `{ eventId }`. Confirm endpoint is creator-only, idempotent, and verifies event ownership. Removes idea from `feed/whos-down` immediately and notifies "down" friends (no auto-RSVP).
+
+---
+
 ## Investigation: lottie-ios version drift on EAS
 **Status:** OPEN
 

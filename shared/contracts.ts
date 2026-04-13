@@ -1325,16 +1325,23 @@ export const eventRequestMemberSchema = z.object({
 export type EventRequestMember = z.infer<typeof eventRequestMemberSchema>;
 
 // Event request schema
+// [WHOS_DOWN_V1] mode/timeHint/whereText/expiresAt added for casual idea posts.
+// startTime is nullable because casual mode has no committed time until conversion.
 export const eventRequestSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   location: z.string().nullable(),
   emoji: z.string(),
-  startTime: z.string(), // ISO date string
+  startTime: z.string().nullable(),
   endTime: z.string().nullable(),
   status: z.enum(["pending", "confirmed", "cancelled"]),
   creatorId: z.string(),
+  mode: z.enum(["formal", "casual"]).default("formal"),
+  timeHint: z.string().nullable().optional(),
+  whereText: z.string().nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+  convertedToEventId: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   creator: z.object({
@@ -1344,6 +1351,7 @@ export const eventRequestSchema = z.object({
     image: z.string().nullable(),
   }),
   members: z.array(eventRequestMemberSchema),
+  downCount: z.number().optional(),
 });
 export type EventRequest = z.infer<typeof eventRequestSchema>;
 
@@ -1361,14 +1369,20 @@ export const getEventRequestResponseSchema = z.object({
 export type GetEventRequestResponse = z.infer<typeof getEventRequestResponseSchema>;
 
 // POST /api/event-requests - Create event request
+// [WHOS_DOWN_V1] mode/timeHint/whereText added.
+//   formal: startTime + memberIds REQUIRED (existing contract preserved).
+//   casual: startTime + memberIds OPTIONAL; expiresAt set server-side to now+48h.
 export const createEventRequestInputSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   location: z.string().optional(),
   emoji: z.string().optional(),
-  startTime: z.string(), // ISO date string
+  startTime: z.string().optional(),
   endTime: z.string().optional(),
-  memberIds: z.array(z.string()).min(1), // Friend user IDs to invite
+  memberIds: z.array(z.string()).optional(),
+  mode: z.enum(["formal", "casual"]).optional().default("formal"),
+  timeHint: z.string().optional(),
+  whereText: z.string().optional(),
 });
 export type CreateEventRequestInput = z.infer<typeof createEventRequestInputSchema>;
 export const createEventRequestResponseSchema = z.object({
@@ -1411,6 +1425,24 @@ export const suggestTimeResponseSchema = z.object({
   success: z.boolean(),
 });
 export type SuggestTimeResponse = z.infer<typeof suggestTimeResponseSchema>;
+
+// [WHOS_DOWN_V1] GET /api/event-requests/feed/whos-down - Friends-only active casual feed
+export const whosDownFeedResponseSchema = z.object({
+  items: z.array(eventRequestSchema),
+  activeCount: z.number(),
+});
+export type WhosDownFeedResponse = z.infer<typeof whosDownFeedResponseSchema>;
+
+// [WHOS_DOWN_V1] POST /api/event-requests/:id/confirm-converted
+export const confirmConvertedSchema = z.object({
+  eventId: z.string().min(1),
+});
+export type ConfirmConvertedInput = z.infer<typeof confirmConvertedSchema>;
+export const confirmConvertedResponseSchema = z.object({
+  success: z.boolean(),
+  notifiedCount: z.number(),
+});
+export type ConfirmConvertedResponse = z.infer<typeof confirmConvertedResponseSchema>;
 
 // ============================================
 // Tiered Achievements & Badges System
