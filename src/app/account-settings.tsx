@@ -30,7 +30,7 @@ import * as Sharing from "expo-sharing";
 import { performLogout } from "@/lib/logout";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
-import { requestPasswordResetEmail } from "@/lib/authFlowClient";
+import { requestPasswordResetEmail, resendVerificationEmail } from "@/lib/authFlowClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -58,6 +58,9 @@ export default function AccountSettingsScreen() {
   // Reset password state
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
+  // [P0_AUTH_UNVERIFIED_ESCAPE_V1] Resend verification state (only shown to unverified users).
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+
   // Data export state
   const [isExporting, setIsExporting] = useState(false);
 
@@ -67,6 +70,12 @@ export default function AccountSettingsScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const currentEmail = session?.user?.email ?? "";
+  // [P0_AUTH_UNVERIFIED_ESCAPE_V1] Unverified users need an escape hatch: they
+  // must be able to change their email (typo recovery) and resend verification
+  // from this screen without admin help. `emailVerified` may be null/undefined
+  // pre-hydration — only treat strict `true` as verified so the default is the
+  // safer "show the resend action" state.
+  const isEmailUnverified = session?.user?.emailVerified !== true;
 
   // ── Email change handler ──
   const handleChangeEmail = async () => {
@@ -136,6 +145,26 @@ export default function AccountSettingsScreen() {
       safeToast.error("Password Change Failed", msg);
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  // [P0_AUTH_UNVERIFIED_ESCAPE_V1] Resend verification email to the current
+  // address. Visible to unverified users so they can unblock themselves
+  // without leaving this screen.
+  const handleResendVerification = async () => {
+    if (!currentEmail) {
+      safeToast.error("No Email", "Unable to determine your account email.");
+      return;
+    }
+    setIsResendingVerification(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await resendVerificationEmail({
+        email: currentEmail,
+        name: session?.user?.name || undefined,
+      });
+    } finally {
+      setIsResendingVerification(false);
     }
   };
 
@@ -262,11 +291,42 @@ export default function AccountSettingsScreen() {
               <View className="flex-1">
                 <Text style={{ color: colors.textSecondary }} className="text-xs">Current email</Text>
                 <Text style={{ color: colors.text }} className="text-base font-medium">{currentEmail || "Not set"}</Text>
+                {isEmailUnverified && (
+                  <Text
+                    style={{ color: isDark ? "#FCD34D" : "#B45309", fontSize: 12, fontWeight: "600", marginTop: 2 }}
+                  >
+                    Not verified
+                  </Text>
+                )}
               </View>
             </View>
 
+            {/* [P0_AUTH_UNVERIFIED_ESCAPE_V1] Unverified escape hatch: resend to current address. */}
+            {isEmailUnverified && (
+              <Pressable
+                onPress={handleResendVerification}
+                disabled={isResendingVerification || !currentEmail}
+                className="rounded-xl py-3 items-center"
+                style={{
+                  backgroundColor: isDark ? "#2C2C2E" : "#F5F5F5",
+                  marginBottom: 12,
+                  opacity: isResendingVerification ? 0.6 : 1,
+                }}
+              >
+                {isResendingVerification ? (
+                  <ActivityIndicator size="small" color={themeColor} />
+                ) : (
+                  <Text style={{ color: themeColor }} className="text-base font-semibold">
+                    Resend Verification Email
+                  </Text>
+                )}
+              </Pressable>
+            )}
+
             <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 12 }}>
-              A verification link will be sent to your new email address.
+              {isEmailUnverified
+                ? "Typo? Enter the correct email below — we'll send a verification link to the new address and you can continue."
+                : "A verification link will be sent to your new email address."}
             </Text>
 
             <TextInput
