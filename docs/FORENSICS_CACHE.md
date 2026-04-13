@@ -2,6 +2,32 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Discover Events filter flattening (Going / Not Going first-class) [WHOS_DOWN_V1]
+
+**Symptom:** Reaching Going/Not Going took three nesting levels: Discover tab → Events lens → Responded pill → sub-filter row. Too much navigation for a list view.
+
+**Investigation:**
+- `EventSort` enum had `"responded"` as a parent, with a sibling `RespondedSubFilter` state (`"going" | "not_going"`). When `eventSort === "responded"`, a second-row pill strip rendered; `activeFeed` branched on both variables.
+- `respondedGoingSorted` and `respondedNotGoingSorted` are cheap derivations of a shared `respondedSorted` memo (`enrichedEvents.filter(isEventResponded)`), so there was no reason the UI had to keep them behind a single parent pill.
+- Analytics derived the pill as `responded:${sub}` composite — not a contract anywhere, just a local string.
+
+**Root cause:** UI state model nested what was semantically flat. The two datasets are peers, not a parent-child.
+
+**Fix:**
+1. `EventSort` → drop `"responded"`, add `"going"` and `"not_going"` directly. `SORT_OPTIONS` grows by one net pill.
+2. Delete `RespondedSubFilter` type, `RESPONDED_SUB_OPTIONS` constant, and the `respondedSubFilter` state hook — nothing outside `discover.tsx` referenced them.
+3. `activeFeed` branches: `going → respondedGoingSorted`, `not_going → respondedNotGoingSorted`. Datasets untouched.
+4. Delete the `eventSort === "responded" && (...)` second-row JSX block.
+5. `ListEmptyComponent` responded branch re-keyed to `eventSort === "going" || eventSort === "not_going"`; per-status copy preserved.
+6. Analytics `pill` simplified to bare `eventSort` value for both `trackDiscoverSurfaceViewed` and `trackDiscoverEventOpened`.
+
+**Verification:**
+- `npx tsc --noEmit` clean (exit 0).
+- Grep confirms `RespondedSubFilter` / `respondedSubFilter` / `RESPONDED_SUB_OPTIONS` have no remaining references in the repo.
+- `respondedGoingSorted` / `respondedNotGoingSorted` memos retained — no logic change, same invariants.
+
+---
+
 ## RESOLVED 2026-04-13 — Who's Down v1 frontend [WHOS_DOWN_V1]
 
 **Symptom (none — frontend wire-up):** Backend phase 1 landed (casual mode, friends-only feed, respond, confirm-converted). Need the UI to (a) replace Discover's Responded tab with Who's Down while preserving the Responded filters, (b) expose a <15s creation path without a new full-screen route, (c) render casual detail with "I'm Down" instead of accept/decline, and (d) convert ideas to real events via the existing `/create` pipeline.

@@ -10,12 +10,12 @@
 | Pane | Key | Component | Description |
 |------|-----|-----------|-------------|
 | **Map** | `"map"` | `RNMapView` | Map with event pins |
-| **Events** | `"events"` | Inline FlatList | Feed with pill sub-filters (Responded = `"responded"` pill with Going/Not Going sub-filter) |
+| **Events** | `"events"` | Inline FlatList | Feed with a single horizontal pill row (Going / Not Going are first-class pills — no nested sub-filter). |
 | **Who's Down** | `"whos_down"` | Inline ScrollView | Casual idea posts from friends. Count badge on tab label. Proof tag: `[WHOS_DOWN_V1]`. |
 
 State: `const [lens, setLens] = useState<Lens>("events")`
 
-> [WHOS_DOWN_V1] The former Discover "Responded" tab was folded into the Events pane as a `"responded"` pill (Going / Not Going sub-filter). Its third-lens slot now hosts Who's Down.
+> [WHOS_DOWN_V1] The former Discover "Responded" tab was folded into the Events pane. Going and Not Going live as first-class pills alongside Soon / Popular / Friends / Saved / Group / Public — there is NO "Responded" parent pill and NO second-row sub-filter. Its third-lens slot now hosts Who's Down.
 
 ### Map Sub-Filter
 
@@ -38,9 +38,10 @@ Strict lane separation: no public events in Friends, no non-public events in Pub
 | Saved | `"saved"` | Bookmarked / interested events |
 | Group | `"group"` | Circle/group-visibility events |
 | Public | `"public"` | `visibility === "public"`, within 50mi if location available |
-| Responded | `"responded"` | Events the viewer has RSVP'd to — sub-filter Going / Not Going. Proof tag: `[WHOS_DOWN_V1]`. |
+| Going | `"going"` | Events where `viewerRsvpStatus === "going"` (reuses `respondedGoingSorted`). Proof tag: `[WHOS_DOWN_V1]`. |
+| Not Going | `"not_going"` | Events where `viewerRsvpStatus === "not_going"` (reuses `respondedNotGoingSorted`). Proof tag: `[WHOS_DOWN_V1]`. |
 
-Pills scroll horizontally. All pills except Responded exclude responded events (Events-pane responded exclusion invariant). Responded pill intentionally includes them.
+Pills scroll horizontally in a single row. Only one pill is active at a time. All pills except Going / Not Going exclude responded events (Events-pane responded exclusion invariant). Going / Not Going intentionally surface them.
 
 ---
 

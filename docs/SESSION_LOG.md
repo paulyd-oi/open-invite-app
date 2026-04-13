@@ -1,5 +1,27 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Discover Events filter flattening: Going / Not Going first-class [WHOS_DOWN_V1]
+
+### Summary
+Surgical UX correction to the Who's Down rollout. The Events pane had Discover → Events lens → Responded pill → Going/Not Going sub-filter — three nesting levels for a simple list view. Flattened to a single horizontal pill row. Removed the Responded parent pill and the second-row sub-filter. Going and Not Going now live next to Soon / Popular / Friends / Saved / Group / Public as peer pills.
+
+### Files changed
+- `src/app/discover.tsx` — `EventSort` type: drop `"responded"`, add `"going"` and `"not_going"`. `SORT_OPTIONS` reshuffled. `RespondedSubFilter` type, `RESPONDED_SUB_OPTIONS` constant, and `respondedSubFilter` state deleted. `activeFeed` ternary updated (Going → `respondedGoingSorted`, Not Going → `respondedNotGoingSorted`). Second-row sub-filter JSX block deleted. `ListEmptyComponent` responded branch rewritten to key off `eventSort === "going" \|\| eventSort === "not_going"` with the same per-status copy. Analytics pill derivation simplified: `pill = eventSort` (no `responded:{sub}` composite string).
+- `docs/SYSTEMS/discover.md` — pane table + pill table updated for flat structure.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — RESOLVED entry for the flattening.
+
+### Architecture decisions
+- **Reuse datasets, not state model.** The `respondedGoingSorted` / `respondedNotGoingSorted` memos were already derived from `respondedSorted` (both cheap filters). Keep them named for the internal semantic, but expose them as first-class pills in the UI. No backend change, no new queries.
+- **One active pill at a time.** `eventSort` stays a single enum. No multi-select.
+- **Analytics pill simplified.** The composite `responded:${sub}` pill string is gone. Events-pane pills now emit their bare key (`"going"` / `"not_going"` / etc.) via `trackDiscoverSurfaceViewed` + `trackDiscoverEventOpened`. Downstream consumers that historically accepted `"responded:going"` will now see `"going"`; that is the correct canonical identifier going forward.
+- **Empty states preserved.** The two per-status empty state variants (Going: `🎉 No events you're going to`, Not Going: `👋 No declined events`) are intact — just re-keyed to the new `eventSort` values.
+
+### Verification
+- `npx tsc --noEmit` clean (exit 0).
+
+---
+
 ## 2026-04-13 — Who's Down v1 frontend (Discover nav + casual detail + conversion) [WHOS_DOWN_V1]
 
 ### Summary

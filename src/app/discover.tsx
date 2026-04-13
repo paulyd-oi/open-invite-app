@@ -188,7 +188,10 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "whos_down", label: "Who's Down" },
 ];
 
-type EventSort = "popular" | "soon" | "friends" | "saved" | "group" | "public" | "responded";
+// [WHOS_DOWN_V1] Going / Not Going are first-class pills in the same row as the other event
+// sorts — no Responded parent pill, no second-row sub-filter. They reuse the existing
+// respondedGoingSorted / respondedNotGoingSorted datasets.
+type EventSort = "popular" | "soon" | "friends" | "saved" | "group" | "public" | "going" | "not_going";
 const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "soon", label: "Soon" },
   { key: "popular", label: "Popular" },
@@ -196,11 +199,6 @@ const SORT_OPTIONS: { key: EventSort; label: string }[] = [
   { key: "saved", label: "Saved" },
   { key: "group", label: "Group" },
   { key: "public", label: "Public" },
-  { key: "responded", label: "Responded" },
-];
-
-type RespondedSubFilter = "going" | "not_going";
-const RESPONDED_SUB_OPTIONS: { key: RespondedSubFilter; label: string }[] = [
   { key: "going", label: "Going" },
   { key: "not_going", label: "Not Going" },
 ];
@@ -258,7 +256,6 @@ export default function DiscoverScreen() {
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("events");
   const [eventSort, setEventSort] = useState<EventSort>("soon");
-  const [respondedSubFilter, setRespondedSubFilter] = useState<RespondedSubFilter>("going");
   type MapFilter = "friends" | "public";
   const [mapFilter, setMapFilter] = useState<MapFilter>("friends");
   const [chromeHeight, setChromeHeight] = useState<number>(160);
@@ -273,12 +270,12 @@ export default function DiscoverScreen() {
   // ── Discover surface view tracking (dedupe per pane+pill combo) ──
   const lastTrackedSurface = useRef<string>("");
   useEffect(() => {
-    const pill = lens === "events" ? (eventSort === "responded" ? `responded:${respondedSubFilter}` : eventSort) : null;
+    const pill = lens === "events" ? eventSort : null;
     const key = `${lens}:${pill ?? ""}`;
     if (key === lastTrackedSurface.current) return;
     lastTrackedSurface.current = key;
     trackDiscoverSurfaceViewed({ pane: lens, pill });
-  }, [lens, eventSort, respondedSubFilter]);
+  }, [lens, eventSort]);
 
   // ── User location (shared by Map pane + Public pill distance cap) ──
   const SAN_DIEGO = { latitude: 32.7157, longitude: -117.1611 };
@@ -808,15 +805,16 @@ export default function DiscoverScreen() {
   }, [enrichedEvents, userRegion, session?.user?.id]);
 
   // Active Events feed based on sort control
-  // [WHOS_DOWN_V1] "responded" pill folds in the going/not_going sub-filter (was its own pane).
+  // [WHOS_DOWN_V1] Going / Not Going are first-class pills reusing the respondedGoingSorted /
+  // respondedNotGoingSorted datasets — no nested navigation, no second-row sub-filter.
   const activeFeed = eventSort === "public" ? publicSorted
     : eventSort === "friends" ? friendsSorted
     : eventSort === "saved" ? savedEventsList
     : eventSort === "group" ? groupSorted
     : eventSort === "soon" ? soonSorted
-    : eventSort === "responded"
-      ? (respondedSubFilter === "going" ? respondedGoingSorted : respondedNotGoingSorted)
-      : popularSorted;
+    : eventSort === "going" ? respondedGoingSorted
+    : eventSort === "not_going" ? respondedNotGoingSorted
+    : popularSorted;
 
   // ── Host event count: derive "Active Host" badge (5+ events) ──
   const hostEventCounts = useMemo(() => {
@@ -875,7 +873,7 @@ export default function DiscoverScreen() {
   const handleEventPress = (eventId: string, interactionMode: "map_pin" | "map_callout" | "event_card" | "list_row", event?: PopularEvent) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const pane = lens;
-    const pill = lens === "events" ? (eventSort === "responded" ? `responded:${respondedSubFilter}` : eventSort) : null;
+    const pill = lens === "events" ? eventSort : null;
     trackDiscoverEventOpened({
       eventId,
       pane,
@@ -1427,36 +1425,6 @@ export default function DiscoverScreen() {
                     );
                   })}
                 </ScrollView>
-                {/* [WHOS_DOWN_V1] Responded sub-filter: Going | Not Going (shown when Responded pill active) */}
-                {eventSort === "responded" && (
-                  <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-                    {RESPONDED_SUB_OPTIONS.map((opt) => {
-                      const active = respondedSubFilter === opt.key;
-                      return (
-                        <Pressable
-                          key={opt.key}
-                          testID={`discover-responded-${opt.key}`}
-                          onPress={() => {
-                            setRespondedSubFilter(opt.key);
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }}
-                          style={{
-                            paddingHorizontal: 14,
-                            paddingVertical: 7,
-                            borderRadius: RADIUS.lg,
-                            backgroundColor: active ? themeColor : colors.surface,
-                            borderWidth: active ? 0 : 1,
-                            borderColor: colors.borderSubtle,
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: active ? "#FFFFFF" : colors.textSecondary }}>
-                            {opt.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
                 {/* ═══ Public pill: location helper ═══ */}
                 {eventSort === "public" && !userRegion && activeFeed.length > 0 && (
                   <View
@@ -1502,16 +1470,16 @@ export default function DiscoverScreen() {
                 </>
               }
               ListEmptyComponent={
-                eventSort === "responded" ? (
+                eventSort === "going" || eventSort === "not_going" ? (
                 <View style={{ alignItems: "center", paddingTop: 60, paddingHorizontal: 32 }}>
                   <Text style={{ fontSize: 40, marginBottom: 12 }}>
-                    {respondedSubFilter === "going" ? "\uD83C\uDF89" : "\uD83D\uDC4B"}
+                    {eventSort === "going" ? "\uD83C\uDF89" : "\uD83D\uDC4B"}
                   </Text>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
-                    {respondedSubFilter === "going" ? "No events you're going to" : "No declined events"}
+                    {eventSort === "going" ? "No events you're going to" : "No declined events"}
                   </Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
-                    {respondedSubFilter === "going"
+                    {eventSort === "going"
                       ? "RSVP \"Going\" to events and they'll show up here."
                       : "Events you decline will appear here in case you change your mind."}
                   </Text>
