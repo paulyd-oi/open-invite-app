@@ -1256,7 +1256,7 @@ export default function SocialScreen() {
 
     // Pattern 1: Frequent Event Attendance (≥2 events attending)
     if (attendingEvents.length >= 2) {
-      const eventTypes = attendingEvents.map(e => e.title.toLowerCase());
+      const eventTypes = attendingEvents.map(e => (e.title ?? "").toLowerCase()).filter(Boolean);
       const hasRepeatedTypes = eventTypes.some(type => 
         eventTypes.filter(t => t.includes(type.split(' ')[0]) || type.includes(t.split(' ')[0])).length > 1
       );

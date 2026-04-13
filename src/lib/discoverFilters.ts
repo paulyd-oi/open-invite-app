@@ -25,6 +25,8 @@ export interface ClassifiableEvent {
   startTime: string;
   isRecurring?: boolean;
   nextOccurrence?: string | null;
+  /** Host user id — used for own-event bypass in public surfaces. */
+  userId?: string | null;
 }
 
 export interface DiscoverVisibility {
@@ -232,15 +234,23 @@ export function comparePublicFeedOrder(
  * - Must pass discover pool eligibility (not past, not blocked visibility)
  * - Must not be responded (follows Events-pane responded exclusion invariant)
  * - If userLocation provided, must be within PUBLIC_NEARBY_MILES
+ *
+ * [PUBLIC_LANE_OWN_EVENTS_V1] When `viewerUserId` is provided and matches the
+ * event host (`event.userId`), the `isEventResponded` check is bypassed. A host
+ * is typically auto-"going" for their own event, and we don't want their newly
+ * created public event to be hidden from their own Public discovery surfaces
+ * (Events Public pill, Discover Map Public, Social Public Invite).
  */
 export function isVisibleInPublicFeed(
   event: ClassifiableEvent,
   userLocation?: GeoPoint | null,
   now: number = Date.now(),
+  viewerUserId?: string | null,
 ): boolean {
   if (!isPublicEvent(event)) return false;
   if (!isEventEligibleForDiscoverPool(event, now)) return false;
-  if (isEventResponded(event)) return false;
+  const isOwn = !!viewerUserId && !!event.userId && event.userId === viewerUserId;
+  if (!isOwn && isEventResponded(event)) return false;
   if (userLocation) {
     if (!isWithinMiles(userLocation, event, PUBLIC_NEARBY_MILES)) return false;
   }

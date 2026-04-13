@@ -26,6 +26,8 @@ interface LoadingTimeoutUIProps {
   showBottomNav?: boolean;
   /** Custom message to display */
   message?: string;
+  /** Custom title to display (default: "Still Loading..."). Pass a distinct title for error states to avoid contradicting the description. */
+  title?: string;
 }
 
 export function LoadingTimeoutUI({
@@ -34,6 +36,7 @@ export function LoadingTimeoutUI({
   isRetrying = false,
   showBottomNav = true,
   message,
+  title,
 }: LoadingTimeoutUIProps) {
   const { themeColor, isDark, colors } = useTheme();
   const router = useRouter();
@@ -66,7 +69,7 @@ export function LoadingTimeoutUI({
           className="text-xl font-sora-semibold text-center mb-2"
           style={{ color: colors.text }}
         >
-          Still Loading...
+          {title ?? "Still Loading..."}
         </Text>
 
         {/* Description */}

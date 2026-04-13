@@ -202,3 +202,179 @@ All four mount via `src/components/event/ThemeBackgroundLayers.tsx`, which is ca
 **Open follow-ups (out of scope):**
 - Consider adding a backend flag `{ wasViewerOwnHashMatched: boolean }` to drive a stronger "we detected your own contact" UX affordance.
 - Consider surfacing "this contact is someone you already requested" as an inline pending-request chip in invite UI (currently these contacts simply disappear from the invite list — arguably losing signal). Product decision, not in scope here.
+
+---
+
+## Investigation: Discover → Map → Public missing own hosted public event (2026-04-12)
+**Status:** RESOLVED
+
+**Symptom:** A newly created public event appears in Social → Public Invite (after prior `[PUBLIC_LANE_OWN_EVENTS_V1]` fix) but NOT in Discover → Map → Public. Map shows "No events with locations nearby" empty state even though the event has coords.
+
+**Forensics path:**
+- `src/app/discover.tsx` builds `enrichedEvents` from `feedData ∪ myEventsData` (deduped). Own events ARE in the pool (not the bug).
+- `mapEvents` Public filter at `discover.tsx:694-704` calls `isVisibleInPublicFeed(e, loc, now)` with no viewer context.
+- `isVisibleInPublicFeed` in `src/lib/discoverFilters.ts` internally calls `isEventResponded(event)` — returns true when `viewerRsvpStatus ∈ {going, not_going, interested, maybe}`. Host is auto-"going" → filtered out.
+- `isEventVisibleInMap` requires valid coordinates (`hasValidCoordinates`) — this is a map-surface rule unrelated to the lane filter.
+- Same bug also affected `publicSorted` (Discover Events Public pill) for the same reason, so alignment rule applies.
+
+**Root cause:** Pure filtering bug. The `isVisibleInPublicFeed` SSOT helper had no way to know the viewer's own user id, so it couldn't bypass the responded filter for own events. Social Public Invite had worked around this by inlining the decomposed filter locally. Discover surfaces did not — Map Public + Events Public pill still dropped own events.
+
+**Fix (proof tag `[PUBLIC_LANE_OWN_EVENTS_V1]` extended):**
+- `src/lib/discoverFilters.ts`: added optional `viewerUserId?: string | null` 4th arg to `isVisibleInPublicFeed(event, userLocation?, now?, viewerUserId?)`. When viewerUserId matches `event.userId`, the `isEventResponded` check is skipped. Coord cap + eligibility filters still apply.
+- Added `userId?: string | null` to `ClassifiableEvent` interface (kept optional, backwards compatible).
+- `src/app/discover.tsx`: `publicSorted` + `mapEvents` Public branch now pass `session?.user?.id` through.
+
+**Why surgical:**
+- Three files. Backwards-compatible helper signature (new arg is optional).
+- Social Public Invite keeps working unchanged (it's using inline decomposition — still correct).
+- Backend untouched: own events already land in `enrichedEvents` via `myEventsData`.
+- Map coord requirement untouched — an own public event without coords still appears in Social Public + Events Public pill but correctly does not show a map marker. Empty-state copy now only surfaces when there are truly zero coordinate-backed public events.
+
+**Guardrail:** `docs/SYSTEMS/discover.md` gains two invariants:
+1. Own-event bypass is SURFACE-COHERENT — every surface composing `isVisibleInPublicFeed()` MUST pass the viewer's user id. No new surface may silently drop the creator's own public event for "responded."
+2. Map coord requirement is a MAP-SURFACE contract, distinct from the public-lane contract.
+
+**Open follow-ups (out of scope):**
+- If future telemetry shows many public events lack coords, consider a "Pending map pin" affordance or forcing geocode on publish. For now, coordless public events correctly appear in feed+lane surfaces and are absent only from the map, which is the intended map contract.
+
+---
+
+## Investigation: Event detail location card — wrong placeholder precedence (2026-04-12)
+**Status:** RESOLVED
+
+**Symptom:** For an event with **no location** but `hideLocationUntilRSVP = true`, the event detail page rendered `"RSVP to see location"` — telling the viewer to RSVP in order to reveal a location that does not exist. Confusing + technically a leak of the privacy flag into an empty-location case.
+
+**Forensics path:**
+- Location card at `src/app/event/[id].tsx` (post `[P0_LOCATION_ALWAYS_RENDER]` patch) derived placeholder state as:
+  ```ts
+  const locationIsHidden = locationHiddenByPrivacy;
+  const hasLocation = !!locationDisplay;
+  const showPlaceholder = locationIsHidden || !hasLocation;
+  const placeholderText = locationIsHidden
+    ? "RSVP to see location"
+    : "Location not set";
+  ```
+- `locationIsHidden` did not depend on `hasLocation`, so the text ternary could reach `"RSVP to see location"` first for any event where `locationHiddenByPrivacy` happened to be truthy — including events with no location at all.
+- `locationHiddenByPrivacy` upstream = `showLocationPreRsvp === false && !isMyEvent && viewerRsvpStatus ∉ {going, interested}`. It is a privacy flag about *exposure*, not about *existence*, so it can be true even when there's nothing to hide.
+
+**Root cause:** Precedence bug in a two-boolean state machine. The design required three mutually exclusive, ordered states; the code checked the wrong boolean first.
+
+**Fix (proof tag `[P0_LOCATION_ALWAYS_RENDER]` — precedence tightened):**
+```ts
+// [P0_LOCATION_ALWAYS_RENDER] Precedence: no-location beats hidden-by-privacy.
+// A user must never be told to "RSVP to see location" for an event that
+// has no location set. `locationIsHidden` therefore requires `hasLocation`.
+const hasLocation = !!locationDisplay;
+const locationIsHidden = hasLocation && locationHiddenByPrivacy;
+const showPlaceholder = !hasLocation || locationIsHidden;
+const placeholderText = !hasLocation
+  ? "Location not set"
+  : "RSVP to see location";
+```
+Three ordered states now hold:
+1. `!hasLocation` → "Location not set" (wins unconditionally).
+2. `hasLocation && locationIsHidden` → "RSVP to see location".
+3. Otherwise → real location row with map + "Get Directions".
+
+**Why surgical:**
+- One file (`src/app/event/[id].tsx`). Only the state-derivation block changed.
+- No change to host bypass, RSVP bypass, or `locationHiddenByPrivacy` polarity.
+- Placeholder visual affordances (static View, opacity 0.65, muted icon) unchanged; only the text/gating logic is correct now.
+
+**Guardrail:** `docs/SYSTEMS/event-page.md` invariant restated in strict precedence order and explicitly states: "This state wins unconditionally — a user must NEVER be told to 'RSVP to see location' for an event that has no location at all."
+
+**Open follow-ups (out of scope):**
+- Consider migrating `locationDisplay` to a discriminated union (`{ state: "none" | "hidden" | "visible", text?, coords? }`) to make precedence bugs unrepresentable. Deferred — current boolean-pair model works once precedence is encoded as shown.
+
+---
+
+## Investigation: Discover collapses to full-screen "Still Loading..." on transient query error (2026-04-12)
+**Status:** RESOLVED
+
+**Symptom:** Production users intermittently landing on a full-screen Discover blocker with contradictory copy:
+- Title: "Still Loading..."
+- Body: "Something went wrong loading events. Please try again."
+Multiple repro reports on the main acquisition surface. Retry button worked but users should not have seen a fatal blocker in the first place.
+
+**Forensics path:**
+- Fatal gate at `src/app/discover.tsx:783`: `if (isError && !showDiscoverLoading)` returning `<LoadingTimeoutUI>`.
+- `isError` at line 478 = `feedError || myEventsError`. OR semantics: any single core query error blanked the entire surface — even when the other core query (or its cached data) would have rendered fine.
+- Secondary queries (`attending`, `friendsHostedFeed`, `friendsFeed`, `friends`) were NOT in the gate directly, but any future regression adding another `isError` booleans to the OR chain would have widened the blast radius silently.
+- Copy contradiction lived in `src/components/LoadingTimeoutUI.tsx`: title was a hardcoded `"Still Loading..."` literal, and the discover error path only overrode the body via `message`, producing the "Still Loading... Something went wrong" contradiction.
+
+**Root cause:** Over-broad fatal guard combined with a loading-only title baked into a dual-purpose loading/error component.
+
+**Fix (proof tag `[DISCOVER_FAIL_SOFT_V1]`):**
+- `src/app/discover.tsx`: replaced `const isError = feedError || myEventsError;` with:
+  ```ts
+  const hasAnyCoreEventData = !!(
+    (feedData?.events && feedData.events.length > 0) ||
+    (myEventsData?.events && myEventsData.events.length > 0)
+  );
+  const isFatalError = feedError && myEventsError && !hasAnyCoreEventData;
+  ```
+  The fatal full-screen state now requires BOTH core queries to have errored AND no cached/derived core data. Any secondary query failure (attending, friendsHosted, friendsFeed, friends, any downstream public/map derivation) is structurally excluded from the gate.
+- `src/app/discover.tsx`: fatal copy tightened — `title="Couldn't load events"` + `message="Check your connection and try again."`. No more contradictory "Still Loading..." on the error path.
+- `src/components/LoadingTimeoutUI.tsx`: added an optional `title` prop. Default remains `"Still Loading..."` so the timeout path is unchanged; only the discover error branch passes a distinct title.
+
+**Why surgical:**
+- Two files + three docs.
+- Default `title` preserves every existing caller of `LoadingTimeoutUI` verbatim (loading-timeout semantics unchanged).
+- No change to any query definition, `enabled` gate, stale time, refetch policy, or retry target. `handleRetry` still refetches `feed` + `myEvents`, which is correct for the new narrower fatal path.
+- Backend untouched — this is a client-side resilience bug, not a response-shape issue.
+
+**Guardrail:** `docs/SYSTEMS/discover.md` gains a `[DISCOVER_FAIL_SOFT_V1]` invariant enumerating which queries are core (`feedPaginated`, `myEvents`) vs. secondary (everything else) and defining the exact fatal predicate `feedError && myEventsError && !hasAnyCoreEventData`. The invariant also forbids contradictory copy (loading-style title on an error branch).
+
+**Open follow-ups (out of scope):**
+- Add pane-level `<ErrorBoundary>` around Map and Ideas deck so a render-time crash in one pane cannot escape the pane. Current fix addresses query-state failures; render-time crashes are a different failure mode worth hardening next pass.
+- Consider surfacing a small toast/banner when a non-core subquery fails (`friendsHostedFeed`, `attending`) so users understand why a badge or availability chip is missing — pure UX nicety, not a fatal condition.
+
+---
+
+## Investigation: Live resilience audit — main surfaces (2026-04-12)
+**Status:** RESOLVED (two patches) + four surfaces explicitly audited and left unchanged.
+
+**Scope:** Discover, Social, Calendar, Event Detail, Friends, add-friends (Find Friends). Goal: no page can blank on a single bad query, record, or transient failure.
+
+**Findings by surface:**
+
+1. **Discover (`src/app/discover.tsx`)** — **PATCHED.**
+   - Fatal guard already narrowed in prior hotfix (`[DISCOVER_FAIL_SOFT_V1]`).
+   - New risk found: `enrichedEvents` SSOT memo called `event.title.toLowerCase().trim()` and dereferenced `event.user?.id` inside the dedup loop without a shape guard. One backend record missing `title` / `id` / `startTime` would throw from the memo, which is OUTSIDE React Query's error boundary — so the fail-soft gate can't catch it and the whole Discover page goes blank.
+   - Fix: `[DISCOVER_SHAPE_GUARD_V1]` — local `isShapeValid` filter at the memo's entry, drops malformed rows before dedup/filter/sort. Downstream keeps its non-optional typing.
+
+2. **Social (`src/app/social.tsx`)** — **ONE SMALL PATCH, no fatal guard needed.**
+   - No page-level fatal guard — the screen degrades via skeletons + empty states when queries fail. Acceptable.
+   - Non-core risk: insight generator called `attendingEvents.map(e => e.title.toLowerCase())` without null check. If any attending event has a null title, the IIFE throws. Low blast radius (first-value nudge function) but still a resilience hazard.
+   - Fix: `(e.title ?? "").toLowerCase()` + `.filter(Boolean)`. Drops bad rows from pattern analysis instead of crashing it.
+
+3. **Calendar (`src/app/calendar.tsx`)** — **NO PATCH NEEDED.**
+   - Full-screen fatal is `bootStatus !== 'authed' && (isTimedOut || bootStatus === 'error')`. Scoped to boot/auth — query-level errors flow through empty states, not a full-screen blocker.
+   - Date derivations (`getEffectiveStart` at `calendar.tsx:1073`) already use `isNaN(d.getTime())` fallbacks for bad date strings.
+   - No query-level `isError` gate in the render tree.
+
+4. **Event detail (`src/app/event/[id].tsx`)** — **NO PATCH NEEDED.**
+   - Scoped full-screen error uses `EventDetailErrorState` with retry, routing 400/403/404/generic into distinct copy. Privacy gate (`PrivacyRestrictedGate`) and busy block (`BusyBlockGate`) are separate full-screen states for legitimate access restrictions, not resilience failures.
+   - The single `event` query IS the minimum viable payload — full-screening on its failure is correct.
+   - Location card precedence invariant already shipped (`[P0_LOCATION_ALWAYS_RENDER]`).
+
+5. **Friends (`src/app/friends.tsx`)** — **NO PATCH NEEDED.**
+   - Only full-screen state is `LoadingTimeoutUI` when `isBootTimedOut` trips. No query-level `isError` reaches the fatal gate.
+   - Tab-level (Activity / Chats / People) failures fall through to empty states within each tab.
+
+6. **add-friends / Find Friends (`src/app/add-friends.tsx`)** — **NO PATCH NEEDED.**
+   - Error paths use `safeToast` — no full-screen failure path exists.
+   - Hash-echo contact filter already shipped (`[CONTACTS_INVITE_HASH_ECHO_V1]`) with an OTA-safe legacy fallback for the deploy gap.
+
+**Why surgical:**
+- Two code files, one new invariant.
+- Shape guard is a local type-guard filter — it does not widen typing, mutate data, or abstract a helper. Downstream memos keep their non-optional assumptions.
+- Social fix is a one-line null-safe coerce — no structural change.
+- No backend touch. No auth/session touch. No redesign, no new infra.
+
+**Guardrail:** `docs/SYSTEMS/discover.md` gains `[DISCOVER_SHAPE_GUARD_V1]` invariant forbidding any Discover derivation from reading `event.title` / `event.user` / `event.startTime` upstream of the shape-guard filter.
+
+**Open follow-ups (out of scope):**
+- Lift a generic `isEventShapeValid` helper into `src/lib/discoverFilters.ts` if a second surface needs the same guard. For now, one call site → no abstraction.
+- Consider pane-level `<ErrorBoundary>` wrappers around Map / Ideas deck / inline feed list — addresses synchronous render-time crashes from any remaining derivation not yet guarded. Noted in prior `[DISCOVER_FAIL_SOFT_V1]` follow-ups.
+- Backend audit pass to validate the frontend's assumed required fields at response boundary (zod parse) would eliminate this class of bug entirely. Not in scope for this resilience pass.

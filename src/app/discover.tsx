@@ -475,7 +475,15 @@ export default function DiscoverScreen() {
   }, [friendsData?.friends]);
 
   const isLoading = loadingFeed || loadingMyEvents;
-  const isError = feedError || myEventsError;
+  // [DISCOVER_FAIL_SOFT_V1] Narrow fatal guard: only blank the surface when BOTH
+  // core queries have errored AND we have no cached/derived events to render.
+  // A single failing non-core query (attending, friendsHosted, friendsFeed, friends)
+  // must NEVER blank Discover — those degrade to pane/section empty states.
+  const hasAnyCoreEventData = !!(
+    (feedData?.events && feedData.events.length > 0) ||
+    (myEventsData?.events && myEventsData.events.length > 0)
+  );
+  const isFatalError = feedError && myEventsError && !hasAnyCoreEventData;
 
   // [P0_LOADING_ESCAPE] loadedOnce discipline: skeleton only on first load
   const { showInitialLoading: showDiscoverLoading, showRefetchIndicator: discoverRefetching } = useLoadedOnce(
@@ -513,9 +521,19 @@ export default function DiscoverScreen() {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
 
+    // [DISCOVER_SHAPE_GUARD_V1] Drop malformed records at the derivation boundary so a
+    // single bad row from the backend cannot crash the entire Discover render (which
+    // would blank the surface despite the fail-soft fatal guard). Required shape for
+    // downstream dedup/sort/filter: non-empty id, title, startTime.
+    const isShapeValid = (e: PopularEvent | undefined | null): e is PopularEvent =>
+      !!e && typeof e.id === "string" && !!e.id &&
+      typeof e.title === "string" && !!e.title &&
+      typeof e.startTime === "string" && !!e.startTime;
+
     // Step 1: id-based dedup (merge feed + my events)
     const allEventsMap = new Map<string, PopularEvent>();
     [...feedEvents, ...myEvents].forEach((event) => {
+      if (!isShapeValid(event)) return;
       if (!allEventsMap.has(event.id)) {
         allEventsMap.set(event.id, event);
       }
@@ -533,9 +551,10 @@ export default function DiscoverScreen() {
     const titleDedupMap = new Map<string, PopularEvent>();
 
     for (const event of allEventsMap.values()) {
+      const titleKey = event.title.toLowerCase().trim();
       // Strategy A: explicit recurring field match
       if (event.isRecurring && event.recurrence && event.user?.id) {
-        const key = `series:${event.user.id}:${event.recurrence}:${event.title.toLowerCase().trim()}`;
+        const key = `series:${event.user.id}:${event.recurrence}:${titleKey}`;
         const existing = seriesMap.get(key);
         if (!existing) {
           seriesMap.set(key, event);
@@ -549,7 +568,7 @@ export default function DiscoverScreen() {
       } else {
         // Strategy B: title+host dedup for events missing recurrence metadata
         // (backend may return duplicates with unique ids but identical host+title)
-        const hostTitleKey = `ht:${event.user?.id ?? "anon"}:${event.title.toLowerCase().trim()}`;
+        const hostTitleKey = `ht:${event.user?.id ?? "anon"}:${titleKey}`;
         const existing = titleDedupMap.get(hostTitleKey);
         if (!existing) {
           titleDedupMap.set(hostTitleKey, event);
@@ -669,13 +688,16 @@ export default function DiscoverScreen() {
 
   // Public events: visibility === "public", within 50mi if location available
   // Sort: nearby coord events first (distance ASC), then no-coord events (time ASC)
+  // [PUBLIC_LANE_OWN_EVENTS_V1] Pass viewer user id so own public events bypass
+  // the responded filter (host is auto-"going" for their own event).
   const publicSorted = useMemo(() => {
     const now = Date.now();
     const loc: GeoPoint | null = userRegion;
+    const viewerUserId = session?.user?.id ?? null;
     return enrichedEvents
-      .filter((e) => isVisibleInPublicFeed(e, loc, now))
+      .filter((e) => isVisibleInPublicFeed(e, loc, now, viewerUserId))
       .sort((a, b) => comparePublicFeedOrder(a, b, loc));
-  }, [enrichedEvents, userRegion]);
+  }, [enrichedEvents, userRegion, session?.user?.id]);
 
   // Active Events feed based on sort control
   const activeFeed = eventSort === "public" ? publicSorted : eventSort === "friends" ? friendsSorted : eventSort === "saved" ? savedEventsList : eventSort === "group" ? groupSorted : eventSort === "soon" ? soonSorted : popularSorted;
@@ -691,17 +713,23 @@ export default function DiscoverScreen() {
   }, [enrichedEvents]);
 
   // ── Map events: filter by Friends | Public map sub-filter ──
+  // [PUBLIC_LANE_OWN_EVENTS_V1] Map Public passes viewer user id so the host's
+  // own public events aren't dropped by the responded filter. Map markers still
+  // require valid coordinates via isEventVisibleInMap — an own public event
+  // without coords remains off the map (that's a map-marker contract, not a
+  // public-lane contract).
   const mapEvents = useMemo(() => {
     const visibleOnMap = enrichedEvents.filter(isEventVisibleInMap);
     if (mapFilter === "public") {
       const now = Date.now();
       const loc: GeoPoint | null = userRegion;
+      const viewerUserId = session?.user?.id ?? null;
       return visibleOnMap
-        .filter(e => isVisibleInPublicFeed(e, loc, now));
+        .filter(e => isVisibleInPublicFeed(e, loc, now, viewerUserId));
     }
     // Friends: exclude public events
     return visibleOnMap.filter(e => e.visibility !== "public");
-  }, [enrichedEvents, mapFilter, userRegion]);
+  }, [enrichedEvents, mapFilter, userRegion, session?.user?.id]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
@@ -771,14 +799,18 @@ export default function DiscoverScreen() {
     );
   }
 
-  if (isError && !showDiscoverLoading) {
+  // [DISCOVER_FAIL_SOFT_V1] Full-screen fatal ONLY when core payload truly cannot render.
+  // Secondary query failures (attending, friendsHosted, friendsFeed, friends, map/public
+  // derivations) degrade to pane-level empty states — not a blanket blocker.
+  if (isFatalError && !showDiscoverLoading) {
     return (
       <LoadingTimeoutUI
         context="discover"
         onRetry={handleRetry}
         isRetrying={isRetrying}
         showBottomNav={true}
-        message="Something went wrong loading events. Please try again."
+        title="Couldn't load events"
+        message="Check your connection and try again."
       />
     );
   }

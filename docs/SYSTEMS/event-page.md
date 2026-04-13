@@ -214,3 +214,8 @@ create_completed → share_triggered → event_page_viewed
 - Edit page uses same ThemeTray + EffectTray components as create flow.
 - Edit hydrates theme/effect state from event data on load.
 - Post-create navigation must use `router.replace` (not push) to prevent stacking create screen in history.
+- **Location card always renders** under normal (non-busy) event detail conditions. Proof tag: `[P0_LOCATION_ALWAYS_RENDER]`. The section MUST NOT be suppressed based on location state — only `!isBusyBlock` (imported/busy calendar events) may suppress it alongside other detail cards. Three explicit states, in strict precedence order:
+  1. **No location set** (`!locationDisplay`) → copy: `"Location not set"`. Non-tappable. Muted icon. No mini map. No directions chevron. This state wins unconditionally — a user must NEVER be told to "RSVP to see location" for an event that has no location at all.
+  2. **Hidden until RSVP** (`locationDisplay` exists AND `locationHiddenByPrivacy` is true) → copy: `"RSVP to see location"`. Non-tappable. Muted icon. No mini map. No directions chevron. `locationHiddenByPrivacy` encodes `showLocationPreRsvp === false && !isMyEvent && viewerRsvpStatus ∉ {going, interested}` — host bypass is preserved.
+  3. **Visible location** → existing map (when coords present) + tappable "Get Directions" row opening the maps deep link via `openEventLocation()`.
+  Map pin, "Get Directions" chevron, and the `Pressable` wrapper MUST render ONLY in state 3. States 1 and 2 render a static `<View>` at `opacity: 0.65` with `colors.textSecondary` text and a `colors.textTertiary` compass icon.

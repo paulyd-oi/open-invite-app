@@ -2340,66 +2340,104 @@ export default function EventDetailScreen() {
         </View>
         )}
 
-        {/* ═══ LOCATION CARD — map + address + directions ═══ */}
-        {effectiveLocationDisplay && (
-        <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", overflow: "hidden" }}>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
-            Location
-          </Text>
+        {/* ═══ LOCATION CARD — always renders; three explicit states ═══ */}
+        {/* [P0_LOCATION_ALWAYS_RENDER] Section must never disappear. States:
+            1. Hidden until RSVP (locationHiddenByPrivacy) → "RSVP to see location"
+            2. No location set (!locationDisplay) → "Location not set"
+            3. Otherwise → existing map + address + directions */}
+        {!isBusyBlock && (() => {
+          // [P0_LOCATION_ALWAYS_RENDER] Precedence: no-location beats hidden-by-privacy.
+          // A user must never be told to "RSVP to see location" for an event that
+          // has no location set. `locationIsHidden` therefore requires `hasLocation`.
+          const hasLocation = !!locationDisplay;
+          const locationIsHidden = hasLocation && locationHiddenByPrivacy;
+          const showPlaceholder = !hasLocation || locationIsHidden;
+          const placeholderText = !hasLocation
+            ? "Location not set"
+            : "RSVP to see location";
 
-          {/* Mini map — only when valid coordinates exist */}
-          {RNMapView && hasValidCoordinates(event) && (
-            <View style={{ height: 150, marginHorizontal: 16, borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
-              <RNMapView
-                style={{ flex: 1 }}
-                initialRegion={{
-                  latitude: event.latitude,
-                  longitude: event.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-                toolbarEnabled={false}
-                showsMyLocationButton={false}
-                liteMode
-              >
-                <RNMarker coordinate={{ latitude: event.latitude, longitude: event.longitude }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: themeColor, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" }}>
-                    <Text style={{ fontSize: 14 }}>{event.emoji}</Text>
+          return (
+            <View style={{ backgroundColor: cardSurfaceBg, borderRadius: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.34)", overflow: "hidden" }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+                Location
+              </Text>
+
+              {/* Mini map — only when valid coordinates exist AND not hidden */}
+              {!showPlaceholder && RNMapView && hasValidCoordinates(event) && (
+                <View style={{ height: 150, marginHorizontal: 16, borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+                  <RNMapView
+                    style={{ flex: 1 }}
+                    initialRegion={{
+                      latitude: event.latitude,
+                      longitude: event.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
+                    toolbarEnabled={false}
+                    showsMyLocationButton={false}
+                    liteMode
+                  >
+                    <RNMarker coordinate={{ latitude: event.latitude, longitude: event.longitude }}>
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: themeColor, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" }}>
+                        <Text style={{ fontSize: 14 }}>{event.emoji}</Text>
+                      </View>
+                    </RNMarker>
+                  </RNMapView>
+                </View>
+              )}
+
+              {/* Address row: tappable when present, static placeholder otherwise */}
+              {showPlaceholder ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    marginBottom: 4,
+                    opacity: 0.65,
+                  }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(148,163,184,0.15)" : "rgba(148,163,184,0.12)", alignItems: "center", justifyContent: "center" }}>
+                    <Compass size={18} color={colors.textTertiary} />
                   </View>
-                </RNMarker>
-              </RNMapView>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: colors.textSecondary }} numberOfLines={1}>
+                      {placeholderText}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    openEventLocation(effectiveLocationQuery ?? effectiveLocationDisplay ?? "", event, event.id);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    marginBottom: 4,
+                  }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(20,184,166,0.15)" : "rgba(20,184,166,0.1)", alignItems: "center", justifyContent: "center" }}>
+                    <Compass size={18} color="#14B8A6" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={1}>{effectiveLocationDisplay}</Text>
+                    <Text style={{ fontSize: 12, color: "#14B8A6", marginTop: 2, fontWeight: "500" }}>Get Directions</Text>
+                  </View>
+                  <ArrowRight size={16} color="#14B8A6" />
+                </Pressable>
+              )}
             </View>
-          )}
-
-          {/* Address + Get Directions */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              openEventLocation(effectiveLocationQuery ?? effectiveLocationDisplay ?? "", event, event.id);
-            }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              marginBottom: 4,
-            }}
-          >
-            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(20,184,166,0.15)" : "rgba(20,184,166,0.1)", alignItems: "center", justifyContent: "center" }}>
-              <Compass size={18} color="#14B8A6" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={1}>{effectiveLocationDisplay}</Text>
-              <Text style={{ fontSize: 12, color: "#14B8A6", marginTop: 2, fontWeight: "500" }}>Get Directions</Text>
-            </View>
-            <ArrowRight size={16} color="#14B8A6" />
-          </Pressable>
-        </View>
-        )}
+          );
+        })()}
 
         {/* ═══ DISCUSSION CARD — hidden for imported/busy calendar events ═══ */}
         {!isBusyBlock && (

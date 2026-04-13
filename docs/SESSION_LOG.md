@@ -225,3 +225,214 @@ Backend returned only the list of matched users (with isFriend/isPending flags) 
 - `npx tsc --noEmit` clean (frontend).
 - `npx tsc --noEmit` clean (backend).
 - Privacy: no new raw contact data persisted or logged server-side; echo contains only hashes the client already sent.
+
+---
+
+## 2026-04-12 — Discover → Map → Public: own hosted public event missing
+
+### Context
+QA: Newly created public event now appears in Social → Public Invite (prior fix), but the same event does NOT appear in Discover → Map → Public. Empty state "No events with locations nearby" shown.
+
+### Files read
+- `docs/SYSTEMS/discover.md` — lane separation invariants + `[PUBLIC_LANE_OWN_EVENTS_V1]`
+- `src/app/discover.tsx` — `enrichedEvents` (feed ∪ myEvents, deduped), `publicSorted`, `mapEvents`
+- `src/lib/discoverFilters.ts` — `isVisibleInPublicFeed`, `isEventVisibleInMap`, `isEventResponded`, `hasValidCoordinates`
+- `src/app/social.tsx` — reference for the own-event bypass pattern shipped under `[PUBLIC_LANE_OWN_EVENTS_V1]`
+
+### Root cause
+`mapEvents` Public filter called `isVisibleInPublicFeed(e, loc, now)` with no viewer context. That helper excludes events where `isEventResponded(event)` is true. The creator/host is typically auto-"going" on their own event → `viewerRsvpStatus === "going"` → event excluded from Map Public. `enrichedEvents` already includes own events (sourced from `feedData ∪ myEventsData`), so the bug was purely in the filter, not the pool.
+
+Same bug also affected the Discover Events Public pill (`publicSorted`) which called the same helper without viewer context — fixed for coherence with the cross-surface alignment rule.
+
+### Fix — proof tag `[PUBLIC_LANE_OWN_EVENTS_V1]` (extended to Discover surfaces)
+- `src/lib/discoverFilters.ts`: extended `isVisibleInPublicFeed` signature to `(event, userLocation?, now?, viewerUserId?)`. When `viewerUserId` is provided and `event.userId === viewerUserId`, the `isEventResponded` check is bypassed. Backwards compatible — the new arg is optional.
+- Added `userId?: string | null` to `ClassifiableEvent` interface.
+- `src/app/discover.tsx`: `publicSorted` and `mapEvents` Public branch now pass `session?.user?.id` as the viewer user id.
+- Map-marker coord requirement (`isEventVisibleInMap`) untouched — that is a map-surface contract, not a public-lane contract.
+
+### Files changed
+- `src/lib/discoverFilters.ts` — helper signature + interface field.
+- `src/app/discover.tsx` — two memo call sites pass viewerUserId.
+- `docs/SYSTEMS/discover.md` — added two invariants (surface coherence + map coord contract).
+- `docs/SESSION_LOG.md` (this entry).
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry.
+
+### Scope vs. expected
+Expected: `src/app/discover.tsx` + possibly one shared helper + one SSOT doc. Actual: exact match — one helper (`discoverFilters.ts`), one screen (`discover.tsx`), one SSOT doc (`discover.md`). No backend change: own events already reach `enrichedEvents` via `myEventsData`, and map markers correctly still require coords.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only; OTA-safe.
+- Coherent with existing Social Public Invite fix: both surfaces now bypass the responded filter for own events through the same SSOT helper.
+
+---
+
+## 2026-04-12 — Event detail location card: precedence patch
+
+### Context
+Follow-up to the `[P0_LOCATION_ALWAYS_RENDER]` always-render fix. The first-pass state derivation had the wrong precedence: an event with **no** location AND `locationHiddenByPrivacy === true` rendered `"RSVP to see location"` — telling the viewer to RSVP in order to reveal a location that does not exist.
+
+### Files read
+- `src/app/event/[id].tsx` — location card state derivation block shipped in the prior patch.
+- `docs/SYSTEMS/event-page.md` — existing location-card invariant (to tighten the precedence contract).
+
+### Root cause
+Boolean ordering in the placeholder derivation:
+```ts
+// WRONG
+const locationIsHidden = locationHiddenByPrivacy;
+const hasLocation = !!locationDisplay;
+const showPlaceholder = locationIsHidden || !hasLocation;
+const placeholderText = locationIsHidden
+  ? "RSVP to see location"
+  : "Location not set";
+```
+`locationIsHidden` was evaluated independently of `hasLocation`, so the text ternary reached "RSVP to see location" first even when the event had no location at all.
+
+### Fix — proof tag `[P0_LOCATION_ALWAYS_RENDER]` (precedence tightened)
+- `src/app/event/[id].tsx`: reworked state derivation so `!hasLocation` always wins:
+  ```ts
+  // [P0_LOCATION_ALWAYS_RENDER] Precedence: no-location beats hidden-by-privacy.
+  const hasLocation = !!locationDisplay;
+  const locationIsHidden = hasLocation && locationHiddenByPrivacy;
+  const showPlaceholder = !hasLocation || locationIsHidden;
+  const placeholderText = !hasLocation
+    ? "Location not set"
+    : "RSVP to see location";
+  ```
+- `docs/SYSTEMS/event-page.md`: tightened the location-card invariant to enumerate three states in strict precedence order (no-location → hidden-by-privacy → visible) and made the no-location precedence rule explicit ("This state wins unconditionally").
+
+### Files changed
+- `src/app/event/[id].tsx` — state derivation precedence corrected.
+- `docs/SYSTEMS/event-page.md` — invariant restated in strict precedence order.
+- `docs/SESSION_LOG.md` (this entry).
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry appended.
+
+### Scope vs. expected
+Expected: one file (`event/[id].tsx`) + three SSOT docs. Actual: exact match. No logic change to `locationHiddenByPrivacy` polarity, host bypass, or RSVP bypass — only the state-derivation precedence.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only; OTA-safe.
+- Three explicit states validated:
+  1. `locationDisplay = ""` + `locationHiddenByPrivacy = true` → "Location not set" (previously "RSVP to see location" — BUG).
+  2. `locationDisplay = "Griffith Park"` + `locationHiddenByPrivacy = true` → "RSVP to see location".
+  3. `locationDisplay = "Griffith Park"` + `locationHiddenByPrivacy = false` → real location row with map + Get Directions.
+
+---
+
+## 2026-04-12 — Discover fail-soft hotfix (full-screen fatal on any subquery error)
+
+### Context
+Production users intermittently landing on a full-screen Discover blocker titled "Still Loading..." with body "Something went wrong loading events. Please try again." Discover is the main acquisition surface; this was taking the whole page down on any single core-query error and also rendering contradictory copy (a "Still Loading..." title on an error state).
+
+### Files read
+- `src/app/discover.tsx` — fatal gate, query declarations.
+- `src/components/LoadingTimeoutUI.tsx` — hardcoded "Still Loading..." title regardless of caller intent.
+- `docs/SYSTEMS/discover.md` — invariants, data sources, panes.
+
+### Root cause
+Two bugs stacked:
+1. **Over-broad fatal guard.** `const isError = feedError || myEventsError;` then `if (isError && !showDiscoverLoading)` — any single core query error blanked the whole page, even when the other core query had data (cached or fresh). Secondary queries were not themselves in the gate, but the OR semantics on the two core queries alone were enough to reproduce the full-screen blocker in the wild.
+2. **Contradictory copy.** `LoadingTimeoutUI` hardcoded the title "Still Loading..." and the discover error path piped the error body through the `message` prop — yielding "Still Loading..." + "Something went wrong" on the same screen.
+
+### Fix — proof tag `[DISCOVER_FAIL_SOFT_V1]`
+- `src/app/discover.tsx`:
+  - Replaced `const isError = feedError || myEventsError;` with a narrower `isFatalError`:
+    ```ts
+    const hasAnyCoreEventData = !!(
+      (feedData?.events && feedData.events.length > 0) ||
+      (myEventsData?.events && myEventsData.events.length > 0)
+    );
+    const isFatalError = feedError && myEventsError && !hasAnyCoreEventData;
+    ```
+  - Gate is now `if (isFatalError && !showDiscoverLoading)` only. Secondary queries (`attending`, `friendsHostedFeed`, `friendsFeed`, `friends`) remain pane-level degradations as before — they never entered the gate, and the new invariant explicitly forbids any future regression.
+  - Tightened fatal copy: `title="Couldn't load events"` + `message="Check your connection and try again."` (one coherent state).
+- `src/components/LoadingTimeoutUI.tsx`:
+  - New optional `title` prop. Default remains `"Still Loading..."` for the timeout path (no caller change needed). Discover error path passes the new title explicitly.
+
+### Files changed
+- `src/app/discover.tsx` — fatal-guard narrowing + tightened fatal copy.
+- `src/components/LoadingTimeoutUI.tsx` — optional `title` prop.
+- `docs/SYSTEMS/discover.md` — new `[DISCOVER_FAIL_SOFT_V1]` invariant.
+- `docs/SESSION_LOG.md` (this entry).
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry appended.
+
+### Scope vs. expected
+Expected: `src/app/discover.tsx` + possibly one helper + three SSOT docs. Actual: `discover.tsx`, `LoadingTimeoutUI.tsx`, three docs. `LoadingTimeoutUI` was in scope because it held the contradictory hardcoded title — fixing the copy without touching it would have required a workaround.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only; OTA-safe.
+- Fatal-guard truth table:
+  | feedError | myEventsError | feedData (events) | myEventsData (events) | Fatal? |
+  |-----------|---------------|-------------------|-----------------------|--------|
+  | ✓ | ✓ | empty | empty | YES |
+  | ✓ | ✓ | cached non-empty | empty | no (soft) |
+  | ✓ | ✗ | — | any | no (soft) |
+  | ✗ | ✓ | any | — | no (soft) |
+  | ✗ | ✗ | — | — | no |
+- Non-core subqueries (attending / friendsHosted / friendsFeed / friends / map-derivation slices) cannot trigger full-screen fatal by construction.
+
+---
+
+## 2026-04-12 — Live resilience audit across main surfaces
+
+### Context
+Live traffic is arriving; the app must fail soft across every main surface. Surgical audit across Discover, Social, Calendar, Event Detail, Friends, and add-friends (Find Friends) to identify/fix any place where one bad query, one malformed record, or one transient network hiccup can blank a whole page.
+
+### Surfaces audited
+| Surface | File | Fatal guard? | Result |
+|---------|------|--------------|--------|
+| Discover | `src/app/discover.tsx` | Yes, now narrow (`[DISCOVER_FAIL_SOFT_V1]`) | Shape-guard added to `enrichedEvents` (`[DISCOVER_SHAPE_GUARD_V1]`). |
+| Social | `src/app/social.tsx` | None — degrades via empty states | No page-level fatal patch needed. One hardening in insight-memory derivation. |
+| Calendar | `src/app/calendar.tsx` | Boot/auth-scoped only (`isTimedOut || bootStatus === 'error'`) | Already scoped; date derivations already NaN-guarded. No patch. |
+| Event detail | `src/app/event/[id].tsx` | Scoped to single `event` query via `EventDetailErrorState` + privacy gate | Minimum viable payload IS the event; already correct. No patch. |
+| Friends | `src/app/friends.tsx` | Boot-timeout only; no query-level `isError` gate | Already correct. No patch. |
+| add-friends (Find Friends) | `src/app/add-friends.tsx` | None — error paths are toast-based | Already correct. No patch. |
+
+### Files read
+- `src/app/discover.tsx`, `src/app/social.tsx`, `src/app/calendar.tsx`, `src/app/event/[id].tsx`, `src/app/friends.tsx`, `src/app/add-friends.tsx`.
+- `src/components/LoadingTimeoutUI.tsx`.
+- `shared/contracts.ts` (title/event schema sanity).
+- `docs/SYSTEMS/discover.md`.
+
+### Root causes found & patched
+1. **Discover derivation fragility.** The `enrichedEvents` SSOT memo called `event.title.toLowerCase().trim()` and `event.user?.id` inside the dedup loop with no shape guard. A single record missing `title` (or `id` / `startTime`) would throw `TypeError` from the memo and the entire Discover render would blank — even though the fail-soft fatal guard (`[DISCOVER_FAIL_SOFT_V1]`) would NOT catch it (memos throw outside the React Query error boundary). Classic "one bad record kills a screen" resilience bug.
+2. **Social insight generation fragility.** `attendingEvents.map(e => e.title.toLowerCase())` in the first-value-nudge insight generator would throw if any attending event had a null title. Low blast radius (the function is memoized and a thrown exception would trip the enclosing IIFE), but still a real risk on a non-core path — fixed with optional chain + filter.
+
+### Fixes — proof tag `[DISCOVER_SHAPE_GUARD_V1]`
+- `src/app/discover.tsx`:
+  - Added `isShapeValid` type-guard at the head of `enrichedEvents`:
+    ```ts
+    const isShapeValid = (e: PopularEvent | undefined | null): e is PopularEvent =>
+      !!e && typeof e.id === "string" && !!e.id &&
+      typeof e.title === "string" && !!e.title &&
+      typeof e.startTime === "string" && !!e.startTime;
+    ```
+  - Filtered at id-dedup entry: `if (!isShapeValid(event)) return;`
+  - Hoisted `event.title.toLowerCase().trim()` into a single local `titleKey` for both dedup strategies (cleaner + no regression).
+- `src/app/social.tsx`:
+  - `e.title.toLowerCase()` → `(e.title ?? "").toLowerCase()` with a `.filter(Boolean)` downstream so empty titles are dropped from pattern analysis rather than crashing it.
+
+### Surfaces explicitly left unchanged
+- **Calendar:** Only full-screens when boot/auth is degraded. Event-date derivations (`getEffectiveStart`) already use `isNaN(d.getTime())` fallbacks. No query-level `isError` fatal.
+- **Event detail:** Full-screens only when the single `event` query fails (which IS the minimum viable payload). Uses `EventDetailErrorState` + `PrivacyRestrictedGate` + `BusyBlockGate` for scoped error UI with retry.
+- **Friends:** Boot-timeout only; no query-level fatal gate. Tab-level failures fall through to empty states.
+- **add-friends (Find Friends):** Contact scan + invite mutations error via `safeToast`; no full-screen failure path. Hash-echo contact filter already shipped under `[CONTACTS_INVITE_HASH_ECHO_V1]` with OTA-safe legacy fallback.
+
+### Files changed
+- `src/app/discover.tsx` — shape guard on `enrichedEvents`.
+- `src/app/social.tsx` — null-safe title derivation in insight generator.
+- `docs/SYSTEMS/discover.md` — new `[DISCOVER_SHAPE_GUARD_V1]` invariant.
+- `docs/SESSION_LOG.md` (this entry).
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry.
+
+### Scope vs. expected
+Expected: one or more of the six surface files + possibly one shared helper + three docs. Actual: `discover.tsx` + `social.tsx` + three docs. Four surfaces audited and explicitly left unchanged with justification above. No shared helper touched — the shape guard is a local boundary to Discover's SSOT memo; lifting it into a library would be over-abstraction for a two-line filter.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only; OTA-safe.
+- Malformed-record resilience: synthesizing a PopularEvent with `title: undefined` into `feedData.events` no longer throws — the record is silently dropped by `isShapeValid` and the rest of the feed renders.
+- Fail-soft behavior from `[DISCOVER_FAIL_SOFT_V1]` preserved.
