@@ -2175,8 +2175,11 @@ export default function DiscoverScreen() {
               <Text style={{ fontSize: 16, fontWeight: "700", color: colors.text, marginBottom: 4 }}>
                 Have an idea to do?
               </Text>
-              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18, marginBottom: 12 }}>
-                Float it to your friends. See who's down without committing to a time yet.
+              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18, marginBottom: 8 }}>
+                See who's down to come. If enough people are down, make the event.
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 12 }}>
+                Friends only · expires in 24h
               </Text>
               <View
                 style={{
@@ -2190,14 +2193,6 @@ export default function DiscoverScreen() {
                 <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>Post an Idea</Text>
               </View>
             </Pressable>
-
-            {/* Friends-only helper */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
-              <Users size={12} color={colors.textTertiary} />
-              <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 6 }}>
-                Only your friends can see these ideas
-              </Text>
-            </View>
 
             {/* Whos-down error soft-fail banner */}
             {whosDownError && whosDownItems.length === 0 && (
@@ -2236,9 +2231,13 @@ export default function DiscoverScreen() {
               </View>
             ) : (
               whosDownItems.map((item, idx) => {
-                const downCount = item.downCount ?? item.members.filter((m) => m.status === "accepted").length;
+                // [WHOS_DOWN_V1] Harden against partial feed payloads: some backend
+                // serialization paths may omit `members`. Normalize at the render
+                // boundary so `.find`/`.filter` never hit undefined.
+                const members = Array.isArray(item.members) ? item.members : [];
+                const downCount = item.downCount ?? members.filter((m) => m.status === "accepted").length;
                 const isMine = item.creatorId === session.user?.id;
-                const myMember = item.members.find((m) => m.userId === session.user?.id);
+                const myMember = members.find((m) => m.userId === session.user?.id);
                 const imDown = myMember?.status === "accepted";
                 const creatorName = item.creator?.name?.split(" ")[0] ?? "Someone";
                 return (
@@ -2263,18 +2262,16 @@ export default function DiscoverScreen() {
                       })}
                     >
                       <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 8 }}>
-                        <View
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: RADIUS.md,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: `${themeColor}20`,
-                            marginRight: 12,
-                          }}
-                        >
-                          <Text style={{ fontSize: 22 }}>{item.emoji || "\u{1F4A1}"}</Text>
+                        {/* [WHOS_DOWN_V1] Primary visual is the creator's profile photo
+                            (initials fall back automatically when image is missing). */}
+                        <View style={{ marginRight: 12 }}>
+                          <EntityAvatar
+                            photoUrl={item.creator?.image}
+                            initials={item.creator?.name?.[0] ?? "?"}
+                            size={44}
+                            backgroundColor={item.creator?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}30`}
+                            foregroundColor={themeColor}
+                          />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontWeight: "700", fontSize: 15, color: colors.text }} numberOfLines={2}>
@@ -2466,14 +2463,14 @@ export default function DiscoverScreen() {
                 }}
               />
 
-              {/* Friends-only helper */}
+              {/* [WHOS_DOWN_V1] Helper: friends-only + 24h expiry stated explicitly. */}
               <View className="flex-row items-center mb-5">
                 <Users size={14} color={colors.textSecondary} />
                 <Text
                   className="ml-2 text-xs"
                   style={{ color: colors.textSecondary }}
                 >
-                  Only your friends can see this.
+                  Friends only · expires in 24h
                 </Text>
               </View>
 

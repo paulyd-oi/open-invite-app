@@ -50,7 +50,7 @@ Migration: `prisma/migrations/20260413000000_add_whos_down_to_event_request/`.
 | Verb / Path | Behavior |
 |---|---|
 | `POST /api/event-requests` (mode = "formal") | Original invite-based event request. Unchanged. |
-| `POST /api/event-requests` (mode = "casual") | Title required. `startTime`/`memberIds` ignored. Server sets `expiresAt = now + 48h`. No invite pushes (no invitees). |
+| `POST /api/event-requests` (mode = "casual") | Title required. `startTime`/`memberIds` ignored. Server sets `expiresAt = now + 24h`. No invite pushes (no invitees). |
 | `GET /api/event-requests` | Returns FORMAL only (`mode: "formal"` filter). Casual posts excluded. |
 | `GET /api/event-requests/feed/whos-down` | Friends-only active casual feed: `mode === "casual"`, `status === "pending"`, `expiresAt > now`, `creatorId IN (viewer + viewer.friends)`. Newest first. Returns `{ items, activeCount }`. |
 | `GET /api/event-requests/:id` (casual) | Access: creator OR friend-of-creator. Expired casual posts return 404. |
@@ -74,6 +74,11 @@ Migration: `prisma/migrations/20260413000000_add_whos_down_to_event_request/`.
 - **Expiration is read-side.** `feed/whos-down` and `GET /:id` filter expired posts. No cron required for v1. Status remains `"pending"` until creator deletes or DB record ages out.
 - **`orderBy: { startTime }` on event_request requires `mode: "formal"` filter.** Postgres places nullable `startTime` ASC NULLS LAST by default, but explicit filter is the contract.
 - **Conversion is frontend-driven.** Tap "Make It Happen" → navigate to `/create` with prefill (title, timeHint→date suggestion, whereText→location, default visibility = Open Invite). No backend conversion endpoint. No auto-RSVP of "down" users. They are notified via the threshold push (or the new event's friend-graph reach) and RSVP through normal channels.
+- **24h TTL.** Proof tag: `[WHOS_DOWN_TTL_24H_V1]`. Backend `WHOS_DOWN_TTL_MS = 24h` in `my-app-backend/src/routes/eventRequests.ts`. Set at creation only. No frontend timer/countdown UI. Existing 48h rows from earlier dev/preview environments age out naturally.
+- **Locked explainer copy.** Title: `Have an idea to do?`. Body: `See who's down to come. If enough people are down, make the event.`. Helper: `Friends only · expires in 24h`. CTA: `Post an Idea`. Same helper line is reused in the create sheet and on the casual detail card. No drift.
+- **Creator profile photo is the primary avatar.** Discover Who's Down feed cards and the casual detail header MUST render `EntityAvatar` with `photoUrl={item.creator?.image}` + `initials={creator?.name?.[0]}` as the main visual. The lightbulb / `item.emoji` is no longer the primary avatar in either surface. Initials fall back automatically when the photo is missing — no special-case branch.
+- **No hard minimum gate on conversion.** Threshold push fires at 3 down (one-shot, governed) but the creator can tap "Make It Happen" any time. Sub-copy must read `You can make it happen anytime. Your friends will be notified.` — never imply 3 is required.
+- **Render-boundary shape hardening.** Proof tag: `[WHOS_DOWN_FEED_SHAPE_GUARD_V1]`. Both Discover → Who's Down feed cards and the casual detail screen MUST normalize `members` at the render boundary (`Array.isArray(item.members) ? item.members : []` in Discover; `eventRequest.members ?? []` in detail) BEFORE any `.find` / `.filter` / `.length` / `.map` access. The contract type declares `members` as required, but partial backend payloads (and any future serialization drift on `feed/whos-down`) MUST NOT crash the surface. Down count falls back to `item.downCount` first, then to the normalized array length. No raw `item.members.*` access is permitted in the Who's Down render path.
 
 ---
 
@@ -107,7 +112,7 @@ The frontend orchestrates conversion as a two-step write:
    - Notifies "down" friends with the new event link (no auto-RSVP — they decide normally).
    - Is idempotent on the same eventId so a frontend retry is safe.
 
-Because `feed/whos-down` filters `status === "pending"`, the idea disappears from the feed immediately on the next read after `/confirm-converted`. The casual request also expires naturally at 48h if `/confirm-converted` is never called.
+Because `feed/whos-down` filters `status === "pending"`, the idea disappears from the feed immediately on the next read after `/confirm-converted`. The casual request also expires naturally at 24h if `/confirm-converted` is never called.
 
 **No server-side event creation.** Conversion is a pure state transition + notification fanout. The standard event-create pipeline owns event creation.
 
@@ -130,25 +135,32 @@ Discover tabs are now **Map / Events / Who's Down** (`type Lens = "map" | "event
 
 ### Create flow
 
-No separate screen. The Who's Down pane renders a static explainer card at the top ("Have an idea to do?") + a "Post an Idea" chip. Tap opens a **bottom-sheet Modal** (not full screen) with:
+No separate screen. The Who's Down pane renders a static explainer card at the top with the **locked copy spec**:
+
+- Title: `Have an idea to do?`
+- Body: `See who's down to come. If enough people are down, make the event.`
+- Helper: `Friends only · expires in 24h`
+- CTA: `Post an Idea`
+
+Tap opens a **bottom-sheet Modal** (not full screen) with:
 
 - Idea title (required, maxLength 120).
 - Time hint chips (single-select, optional): `Tonight` · `Tomorrow` · `This Weekend` · `Next Week` · `Anytime`. Stored verbatim as `timeHint` string.
 - `whereText` (optional free text).
-- Friends-only helper row ("Only your friends can see this").
+- Helper row: `Friends only · expires in 24h`.
 - "Post Idea" button → `POST /api/event-requests` with `{ mode: "casual", title, timeHint?, whereText? }`. On success invalidates `qk.whosDownFeed()` + `qk.eventRequests()`.
 
-The same pane shows feed cards below: each card has title + emoji avatar, `timeHint` chip, `whereText` row, creator name ("Your idea" / "From {firstName}"), down count with Users icon, and a compact **"I'm Down" / "You're Down"** action (disabled-when-down, hidden for own ideas). Cards are `Pressable` and navigate to `/event-request/{id}` (casual detail branch). Empty state: "No ideas yet · Be the first · Post an Idea".
+The same pane shows feed cards below: each card has the **creator's profile photo as the primary avatar** (via `EntityAvatar`, initials fall back when image missing), title, `timeHint` chip, `whereText` row, creator name ("Your idea" / "From {firstName}"), down count with Users icon, and a compact **"I'm Down" / "You're Down"** action (disabled-when-down, hidden for own ideas). Cards are `Pressable` and navigate to `/event-request/{id}` (casual detail branch). Empty state: "No ideas yet · Be the first · Post an Idea".
 
 ### Detail branch (SSOT: `src/app/event-request/[id].tsx`)
 
 `mode === "casual"` branches to a distinct view that is NOT the formal invitee-list UI:
 
-- Idea card: emoji + title + "Your idea" / "From {name}"; `timeHint` + `whereText` pills; friends-only helper.
+- Idea card: **creator profile photo (primary avatar via `EntityAvatar`, initials fallback)** + title + "Your idea" / "From {name}"; `timeHint` + `whereText` pills; helper `Friends only · expires in 24h`.
 - Down count header: `"{N} people down"` (pluralized, "No one down yet" when empty).
 - Avatar grid of accepted responders with first names.
 - Non-creator pinned bottom: "I'm Down" (switches to "You're Down ✓" after accept). `respondMutation` on casual mode invalidates `qk.whosDownFeed()` + the detail key and **does not navigate away** (no auto-event-create, no router.back()).
-- Creator: "Make It Happen" (primary) + "Cancel Idea" (destructive).
+- Creator: "Make It Happen" (primary) + "Cancel Idea" (destructive). Sub-copy under the primary action: `You can make it happen anytime. Your friends will be notified.` — clarifies there is no hard minimum gate (the threshold push at 3 is celebratory, not a precondition).
 - If `status === "confirmed"` and `convertedToEventId` is set, a green confirmed banner links to the real event.
 
 ### Conversion UX
@@ -170,3 +182,13 @@ router.push({ pathname: "/create", params: {
 ### Shared contracts (SSOT: `shared/contracts.ts`)
 
 Frontend uses `WhosDownFeedResponse`, `EventRequest` (with `mode` / `timeHint` / `whereText` / `expiresAt` / `convertedToEventId`), `CreateEventRequestResponse`, `RespondEventRequestResponse`, `ConfirmConvertedInput` / `ConfirmConvertedResponse`.
+
+### Push Routing (SSOT: `src/hooks/useNotifications.ts → resolveNotificationRoute`)
+
+| Push `data.type` | Required identifier | Tap target |
+|---|---|---|
+| `whos_down_threshold` | `eventRequestId` | `/event-request/{eventRequestId}` |
+| `whos_down_response` | `eventRequestId` | `/event-request/{eventRequestId}` |
+| `whos_down_converted` | `eventId` (preferred) or `eventRequestId` | `/event/{eventId}` (real event); falls back to `/event-request/{eventRequestId}` if `eventId` missing |
+
+The `/event-request/` prefix is in `ALLOWED_ROUTE_PREFIXES` so backend-provided `route` strings are also accepted via the security allowlist. Routing reuses the existing P0_PUSH_TAP cold-start + listener handlers; no new notification architecture.

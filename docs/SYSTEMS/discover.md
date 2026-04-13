@@ -11,7 +11,7 @@
 |------|-----|-----------|-------------|
 | **Map** | `"map"` | `RNMapView` | Map with event pins |
 | **Events** | `"events"` | Inline FlatList | Feed with a single horizontal pill row (Going / Not Going are first-class pills — no nested sub-filter). |
-| **Who's Down** | `"whos_down"` | Inline ScrollView | Casual idea posts from friends. Count badge on tab label. Proof tag: `[WHOS_DOWN_V1]`. |
+| **Who's Down** | `"whos_down"` | Inline ScrollView | Casual idea posts from friends (24h TTL). Card primary avatar is the creator's profile photo via `EntityAvatar` (initials fallback) — not the lightbulb emoji. Count badge on tab label. Helper copy: `Friends only · expires in 24h`. Proof tag: `[WHOS_DOWN_V1]`. |
 
 State: `const [lens, setLens] = useState<Lens>("events")`
 

@@ -1,5 +1,69 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Who's Down v1 polish pass: 24h TTL, locked copy, push deep links, creator avatar [WHOS_DOWN_V1]
+
+### Summary
+Final pre-ship polish for Who's Down v1. Tightened expiry from 48h → 24h, aligned explainer/helper copy to the locked spec ("Have an idea to do?" / "See who's down to come. If enough people are down, make the event." / `Friends only · expires in 24h` / "Post an Idea"), wired push deep links for the three Who's Down notification types, and replaced the lightbulb emoji avatar with the creator's profile photo on both the Discover feed cards and the casual detail header. Added creator-facing clarifying copy near "Make It Happen" so the threshold push at 3 isn't read as a hard gate.
+
+### Files changed
+- `my-app-backend/src/routes/eventRequests.ts` — `WHOS_DOWN_TTL_MS = 24 * 60 * 60 * 1000` (was 48h). Comment updated.
+- `src/hooks/useNotifications.ts` — `ALLOWED_ROUTE_PREFIXES` now includes `/event-request/`. `resolveNotificationRoute` handles `whos_down_threshold` / `whos_down_response` (→ `/event-request/{id}`) and `whos_down_converted` (→ `/event/{eventId}`, fallback to `/event-request/{id}`).
+- `src/app/discover.tsx` — explainer body + new helper line `Friends only · expires in 24h` (replaces freestanding "Only your friends..." row above feed). Create-sheet helper also updated to the same line. Feed-card primary avatar swapped from `<Text>{item.emoji}</Text>` to `<EntityAvatar photoUrl={item.creator?.image} initials={...} size={44} />`.
+- `src/app/event-request/[id].tsx` — casual header avatar swapped from emoji block to `EntityAvatar` size 64 with creator photo + initials fallback. Friends-only helper updated to `Friends only · expires in 24h`. Sub-copy under "Make It Happen" reworded to `You can make it happen anytime. Your friends will be notified.`.
+- `docs/SYSTEMS/whos-down.md` — TTL updated everywhere, locked-copy spec recorded, Push Routing section added, four new invariants added (`[WHOS_DOWN_TTL_24H_V1]` + locked copy + creator-avatar + no-hard-gate).
+- `docs/SYSTEMS/discover.md` — Who's Down pane row mentions 24h TTL + creator-photo avatar + helper copy.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — RESOLVED entry.
+
+### Architecture decisions
+- **Frontend-only push routing extension.** Backend payloads already carry `eventRequestId` (threshold + response) and `eventId` (converted), so no payload change was needed. Adding the cases to `resolveNotificationRoute` + the prefix to the allowlist gave us deep links without touching push governance, dispatcher, or notification queue.
+- **TTL set at creation, not enforced retroactively.** Existing 48h rows in dev/preview age out naturally; no migration. Read paths already filter `expiresAt > now`.
+- **EntityAvatar handles the photo→initials fallback automatically** so neither surface needs a special-case branch when the creator has no profile image.
+- **Threshold-clarity copy goes on the action sub-line, not as a separate banner.** Lower visual cost; the existing slot already explained Make It Happen behavior.
+
+### Verification
+- `npx tsc --noEmit` exit 0 in both repos.
+- Manual: pending device QA on the new copy + creator avatar on both surfaces, and on push tap routing for all three types.
+
+### Risks / follow-ups
+- Existing 48h legacy rows visible until they age out. Acceptable — first 24h of post-ship traffic uses the new TTL.
+- Push routing is one-way: tapping a converted push lands on the real event. If the creator deleted/cancelled the converted event between push send and tap, the user lands on a 404. Out of scope for this pass; confirm-converted reliability explicitly excluded.
+
+---
+
+## 2026-04-13 — P0 Crash Fix: Who's Down feed `members` undefined [WHOS_DOWN_FEED_SHAPE_GUARD_V1]
+
+### Summary
+Live crash in Discover → Who's Down after posting an idea: `TypeError: Cannot read property 'find' of undefined` thrown from `src/app/discover.tsx` in the Who's Down card render path. Root cause: `item.members.filter(...)` and `item.members.find(...)` assumed `members` was always an array, but the `feed/whos-down` payload returned items where `members` was missing/undefined (despite the Zod contract declaring it required). Hardened the render boundary so partial payloads can no longer crash the surface.
+
+### Files changed
+- `src/app/discover.tsx` — Who's Down map render block (~line 2238). Normalize `members` once at the top of the iteration via `Array.isArray(item.members) ? item.members : []`, then route both the down-count fallback and the `myMember` lookup through the local. Down count still prefers `item.downCount` first.
+- `docs/SYSTEMS/whos-down.md` — added "Render-boundary shape hardening" invariant under Invariants section. Proof tag `[WHOS_DOWN_FEED_SHAPE_GUARD_V1]`.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — RESOLVED entry.
+
+### Forensics
+- Crash site: `discover.tsx:2239` (`item.members.filter`) and `discover.tsx:2241` (`item.members.find`) inside the `whosDownItems.map(...)` block.
+- Contract (`shared/contracts.ts:1353`): `members: z.array(eventRequestMemberSchema)` — declared non-nullable. The runtime shape diverged from the contract on the `feed/whos-down` endpoint (likely a backend serializer omission for friend-feed items). The Zod schema is not validated on the client (it's used only for type inference), so the bad shape passed straight to the renderer.
+- `event-request/[id].tsx:279` already used `eventRequest.members ?? []` — safe under both `null` and `undefined`. No change needed there.
+- No other unsafe `item.members.*` access in the Discover flow.
+
+### Architecture decisions
+- **Frontend-only fix.** Backend should still send `members: []` for casual feed items, but the frontend cannot crash on partial data. Render-boundary normalization is the smallest correct containment.
+- **Local normalization, not data-layer reshape.** Did not introduce a feed-level shape guard or schema-validation pass — those would broaden scope. The normalization is two lines at the iterator boundary; if the same shape leaks elsewhere we'll repeat the same pattern.
+- **Down-count precedence preserved.** `item.downCount ?? members.filter(...).length` keeps the backend-computed count authoritative when present.
+
+### Verification
+- `npx tsc --noEmit` exit 0, 0 lines.
+- `grep "\.members\b" src/app/discover.tsx` → only the new normalized read; no raw access remains.
+- NOT device-verified in this session — owner should sanity-check Discover → Who's Down → Post idea round-trip on iOS.
+
+### Risks / follow-ups
+- **Backend feed payload may genuinely omit `members`.** If the `/api/event-requests/feed/whos-down` serializer diverges from `eventRequestSchema`, the contract is lying. Not fixed here (out of scope: frontend-only repo). Report to backend: ensure casual feed items include `members` (empty array when no one has responded).
+- Threshold-push and "I'm Down" button state stay correct because they read from `myMember?.status` — `undefined` when missing → button stays in default "I'm Down" state, no crash.
+
+---
+
 ## 2026-04-13 — Discover Events filter flattening: Going / Not Going first-class [WHOS_DOWN_V1]
 
 ### Summary

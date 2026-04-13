@@ -383,11 +383,16 @@ export default function EventRequestDetailScreen() {
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
               <View className="flex-row items-start mb-3">
-                <View
-                  className="w-16 h-16 rounded-xl items-center justify-center mr-4"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                >
-                  <Text className="text-4xl">{eventRequest.emoji ?? "✨"}</Text>
+                {/* [WHOS_DOWN_V1] Primary visual is the creator's profile photo
+                    (initials fall back automatically when image is missing). */}
+                <View className="mr-4">
+                  <EntityAvatar
+                    photoUrl={eventRequest.creator?.image}
+                    initials={eventRequest.creator?.name?.[0] ?? "?"}
+                    size={64}
+                    backgroundColor={eventRequest.creator?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}30`}
+                    foregroundColor={themeColor}
+                  />
                 </View>
                 <View className="flex-1">
                   <Text className="text-xl font-bold" style={{ color: colors.text }}>
@@ -427,11 +432,11 @@ export default function EventRequestDetailScreen() {
                 </View>
               )}
 
-              {/* Friends-only helper */}
+              {/* [WHOS_DOWN_V1] Helper: friends-only + 24h expiry stated explicitly. */}
               <View className="flex-row items-center mt-3">
                 <Users size={12} color={colors.textTertiary} />
                 <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>
-                  Only your friends can see this
+                  Friends only · expires in 24h
                 </Text>
               </View>
             </View>
@@ -495,8 +500,9 @@ export default function EventRequestDetailScreen() {
                   Make It Happen
                 </Text>
               </Pressable>
+              {/* [WHOS_DOWN_V1] Creator clarity: no hard minimum gate. */}
               <Text className="text-xs text-center mt-2" style={{ color: colors.textTertiary }}>
-                Turn this into a real event. Your friends will be notified.
+                You can make it happen anytime. Your friends will be notified.
               </Text>
             </Animated.View>
           )}

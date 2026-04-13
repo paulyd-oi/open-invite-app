@@ -2,6 +2,62 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Who's Down v1 polish pass [WHOS_DOWN_V1]
+
+**Symptom:** Pre-ship punch list for Who's Down v1: 48h expiry too long, explainer copy drifted from the locked spec, push notifications had no deep-link routing, generic lightbulb emoji as primary card avatar, no creator-facing copy on the conversion CTA explaining the threshold isn't a hard gate.
+
+**Investigation:**
+- TTL: `WHOS_DOWN_TTL_MS = 48 * 60 * 60 * 1000` in `my-app-backend/src/routes/eventRequests.ts:16`. Set at creation only. Read paths filter `expiresAt > now`.
+- Existing copy (frontend): "Have an idea to do?" + "Float it to your friends. See who's down without committing to a time yet." + freestanding "Only your friends can see these ideas" row + "Post an Idea" CTA. Detail screen used "Only your friends can see this".
+- Push payloads (backend, eventRequests.ts): `whos_down_threshold` carries `eventRequestId`; `whos_down_response` carries `eventRequestId` + actor info; `whos_down_converted` carries `eventRequestId` + `eventId`. All three flow through the same `sendPushNotification` path.
+- Push tap router: `src/hooks/useNotifications.ts → resolveNotificationRoute()` is the SSOT. `ALLOWED_ROUTE_PREFIXES = ['/event/', '/user/', '/circle/', '/friends']` — `/event-request/` not present, so backend-provided routes would have been rejected.
+- Avatar render: feed cards at `discover.tsx:2270` rendered `<Text style={{ fontSize: 22 }}>{item.emoji || "💡"}</Text>` inside a 44×44 themed square. Detail header at `event-request/[id].tsx:390` rendered `<Text className="text-4xl">{eventRequest.emoji ?? "✨"}</Text>` inside a 16×16 rounded box.
+- `EntityAvatar` already exists in `src/components/EntityAvatar.tsx` with photo→initials→icon fallback chain — same component used for the responder avatar grid below the down count.
+- `creator: { id, name, image }` is already on every `eventRequestSchema` payload — no contract change needed.
+
+**Root cause(s):** Phase 1 ship deferred polish to a final pass: temporary copy in the explainer, lightbulb-as-primary-visual placeholder, no allowlist entry for the new `/event-request/` route family. Backend TTL of 48h was a debate-default that we tightened post-discussion.
+
+**Fix:**
+- Backend: `WHOS_DOWN_TTL_MS` → 24h.
+- Frontend `resolveNotificationRoute`: added explicit cases for `whos_down_threshold` / `whos_down_response` (→ `/event-request/{eventRequestId}`) and `whos_down_converted` (→ `/event/{eventId}` with `/event-request/` fallback). Added `/event-request/` to the prefix allowlist.
+- Discover explainer body rewritten to `See who's down to come. If enough people are down, make the event.` Helper line `Friends only · expires in 24h` placed inside the explainer card; redundant "Only your friends..." row removed. Create-sheet helper updated to the same line. Feed-card avatar swapped to `EntityAvatar(photoUrl=creator.image, initials, size=44)`.
+- Casual detail header avatar swapped to `EntityAvatar(size=64)` with the same fallback. Friends-only helper updated to the same compact line. Sub-copy under Make It Happen rewritten to `You can make it happen anytime. Your friends will be notified.`
+
+**Verification:** `npx tsc --noEmit` exit 0 in both repos. Device QA pending.
+
+**Follow-ups:** Existing 48h dev/preview rows age out naturally. confirm-converted reliability remains a separate item — explicitly out of scope for this pass.
+
+---
+
+## RESOLVED 2026-04-13 — Who's Down feed crash: `members` undefined [WHOS_DOWN_FEED_SHAPE_GUARD_V1]
+
+**Symptom:** Discover → Who's Down crashed after posting an idea: `TypeError: Cannot read property 'find' of undefined`. Stack pointed at `src/app/discover.tsx`. Reproduced on the first feed render after `POST /api/event-requests` (mode=casual).
+
+**Investigation:**
+- Crash sites: `discover.tsx:2239` `item.members.filter((m) => m.status === "accepted").length` and `discover.tsx:2241` `item.members.find((m) => m.userId === session.user?.id)`.
+- Contract `shared/contracts.ts:1353`: `members: z.array(eventRequestMemberSchema)` — declared as a required, non-nullable array. `whosDownFeedResponseSchema` reuses `eventRequestSchema` directly.
+- Zod schema is used only for type inference at the client; there is no `.parse()` runtime guard on the response. The `feed/whos-down` endpoint returned items where `members` was absent (likely the friend-feed serializer projects only the columns it needs and skips the relation join).
+- Detail screen at `event-request/[id].tsx:279` already used `eventRequest.members ?? []` — defensive enough; no crash there.
+- Grep confirmed no other raw `item.members.*` access in the Discover Who's Down render path.
+
+**Root cause:** Frontend trusted the contract; backend feed payload silently violated it. The renderer dereferenced `undefined.find` on the first item render, which propagated up and (per `[DISCOVER_PANE_ISOLATION_V1]`) was contained to the Who's Down pane — but the pane fallback is a poor UX after a successful post.
+
+**Fix:** Render-boundary normalization in `discover.tsx`:
+```ts
+const members = Array.isArray(item.members) ? item.members : [];
+const downCount = item.downCount ?? members.filter((m) => m.status === "accepted").length;
+const myMember = members.find((m) => m.userId === session.user?.id);
+```
+- `item.downCount` (already optional in the contract) takes precedence, so the count survives even when `members` is missing.
+- `myMember` becomes `undefined` when the array is empty/missing — `imDown` resolves to `false` and the "I'm Down" button stays in default state.
+- `event-request/[id].tsx` already safe via `?? []`.
+
+**Backend follow-up (out of scope for this fix):** the `/api/event-requests/feed/whos-down` serializer should always include `members: []` to match the declared contract. Hardening here covers the surface either way.
+
+**Verification:** `npx tsc --noEmit` exit 0. Grep confirms only the normalized read remains in `discover.tsx`.
+
+---
+
 ## RESOLVED 2026-04-13 — Discover Events filter flattening (Going / Not Going first-class) [WHOS_DOWN_V1]
 
 **Symptom:** Reaching Going/Not Going took three nesting levels: Discover tab → Events lens → Responded pill → sub-filter row. Too much navigation for a list view.

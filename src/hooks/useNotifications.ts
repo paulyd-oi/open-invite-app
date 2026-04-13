@@ -293,7 +293,7 @@ function getResponseId(response: Notifications.NotificationResponse): string {
 }
 
 // P0_PUSH_TAP: Allowed route prefixes for deep-linking (security allowlist)
-const ALLOWED_ROUTE_PREFIXES = ['/event/', '/user/', '/circle/', '/friends'];
+const ALLOWED_ROUTE_PREFIXES = ['/event/', '/event-request/', '/user/', '/circle/', '/friends'];
 
 // P0_PUSH_TAP: Check if a route path is allowed
 function isAllowedRoute(route: string): boolean {
@@ -321,9 +321,29 @@ function resolveNotificationRoute(data: Record<string, any> | undefined): {
   const friendId = data?.friendId || data?.friend_id;
   const userId = data?.userId || data?.user_id || data?.actorId || data?.actor_id || data?.senderId || data?.sender_id;
   const circleId = data?.circleId || data?.circle_id;
+  // [WHOS_DOWN_V1] Casual idea-post identifier from the Who's Down notification family.
+  const eventRequestId = data?.eventRequestId || data?.event_request_id;
 
   // ROUTING TABLE (ordered by specificity)
-  
+
+  // 0. [WHOS_DOWN_V1] Who's Down notifications
+  //    - whos_down_threshold + whos_down_response → idea detail (/event-request/:id)
+  //    - whos_down_converted → real event detail (/event/:eventId), since the idea
+  //      no longer exists in the active feed and the converted event is the target.
+  if (type === "whos_down_converted") {
+    if (eventId) {
+      return { route: `/event/${eventId}`, fallbackUsed: false, reason: "whos_down_converted_event" };
+    }
+    if (eventRequestId) {
+      return { route: `/event-request/${eventRequestId}`, fallbackUsed: true, reason: "whos_down_converted_no_event_id" };
+    }
+  }
+  if (type === "whos_down_threshold" || type === "whos_down_response") {
+    if (eventRequestId) {
+      return { route: `/event-request/${eventRequestId}`, fallbackUsed: false, reason: `type_${type}` };
+    }
+  }
+
   // 1. Event-related notifications → /event/:id
   if (
     type === "new_event" ||
