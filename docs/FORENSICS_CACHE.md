@@ -2,6 +2,35 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Who's Down v1 serializer parity + inline down count [WHOS_DOWN_V1] [WHOS_DOWN_SERIALIZER_PARITY_V1]
+
+**Symptom:** After the Who's Down polish pass landed, two issues still shipped:
+1. Every Who's Down card and the casual detail header rendered the `EntityAvatar` fallback "?" instead of the creator's real profile photo — even though the code clearly read `photoUrl={item.creator?.image}`.
+2. The "0 down" / "{N} down" count rendered outside the card body (separate bottom row on the feed card, standalone header above the avatar grid on the casual detail), wasting vertical space and disconnecting the metric from the idea.
+
+**Investigation:**
+- Verified frontend code paths: `discover.tsx` feed card and `event-request/[id].tsx` casual header both explicitly reference `item.creator?.image` / `eventRequest.creator?.image` and initials fallback. Frontend was not the culprit.
+- Inspected the contract: `eventRequestSchema` at `shared/contracts.ts:1347-1353` declares `creator: { id, name, email, image }` and `members: z.array(eventRequestMemberSchema)`. The contract-stable field name is `creator`, not `user`.
+- Inspected the backend serializer: `serializeEventRequest` in `my-app-backend/src/routes/eventRequests.ts` spread the raw Prisma row via `...request`, which emits the Prisma relation names (`user` and `event_request_member`) rather than the contract names. `item.creator` was therefore `undefined` on EVERY consumer, not just Who's Down — the formal invite surface also silently fell back, just less visibly.
+- Cross-referenced the prior P0 crash fix: the earlier `TypeError: Cannot read property 'find' of undefined` on `item.members.find` had the same root cause. The crash-fix added defensive `Array.isArray(item.members) ? item.members : []` guards at the render boundaries, which kept the surface from crashing but did not fix the underlying data contract mismatch — `members` was still `undefined` on the wire, just handled gracefully.
+- Layout: down count was rendered as a trailing row (feed) and a standalone header (detail), neither of which shared a visual cluster with the idea it described.
+
+**Root cause:** The backend serializer emitted raw Prisma relation names (`user`, `event_request_member`) instead of the contract-stable names (`creator`, `members`). Every frontend surface that tried to read `creator` or `members` got `undefined`, which:
+- Forced `EntityAvatar` into its initials→icon fallback (rendering "?" when `initials` itself was also undefined from the chain).
+- Caused the prior `item.members.find` crash until the render-boundary shape guard was added.
+
+**Fix:**
+- Backend `serializeEventRequest` now destructures `user` + `event_request_member` off the Prisma row and re-emits them under the contract-stable keys `creator` and `members`. Inline comment documents why and ties the change to the `[WHOS_DOWN_SERIALIZER_PARITY_V1]` proof tag so future serializer changes cannot regress the wire shape silently.
+- Discover feed card (`src/app/discover.tsx`) refactored to a single-row compact layout: `EntityAvatar` on the left, metadata stack in the middle (`title` → optional `timeHint` / `whereText` → `{creator label} · {N} down`), action button right-aligned. No separate bottom row.
+- Casual detail (`src/app/event-request/[id].tsx`) folds the count into the helper line inside the idea card (`{N} people down · Friends only · expires in 24h`, pluralized; "No one down yet" when zero). Standalone count header outside the card removed. Avatar grid still renders below but only when `downMembers.length > 0`.
+- Render-boundary shape guards retained as defense-in-depth. They are no longer load-bearing after the serializer fix, but keeping them prevents regression if a future serializer change slips through review.
+
+**Verification:** `npx tsc --noEmit` exit 0 in both repos. Device QA pending post-deploy.
+
+**Scope notes:** Fix intentionally contained to the serializer and the two render paths. Discover filter flattening, 24h TTL, locked copy, push deep links, and confirm-converted reliability are all out of scope and explicitly untouched.
+
+---
+
 ## RESOLVED 2026-04-13 — Who's Down v1 polish pass [WHOS_DOWN_V1]
 
 **Symptom:** Pre-ship punch list for Who's Down v1: 48h expiry too long, explainer copy drifted from the locked spec, push notifications had no deep-link routing, generic lightbulb emoji as primary card avatar, no creator-facing copy on the conversion CTA explaining the threshold isn't a hard gate.

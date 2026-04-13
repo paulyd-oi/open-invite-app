@@ -47,6 +47,7 @@ import {
 } from "@/shared/contracts";
 import { Sparkles } from "@/ui/icons";
 import { Button } from "@/ui/Button";
+import { STATUS } from "@/ui/tokens";
 import { qk } from "@/lib/queryKeys";
 
 export default function EventRequestDetailScreen() {
@@ -432,26 +433,25 @@ export default function EventRequestDetailScreen() {
                 </View>
               )}
 
-              {/* [WHOS_DOWN_V1] Helper: friends-only + 24h expiry stated explicitly. */}
-              <View className="flex-row items-center mt-3">
-                <Users size={12} color={colors.textTertiary} />
-                <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>
+              {/* [WHOS_DOWN_V1] Down count lives inside the card (compact metadata).
+                  Helper line below states friends-only + 24h expiry. */}
+              <View className="flex-row items-center mt-3" style={{ flexWrap: "wrap" }}>
+                <Users size={12} color={STATUS.going.fg} />
+                <Text className="ml-1.5 text-xs font-semibold" style={{ color: STATUS.going.fg }}>
+                  {downCount === 0
+                    ? "No one down yet"
+                    : `${downCount} ${downCount === 1 ? "person" : "people"} down`}
+                </Text>
+                <Text className="text-xs" style={{ color: colors.textTertiary, marginHorizontal: 6 }}>·</Text>
+                <Text className="text-xs" style={{ color: colors.textTertiary }}>
                   Friends only · expires in 24h
                 </Text>
               </View>
             </View>
           </Animated.View>
 
-          {/* Down count + avatars */}
+          {/* [WHOS_DOWN_V1] Avatar grid only when at least one friend is down. */}
           <Animated.View entering={FadeInDown.delay(100).springify()}>
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                {downCount === 0
-                  ? "No one down yet"
-                  : `${downCount} ${downCount === 1 ? "person" : "people"} down`}
-              </Text>
-            </View>
-
             {downMembers.length > 0 && (
               <View
                 className="rounded-2xl p-4 mb-4"

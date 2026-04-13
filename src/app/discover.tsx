@@ -2261,9 +2261,11 @@ export default function DiscoverScreen() {
                         ...tileShadow,
                       })}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 8 }}>
-                        {/* [WHOS_DOWN_V1] Primary visual is the creator's profile photo
-                            (initials fall back automatically when image is missing). */}
+                      {/* [WHOS_DOWN_V1] Single-row card: avatar + metadata stack
+                          (title / time / where / creator / down count) + action.
+                          Down count lives inside the metadata stack — no loose
+                          bottom row that wastes vertical space when count is 0. */}
+                      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                         <View style={{ marginRight: 12 }}>
                           <EntityAvatar
                             photoUrl={item.creator?.image}
@@ -2293,18 +2295,16 @@ export default function DiscoverScreen() {
                               </Text>
                             </View>
                           ) : null}
-                          <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4 }} numberOfLines={1}>
-                            {isMine ? "Your idea" : `From ${creatorName}`}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Users size={12} color={STATUS.going.fg} />
-                          <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.going.fg, marginLeft: 4 }}>
-                            {downCount} {downCount === 1 ? "down" : "down"}
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+                            <Text style={{ fontSize: 11, color: colors.textTertiary }} numberOfLines={1}>
+                              {isMine ? "Your idea" : `From ${creatorName}`}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: colors.textTertiary, marginHorizontal: 6 }}>·</Text>
+                            <Users size={11} color={STATUS.going.fg} />
+                            <Text style={{ fontSize: 11, fontWeight: "600", color: STATUS.going.fg, marginLeft: 3 }}>
+                              {downCount} down
+                            </Text>
+                          </View>
                         </View>
                         {!isMine && (
                           <Pressable
@@ -2315,10 +2315,12 @@ export default function DiscoverScreen() {
                             }}
                             disabled={imDown || respondWhosDownMutation.isPending}
                             style={{
-                              paddingHorizontal: 14,
+                              marginLeft: 8,
+                              paddingHorizontal: 12,
                               paddingVertical: 7,
                               borderRadius: RADIUS.lg,
                               backgroundColor: imDown ? STATUS.going.bgSoft : themeColor,
+                              alignSelf: "center",
                             }}
                           >
                             <Text

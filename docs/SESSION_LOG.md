@@ -1,5 +1,39 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Who's Down v1 parity + layout fix: serializer aliases + inline down count [WHOS_DOWN_V1] [WHOS_DOWN_SERIALIZER_PARITY_V1]
+
+### Summary
+Post-polish-pass QA surfaced two live issues on Who's Down surfaces:
+1. **Fallback "?" avatars.** Prior polish added `EntityAvatar(photoUrl=item.creator?.image)` on both the Discover feed card and the casual detail header, but the photo never rendered — every card/detail fell back to "?". Root cause: the backend `serializeEventRequest` shipped the raw Prisma relation names (`user`, `event_request_member`) via a spread, while the frontend Zod contract (`eventRequestSchema` in `shared/contracts.ts`) declares `creator` + `members`. `item.creator` was therefore `undefined` everywhere — not only on Who's Down but also on the formal invite surface (where the "?" was masked by other design elements). The same mismatch was the upstream cause of the earlier `item.members.find` crash (fixed defensively at the render boundary in the crash-fix pass).
+2. **"0 down" / count rendering outside the card.** Feed cards had a second row beneath the primary metadata purely to host the count; casual detail had a standalone "No one down yet" header above the avatar grid. Both wasted vertical space and disconnected the metric from the idea.
+
+Fix is scoped to the serializer (one line of change resolves every consumer) and the two render paths (layout compaction).
+
+### Files changed
+- `my-app-backend/src/routes/eventRequests.ts` — `serializeEventRequest` now destructures `user` + `event_request_member` off the row and re-emits them as `creator` + `members` so the wire shape matches the contract. Comment added tying the aliasing to `[WHOS_DOWN_SERIALIZER_PARITY_V1]`.
+- `src/app/discover.tsx` — Who's Down feed card refactored from two-row (header + bottom count/button row) to single-row layout: `EntityAvatar` on the left, metadata stack in the middle (`title` → optional `timeHint` / `whereText` → `{creator label} · {N} down`), action button right-aligned. No standalone bottom row.
+- `src/app/event-request/[id].tsx` — casual detail idea card now folds the down count into the helper line (`{N} people down · Friends only · expires in 24h`, pluralized, "No one down yet" when empty). Standalone "Down count + header" block above the avatar grid removed. Avatar grid renders unchanged but only when at least one friend is down. `STATUS` imported from `@/ui/tokens` for the count color.
+- `docs/SYSTEMS/whos-down.md` — two new invariants: `[WHOS_DOWN_SERIALIZER_PARITY_V1]` (wire shape must carry `creator` + `members`, not raw Prisma relation names) and "Down count lives inside the card" (feed metadata row + casual detail helper line).
+- `docs/SYSTEMS/discover.md` — Who's Down pane row updated to describe the new compact single-row card layout + serializer parity tag.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — RESOLVED entry documenting the Prisma-relation / contract mismatch.
+
+### Architecture decisions
+- **Fix at the serializer, not at each consumer.** Every surface (Discover Who's Down feed, casual detail, formal detail) reads `creator` and `members` per the contract. Rewriting each consumer to read `user` / `event_request_member` would have scattered Prisma schema names through the frontend; re-aliasing in one place on the wire is cheaper, safer, and keeps the contract as the single source of truth.
+- **Defensive normalization kept.** The `Array.isArray(item.members) ? item.members : []` guard in Discover and the `eventRequest.members ?? []` guard in casual detail both remain — the serializer fix now makes those defensive (not load-bearing), but removing them would re-open the crash surface if a future serializer regression slipped through.
+- **Layout: count goes with context, not as a trailing row.** On feed cards the count sits in the same visual cluster as the creator label so the card reads as one chunk. On casual detail it's folded into the existing `Friends only · expires in 24h` helper to keep the idea card dense.
+
+### Verification
+- `npx tsc --noEmit` exit 0 in both repos (FE_EXIT=0, BE_EXIT=0).
+- Manual QA pending on device: confirm real profile photos render on both surfaces after a backend redeploy; confirm `{N} down` appears inline inside the feed card and the casual detail helper; confirm "No one down yet" variant on empty casual detail.
+
+### Risks / follow-ups
+- **Backend redeploy required.** The fix is entirely on the wire. Until backend ships, the "?" avatars persist. Shape-guards keep the client from crashing in the meantime.
+- **Formal invite surface silently benefits.** Any formal-mode consumer that relied on `eventRequest.creator` / `eventRequest.members` was also broken before this fix; it now receives the expected shape. No regression expected (no consumer was reading `user` / `event_request_member` directly — that was the whole point of the crash/avatar symptoms), but worth spot-checking on next QA.
+- Out of scope (explicit): Discover filters, TTL, copy, push deep links, confirm-converted reliability.
+
+---
+
 ## 2026-04-13 — Who's Down v1 polish pass: 24h TTL, locked copy, push deep links, creator avatar [WHOS_DOWN_V1]
 
 ### Summary
