@@ -1991,7 +1991,7 @@ export default function DiscoverScreen() {
                         })()}
 
                         {/* Host badge — "Hosted by you" or "Hosted by {friend}" */}
-                        {event.user?.id && (isMyEvent || friendHostUserIds.has(event.user.id)) && (
+                        {event.user?.id && (
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
                             <EntityAvatar
                               photoUrl={event.user.image}
