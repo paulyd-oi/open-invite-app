@@ -37,6 +37,7 @@ import { softenColor } from "@/lib/softenColor";
 import { Image as ExpoImage } from "expo-image";
 
 import { useSession } from "@/lib/useSession";
+import { useWhosDownSeen } from "@/lib/whosDownSeen";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { buildAppSharePayload } from "@/lib/shareSSOT";
@@ -496,7 +497,33 @@ export default function DiscoverScreen() {
     refetchOnWindowFocus: false,
   });
   const whosDownItems = whosDownData?.items ?? [];
-  const whosDownActiveCount = whosDownData?.activeCount ?? 0;
+
+  // [WHOS_DOWN_V1] Local-only unseen tracking for the Discover tab badge.
+  // Badge reflects new ideas since the last time the user had the Who's Down
+  // tab open with the feed loaded, not the total active count.
+  const { seenIds: whosDownSeenIds, hydrated: whosDownSeenHydrated, markSeen: markWhosDownSeen } = useWhosDownSeen(
+    session?.user?.id ?? null,
+  );
+  const whosDownUnseenCount = useMemo(() => {
+    if (!whosDownSeenHydrated) return 0;
+    let n = 0;
+    for (const item of whosDownItems) {
+      if (!whosDownSeenIds.has(item.id)) n += 1;
+    }
+    return n;
+  }, [whosDownItems, whosDownSeenIds, whosDownSeenHydrated]);
+
+  // Mark currently-loaded idea IDs as seen whenever the user is viewing the
+  // Who's Down tab AND the feed has hydrated. Re-runs when the feed changes
+  // (pull-to-refresh, invalidation after post/respond) so late-arriving items
+  // also get marked seen as long as the tab is still open.
+  useEffect(() => {
+    if (lens !== "whos_down") return;
+    if (!whosDownSeenHydrated) return;
+    if (whosDownItems.length === 0) return;
+    const ids = whosDownItems.map((i) => i.id);
+    markWhosDownSeen(ids);
+  }, [lens, whosDownSeenHydrated, whosDownItems, markWhosDownSeen]);
 
   // [WHOS_DOWN_V1] Create casual idea post
   const createWhosDownMutation = useMutation({
@@ -977,8 +1004,10 @@ export default function DiscoverScreen() {
                 {/* INVARIANT_ALLOW_SMALL_MAP */}
                 {LENS_OPTIONS.map((opt) => {
                   const active = lens === opt.key;
-                  // [WHOS_DOWN_V1] Active count badge on Who's Down tab.
-                  const showBadge = opt.key === "whos_down" && whosDownActiveCount > 0;
+                  // [WHOS_DOWN_V1] Unseen count badge on Who's Down tab.
+                  // Client-side seen state — shows NEW ideas since last open,
+                  // not total active count.
+                  const showBadge = opt.key === "whos_down" && whosDownUnseenCount > 0;
                   return (
                     <Pressable
                       key={opt.key}
@@ -1015,7 +1044,7 @@ export default function DiscoverScreen() {
                           }}
                         >
                           <Text style={{ fontSize: 11, fontWeight: "700", color: "#FFFFFF" }}>
-                            {whosDownActiveCount > 99 ? "99+" : whosDownActiveCount}
+                            {whosDownUnseenCount > 99 ? "99+" : whosDownUnseenCount}
                           </Text>
                         </View>
                       )}

@@ -1,5 +1,37 @@
 # Session Log — iOS Build Failure Forensic Audit
 
+## 2026-04-13 — Who's Down v1: local unseen-count badge on Discover tab [WHOS_DOWN_V1] [WHOS_DOWN_UNSEEN_BADGE_V1]
+
+### Summary
+The Discover → Who's Down tab badge previously displayed total active ideas (`whosDownData.activeCount`), which rendered the tab like an inventory counter — a user with 12 friends' ideas saw `12` every time they opened the app, even if nothing was new. Changed the badge to render **unseen** ideas only (new since the user last viewed the Who's Down tab). Implementation is entirely client-side: AsyncStorage-backed per-user seen-ID set, hook-managed via a new helper, no backend changes.
+
+### Files changed
+- `src/lib/whosDownSeen.ts` — **new.** Exports `useWhosDownSeen(userId)` hook returning `{ seenIds, hydrated, markSeen }`. AsyncStorage key format `whosDownSeen_<userId>` stores a `string[]` of seen idea IDs. Soft cap of 2000 entries trimmed to the newest 1000 on write. Safe defaults on storage failure. Scoped per user ID so profile switches don't leak seen state.
+- `src/app/discover.tsx` — removed unused `whosDownActiveCount` local. Added `useWhosDownSeen` hook bound to `session?.user?.id`. Computed `whosDownUnseenCount` via `useMemo` (`whosDownItems.filter(i => !seenIds.has(i.id)).length`). Added a `useEffect` that, whenever `lens === "whos_down"` AND the hook is hydrated AND the feed has at least one item, marks all currently loaded IDs seen. Badge render now references `whosDownUnseenCount` (visibility gate + label) with the existing `99+` overflow clamp preserved.
+- `docs/SYSTEMS/discover.md` — Who's Down pane row updated to call out unseen-count badge + reference the new proof tag.
+- `docs/SYSTEMS/whos-down.md` — replaced `whosDownActiveCount` reference in the Discover Lens section with `whosDownUnseenCount` and a cross-reference to the new invariant. Added a new invariant block describing the hook SSOT, AsyncStorage key, marking rules, and edge-case handling. Proof tag: `[WHOS_DOWN_UNSEEN_BADGE_V1]`.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — RESOLVED entry.
+
+### Architecture decisions
+- **Local persistence only (v1).** The task explicitly forbade backend read-tracking. A per-user AsyncStorage set keeps state durable across relaunches without the complexity of server sync, per-item read receipts, or notification-style unread state.
+- **Mark-seen effect gated on `lens === "whos_down"` + hydrated + non-empty feed.** Running it on every feed change regardless of lens would mark items seen while the user was still on Events, defeating the whole purpose. Running before hydration would race with the initial AsyncStorage read and briefly misreport the count. Non-empty guard avoids an unnecessary state write on first-time users.
+- **Re-runs on feed change while the tab is open.** When the feed refetches mid-session (post success invalidates `qk.whosDownFeed()`, respond success does the same, pull-to-refresh triggers `refetchWhosDown`), the effect re-fires and marks late-arriving IDs seen. This also covers "user posts their own idea while on the tab" — the post invalidation triggers the refetch, the refetch returns the new item, and the effect marks it seen.
+- **Soft cap with trim-to-1000 on write.** The set is append-only in v1. Pruning by expiry would require syncing against backend state; instead we cap the blob size. Stale IDs for expired ideas are harmless because they no longer appear in the feed, so they cannot count toward "unseen".
+- **Hydration guard returns `0`, not `items.length`.** Before the AsyncStorage read resolves, the unseen count is `0` (badge hidden). Returning `items.length` would briefly flash the old inventory-count behavior for ~1 frame on cold start. `0` defers the badge until it can be computed accurately.
+
+### Verification
+- `npx tsc --noEmit` in `open-invite-app`: exit 0.
+- Manual device QA pending: (a) first-time user sees badge = all active ideas as unseen until they open the tab, (b) opening the tab clears the badge, (c) a new friend's idea posted while the user is elsewhere shows as `1` on the badge, (d) tapping Who's Down clears it, (e) badge state survives relaunch, (f) posting your own idea does not re-badge yourself.
+
+### Risks / follow-ups
+- Seen state is per-device. A user with multiple devices sees fresh badges on each. Acceptable for v1 scope.
+- If AsyncStorage read fails, the hook stays unhydrated and the badge stays at `0`. Failure mode is silent (debug log in `__DEV__` only). Not blocking.
+- No pruning of seen IDs for expired/deleted ideas. The soft cap prevents unbounded growth.
+- Out of scope (explicit): Discover filters, Who's Down feed ordering, notification-style unread, per-item read tracking, backend read-tracking.
+
+---
+
 ## 2026-04-13 — Who's Down v1 parity + layout fix: serializer aliases + inline down count [WHOS_DOWN_V1] [WHOS_DOWN_SERIALIZER_PARITY_V1]
 
 ### Summary

@@ -11,7 +11,7 @@
 |------|-----|-----------|-------------|
 | **Map** | `"map"` | `RNMapView` | Map with event pins |
 | **Events** | `"events"` | Inline FlatList | Feed with a single horizontal pill row (Going / Not Going are first-class pills — no nested sub-filter). |
-| **Who's Down** | `"whos_down"` | Inline ScrollView | Casual idea posts from friends (24h TTL). Cards use a compact single-row layout: creator profile photo via `EntityAvatar` (photo → initials fallback) on the left, title + `timeHint` + `whereText` + a metadata row reading `Your idea / From {name} · {N} down` in the middle, and the "I'm Down / You're Down" action on the right. No separate bottom row for down count. Count badge on tab label. Helper copy (create sheet + empty state): `Friends only · expires in 24h`. Proof tags: `[WHOS_DOWN_V1]`, `[WHOS_DOWN_SERIALIZER_PARITY_V1]` (wire must carry `creator` + `members`, not raw Prisma relation names). |
+| **Who's Down** | `"whos_down"` | Inline ScrollView | Casual idea posts from friends (24h TTL). Cards use a compact single-row layout: creator profile photo via `EntityAvatar` (photo → initials fallback) on the left, title + `timeHint` + `whereText` + a metadata row reading `Your idea / From {name} · {N} down` in the middle, and the "I'm Down / You're Down" action on the right. No separate bottom row for down count. Tab label renders an **unseen-count** badge (NOT total active) — see the Who's Down unseen-badge invariant below. Helper copy (create sheet + empty state): `Friends only · expires in 24h`. Proof tags: `[WHOS_DOWN_V1]`, `[WHOS_DOWN_SERIALIZER_PARITY_V1]`, `[WHOS_DOWN_UNSEEN_BADGE_V1]`. |
 
 State: `const [lens, setLens] = useState<Lens>("events")`
 

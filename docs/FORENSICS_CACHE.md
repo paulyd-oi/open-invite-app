@@ -2,6 +2,29 @@
 
 > Active investigation scratchpad. Mark items RESOLVED when confirmed.
 
+## RESOLVED 2026-04-13 — Who's Down unseen-count badge (local-only) [WHOS_DOWN_V1] [WHOS_DOWN_UNSEEN_BADGE_V1]
+
+**Symptom:** Discover → Who's Down tab badge showed total active idea count (`whosDownData.activeCount`). Users read it as a notifications badge, but because it was an inventory count, it never "cleared." A user with 12 friends posting 12 active ideas saw `12` on every launch until those ideas aged out at 24h, even if they had already opened the tab and viewed every idea.
+
+**Investigation:**
+- `src/app/discover.tsx:499` — badge source was `const whosDownActiveCount = whosDownData?.activeCount ?? 0;`, consumed at lines 981 (visibility gate) and 1018 (label).
+- Backend returns `activeCount` from `GET /api/event-requests/feed/whos-down` in `serializeWhosDownFeed()`; that number is total currently-active, not per-user unread. No existing backend mechanism tracks per-user read state and the task explicitly forbade adding one.
+- Local persistence patterns in-repo: `src/lib/eventColorOverrides.ts` (per-user overrides keyed by `<userId>`), `src/lib/rateApp.ts` (singleton JSON blob), `src/lib/notificationPrompt.ts` (simple key/value flags). The per-user-keyed pattern in `eventColorOverrides.ts` was the right fit for seen IDs.
+- Lens state lives at `src/app/discover.tsx:257`, `const [lens, setLens] = useState<Lens>("events")`. The mark-seen effect needs to depend on `lens`, `whosDownItems`, and a `hydrated` flag to avoid race conditions against the AsyncStorage read.
+
+**Root cause:** The badge was wired to "inventory" semantics (`activeCount`) instead of "notifications" semantics (new-since-last-open). There was no prior client-side "seen" tracking for Who's Down.
+
+**Fix:**
+- New `src/lib/whosDownSeen.ts` module exports `useWhosDownSeen(userId)` — AsyncStorage-backed seen-ID set with in-memory `Set<string>` for fast lookup. Soft cap at 2000 entries, trim to newest 1000 on write to prevent unbounded growth (expired ideas age out of the feed server-side so stale seen IDs are never false-positive — they just no longer appear in `whosDownItems` to match against).
+- `src/app/discover.tsx` replaces `whosDownActiveCount` with `whosDownUnseenCount = whosDownItems.filter(i => !seenIds.has(i.id)).length` (memoized). Adds a `useEffect` that, while `lens === "whos_down"` AND hydrated AND the feed is non-empty, calls `markSeen(items.map(i => i.id))`. Re-runs on feed change, so mid-session refetches (post, respond, pull-to-refresh) mark new items seen while the tab is open.
+- Hydration gate: `whosDownUnseenCount` returns `0` until AsyncStorage load resolves. This defers the badge by one frame on cold start rather than flashing the old total-active count.
+
+**Verification:** `npx tsc --noEmit` exit 0. Device QA pending: (1) badge = all-active on first install, (2) clears on tab open, (3) increments as new friend ideas post while user is elsewhere, (4) survives relaunch, (5) self-posts don't re-badge.
+
+**Scope notes:** No backend changes. No API changes. No Discover filter changes. No Who's Down feed ordering changes. No UI redesign of the badge itself. No notification-system work.
+
+---
+
 ## RESOLVED 2026-04-13 — Who's Down v1 serializer parity + inline down count [WHOS_DOWN_V1] [WHOS_DOWN_SERIALIZER_PARITY_V1]
 
 **Symptom:** After the Who's Down polish pass landed, two issues still shipped:
