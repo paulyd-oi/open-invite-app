@@ -72,15 +72,24 @@ export function usePaginatedNotifications({
     // [INFINITE_QUERY_SSOT] Cap in-memory pages via SSOT helper
     select: (data) => capInfinitePages(data, DEFAULT_MAX_PAGES),
     enabled,
-    staleTime: 30_000, // 30s — match existing staleTime
+    // [NOTIF_FRESHNESS_V1] staleTime: 0 so refetch on focus/foreground actually hits the network.
+    // Backfills and server clock skew can make createdAt DESC diverge from id DESC, so we also
+    // client-side sort below to guarantee newest-first ordering regardless of server order.
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  // Flatten + deduplicate all pages into a single notifications array
+  // Flatten + deduplicate all pages into a single notifications array, then
+  // sort by createdAt DESC. [NOTIF_FRESHNESS_V1] — backend currently sorts
+  // by `id` which is a cuid, not a strict time order under backfill / clock
+  // skew. Client-side sort guarantees newest-first for display.
   const notifications = useMemo((): Notification[] => {
     if (!query.data?.pages) return [];
     const all = query.data.pages.flatMap((page) => page.notifications ?? []);
-    // Defensive de-dupe (same as ActivityFeed)
-    return Array.from(new Map(all.map((n) => [n.id, n])).values());
+    const deduped = Array.from(new Map(all.map((n) => [n.id, n])).values());
+    return deduped.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }, [query.data?.pages]);
 
   // Unread count from the first (most recent) page

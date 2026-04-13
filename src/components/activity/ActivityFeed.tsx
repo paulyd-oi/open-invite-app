@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
-import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator, ScrollView } from "react-native";
+import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator, ScrollView, AppState } from "react-native";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn } from "@/lib/devLog";
 import { trackNotificationMarkRead, trackNotifsEngagement } from "@/analytics/analyticsEventsSSOT";
@@ -582,15 +582,30 @@ export function ActivityFeed({ embedded = false, emptyComponent }: ActivityFeedP
     },
   });
 
-  // Mark all as seen when visible
+  // [NOTIF_FRESHNESS_V1] Refetch + mark-all-seen whenever the feed gains focus.
+  // Previously only called markAllSeen, which left the notifications list serving
+  // a 30s stale cache — users returning to the screen saw Feb-era items on top.
   useFocusEffect(
     useCallback(() => {
       trackNotifsEngagement({ action: "view_list", routeTargeted: false });
+      refetch();
       if (unreadCount > 0) {
         markAllSeen();
       }
-    }, [unreadCount, markAllSeen])
+    }, [unreadCount, markAllSeen, refetch])
   );
+
+  // [NOTIF_FRESHNESS_V1] Refetch on app foreground. React Query's
+  // refetchOnWindowFocus is disabled globally (RN has no window focus event),
+  // so we wire AppState ourselves for the Activity feed.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        refetch();
+      }
+    });
+    return () => sub.remove();
+  }, [refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

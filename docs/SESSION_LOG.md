@@ -116,3 +116,112 @@ Expected list named `src/app/event/[id].tsx`, `ThemeVideoLayer.tsx`, `ThemeEffec
 - Layer gating visible in `ThemeBackgroundLayers.tsx` via `!hasActiveVideo` guards on gradient + particle blocks.
 - Particle exclusivity (effect vs theme particles) still honored inside the particle branch.
 - OTA-safe: pure JS/TS, no native module, native config, or package changes.
+
+---
+
+## 2026-04-12 — Social Public Invite pane missing creator's own public event + calendar not switching by pane
+
+### Context
+Production QA: a user creates a public event and it does NOT appear in Social → Public Invite. Separately, the Social calendar dots + selected-day event list do not change when flipping between Group / Open / Public panes.
+
+### Files read
+- `docs/SYSTEMS/discover.md` — center-tab lane separation invariant
+- `src/app/social.tsx` — `discoveryEvents`, `publicPaneEvents`, `groupPaneEvents`, `calendarEvents`, `selectedDateEvents`, FeedCalendar render site
+- `src/lib/discoverFilters.ts` — `isVisibleInPublicFeed`, `isEventResponded`, `isEventEligibleForDiscoverPool`, `isWithinMiles`, `PUBLIC_NEARBY_MILES`
+- `src/components/FeedCalendar.tsx` — optional `isOwn/isAttending/hostName/hostImage` on EventWithMeta
+- `src/lib/eventQueryKeys.ts` — `getInvalidateAfterEventCreate()` already invalidates `feed + feedPaginated + myEvents + calendar`
+
+### Root cause
+1. **Public Invite bug.** `publicPaneEvents` was derived from `discoveryEvents`, which explicitly filters out `event.userId === viewerUserId` and `myEventIds.has(event.id)`. The creator's own public event was stripped at that upstream filter and never reached Public lane. Even if it had, `isVisibleInPublicFeed → isEventResponded` would also drop it when the host is auto-"going".
+2. **Calendar-not-switching bug.** Social used a single `calendarEvents` dataset for both FeedCalendar dots and `selectedDateEvents` regardless of `activePane`. Additionally, the `SOCIAL_ALLOWED_VISIBILITY` allowlist in `allEvents` omits `"public"`, so public events never even entered that dataset.
+
+### Fix
+- `publicPaneEvents` rewritten to source from `feed ∪ myEvents ∪ attending` (deduped), applying `visibility === "public"` + `isEventEligibleForDiscoverPool` + distance cap. For own events (`userId === viewerUserId`), bypass the `isEventResponded` filter. Proof tag `[PUBLIC_LANE_OWN_EVENTS_V1]`.
+- Added `paneCalendarEvents` memo that switches by `activePane`: group → `groupPaneEvents`, public → `publicPaneEvents`, open → `calendarEvents` filtered to non-public + non-circle. `selectedDateEvents` + `<FeedCalendar events={...}>` now read from `paneCalendarEvents`. Proof tag `[SOCIAL_CALENDAR_PANE_SWITCH_V1]`.
+- Removed unused `isVisibleInPublicFeed` import; added `isEventEligibleForDiscoverPool`, `isEventResponded`, `isWithinMiles`.
+- **No change to `eventQueryKeys.ts`** — existing create-invalidation set already covers the keys we now read from.
+
+### Files changed
+- `src/app/social.tsx`
+- `docs/SYSTEMS/discover.md`
+- `docs/SESSION_LOG.md` (this entry)
+- `docs/FORENSICS_CACHE.md`
+
+### Scope vs. expected
+Expected: `social.tsx` + possibly `eventQueryKeys.ts` + one SSOT doc. Actual: no `eventQueryKeys.ts` change needed (forensics confirmed it already invalidates myEvents + feedPaginated + calendar). Two log files updated as required.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Lane separation preserved: group (circleId only), open (non-public + non-circle), public (visibility=public only).
+- OTA-safe.
+
+---
+
+## 2026-04-12 — Friends → Activity notifications stale/out-of-order
+
+### Context
+Production QA: Activity tab shows February items on top in April. Backend `/api/notifications/paginated` orders by `id` DESC (cuid, not strictly time-monotonic under backfill / clock skew), and the frontend `useFocusEffect` only called `markAllSeen()` — never `refetch()`. Combined with `staleTime: 30_000`, returning to the screen served stale cache indefinitely.
+
+### Files read
+- `src/app/friends.tsx` — Activity pane mount site (tab 0 → `<FriendsActivityPane />`)
+- `src/components/friends/FriendsActivityPane.tsx` — thin wrapper around `<ActivityFeed embedded />`
+- `src/components/activity/ActivityFeed.tsx` — owns `useFocusEffect` + list render
+- `src/hooks/usePaginatedNotifications.ts` — owns the infinite query (flatten + dedupe)
+- `src/lib/queryKeys.ts` — `qk.notifications() = ["notifications"]`
+- `my-app-backend/src/routes/notifications.ts` — confirmed `orderBy: { id: "desc" }` on paginated endpoint
+- `my-app-backend/prisma/schema.prisma` — confirmed `id String @default(cuid())`
+
+### Root cause
+Two-part bug:
+1. **Order:** Display depended on server order (`id` DESC). Cuid is only approximately time-sortable — any backfill or server clock skew flips older items above newer ones.
+2. **Freshness:** `staleTime: 30_000` + no `refetch()` in the focus effect + no AppState foreground listener. Returning to the screen served cache.
+
+### Fix — proof tag `[NOTIF_FRESHNESS_V1]`
+- `usePaginatedNotifications.ts`: `staleTime: 0`, `refetchOnMount: true`, and client-side `sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))` applied after dedupe.
+- `ActivityFeed.tsx`: `useFocusEffect` now calls `refetch()` alongside `markAllSeen()`. New `AppState.addEventListener("change", ...)` `useEffect` calls `refetch()` when state becomes `active`.
+
+### Files changed
+- `src/hooks/usePaginatedNotifications.ts`
+- `src/components/activity/ActivityFeed.tsx`
+- `docs/SYSTEMS/activity-feed.md` — NEW. SSOT for the feed + `[NOTIF_FRESHNESS_V1]` contract.
+- `docs/SESSION_LOG.md` (this entry)
+- `docs/FORENSICS_CACHE.md` — forensic entry with guardrail.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Backend untouched (per task constraint).
+- No changes to unread-count query (`useUnseenNotifications`) — only the paginated list.
+- OTA-safe: pure JS/TS.
+
+---
+
+## 2026-04-12 — Find Friends: existing friends leaking into "Invite your friends"
+
+### Context
+Live production: the "Invite your friends" section on the Find Friends screen included contacts who were already on Open Invite (existing friends, pending-request users, self). Root cause was name-based dedup between matched OI users and device contacts — fragile whenever display name differed from the contact's first+last (aliases, initials, single-word names, casing mismatches).
+
+### Files read
+- `src/app/add-friends.tsx` — renders the Invite section from `matchContacts().unmatched`
+- `src/lib/contactsMatch.ts` — hash + dedup pipeline
+- `src/components/FriendDiscoverySurface.tsx` — on-platform Search + People You May Know (unchanged)
+- `my-app-backend/src/routes/contacts.ts` — `/api/contacts/match` endpoint (already computes `isFriend`/`isPending`, returns matched users)
+
+### Root cause
+Backend returned only the list of matched users (with isFriend/isPending flags) but NOT which incoming hashes produced those matches. `contactsMatch.ts` fell back to case-insensitive full-name equality to subtract matched users from the unmatched list — easily defeated by any naming divergence. The frontend had no other way to identify which contact was on-platform.
+
+### Fix — proof tag `[CONTACTS_INVITE_HASH_ECHO_V1]`
+**Backend:** `/api/contacts/match` now also echoes `matchedPhoneHashes` / `matchedEmailHashes` — the incoming hashes that resolved to ANY Open Invite user (including self; the viewer's own phone/email is checked separately since self is excluded from the candidates list).
+
+**Frontend:** `contactsMatch.ts` restructured so each contact carries its own hash bundle. A contact enters `unmatched` only if NONE of its phone/email hashes appear in the matched-hash echo. The old name-based dedup remains as a legacy-server fallback.
+
+### Files changed
+- `my-app-backend/src/routes/contacts.ts` — echo matched phone/email hashes; also check viewer's own phone/email hashes so self can't leak into invite list.
+- `src/lib/contactsMatch.ts` — per-contact hash tracking; hash-set subtraction replaces name-based dedup; backward-compatible fallback.
+- `docs/SYSTEMS/friend-discovery.md` — NEW. SSOT for Find Friends sections, invite-candidate contract, and privacy invariants.
+- `docs/SESSION_LOG.md` (this entry)
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry.
+
+### Verification
+- `npx tsc --noEmit` clean (frontend).
+- `npx tsc --noEmit` clean (backend).
+- Privacy: no new raw contact data persisted or logged server-side; echo contains only hashes the client already sent.

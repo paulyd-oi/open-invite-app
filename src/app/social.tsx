@@ -58,7 +58,14 @@ import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 import { trackFeedLoadTime, trackFeedPageLoaded, trackWeeklyDigestCardShown, trackWeeklyDigestCardTap, trackSocialEmptyCtaTap } from "@/analytics/analyticsEventsSSOT";
 import * as Location from "expo-location";
-import { PUBLIC_NEARBY_MILES, isVisibleInPublicFeed, comparePublicFeedOrder, type GeoPoint } from "@/lib/discoverFilters";
+import {
+  PUBLIC_NEARBY_MILES,
+  comparePublicFeedOrder,
+  isEventEligibleForDiscoverPool,
+  isEventResponded,
+  isWithinMiles,
+  type GeoPoint,
+} from "@/lib/discoverFilters";
 import { usePaginatedNotifications } from "@/hooks/usePaginatedNotifications";
 import type { Notification } from "@/shared/contracts";
 
@@ -1492,14 +1499,39 @@ export default function SocialScreen() {
   }, [myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // "Public Invite" pane events: visibility === "public", distance-filtered + geo-ranked
-  // Uses SSOT helpers from discoverFilters.ts (same as Discover Public pill)
+  // Uses SSOT helpers from discoverFilters.ts (same as Discover Public pill).
+  //
+  // [PUBLIC_LANE_OWN_EVENTS_V1] Source from feed ∪ myEvents ∪ attending (deduped)
+  // instead of `discoveryEvents`. `discoveryEvents` excludes the viewer's own
+  // hosted/RSVPed events, which would hide a newly created public event from
+  // its creator. For own events, bypass the `isEventResponded` filter (the host
+  // is typically auto-"going") but still require: visibility=public, eligible
+  // (future/non-blocked), and within distance cap if location is known.
   const publicPaneEvents = useMemo(() => {
     const now = Date.now();
     const loc = publicPaneLocation;
-    return discoveryEvents
-      .filter(e => isVisibleInPublicFeed(e, loc, now))
+    const viewerUserId = session?.user?.id;
+    const feedEvents = feedData?.events ?? [];
+    const myEvents = myEventsData?.events ?? [];
+    const attendingEvents = attendingData?.events ?? [];
+
+    const pool = new Map<string, Event>();
+    for (const e of feedEvents) pool.set(e.id, e);
+    for (const e of myEvents) if (!pool.has(e.id)) pool.set(e.id, e);
+    for (const e of attendingEvents) if (!pool.has(e.id)) pool.set(e.id, e);
+
+    return Array.from(pool.values())
+      .filter((e) => {
+        if (e.visibility !== "public") return false;
+        if (!isEventEligibleForDiscoverPool(e, now)) return false;
+        if (loc && !isWithinMiles(loc, e, PUBLIC_NEARBY_MILES)) return false;
+        // Own events bypass the "responded" filter so newly created public
+        // events surface to their creator immediately after invalidation.
+        if (e.userId === viewerUserId) return true;
+        return !isEventResponded(e);
+      })
       .sort((a, b) => comparePublicFeedOrder(a, b, loc));
-  }, [discoveryEvents, publicPaneLocation]);
+  }, [feedData?.events, myEventsData?.events, attendingData?.events, publicPaneLocation, session?.user?.id]);
 
   const publicPaneGrouped = useMemo(
     () => groupEventsByTime(publicPaneEvents, session?.user?.id),
@@ -1512,16 +1544,43 @@ export default function SocialScreen() {
     publicPaneGrouped.thisWeek.length > 0 ||
     publicPaneGrouped.upcoming.length > 0;
 
-  // Events for the selected calendar date (from all events)
+  // [SOCIAL_CALENDAR_PANE_SWITCH_V1] Calendar dataset switches by active pane so
+  // dots + selected-day list reflect the lane the user is viewing.
+  //   group  → circle events only (own + attending with circleId)
+  //   open   → non-public, non-circle events (matches Open Invite lane)
+  //   public → public events only (matches Public Invite lane, creator's own included)
+  // Lane separation invariant: no event appears in more than one pane's calendar.
+  const paneCalendarEvents = useMemo(() => {
+    const myEventIds = new Set(myEventsData?.events?.map((e) => e.id) ?? []);
+    const attendingEventIds = new Set(attendingData?.events?.map((e) => e.id) ?? []);
+    const decorate = (e: Event) => ({
+      ...e,
+      isOwn: myEventIds.has(e.id),
+      isAttending: attendingEventIds.has(e.id),
+      hostName: e.user?.name ?? null,
+      hostImage: e.user?.image ?? null,
+    });
+    switch (activePane) {
+      case "group":
+        return groupPaneEvents.map(decorate);
+      case "public":
+        return publicPaneEvents.map(decorate);
+      case "open":
+      default:
+        return calendarEvents.filter((e) => e.visibility !== "public" && !e.circleId);
+    }
+  }, [activePane, groupPaneEvents, publicPaneEvents, calendarEvents, myEventsData?.events, attendingData?.events]);
+
+  // Events for the selected calendar date — respects the active pane dataset.
   const selectedDateEvents = useMemo(() => {
     if (!selectedCalDate) return [];
-    return calendarEvents
+    return paneCalendarEvents
       .filter(e => {
         const d = new Date(e.startTime);
         return d.toDateString() === selectedCalDate.toDateString();
       })
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  }, [selectedCalDate, calendarEvents]);
+  }, [selectedCalDate, paneCalendarEvents]);
 
   // Handler for calendar date selection
   const handleCalDateSelect = useCallback((date: Date) => {
@@ -1755,7 +1814,7 @@ export default function SocialScreen() {
             />
           )}
           <FeedCalendar
-            events={calendarEvents}
+            events={paneCalendarEvents}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}

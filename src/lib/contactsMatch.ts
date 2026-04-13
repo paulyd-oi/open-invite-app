@@ -61,18 +61,33 @@ async function sha256(input: string): Promise<string> {
 // ── Core ─────────────────────────────────────────────────────────────────
 
 /**
+ * Per-contact hash bundle. Tracks every phone + email hash we derived from a
+ * single device contact so we can subtract on-platform matches by hash rather
+ * than by fragile name equality.
+ * [CONTACTS_INVITE_HASH_ECHO_V1]
+ */
+interface ContactHashes {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  phoneHashes: string[];
+  emailHashes: string[];
+}
+
+/**
  * Extract, normalize, and hash contacts from the device.
- * Returns hashes for the API call + a local map for displaying unmatched contacts.
+ * Returns hashes for the API call + a per-contact hash bundle used locally
+ * to build the unmatched (invite) list after the backend response.
  */
 export async function extractAndHashContacts(contacts: Contacts.Contact[]): Promise<{
   phoneHashes: string[];
   emailHashes: string[];
-  /** Maps hash → contact info for unmatched display. Never sent to backend. */
-  contactMap: Map<string, UnmatchedContact>;
+  /** One entry per device contact, carrying every hash derived from it. Never sent to backend. */
+  contactHashes: ContactHashes[];
 }> {
   const phoneHashes: string[] = [];
   const emailHashes: string[] = [];
-  const contactMap = new Map<string, UnmatchedContact>();
+  const contactHashes: ContactHashes[] = [];
   const seenPhones = new Set<string>();
   const seenEmails = new Set<string>();
 
@@ -80,6 +95,8 @@ export async function extractAndHashContacts(contacts: Contacts.Contact[]): Prom
     const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Unknown";
     let primaryPhone: string | null = null;
     let primaryEmail: string | null = null;
+    const perContactPhoneHashes: string[] = [];
+    const perContactEmailHashes: string[] = [];
 
     // Hash phone numbers
     if (contact.phoneNumbers) {
@@ -88,10 +105,10 @@ export async function extractAndHashContacts(contacts: Contacts.Contact[]): Prom
         const normalized = normalizePhone(pn.number);
         if (!normalized || seenPhones.has(normalized)) continue;
         seenPhones.add(normalized);
-        if (!primaryPhone) primaryPhone = normalized;
+        if (!primaryPhone) primaryPhone = pn.number;
         const hash = await sha256(normalized);
         phoneHashes.push(hash);
-        contactMap.set(hash, { name, phone: pn.number, email: null });
+        perContactPhoneHashes.push(hash);
       }
     }
 
@@ -102,31 +119,45 @@ export async function extractAndHashContacts(contacts: Contacts.Contact[]): Prom
         const lower = em.email.toLowerCase();
         if (seenEmails.has(lower)) continue;
         seenEmails.add(lower);
-        if (!primaryEmail) primaryEmail = lower;
+        if (!primaryEmail) primaryEmail = em.email;
         const hash = await sha256(lower);
         emailHashes.push(hash);
-        if (!contactMap.has(hash)) {
-          contactMap.set(hash, { name, phone: primaryPhone, email: em.email });
-        }
+        perContactEmailHashes.push(hash);
       }
     }
 
-    // If contact had phone but no email entry in map, ensure we have a display entry
-    if (primaryPhone && !primaryEmail) {
-      // Already added via phone hash above
-    }
+    // Skip contacts that produced zero hashes — nothing to send, nothing to invite.
+    if (perContactPhoneHashes.length === 0 && perContactEmailHashes.length === 0) continue;
+
+    contactHashes.push({
+      name,
+      phone: primaryPhone,
+      email: primaryEmail,
+      phoneHashes: perContactPhoneHashes,
+      emailHashes: perContactEmailHashes,
+    });
   }
 
   if (__DEV__) {
     devLog(`[CONTACTS_MATCH] extracted ${phoneHashes.length} phones, ${emailHashes.length} emails from ${contacts.length} contacts`);
   }
 
-  return { phoneHashes, emailHashes, contactMap };
+  return { phoneHashes, emailHashes, contactHashes };
 }
 
 /**
  * Full pipeline: fetch contacts, hash, match against backend, return results.
  * Caller must have already obtained contacts permission.
+ *
+ * Invite-candidate filtering rules — [CONTACTS_INVITE_HASH_ECHO_V1]:
+ * A device contact appears in `unmatched` (the "Invite your friends" list)
+ * only if NONE of its phone/email hashes matched any Open Invite user.
+ * The backend echoes matched hashes (including the viewer's own), so this
+ * subtraction is strict and captures:
+ *   - existing friends (their phone/email hash matches → excluded)
+ *   - pending friend requests (same — still appear in matches)
+ *   - on-platform suggestion candidates reachable via contacts
+ *   - the viewer themselves (own phone/email hash echoed separately)
  */
 export async function matchContacts(): Promise<ContactMatchResult> {
   // Fetch device contacts
@@ -140,45 +171,67 @@ export async function matchContacts(): Promise<ContactMatchResult> {
   }
 
   // Extract and hash
-  const { phoneHashes, emailHashes, contactMap } = await extractAndHashContacts(contacts);
+  const { phoneHashes, emailHashes, contactHashes } = await extractAndHashContacts(contacts);
 
   if (phoneHashes.length === 0 && emailHashes.length === 0) {
     return { matches: [], unmatched: [] };
   }
 
-  // Call backend
-  const response = await api.post<{ matches: ContactMatchUser[] }>("/api/contacts/match", {
+  // Call backend — expects matched-hash echo ([CONTACTS_INVITE_HASH_ECHO_V1]).
+  // Older server response (missing the echo fields) is tolerated via the
+  // name-based fallback below.
+  const response = await api.post<{
+    matches: ContactMatchUser[];
+    matchedPhoneHashes?: string[];
+    matchedEmailHashes?: string[];
+  }>("/api/contacts/match", {
     phoneHashes,
     emailHashes,
   });
 
   const matches = response.matches ?? [];
+  const matchedPhoneSet = new Set(response.matchedPhoneHashes ?? []);
+  const matchedEmailSet = new Set(response.matchedEmailHashes ?? []);
+  const hasHashEcho = matchedPhoneSet.size + matchedEmailSet.size > 0
+    || Array.isArray(response.matchedPhoneHashes)
+    || Array.isArray(response.matchedEmailHashes);
 
-  // Build unmatched list: all hashed contacts minus those that matched
-  const matchedHashes = new Set<string>();
-  // We don't get back which hash matched, so exclude by userId presence
-  // Build unmatched from contacts that have phone numbers (for SMS invite)
-  const matchedUserIds = new Set(matches.map((m) => m.id));
+  // Name-based fallback set (defense against older servers missing the hash
+  // echo — do NOT rely on this as the primary filter; it's fragile).
+  const matchedNames = new Set(
+    matches.map((m) => m.name?.toLowerCase()).filter(Boolean) as string[],
+  );
 
-  // Collect unique unmatched contacts (by name, prefer phone for SMS)
   const unmatchedByName = new Map<string, UnmatchedContact>();
-  for (const [, contact] of contactMap) {
-    if (!unmatchedByName.has(contact.name) && contact.phone) {
-      unmatchedByName.set(contact.name, contact);
+  for (const ch of contactHashes) {
+    // Need a phone to SMS-invite. Skip contacts with no phone.
+    if (!ch.phone) continue;
+
+    // Strict: any hash belonging to this contact matched an Open Invite user
+    // (friend, pending, suggestion, or self) → exclude from invite list.
+    const anyHashMatched =
+      ch.phoneHashes.some((h) => matchedPhoneSet.has(h)) ||
+      ch.emailHashes.some((h) => matchedEmailSet.has(h));
+    if (anyHashMatched) continue;
+
+    // Fallback for pre-[CONTACTS_INVITE_HASH_ECHO_V1] servers: drop contacts
+    // whose name matches a returned user. Once every client has updated and
+    // the server always echoes, this branch becomes a no-op.
+    if (!hasHashEcho && matchedNames.has(ch.name.toLowerCase())) continue;
+
+    // Dedupe by display name, preferring first-seen (contacts are pre-sorted
+    // by first name so first-seen is the most canonical entry).
+    if (!unmatchedByName.has(ch.name)) {
+      unmatchedByName.set(ch.name, { name: ch.name, phone: ch.phone, email: ch.email });
     }
   }
 
-  // Remove contacts whose name matches a matched user (best-effort dedup)
-  const matchedNames = new Set(matches.map((m) => m.name?.toLowerCase()).filter(Boolean));
-  const unmatched: UnmatchedContact[] = [];
-  for (const [name, contact] of unmatchedByName) {
-    if (!matchedNames.has(name.toLowerCase())) {
-      unmatched.push(contact);
-    }
-  }
+  const unmatched: UnmatchedContact[] = Array.from(unmatchedByName.values());
 
   if (__DEV__) {
-    devLog(`[CONTACTS_MATCH] matches=${matches.length} unmatched=${unmatched.length}`);
+    devLog(
+      `[CONTACTS_MATCH] matches=${matches.length} unmatched=${unmatched.length} hashEcho=${hasHashEcho} matchedPhoneHashes=${matchedPhoneSet.size} matchedEmailHashes=${matchedEmailSet.size}`,
+    );
   }
 
   return { matches, unmatched };
