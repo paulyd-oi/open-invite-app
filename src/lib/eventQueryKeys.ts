@@ -216,6 +216,11 @@ export function getInvalidateAfterComment(eventId: string): Array<readonly strin
 /**
  * Keys to refetch on focus return to event details.
  * Core event data that may have changed while user was away.
+ * [EVENT_FOCUS_ATTENDEE_FRESH_V1] `attendees` and `rsvps` included so the
+ * Who's Coming roster and grouped-RSVP sections reflect RSVPs that other
+ * users made while the page was backgrounded / out of focus. Without these,
+ * focus-return only refreshed `single.goingCount` numerics but not the
+ * avatar list or the going/interested/not_going groupings.
  */
 export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]> {
   return [
@@ -223,6 +228,8 @@ export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]
     eventKeys.interests(eventId),
     eventKeys.comments(eventId),
     eventKeys.rsvp(eventId),
+    eventKeys.attendees(eventId), // [EVENT_FOCUS_ATTENDEE_FRESH_V1]
+    eventKeys.rsvps(eventId), // [EVENT_FOCUS_ATTENDEE_FRESH_V1]
   ];
 }
 

@@ -520,3 +520,63 @@ Expected: `src/app/event/[id].tsx` + one backend route + three docs. Actual matc
 - Comment fetch/display behavior untouched.
 - Moderation / reporting / blocking / rate-limiting (`strictRateLimit`, `relaxedRateLimit`, email-verified gate) all preserved.
 - Frontend blur for Who's Coming and Location cards is intentionally preserved — those are legitimate RSVP-gated surfaces and outside this hotfix's scope.
+
+---
+
+## 2026-04-13 — Real-time consistency audit (cross-surface invalidation + focus-return freshness)
+
+### Summary
+Tight audit pass over the in-scope mutation classes (event create / edit / visibility change / RSVP / comment / notification freshness / public-lane coherence) verifying that SSOT invalidation contracts cover every dependent surface. **One real consistency gap found and fixed.** The rest of the mutation classes were already correct and are documented as verified.
+
+### Gap fixed — focus-return attendee staleness
+**Symptom path:** viewer opens an event → backgrounds the app OR navigates away → a different user RSVPs to that event → viewer returns to the event detail page. The Who's Coming roster (`attendees` query) and the grouped-RSVP sections (`rsvps` query — going / interested / not_going / maybe) stayed stale until the viewer themselves mutated RSVP state, pulled-to-refresh, or the stale-time expired.
+
+**Root cause:** `getRefetchOnEventFocus(eventId)` in `src/lib/eventQueryKeys.ts` was invalidating `single`, `interests`, `comments`, and `rsvp` but NOT `attendees` or `rsvps`. The numeric `goingCount` (served via `single`) would refresh while the avatar list and grouped sections did not.
+
+**Fix:** added `eventKeys.attendees(eventId)` and `eventKeys.rsvps(eventId)` to `getRefetchOnEventFocus`. Single helper; every event detail `useFocusEffect` that delegates to this helper now refreshes the roster + grouped lists too. Tag: `[EVENT_FOCUS_ATTENDEE_FRESH_V1]`.
+
+### Mutation classes explicitly verified as already correct
+- **Event create** (`getInvalidateAfterEventCreate`): invalidates `feed`, `feedPaginated`, `feedPopular`, `friendsHostedFeed`, `mine`, `myEvents`, `calendar`. Creator is never auto-inserted into `event_join_request` (confirmed in `events-crud.ts:433` — only circle invitees are added, and creator is skipped via `member.userId !== user.id`), so `attending()` correctly does NOT need invalidation on create. Call site `src/app/create.tsx:405` wires the helper correctly.
+- **Event edit / visibility change** (`getInvalidateAfterEventEdit`): covers `single`, `feed`, `feedPaginated`, `feedPopular`, `friendsHostedFeed`, `mine`, `myEvents`, `calendar`, `attending`. Matches the existing `[VISIBILITY_TRANSITION_V1]` invariant in `docs/SYSTEMS/discover.md`. Call site `src/app/create.tsx:472`.
+- **RSVP join/leave** (`getInvalidateAfterRsvpJoin` / `getInvalidateAfterRsvpLeave`): covers `single`, `attendees`, `rsvps`, `interests`, `rsvp`, `feed`, `feedPaginated`, `feedPopular`, `friendsHostedFeed`, `myEvents`, `calendar`, `attending` — full surface coverage per `[P0_RSVP_SOT]`. Used via `refreshAfterRsvpJoin` / `refreshAfterRsvpLeave` wrappers in `src/lib/refreshAfterMutation.ts`.
+- **Join-request approve/reject** (`getInvalidateAfterJoinRequestAction`): comprehensive per `[INVALIDATION_GAPS_V2]`.
+- **Comment create** (`getInvalidateAfterComment`): invalidates only `comments(id)`. Verified correct — no feed card, Discover card, Social card, or Calendar surface displays a comment count, so there is nothing to invalidate cross-surface. Only the `comments(id)` query owns display state. Host-side push notification routes through `usePaginatedNotifications` which already has `staleTime: 0 + refetchOnMount: true`.
+- **Notification freshness** (`usePaginatedNotifications`): `staleTime: 0`, `refetchOnMount: true`, and client-side sort by `createdAt` DESC to defend against backend `id`-ordered cuids drifting under backfill or clock skew. Tag already in place: `[NOTIF_FRESHNESS_V1]`. No change needed.
+- **Public-lane coherence**: already enforced by SSOT `isVisibleInPublicFeed()` in `src/lib/discoverFilters.ts` plus `[PUBLIC_LANE_OWN_EVENTS_V1]` (surface coherence across Social Public Invite, Discover Events Public pill, Discover Map Public) plus `[VISIBILITY_TRANSITION_V1]` (lane-affected key invalidation on edit). A new public event with coordinates propagates to all three lanes via the feed / myEvents / feedPopular invalidation cascade; a public event without coordinates correctly appears off-map but not as a map marker (`isEventVisibleInMap` coord filter in `discoverFilters.ts`, documented in `docs/SYSTEMS/discover.md`).
+
+### Files changed
+- `src/lib/eventQueryKeys.ts` — added `attendees(eventId)` and `rsvps(eventId)` to `getRefetchOnEventFocus`; updated the jsdoc with `[EVENT_FOCUS_ATTENDEE_FRESH_V1]` rationale.
+- `docs/SYSTEMS/event-page.md` — new `[EVENT_FOCUS_ATTENDEE_FRESH_V1]` invariant under `## Invariants`.
+- `docs/SESSION_LOG.md` — this entry.
+- `docs/FORENSICS_CACHE.md` — resolved investigation entry.
+
+### Expected vs actual changed files
+Expected (worst case): `src/lib/eventQueryKeys.ts` + one or more mutation/helper files + relevant `docs/SYSTEMS/*.md` + log docs.
+Actual: `src/lib/eventQueryKeys.ts` + 3 docs only. Tighter than expected because the audit found one read-side freshness gap rather than any missing write-side invalidation. No surface file or mutation call-site required editing — the helper is the SSOT, and every caller delegates to it.
+
+### Verification
+- `npx tsc --noEmit` clean.
+- Frontend-only. OTA-safe. No backend contract change required (backend responses were already serving the freshest data; the gap was on the frontend's decision about *when* to refetch).
+- Logical matrix for the fix:
+  1. Open event X, background app, another user RSVPs "going" on event X, foreground app / return to event detail → `useFocusEffect` fires → `getRefetchOnEventFocus(X)` invalidates 6 keys → Who's Coming roster refetches and shows the new attendee avatar; `not_going` / `going` groupings in grouped-RSVP view re-sort.
+  2. Existing same-session RSVP mutation (viewer RSVPs themselves) — unchanged; `getInvalidateAfterRsvpJoin` still owns the write-side invalidation and continues to work as before.
+  3. Pure read surfaces that don't include attendees modal state — unaffected; the two added keys only refetch when their queries are mounted.
+- Logical matrix for verified-correct classes:
+  - Create a new public event with location → appears in Social → Public Invite, Discover → Events → Public pill, Discover → Map → Public.
+  - Create a new public event without location → appears in Social → Public Invite and Discover → Events → Public; does NOT appear as a map marker (coord filter in `isEventVisibleInMap`).
+  - Edit title / time / location → event detail refreshes (`single`), feed cards update (feed + feedPaginated + feedPopular), calendar refreshes. `attending`/`friendsHostedFeed` also refresh for lane coherence.
+  - Edit visibility all_friends → public → event moves INTO public lanes (Events Public pill, Map Public, Social Public Invite) and stays out of Social Open Invite / Group Invite. Moving the other direction reverses the effect.
+  - RSVP join / leave → RSVP button state, attendee avatars/counts, Discover cards, Social cards, Calendar, event detail — all converge via the 12-key `getInvalidateAfterRsvpJoin` / `getInvalidateAfterRsvpLeave` cascades.
+  - Comment create → comment thread refreshes on the commenter's device. Host's device receives a push; when focused, notifications refetch under `[NOTIF_FRESHNESS_V1]`.
+  - Notification freshness → newest activity arrives at top (client-side `createdAt` DESC sort) within one focus cycle.
+
+### Scope discipline
+- Did not add websockets / subscriptions / background polling.
+- Did not redesign Discover / Social / Calendar / Event Detail.
+- Did not touch backend (forensics did not prove a contract mismatch; the gap was entirely client-side refetch timing).
+- Did not broaden into analytics / onboarding / entitlements.
+- Did not modify any query's `staleTime` — `getRefetchOnEventFocus` is the right layer for focus-driven freshness, and over-lowering `staleTime` on `attendees` / `rsvps` would cause unnecessary refetches during normal UI transitions (e.g. toggling the attendees modal).
+
+### Open follow-ups (explicitly out of scope)
+- Discover's `useLiveRefreshContract` wires `refetchFeed, refetchMyEvents, refetchFriendsFeed` but not `refetchAttending` or `refetchFriendsHostedFeed`. Those secondary queries have 60s staleTime and every RSVP mutation already invalidates them, so intra-session consistency is fine. The bounded staleness only affects out-of-session changes, which are inherently latency-bounded by the 60s stale window. Deferred — not a real consistency bug, and broadening the live-refresh set adds network pressure on tab-focus.
+- Social's `useLiveRefreshContract` wires `refetchFeed, refetchMyEvents, refetchAttending` but not `refetchFriendsHostedFeed`. Same reasoning — 5min staleTime + mutation-driven invalidation + `refetchOnMount: true` default make out-of-session freshness bounded. Deferred.

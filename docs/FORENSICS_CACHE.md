@@ -447,3 +447,42 @@ Multiple repro reports on the main acquisition surface. Retry button worked but 
 **Open follow-ups (out of scope):**
 - Consider promoting `canAccessEventDiscussion` to `events-shared.ts` and reusing it in any other route that enforces event view access inconsistently (e.g. `/photos`, `/reactions` if they exist). Deferred — the current duplication is tolerable and broadening scope risks regressions.
 - The blur overlay for Who's Coming and Location cards on `hideDetailsUntilRsvp` is preserved as product-intended. If UX decides those should also relax, that is a separate product decision.
+
+---
+
+## RESOLVED 2026-04-13 — Focus-return attendee staleness on event detail `[EVENT_FOCUS_ATTENDEE_FRESH_V1]`
+
+**Symptom:** viewer opens event X, backgrounds the app (or navigates away). Another user RSVPs "going" on event X. Viewer returns to event detail. The numeric `goingCount` at the top of the page updates correctly, but the Who's Coming avatar roster and the grouped-RSVP section (going / interested / not_going / maybe) still reflect the pre-background state. Stale until the viewer manually pulls to refresh, mutates their own RSVP (which fires `getInvalidateAfterRsvpJoin`), or the default staleTime elapses.
+
+**Investigation:**
+- Audited the six in-scope mutation classes (event create / edit / visibility change / RSVP / comment / notification freshness) against the SSOT helpers in `src/lib/eventQueryKeys.ts` + `src/lib/refreshAfterMutation.ts`. Write-side invalidation was complete in every case.
+- The gap was on the READ side: `getRefetchOnEventFocus(eventId)` at `src/lib/eventQueryKeys.ts:220` returned `[single, interests, comments, rsvp]` but omitted `attendees(id)` and `rsvps(id)`.
+- Event detail queries: `single` serves `goingCount` (a numeric), `attendees` serves the full avatar list + normalized roster (`src/app/event/[id].tsx:863`), `rsvps` serves the grouped going/interested/not_going/maybe objects (`src/app/event/[id].tsx:839`). The three are independent queries with independent cache entries.
+- `useFocusEffect` at `src/app/event/[id].tsx:412` delegates entirely to `getRefetchOnEventFocus`. No per-surface override — so the single helper is the SSOT for focus-return refresh and is the right place to fix.
+- Write-side `getInvalidateAfterRsvpJoin` / `getInvalidateAfterRsvpLeave` already include `attendees` and `rsvps` — so same-session mutation consistency was never broken. Only cross-session / cross-device consistency on focus-return was stale.
+
+**Root cause:** `getRefetchOnEventFocus` was originally scoped to "core event metadata + viewer state" without considering that attendee-list display surfaces could drift when someone else mutates while the viewer is away. The goingCount-vs-roster split is the observable fingerprint.
+
+**Fix:** added `eventKeys.attendees(eventId)` and `eventKeys.rsvps(eventId)` to the returned array. One-line-per-key addition + jsdoc comment documenting `[EVENT_FOCUS_ATTENDEE_FRESH_V1]`. All call sites delegate to the helper; no other file required editing.
+
+**Why surgical:**
+- Single helper function change.
+- No contract, schema, or serializer modification.
+- No surface-level component edits.
+- No query `staleTime` tuning — focus-return is the right layer (lowering attendee `staleTime` would cause unnecessary refetches when the attendees modal closes/reopens in the same session).
+- Frontend-only. OTA-safe.
+
+**Mutation classes explicitly verified correct (NOT touched):**
+- `getInvalidateAfterEventCreate` — full feed cascade; creator not in join_requests, so `attending` correctly excluded.
+- `getInvalidateAfterEventEdit` — matches `[VISIBILITY_TRANSITION_V1]`: all lane-affected keys.
+- `getInvalidateAfterRsvpJoin` / `getInvalidateAfterRsvpLeave` — 12-key full cascade.
+- `getInvalidateAfterJoinRequestAction` — complete per `[INVALIDATION_GAPS_V2]`.
+- `getInvalidateAfterComment` — only `comments(id)`, correct because no cross-surface UI displays a comment count.
+- `usePaginatedNotifications` — `staleTime: 0 + refetchOnMount: true` + client-side `createdAt` DESC sort, already tagged `[NOTIF_FRESHNESS_V1]`.
+- Public-lane coherence — enforced by `isVisibleInPublicFeed()` SSOT + `[PUBLIC_LANE_OWN_EVENTS_V1]` + `[VISIBILITY_TRANSITION_V1]`, with coordinate-filter for Map.
+
+**Guardrail:** `docs/SYSTEMS/event-page.md` gains `[EVENT_FOCUS_ATTENDEE_FRESH_V1]` invariant under the Invariants section so future edits to `getRefetchOnEventFocus` cannot silently drop either key without breaking the documented contract.
+
+**Open follow-ups (out of scope):**
+- `useLiveRefreshContract` wiring for Discover (`refetchFeed`, `refetchMyEvents`, `refetchFriendsFeed`) and Social (`refetchFeed`, `refetchMyEvents`, `refetchAttending`) omit `refetchFriendsHostedFeed`. Out-of-session freshness there is bounded by 60s / 5min stale windows + mutation invalidation; deferred unless telemetry shows user-visible drift.
+- Not touching `attendees` query `staleTime` — refetching mid-session on attendees-modal toggles would be wasteful. The focus-return contract is the right layer.
