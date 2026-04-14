@@ -30,6 +30,8 @@ import {
   Heart,
   Bookmark,
   Calendar,
+  UserPlus,
+  Check,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp, FadeOutUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -78,7 +80,8 @@ import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
-import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResponse, GetFriendsResponse, WhosDownFeedResponse, EventRequest, CreateEventRequestResponse, RespondEventRequestResponse } from "@/shared/contracts";
+import type { GetEventsResponse, GetEventsFeedResponse, GetFriendsHostedFeedResponse, GetFriendsResponse, WhosDownFeedResponse, EventRequest, CreateEventRequestResponse, RespondEventRequestResponse, GetFriendSuggestionsResponse, FriendSuggestion, SendFriendRequestResponse } from "@/shared/contracts";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { EVENT_CATEGORIES } from "@/shared/contracts";
 import { qk } from "@/lib/queryKeys";
 import * as Location from "expo-location";
@@ -574,6 +577,42 @@ export default function DiscoverScreen() {
     refetchOnWindowFocus: false,
   });
   const friendCount = friendsData?.friends?.length ?? -1; // -1 = not yet loaded
+
+  // ── Inline suggestion strip (0-friend recovery) ──
+  // Shares the cache key with FriendDiscoverySurface / suggestions.tsx so no duplicate
+  // fetches. Only enabled when the user is confirmed to have 0 friends, and we only ever
+  // render page 1; no scroll paging, no dismiss — this is a preview surface.
+  const inlineSuggestionsInfinite = useInfiniteQuery({
+    queryKey: ["friendSuggestions", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const cursorParam = pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : "";
+      return api.get<GetFriendSuggestionsResponse>(
+        `/api/friends/suggestions?limit=20${cursorParam}`,
+      );
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
+    enabled: isAuthedForNetwork(bootStatus, session) && friendCount === 0,
+    staleTime: 60000,
+  });
+  const inlineSuggestions: FriendSuggestion[] = useMemo(
+    () => (inlineSuggestionsInfinite.data?.pages?.[0]?.suggestions ?? []).slice(0, 5),
+    [inlineSuggestionsInfinite.data],
+  );
+  const [sentSuggestionIds, setSentSuggestionIds] = useState<Set<string>>(new Set());
+  const sendSuggestionRequestMutation = useMutation({
+    mutationFn: (userId: string) =>
+      api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
+    onSuccess: (_, userId) => {
+      setSentSuggestionIds((prev) => new Set(prev).add(userId));
+      refreshAfterFriendRequestSent(queryClient, userId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Request failed", "Please try again");
+    },
+  });
 
   // [ACTIVATION_NUDGE] Derive first-session signals from already-loaded queries.
   const hostedCount = myEventsData?.events?.filter((e) => e.user?.id === session?.user?.id).length ?? 0;
@@ -1504,6 +1543,147 @@ export default function DiscoverScreen() {
                       Find Friends
                     </Text>
                   </Pressable>
+                )}
+                {/* ═══ Inline Suggestion Strip — 0-friend users only, preview only (no paging, no dismiss) ═══ */}
+                {friendCount === 0 && inlineSuggestions.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+                        People you may know
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          router.push("/add-friends");
+                        }}
+                        hitSlop={8}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>
+                          See more
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ flexGrow: 0 }}
+                      contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+                    >
+                      {inlineSuggestions.map((s) => {
+                        const user = s.user;
+                        const isSent = sentSuggestionIds.has(user.id);
+                        const isPending =
+                          sendSuggestionRequestMutation.isPending &&
+                          sendSuggestionRequestMutation.variables === user.id;
+                        const initials = user.name
+                          ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+                          : "??";
+                        return (
+                          <Pressable
+                            key={user.id}
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              router.push(`/user/${user.id}`);
+                            }}
+                            style={{
+                              width: 120,
+                              alignItems: "center",
+                              padding: 12,
+                              borderRadius: 14,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            }}
+                          >
+                            <EntityAvatar
+                              photoUrl={user.avatarUrl}
+                              initials={initials}
+                              size={48}
+                            />
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: colors.text,
+                                marginTop: 8,
+                                maxWidth: 96,
+                                textAlign: "center",
+                              }}
+                            >
+                              {user.name || "Open Invite User"}
+                            </Text>
+                            {s.mutualFriendCount > 0 ? (
+                              <Text
+                                numberOfLines={1}
+                                style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}
+                              >
+                                {s.mutualFriendCount} mutual
+                              </Text>
+                            ) : (
+                              <View style={{ height: 14, marginTop: 2 }} />
+                            )}
+                            {isSent ? (
+                              <View
+                                style={{
+                                  marginTop: 8,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  paddingVertical: 6,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 999,
+                                  backgroundColor: "#22C55E",
+                                }}
+                              >
+                                <Check size={14} color="#fff" />
+                                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
+                                  Sent
+                                </Text>
+                              </View>
+                            ) : (
+                              <Pressable
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  if (!guardEmailVerification(session)) return;
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                  sendSuggestionRequestMutation.mutate(user.id);
+                                }}
+                                disabled={isPending}
+                                style={{
+                                  marginTop: 8,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  paddingVertical: 6,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 999,
+                                  backgroundColor: themeColor,
+                                  opacity: isPending ? 0.7 : 1,
+                                }}
+                              >
+                                {isPending ? (
+                                  <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                  <>
+                                    <UserPlus size={14} color="#fff" />
+                                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
+                                      Add
+                                    </Text>
+                                  </>
+                                )}
+                              </Pressable>
+                            )}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
                 )}
                 </>
               }
