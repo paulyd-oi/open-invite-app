@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { buildReferralSharePayload, buildAppSharePayload } from "@/lib/shareSSOT";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
 import { useRouter } from "expo-router";
 import {
   UserPlus,
@@ -336,17 +338,22 @@ export default function SuggestionsScreen() {
   });
 
   // Fetch friend suggestions (people you may know)
-  const {
-    data: suggestionsData,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ["friendSuggestions"],
-    queryFn: () =>
-      api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
+  // [FRIEND_SUGGESTIONS_DISMISS_V1] Paged + replenishing. Matches FriendDiscoverySurface.
+  const suggestionsInfinite = useInfiniteQuery({
+    queryKey: ["friendSuggestions", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const cursorParam = pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : "";
+      return api.get<GetFriendSuggestionsResponse>(
+        `/api/friends/suggestions?limit=20${cursorParam}`,
+      );
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 60000,
   });
+  const isLoading = suggestionsInfinite.isLoading;
+  const refetch = suggestionsInfinite.refetch;
 
   // Live search query for Add Friend module
   const { data: searchResults, isFetching: isSearching } = useQuery({
@@ -391,7 +398,61 @@ export default function SuggestionsScreen() {
     },
   });
 
-  const suggestions = suggestionsData?.suggestions ?? [];
+  // Local optimistic-removal set for dismissed rows this session.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+
+  // Flatten all infinite-query pages, then strip out optimistically removed IDs.
+  const allSuggestions = useMemo(() => {
+    const pages = suggestionsInfinite.data?.pages ?? [];
+    return pages.flatMap((p) => p?.suggestions ?? []);
+  }, [suggestionsInfinite.data]);
+
+  const suggestions = useMemo(
+    () => allSuggestions.filter((s) => !dismissedIds.has(s.user.id)),
+    [allSuggestions, dismissedIds],
+  );
+
+  // Replenishment: when visible buffer dips below 10, prefetch the next page.
+  useEffect(() => {
+    if (
+      suggestions.length < 10 &&
+      suggestionsInfinite.hasNextPage &&
+      !suggestionsInfinite.isFetchingNextPage
+    ) {
+      suggestionsInfinite.fetchNextPage();
+    }
+  }, [
+    suggestions.length,
+    suggestionsInfinite.hasNextPage,
+    suggestionsInfinite.isFetchingNextPage,
+    suggestionsInfinite.fetchNextPage,
+  ]);
+
+  // Dismiss mutation — fire-and-forget; optimistic UI; roll back on error.
+  const dismissMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return api.post("/api/friends/suggestions/dismiss", { userId });
+    },
+    onError: (error, userId) => {
+      devError(`[Suggestions] Error dismissing suggestion:`, error);
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    },
+  });
+
+  const handleDismissSuggestion = useCallback((userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDismissedIds((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+    track(AnalyticsEvent.FRIEND_SUGGESTION_DISMISSED, { userId });
+    dismissMutation.mutate(userId);
+  }, [dismissMutation]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -550,19 +611,46 @@ export default function SuggestionsScreen() {
     [],
   );
   const renderPeopleItem = useCallback(
-    ({ item, index }: { item: FriendSuggestion; index: number }) => (
-      <SuggestionCard
-        suggestion={item}
-        index={index}
-        onAddFriend={() => handleAddFriend(item)}
-        isPending={
-          sendRequestMutation.isPending &&
-          sendRequestMutation.variables === item.user.id
-        }
-        isSuccess={sentRequests.has(item.user.id)}
-      />
-    ),
-    [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests],
+    ({ item, index }: { item: FriendSuggestion; index: number }) => {
+      const renderRightActions = () => (
+        <View className="flex-row items-center justify-end pr-4">
+          <View
+            className="h-12 rounded-xl px-4 items-center justify-center"
+            style={{ backgroundColor: isDark ? "#7F1D1D" : "#FEE2E2" }}
+          >
+            <View className="flex-row items-center">
+              <X size={16} color={isDark ? "#FECACA" : "#991B1B"} />
+              <Text className="ml-1 text-sm font-medium" style={{ color: isDark ? "#FECACA" : "#991B1B" }}>
+                Dismiss
+              </Text>
+            </View>
+          </View>
+        </View>
+      );
+
+      return (
+        <Swipeable
+          renderRightActions={renderRightActions}
+          onSwipeableOpen={(direction) => {
+            if (direction === "right") handleDismissSuggestion(item.user.id);
+          }}
+          rightThreshold={40}
+          overshootRight={false}
+        >
+          <SuggestionCard
+            suggestion={item}
+            index={index}
+            onAddFriend={() => handleAddFriend(item)}
+            isPending={
+              sendRequestMutation.isPending &&
+              sendRequestMutation.variables === item.user.id
+            }
+            isSuccess={sentRequests.has(item.user.id)}
+          />
+        </Swipeable>
+      );
+    },
+    [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests, handleDismissSuggestion, isDark],
   );
 
   // [QA-8] Suppress login flash: only show sign-in prompt when definitively logged out
@@ -876,6 +964,13 @@ export default function SuggestionsScreen() {
           ListEmptyComponent={
             isLoading ? (
               <SuggestionsSkeleton />
+            ) : suggestionsInfinite.isFetchingNextPage || suggestionsInfinite.hasNextPage ? (
+              <View className="flex-1 items-center justify-center px-6 py-12">
+                <ActivityIndicator size="small" color={themeColor} />
+                <Text className="text-sm mt-3" style={{ color: colors.textSecondary }}>
+                  Looking for more people…
+                </Text>
+              </View>
             ) : (
               <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
             )
