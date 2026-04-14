@@ -1473,8 +1473,10 @@ export default function DiscoverScreen() {
                     </Text>
                   </View>
                 )}
-                {/* ═══ Friend Nudge — zero friends (suppressed if activation nudge already covers it) ═══ */}
-                {friendCount === 0 && activeFeed.length > 0 && activationNudge !== "add_friends" && (
+                {/* ═══ Friend Nudge — zero friends recovery (suppressed if activation nudge already covers it) ═══ */}
+                {/* Shows regardless of feed state so users who skipped Find Friends onboarding */}
+                {/* still have a visible path back after the ActivationNudgeCard exhausts its dismiss cap. */}
+                {friendCount === 0 && activationNudge !== "add_friends" && (
                   <Pressable
                     onPress={() => router.push("/add-friends")}
                     style={{
@@ -1490,7 +1492,7 @@ export default function DiscoverScreen() {
                   >
                     <Users size={18} color={themeColor} />
                     <Text style={{ flex: 1, fontSize: 13, color: colors.text, marginLeft: 10 }}>
-                      See what your friends are up to
+                      Add friends to see more events and activity.
                     </Text>
                     <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>
                       Find Friends
