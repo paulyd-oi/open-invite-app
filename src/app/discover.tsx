@@ -578,6 +578,10 @@ export default function DiscoverScreen() {
   });
   const friendCount = friendsData?.friends?.length ?? -1; // -1 = not yet loaded
 
+  // Fire FRIEND_RECOVERY_NUDGE_SHOWN once per session when the recovery nudge
+  // becomes visible — mirrors the render gate so impressions match what users see.
+  const recoveryNudgeShownRef = useRef(false);
+
   // ── Inline suggestion strip (0-friend recovery) ──
   // Shares the cache key with FriendDiscoverySurface / suggestions.tsx so no duplicate
   // fetches. Only enabled when the user is confirmed to have 0 friends, and we only ever
@@ -628,6 +632,17 @@ export default function DiscoverScreen() {
     hasRsvpd: myRsvpCount > 0,
     loading: activationSignalsLoading,
   });
+
+  // Impression event — fire once per session when the recovery nudge's render gate flips to true.
+  useEffect(() => {
+    if (recoveryNudgeShownRef.current) return;
+    if (friendCount !== 0) return;
+    if (activationNudge === "add_friends") return;
+    recoveryNudgeShownRef.current = true;
+    track(AnalyticsEvent.FRIEND_RECOVERY_NUDGE_SHOWN, {
+      source: "discover_zero_friend_nudge",
+    });
+  }, [friendCount, activationNudge]);
 
   const friendHostUserIds = useMemo(() => {
     const ids = new Set<string>();

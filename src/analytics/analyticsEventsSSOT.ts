@@ -117,6 +117,7 @@ export const AnalyticsEvent = {
   FRIEND_SUGGESTION_DISMISSED: "friend_suggestion_dismissed",
 
   // Zero-friend recovery nudge — onboarding skip recovery
+  FRIEND_RECOVERY_NUDGE_SHOWN: "friend_recovery_nudge_shown",
   FRIEND_RECOVERY_NUDGE_TAPPED: "friend_recovery_nudge_tapped",
 
 } as const;
