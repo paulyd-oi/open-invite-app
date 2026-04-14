@@ -470,7 +470,7 @@ export default function CreateEventScreen() {
         setUpsellSheet({
           visible: true,
           title: "Upgrade to keep creating",
-          subtitle: errorBody.message ?? "You've used your free premium event. Subscribe to Pro for unlimited premium themes, effects, and more.",
+          subtitle: errorBody.message ?? "Premium themes and effects are part of Pro. Upgrade to unlock the full theme & effect library, Theme Studio, and profile themes.",
           analyticsShowEvent: "premium_save_gate_shown",
           analyticsUpgradeEvent: "premium_save_gate_tapped",
           analyticsProps: {
@@ -808,7 +808,7 @@ export default function CreateEventScreen() {
     }
 
     // Premium gating is handled server-side — backend returns premium_required error
-    // if free user exceeds their free premium event allowance
+    // when a free user attempts to save an event using premium themes/effects.
 
     const isRecurring = frequency !== "once";
     const anyLoading =

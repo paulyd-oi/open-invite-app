@@ -155,6 +155,7 @@ interface PopularEvent {
   description?: string | null;
   eventPhotoUrl?: string | null;
   themeId?: string | null;
+  cardColor?: string | null;
   isRecurring?: boolean;
   recurrence?: string | null;
   nextOccurrence?: string | null;
@@ -1749,7 +1750,7 @@ export default function DiscoverScreen() {
                       : calendarChip;
                 const cardTheme = resolveEventTheme(event.themeId);
                 const cardAccent = cardTheme.backAccent;
-                const rawCardColor = (event as any).cardColor as string | undefined;
+                const rawCardColor = event.cardColor ?? undefined;
                 const plaqueBg = rawCardColor ? softenColor(rawCardColor) : (isDark ? cardTheme.backBgDark : cardTheme.backBgLight);
                 const ccHex = rawCardColor ? softenColor(rawCardColor) : undefined;
                 const ccText = ccHex ? getTextColorForBg(ccHex) : null;

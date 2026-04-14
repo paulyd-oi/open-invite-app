@@ -2122,7 +2122,7 @@ export default function EventDetailScreen() {
               isDark={isDark}
               colors={colors}
               themeId={event.themeId ?? null}
-              cardColor={(event as any)?.cardColor ?? null}
+              cardColor={event?.cardColor ?? null}
               onFirstFlip={handleFirstFlipReveal}
               editButton={undefined}
               photoNudge={
@@ -2220,7 +2220,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ IMPORTED EVENT PROVENANCE ═══ */}
         {!!event?.isImported && (() => {
-          const raw = ((event as any).deviceCalendarName ?? "").toLowerCase();
+          const raw = ((event as { deviceCalendarName?: string | null }).deviceCalendarName ?? "").toLowerCase();
           const provider = raw.includes("icloud") || raw.includes("apple")
             ? "Apple Calendar"
             : raw.includes("google") || raw.includes("gmail")
