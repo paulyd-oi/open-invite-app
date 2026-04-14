@@ -204,7 +204,7 @@ export function FriendDiscoverySurface({
       return api.post("/api/friends/request", { userId });
     },
     onSuccess: (data, userId) => {
-      track(AnalyticsEvent.FRIEND_REQUEST_SENT, {
+      track(AnalyticsEvent.FRIEND_REQUEST_SENT_SUCCESS, {
         source: "onboarding_surface",
         targetUserId: userId,
       });

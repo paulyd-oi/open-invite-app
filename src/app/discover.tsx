@@ -610,7 +610,7 @@ export default function DiscoverScreen() {
     mutationFn: (userId: string) =>
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
     onSuccess: (_, userId) => {
-      track(AnalyticsEvent.FRIEND_REQUEST_SENT, {
+      track(AnalyticsEvent.FRIEND_REQUEST_SENT_SUCCESS, {
         source: "discover_inline",
         targetUserId: userId,
       });

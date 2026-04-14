@@ -125,8 +125,8 @@ export const AnalyticsEvent = {
   DISCOVER_INLINE_SUGGESTION_TAPPED: "discover_inline_suggestion_tapped",
   DISCOVER_INLINE_SUGGESTION_ADD_TAPPED: "discover_inline_suggestion_add_tapped",
 
-  // Friend request conversion — sent from discovery surfaces
-  FRIEND_REQUEST_SENT: "friend_request_sent",
+  // Friend request conversion — fired from mutation onSuccess only (not intent, not error)
+  FRIEND_REQUEST_SENT_SUCCESS: "friend_request_sent_success",
 
 } as const;
 
