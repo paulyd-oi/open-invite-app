@@ -1176,10 +1176,25 @@ export const friendSuggestionSchema = z.object({
 export type FriendSuggestion = z.infer<typeof friendSuggestionSchema>;
 
 // GET /api/friends/suggestions
+// Cursor is an opaque base64url string encoding {mutualCount, createdAtMs, userId}
+// so the deterministic sort (mutualCount DESC, createdAt DESC, userId DESC) can seek.
 export const getFriendSuggestionsResponseSchema = z.object({
   suggestions: z.array(friendSuggestionSchema),
+  nextCursor: z.string().nullable(),
 });
 export type GetFriendSuggestionsResponse = z.infer<typeof getFriendSuggestionsResponseSchema>;
+
+// POST /api/friends/suggestions/dismiss
+// Idempotent — repeated calls are no-ops (enforced by unique index on (userId, dismissedUserId)).
+export const dismissSuggestionSchema = z.object({
+  userId: z.string().min(1),
+});
+export type DismissSuggestionRequest = z.infer<typeof dismissSuggestionSchema>;
+
+export const dismissSuggestionResponseSchema = z.object({
+  success: z.literal(true),
+});
+export type DismissSuggestionResponse = z.infer<typeof dismissSuggestionResponseSchema>;
 
 // ============================================
 // Open Invite - Suggestions Feed

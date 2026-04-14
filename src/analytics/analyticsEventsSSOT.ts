@@ -113,6 +113,9 @@ export const AnalyticsEvent = {
   // Phase 6C — Flip-to-reveal gating
   EVENT_REVEALED: "event_revealed",
 
+  // Friend suggestions — dismiss replenishment loop
+  FRIEND_SUGGESTION_DISMISSED: "friend_suggestion_dismissed",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];

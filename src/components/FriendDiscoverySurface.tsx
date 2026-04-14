@@ -12,7 +12,7 @@
  * - Default suggestions for first load (never blank)
  * - Refresh suggestions after adding friends
  */
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -25,8 +25,10 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { devLog, devError } from "@/lib/devLog";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
 import {
   Search,
   Contact,
@@ -155,18 +157,25 @@ export function FriendDiscoverySurface({
     staleTime: 30000,
   });
 
-  // ── Friend suggestions (people you may know + default suggestions) ──
-  const { data: suggestionsData, isLoading: suggestionsLoading, refetch: refetchSuggestions } = useQuery({
-    queryKey: ["friendSuggestions"],
-    queryFn: async () => {
-      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
-      const result = await api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions");
-      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
+  // ── Friend suggestions (cursor-paginated "Suggested for you") ──
+  // [FRIEND_SUGGESTIONS_DISMISS_V1] Paged + replenishing. Backend enforces exclusion
+  // of dismissed users; this query's buffer auto-fetches more when remaining < 10.
+  const suggestionsInfinite = useInfiniteQuery({
+    queryKey: ["friendSuggestions", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const cursorParam = pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : "";
+      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions cursor=${pageParam ?? "none"}`);
+      const result = await api.get<GetFriendSuggestionsResponse>(`/api/friends/suggestions?limit=20${cursorParam}`);
+      devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions nextCursor=${result?.nextCursor ?? "null"}`);
       return result;
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     enabled,
     staleTime: 60000,
   });
+  const suggestionsLoading = suggestionsInfinite.isLoading;
+  const refetchSuggestions = suggestionsInfinite.refetch;
 
   // ── Send friend request (by email/phone) ──
   const sendRequestMutation = useMutation({
@@ -204,14 +213,69 @@ export function FriendDiscoverySurface({
     },
   });
 
-  const suggestions = suggestionsData?.suggestions || [];
+  // Local optimistic-removal set for dismissed/request-sent rows this session.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+
+  // Flatten all infinite-query pages, then strip out optimistically removed IDs.
+  const allSuggestions = useMemo(() => {
+    const pages = suggestionsInfinite.data?.pages ?? [];
+    return pages.flatMap((p) => p?.suggestions ?? []);
+  }, [suggestionsInfinite.data]);
+
+  const suggestions = useMemo(
+    () => allSuggestions.filter((s) => !dismissedIds.has(s.user.id)),
+    [allSuggestions, dismissedIds],
+  );
+
+  // Replenishment: when visible buffer dips below 10, prefetch the next page.
+  useEffect(() => {
+    if (
+      suggestions.length < 10 &&
+      suggestionsInfinite.hasNextPage &&
+      !suggestionsInfinite.isFetchingNextPage
+    ) {
+      suggestionsInfinite.fetchNextPage();
+    }
+  }, [
+    suggestions.length,
+    suggestionsInfinite.hasNextPage,
+    suggestionsInfinite.isFetchingNextPage,
+    suggestionsInfinite.fetchNextPage,
+  ]);
+
+  // Dismiss mutation — fire-and-forget; optimistic UI; analytics on success path.
+  const dismissMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return api.post("/api/friends/suggestions/dismiss", { userId });
+    },
+    onError: (error, userId) => {
+      devError(`[AddFriends] Error dismissing suggestion:`, error);
+      // Roll back optimistic removal if backend rejects.
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    },
+  });
+
+  const handleDismissSuggestion = useCallback((userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDismissedIds((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+    track(AnalyticsEvent.FRIEND_SUGGESTION_DISMISSED, { userId });
+    dismissMutation.mutate(userId);
+  }, [dismissMutation]);
 
   // *** PROOF LOG: Log suggestions state and empty state reasoning ***
   if (__DEV__) {
     if (suggestionsLoading) {
       devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions still loading...`);
     } else if (suggestions.length === 0) {
-      devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions empty, suggestionsData=${!!suggestionsData}, enabled=${enabled}`);
+      devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions empty, hasData=${!!suggestionsInfinite.data}, enabled=${enabled}`);
     } else {
       devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions loaded: ${suggestions.length} items`);
     }
@@ -486,12 +550,12 @@ export function FriendDiscoverySurface({
           )}
         </View>
 
-        {/* ═══ Section 2: People You May Know ═══ */}
+        {/* ═══ Section 2: Suggested for you ═══ */}
         <View className="mb-4">
           <View className="flex-row items-center mb-3">
             <Sparkles size={16} color="#9333EA" />
             <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-              People you may know{suggestions.length > 0 ? ` (${suggestions.length})` : ""}
+              Suggested for you{suggestions.length > 0 ? ` (${suggestions.length})` : ""}
             </Text>
           </View>
 
@@ -502,9 +566,13 @@ export function FriendDiscoverySurface({
               </Text>
             </View>
           ) : suggestions.length === 0 ? (
+            // Dead-end guard: if the buffer is empty and no more pages exist, steer to
+            // the contacts import CTA above instead of showing a blank surface.
             <View className="py-6 items-center px-6">
               <Text className="text-sm text-center leading-5" style={{ color: colors.textSecondary }}>
-                Suggestions will appear as more friends join.
+                {suggestionsInfinite.isFetchingNextPage
+                  ? "Looking for more people…"
+                  : "You're all caught up. Import your contacts above to find more friends."}
               </Text>
             </View>
           ) : (
@@ -514,61 +582,86 @@ export function FriendDiscoverySurface({
               const isPending = sendByIdMutation.isPending && sendByIdMutation.variables === user.id;
               const mutualCount = suggestion.mutualFriendCount;
 
-              return (
-                <Animated.View key={user.id} entering={FadeInDown.delay(index * 100)}>
+              const renderRightActions = () => (
+                <View className="flex-row items-center justify-end pr-4">
                   <View
-                    className="flex-row items-center py-3 px-4 rounded-xl mb-2"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    className="h-12 rounded-xl px-4 items-center justify-center"
+                    style={{ backgroundColor: isDark ? "#7F1D1D" : "#FEE2E2" }}
                   >
-                    {/* Tappable profile content area */}
-                    <Pressable
-                      className="flex-row items-center flex-1"
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push(`/user/${user.id}`);
-                      }}
-                    >
-                      <EntityAvatar
-                        photoUrl={user.avatarUrl}
-                        initials={user.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "??"}
-                        size={48}
-                      />
-                      <View className="flex-1 ml-3">
-                        <Text className="font-medium text-base" style={{ color: colors.text }}>
-                          {user.name || "Open Invite User"}
-                        </Text>
-                        {mutualCount > 0 ? (
-                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                            {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
-                          </Text>
-                        ) : (
-                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                            Suggested for you
-                          </Text>
-                        )}
-                      </View>
-                    </Pressable>
-
-                    {/* Separate add button */}
-                    {isSent ? (
-                      <View className="w-10 h-10 rounded-full bg-green-500 items-center justify-center ml-2">
-                        <Check size={20} color="#fff" />
-                      </View>
-                    ) : (
-                      <Pressable
-                        className="w-10 h-10 rounded-full items-center justify-center ml-2"
-                        style={{ backgroundColor: themeColor }}
-                        onPress={() => sendByIdMutation.mutate(user.id)}
-                        disabled={isPending}
-                      >
-                        {isPending ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <UserPlus size={20} color="#fff" />
-                        )}
-                      </Pressable>
-                    )}
+                    <View className="flex-row items-center">
+                      <X size={16} color={isDark ? "#FECACA" : "#991B1B"} />
+                      <Text className="ml-1 text-sm font-medium" style={{ color: isDark ? "#FECACA" : "#991B1B" }}>
+                        Dismiss
+                      </Text>
+                    </View>
                   </View>
+                </View>
+              );
+
+              return (
+                <Animated.View key={user.id} entering={FadeInDown.delay(Math.min(index * 60, 360))}>
+                  <Swipeable
+                    renderRightActions={renderRightActions}
+                    onSwipeableOpen={(direction) => {
+                      if (direction === "right") handleDismissSuggestion(user.id);
+                    }}
+                    rightThreshold={40}
+                    overshootRight={false}
+                  >
+                    <View
+                      className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      {/* Tappable profile content area */}
+                      <Pressable
+                        className="flex-row items-center flex-1"
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/user/${user.id}`);
+                        }}
+                      >
+                        <EntityAvatar
+                          photoUrl={user.avatarUrl}
+                          initials={user.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "??"}
+                          size={48}
+                        />
+                        <View className="flex-1 ml-3">
+                          <Text className="font-medium text-base" style={{ color: colors.text }}>
+                            {user.name || "Open Invite User"}
+                          </Text>
+                          {mutualCount > 0 ? (
+                            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                              {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+                            </Text>
+                          ) : (
+                            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                              Suggested for you
+                            </Text>
+                          )}
+                        </View>
+                      </Pressable>
+
+                      {/* Separate add button */}
+                      {isSent ? (
+                        <View className="w-10 h-10 rounded-full bg-green-500 items-center justify-center ml-2">
+                          <Check size={20} color="#fff" />
+                        </View>
+                      ) : (
+                        <Pressable
+                          className="w-10 h-10 rounded-full items-center justify-center ml-2"
+                          style={{ backgroundColor: themeColor }}
+                          onPress={() => sendByIdMutation.mutate(user.id)}
+                          disabled={isPending}
+                        >
+                          {isPending ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <UserPlus size={20} color="#fff" />
+                          )}
+                        </Pressable>
+                      )}
+                    </View>
+                  </Swipeable>
                 </Animated.View>
               );
             })
