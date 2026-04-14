@@ -85,7 +85,7 @@ import * as Location from "expo-location";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { formatLocationShort } from "@/lib/locationFormat";
 import { isEventResponded, isEventVisibleInMap, isEventVisibleInFeed, isEventEligibleForDiscoverPool, getEffectiveTime, isVisibleInPublicFeed, comparePublicFeedOrder, PUBLIC_NEARBY_MILES, type GeoPoint } from "@/lib/discoverFilters";
-import { trackDiscoverSurfaceViewed, trackDiscoverEventOpened } from "@/analytics/analyticsEventsSSOT";
+import { trackDiscoverSurfaceViewed, trackDiscoverEventOpened, track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
 
 // ── Luminance contrast helper — returns black or white for readability on cardColor ──
 function getTextColorForBg(hex: string): "#000000" | "#FFFFFF" {
@@ -1478,7 +1478,13 @@ export default function DiscoverScreen() {
                 {/* still have a visible path back after the ActivationNudgeCard exhausts its dismiss cap. */}
                 {friendCount === 0 && activationNudge !== "add_friends" && (
                   <Pressable
-                    onPress={() => router.push("/add-friends")}
+                    onPress={() => {
+                      track(AnalyticsEvent.FRIEND_RECOVERY_NUDGE_TAPPED, {
+                        source: "discover_zero_friend_nudge",
+                        friendCount: 0,
+                      });
+                      router.push("/add-friends");
+                    }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",

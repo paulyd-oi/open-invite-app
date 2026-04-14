@@ -116,6 +116,9 @@ export const AnalyticsEvent = {
   // Friend suggestions — dismiss replenishment loop
   FRIEND_SUGGESTION_DISMISSED: "friend_suggestion_dismissed",
 
+  // Zero-friend recovery nudge — onboarding skip recovery
+  FRIEND_RECOVERY_NUDGE_TAPPED: "friend_recovery_nudge_tapped",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
