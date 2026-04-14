@@ -125,6 +125,9 @@ export const AnalyticsEvent = {
   DISCOVER_INLINE_SUGGESTION_TAPPED: "discover_inline_suggestion_tapped",
   DISCOVER_INLINE_SUGGESTION_ADD_TAPPED: "discover_inline_suggestion_add_tapped",
 
+  // Friend request conversion — sent from discovery surfaces
+  FRIEND_REQUEST_SENT: "friend_request_sent",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];

@@ -610,6 +610,10 @@ export default function DiscoverScreen() {
     mutationFn: (userId: string) =>
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
     onSuccess: (_, userId) => {
+      track(AnalyticsEvent.FRIEND_REQUEST_SENT, {
+        source: "discover_inline",
+        targetUserId: userId,
+      });
       setSentSuggestionIds((prev) => new Set(prev).add(userId));
       refreshAfterFriendRequestSent(queryClient, userId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

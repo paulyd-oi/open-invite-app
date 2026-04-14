@@ -204,6 +204,10 @@ export function FriendDiscoverySurface({
       return api.post("/api/friends/request", { userId });
     },
     onSuccess: (data, userId) => {
+      track(AnalyticsEvent.FRIEND_REQUEST_SENT, {
+        source: "onboarding_surface",
+        targetUserId: userId,
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSentRequests(prev => new Set(prev.add(userId)));
       onFriendAdded?.();

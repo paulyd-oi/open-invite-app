@@ -386,6 +386,10 @@ export default function SuggestionsScreen() {
     mutationFn: (userId: string) =>
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
     onSuccess: (_, userId) => {
+      track(AnalyticsEvent.FRIEND_REQUEST_SENT, {
+        source: "suggestions_screen",
+        targetUserId: userId,
+      });
       setSentRequests((prev) => new Set(prev).add(userId));
       refreshAfterFriendRequestSent(queryClient, userId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
