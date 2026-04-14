@@ -26,6 +26,7 @@ import {
   Platform,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { devLog, devError } from "@/lib/devLog";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
@@ -69,6 +70,7 @@ export function FriendDiscoverySurface({
   children,
 }: FriendDiscoverySurfaceProps) {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const networkStatus = useNetworkStatus();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -367,7 +369,11 @@ export function FriendDiscoverySurface({
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{
+          // Clear the sticky "Skip for now" footer so the last row isn't hidden behind it.
+          // Footer height: ~48 button + 24 vertical padding + safe-area bottom inset.
+          paddingBottom: showSkipButton ? 88 + insets.bottom : 20,
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />
         }
@@ -670,16 +676,32 @@ export function FriendDiscoverySurface({
 
         {/* Slot for extra content (e.g. contacts scan results) */}
         {children}
-
-        {/* Skip button for onboarding */}
-        {showSkipButton && (
-          <View className="items-center mb-4">
-            <Pressable onPress={onSkip} className="py-3 px-6">
-              <Text className="text-sm" style={{ color: colors.textTertiary }}>Skip for now</Text>
-            </Pressable>
-          </View>
-        )}
       </ScrollView>
+
+      {/* Persistent bottom Skip CTA for onboarding */}
+      {showSkipButton && (
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: insets.bottom + 12,
+            backgroundColor: colors.background,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+          }}
+        >
+          <Button
+            variant="secondary"
+            label="Skip for now"
+            onPress={onSkip}
+            style={{ width: "100%" }}
+          />
+        </View>
+      )}
 
       {/* Contacts Import Modal */}
       <Modal
