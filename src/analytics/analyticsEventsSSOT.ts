@@ -120,6 +120,11 @@ export const AnalyticsEvent = {
   FRIEND_RECOVERY_NUDGE_SHOWN: "friend_recovery_nudge_shown",
   FRIEND_RECOVERY_NUDGE_TAPPED: "friend_recovery_nudge_tapped",
 
+  // Discover inline suggestion strip — 0-friend preview surface
+  DISCOVER_INLINE_SUGGESTIONS_SHOWN: "discover_inline_suggestions_shown",
+  DISCOVER_INLINE_SUGGESTION_TAPPED: "discover_inline_suggestion_tapped",
+  DISCOVER_INLINE_SUGGESTION_ADD_TAPPED: "discover_inline_suggestion_add_tapped",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];

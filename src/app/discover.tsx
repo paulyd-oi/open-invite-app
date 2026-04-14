@@ -581,6 +581,8 @@ export default function DiscoverScreen() {
   // Fire FRIEND_RECOVERY_NUDGE_SHOWN once per session when the recovery nudge
   // becomes visible — mirrors the render gate so impressions match what users see.
   const recoveryNudgeShownRef = useRef(false);
+  // Fire DISCOVER_INLINE_SUGGESTIONS_SHOWN once per session when the strip becomes visible.
+  const inlineSuggestionsShownRef = useRef(false);
 
   // ── Inline suggestion strip (0-friend recovery) ──
   // Shares the cache key with FriendDiscoverySurface / suggestions.tsx so no duplicate
@@ -643,6 +645,18 @@ export default function DiscoverScreen() {
       source: "discover_zero_friend_nudge",
     });
   }, [friendCount, activationNudge]);
+
+  // Impression event — fire once per session when the inline suggestion strip becomes visible.
+  useEffect(() => {
+    if (inlineSuggestionsShownRef.current) return;
+    if (friendCount !== 0) return;
+    if (inlineSuggestions.length === 0) return;
+    inlineSuggestionsShownRef.current = true;
+    track(AnalyticsEvent.DISCOVER_INLINE_SUGGESTIONS_SHOWN, {
+      source: "discover_inline",
+      count: inlineSuggestions.length,
+    });
+  }, [friendCount, inlineSuggestions.length]);
 
   const friendHostUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1604,6 +1618,10 @@ export default function DiscoverScreen() {
                           <Pressable
                             key={user.id}
                             onPress={() => {
+                              track(AnalyticsEvent.DISCOVER_INLINE_SUGGESTION_TAPPED, {
+                                source: "discover_inline",
+                                userId: user.id,
+                              });
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                               router.push(`/user/${user.id}`);
                             }}
@@ -1666,6 +1684,10 @@ export default function DiscoverScreen() {
                               <Pressable
                                 onPress={(e) => {
                                   e.stopPropagation();
+                                  track(AnalyticsEvent.DISCOVER_INLINE_SUGGESTION_ADD_TAPPED, {
+                                    source: "discover_inline",
+                                    userId: user.id,
+                                  });
                                   if (!guardEmailVerification(session)) return;
                                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                   sendSuggestionRequestMutation.mutate(user.id);
