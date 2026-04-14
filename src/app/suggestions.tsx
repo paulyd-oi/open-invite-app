@@ -198,39 +198,57 @@ function SuggestionCard({
   );
 }
 
-// Empty State Component with Invite CTA
-function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => void }) {
+// Empty State Component — discovery-first CTA, invite demoted to secondary
+function EmptyState({
+  onFindFriends,
+  onInvite,
+  onInfo,
+}: {
+  onFindFriends: () => void;
+  onInvite: () => void;
+  onInfo: () => void;
+}) {
   const { colors, themeColor } = useTheme();
-  
+
   return (
     <View className="flex-1 items-center justify-center px-6 py-12">
       <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: themeColor + "15" }}>
         <Users size={40} color={themeColor} />
       </View>
-      
+
       <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
         People you may know
       </Text>
-      
-      <Text className="text-center text-sm leading-5 mb-1" style={{ color: colors.textSecondary }}>
-        Suggestions appear as more friends join Open Invite.
-      </Text>
-      
+
       <Text className="text-center text-sm leading-5 mb-6" style={{ color: colors.textSecondary }}>
-        Invite a few people to kickstart your network.
+        Search by name, email, or phone, or import your contacts to find people you already know.
       </Text>
-      
+
       <Button
         variant="primary"
-        label="Invite friends"
+        label="Find Friends"
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onInvite();
+          onFindFriends();
         }}
-        leftIcon={<Share2 size={18} color="#fff" />}
+        leftIcon={<UserPlus size={18} color="#fff" />}
         style={{ marginBottom: 12 }}
       />
-      
+
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          onInvite();
+        }}
+        className="flex-row items-center mb-3"
+        hitSlop={8}
+      >
+        <Share2 size={14} color={colors.textSecondary} />
+        <Text className="text-sm ml-1.5" style={{ color: colors.textSecondary }}>
+          Invite via link
+        </Text>
+      </Pressable>
+
       <Pressable
         onPress={() => {
           Haptics.selectionAsync();
@@ -972,7 +990,14 @@ export default function SuggestionsScreen() {
                 </Text>
               </View>
             ) : (
-              <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
+              <EmptyState
+                onFindFriends={() => {
+                  Haptics.selectionAsync();
+                  router.push("/add-friends");
+                }}
+                onInvite={handleInviteFriends}
+                onInfo={() => setShowInfoModal(true)}
+              />
             )
           }
           refreshControl={
