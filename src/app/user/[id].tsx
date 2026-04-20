@@ -493,7 +493,7 @@ export default function UserProfileScreen() {
   // [P0_PERF_PRELOAD_PUBLIC_PROFILE_HERO] Preload viewed user's banner (max 1)
   const heroUri = useMemo(
     () => resolveBannerUri(user?.Profile ?? null),
-    [user?.Profile?.bannerPhotoUrl, user?.Profile?.bannerUrl],
+    [user?.Profile?.bannerPhotoUrl],
   );
   usePreloadHeroBanners({ uris: heroUri ? [heroUri] : [], enabled: !!heroUri, max: 1 });
 
@@ -510,7 +510,7 @@ export default function UserProfileScreen() {
         viewerId: viewerId?.slice(0, 8) ?? null,
         viewedUserId: id?.slice(0, 8) ?? null,
         hasBanner: !!heroUri,
-        bannerUrlPresent: !!(user?.Profile?.bannerPhotoUrl ?? user?.Profile?.bannerUrl),
+        bannerUrlPresent: !!user?.Profile?.bannerPhotoUrl,
         resolvedUri: heroUri?.slice(0, 60) ?? null,
       });
     }

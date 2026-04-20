@@ -571,7 +571,6 @@ export const friendUserSchema = z.object({
     bio: z.string().nullable(),
     calendarBio: z.string().nullable(),
     avatarUrl: z.string().nullable(),
-    bannerUrl: z.string().nullable().optional(),
     bannerPhotoUrl: z.string().nullable().optional(),
     profileThemeId: z.string().nullable().optional(),
     profileCardColor: z.string().nullable().optional(),
@@ -764,6 +763,8 @@ export const notificationSchema = z.object({
   title: z.string(),
   body: z.string(),
   data: z.string().nullable(),
+  entityId: z.string().nullable().optional(),
+  actorId: z.string().nullable().optional(),
   read: z.boolean(),
   createdAt: z.string(),
 });
@@ -1000,6 +1001,8 @@ export type GetFriendBirthdaysResponse = z.infer<typeof getFriendBirthdaysRespon
 // Open Invite - Event Photos (Memories)
 // ============================================
 
+// DB has additional fields (publicId, bytes, width, height) intentionally omitted from API response.
+// If exposing, add to schema and update backend serializer in lockstep.
 export const eventPhotoSchema = z.object({
   id: z.string(),
   eventId: z.string(),
@@ -1107,10 +1110,10 @@ export const eventReminderSchema = z.object({
   id: z.string(),
   eventId: z.string(),
   userId: z.string(),
-  reminderTime: z.string(), // ISO date string
   minutesBefore: z.number(),
-  sent: z.boolean(),
+  isEnabled: z.boolean(),
   createdAt: z.string(),
+  updatedAt: z.string(),
 });
 export type EventReminder = z.infer<typeof eventReminderSchema>;
 
@@ -1995,6 +1998,14 @@ export const circleMemberSchema = z.object({
 });
 export type CircleMember = z.infer<typeof circleMemberSchema>;
 
+// Circle message reaction aggregate (viewer-scoped)
+export const messageReactionAggregateSchema = z.object({
+  emoji: z.string(),
+  count: z.number(),
+  reactedByMe: z.boolean(),
+});
+export type MessageReactionAggregate = z.infer<typeof messageReactionAggregateSchema>;
+
 // Circle message object
 export const circleMessageSchema = z.object({
   id: z.string(),
@@ -2016,6 +2027,7 @@ export const circleMessageSchema = z.object({
     userName: z.string(),
     snippet: z.string(),
   }).optional(),
+  reactions: z.array(messageReactionAggregateSchema).optional(),
 });
 export type CircleMessage = z.infer<typeof circleMessageSchema>;
 
@@ -2119,6 +2131,17 @@ export const sendCircleMessageRequestSchema = z.object({
   }).optional(),
 });
 export type SendCircleMessageRequest = z.infer<typeof sendCircleMessageRequestSchema>;
+
+// POST /api/circles/:id/messages/:messageId/reactions - Toggle a reaction
+export const toggleReactionRequestSchema = z.object({
+  emoji: z.string().min(1).max(32),
+  isActive: z.boolean().optional(),
+});
+export type ToggleReactionRequest = z.infer<typeof toggleReactionRequestSchema>;
+export const toggleReactionResponseSchema = z.object({
+  reactions: z.array(messageReactionAggregateSchema),
+});
+export type ToggleReactionResponse = z.infer<typeof toggleReactionResponseSchema>;
 
 // POST /api/circles/:id/events
 export const createCircleEventRequestSchema = z.object({

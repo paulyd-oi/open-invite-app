@@ -258,7 +258,7 @@ export default function PublicProfileScreen() {
       const pubBannerUri = resolveBannerUri(user?.Profile as Record<string, unknown> | null);
       devLog("[P0_BANNER_RENDER_PUBLIC]", {
         computedBannerUri: pubBannerUri?.slice(0, 60) ?? null,
-        source: user?.Profile?.bannerPhotoUrl ? "bannerPhotoUrl" : user?.Profile?.bannerUrl ? "bannerUrl" : "none",
+        source: user?.Profile?.bannerPhotoUrl ? "bannerPhotoUrl" : "none",
       });
       devLog("[P1_PUBLIC_PREVIEW_UI]", {
         viewerId: viewerId?.slice(0, 8),
