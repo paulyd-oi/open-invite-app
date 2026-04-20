@@ -1069,8 +1069,8 @@ export default function EventDetailScreen() {
   // Normalize: "maybe" → "interested", "invited" → null (pending RSVP, show controls)
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
 
-  // When hideDetailsUntilRsvp is enabled, blur Who's Coming and Discussion for non-going, non-host viewers
-  const shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent && !contentRevealed;
+  // When hideDetailsUntilRsvp is enabled, blur About and Who's Coming for non-going, non-host viewers (pure RSVP gate — Phase 6C flip does NOT bypass)
+  const shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent;
 
   // Shared save/unsave hook — MUST be above all early returns for stable hook order
   const saveEvent = useSaveEvent({ eventId: id ?? "", viewerRsvpStatus: myRsvpStatus });
