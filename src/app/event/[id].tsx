@@ -2256,7 +2256,7 @@ export default function EventDetailScreen() {
           visibility={event.visibility}
           circleName={event.circleName}
           circleId={event.circleId}
-          groupVisibility={(event as any).groupVisibility}
+          groupVisibility={event.groupVisibility}
           onOpenCircle={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             devLog('[P0_EVENT_CIRCLE_LINK]', { circleId: event.circleId, eventId: event.id });

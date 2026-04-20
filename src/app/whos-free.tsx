@@ -36,6 +36,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import BottomSheet from "@/components/BottomSheet";
 import { FriendPickerSheet } from "@/components/FriendPickerSheet";
 import { buildGlassTokens } from "@/ui/glassTokens";
+import type { Friendship, GetFriendsResponse } from "@/shared/contracts";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -75,20 +76,6 @@ interface TimeSlot {
   totalMembers: number;
 }
 
-interface Friendship {
-  id: string;
-  friendId: string;
-  friend: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-  } | null;
-}
-
-interface GetFriendsResponse {
-  friends: Friendship[];
-}
 
 export default function WhosFreeScreen() {
   const { date, source } = useLocalSearchParams<{ date: string; source?: string }>();

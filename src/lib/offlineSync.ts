@@ -33,6 +33,7 @@ import {
   generateLocalEventId,
   LocalEvent,
 } from "./offlineStore";
+import type { CreateEventResponse, RsvpResponse, RsvpDeleteResponse } from "@/shared/contracts";
 import { safeToast } from "@/lib/safeToast";
 import { eventKeys } from "./eventQueryKeys";
 
@@ -47,17 +48,6 @@ function normalizeRsvpStatus(status: string): "going" | "interested" | "not_goin
   return "interested";
 }
 
-// Types for API responses
-interface CreateEventResponse {
-  id: string;
-  title: string;
-  [key: string]: any;
-}
-
-interface RsvpResponse {
-  success?: boolean;
-  [key: string]: any;
-}
 
 /**
  * Execute a single queued action
@@ -94,7 +84,7 @@ async function executeAction(action: QueuedAction): Promise<{ success: boolean; 
 
       case "DELETE_RSVP": {
         const payload = action.payload as DeleteRsvpPayload;
-        const response = await api.delete<RsvpResponse>(`/api/events/${payload.eventId}/rsvp`);
+        const response = await api.delete<RsvpDeleteResponse>(`/api/events/${payload.eventId}/rsvp`);
         return { success: true, data: response };
       }
 
@@ -316,7 +306,7 @@ export function useOfflineCreateEvent() {
       if (isOnline) {
         // Online: create normally
         const response = await api.post<CreateEventResponse>("/api/events", payload);
-        return { id: response.id, isLocal: false };
+        return { id: response.event.id, isLocal: false };
       }
 
       // Offline: create local placeholder and queue

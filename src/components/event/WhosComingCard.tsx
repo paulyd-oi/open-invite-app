@@ -5,6 +5,7 @@ import { Lock, Users, Heart, XCircle, ChevronRight, UserPlus } from "@/ui/icons"
 import { STATUS } from "@/ui/tokens";
 import { RADIUS } from "@/ui/layout";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import type { GuestRsvpItem } from "@/shared/contracts";
 
 interface AttendeeInfo {
   id: string;
@@ -39,12 +40,6 @@ interface NotGoingUser {
   image: string | null;
 }
 
-interface GuestRsvpEntry {
-  id: string;
-  name: string;
-  status: string;
-  createdAt: string;
-}
 
 interface WhosComingCardProps {
   attendeesPrivacyDenied: boolean;
@@ -56,8 +51,8 @@ interface WhosComingCardProps {
   isMyEvent: boolean;
   interests: Interest[];
   notGoingUsers: NotGoingUser[];
-  guestGoingList: GuestRsvpEntry[];
-  guestNotGoingList: GuestRsvpEntry[];
+  guestGoingList: GuestRsvpItem[];
+  guestNotGoingList: GuestRsvpItem[];
   showGuestList: boolean;
   showGuestCount: boolean;
   showInterestedUsers: boolean;

@@ -15,17 +15,11 @@ import { UserListRow } from "@/components/UserListRow";
 import { Button } from "@/ui/Button";
 import { devLog } from "@/lib/devLog";
 import { once } from "@/lib/runtimeInvariants";
-import type { Friendship } from "@/shared/contracts";
+import type { Friendship, CircleMember } from "@/shared/contracts";
 
 const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
   <Ionicons name="trash-outline" size={size} color={color} style={style} />
 );
-
-interface CircleMember {
-  id: string;
-  userId: string;
-  user: { id?: string; name: string | null; image: string | null };
-}
 
 interface CircleMembersSheetProps {
   visible: boolean;

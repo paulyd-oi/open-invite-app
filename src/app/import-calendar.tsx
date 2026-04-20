@@ -48,41 +48,12 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { wrapRace } from "@/lib/devStress";
-
-// Types for calendar import
-interface ImportedCalendarEvent {
-  deviceEventId: string;
-  title: string;
-  startTime: string;
-  endTime: string | null;
-  location: string | null;
-  notes: string | null;
-  calendarId: string;
-  calendarName?: string;
-}
-
-interface ImportCalendarEventsRequest {
-  events: ImportedCalendarEvent[];
-  defaultVisibility?: "all_friends" | "specific_groups" | "private";
-}
-
-interface ImportCalendarEventsResponse {
-  success: boolean;
-  imported: number;
-  updated: number;
-  skipped: number;
-  events: unknown[];
-}
-
-interface ImportedEvent {
-  id: string;
-  deviceCalendarId: string | null;
-  [key: string]: unknown;
-}
-
-interface GetImportedEventsResponse {
-  events: ImportedEvent[];
-}
+import type {
+  ImportedCalendarEvent,
+  ImportCalendarEventsRequest,
+  ImportCalendarEventsResponse,
+  GetImportedEventsResponse,
+} from "@/shared/contracts";
 
 export default function ImportCalendarScreen() {
   const router = useRouter();

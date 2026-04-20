@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import BottomSheet from "@/components/BottomSheet";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import type { CircleMember } from "@/shared/contracts";
 
 interface AvailMember {
   userId: string;
@@ -19,11 +20,6 @@ interface AvailSummary {
   tentative?: number;
   unknown: number;
   total: number;
-}
-
-interface CircleMember {
-  userId: string;
-  user: { image: string | null };
 }
 
 interface CircleAvailabilitySheetProps {

@@ -8,19 +8,13 @@ import { UserListRow } from "@/components/UserListRow";
 import BottomSheet from "@/components/BottomSheet";
 import { devLog } from "@/lib/devLog";
 import { once } from "@/lib/runtimeInvariants";
+import type { GuestRsvpItem } from "@/shared/contracts";
 
 interface Attendee {
   id: string;
   name: string | null;
   imageUrl?: string | null;
   isHost?: boolean;
-}
-
-interface GuestRsvpEntry {
-  id: string;
-  name: string;
-  status: string;
-  createdAt: string;
 }
 
 interface AttendeesSheetColors {
@@ -36,7 +30,7 @@ interface AttendeesSheetProps {
   hasError: boolean;
   isPrivacyDenied: boolean;
   attendees: Attendee[];
-  guestGoingList: GuestRsvpEntry[];
+  guestGoingList: GuestRsvpItem[];
   effectiveGoingCount: number;
   hostUserId: string | undefined;
   isDark: boolean;
