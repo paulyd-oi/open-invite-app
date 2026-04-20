@@ -119,10 +119,6 @@ interface EffectTrayProps {
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
   onCustomEffect: (config: ParticleMotifConfig | null) => void;
-  /** Called when free user taps an effect — applies preview, then parent shows upsell */
-  onPremiumPreview?: (effectId: string) => void;
-  /** Called when free user tries to expand Effect Studio */
-  onStudioGate?: () => void;
   /** Dismiss the tray (called on outside-tap) */
   onClose: () => void;
 }
@@ -140,8 +136,6 @@ export const EffectTray = memo(function EffectTray({
   glassTertiary,
   onSelectEffect,
   onCustomEffect,
-  onPremiumPreview,
-  onStudioGate,
   onClose,
 }: EffectTrayProps) {
   const insets = useSafeAreaInsets();
@@ -297,7 +291,6 @@ export const EffectTray = memo(function EffectTray({
             isDark={isDark}
             glassTertiary={glassTertiary}
             onSelectEffect={handleSelect}
-            onPremiumPreview={onPremiumPreview}
           />
         )}
       </Animated.View>
@@ -315,7 +308,6 @@ interface TrayContentProps {
   isDark: boolean;
   glassTertiary: string;
   onSelectEffect: (key: string | null) => void;
-  onPremiumPreview?: (effectId: string) => void;
 }
 
 function TrayContent({
@@ -325,7 +317,6 @@ function TrayContent({
   isDark,
   glassTertiary,
   onSelectEffect,
-  onPremiumPreview,
 }: TrayContentProps) {
   return (
     <View style={styles.trayBody}>
