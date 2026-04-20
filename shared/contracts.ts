@@ -169,7 +169,7 @@ export type RsvpStatusMutation = "going" | "interested" | "not_going";
 /** RSVP status values the server may return (includes legacy "maybe"). */
 export type RsvpStatusResponse = "going" | "interested" | "not_going" | "maybe";
 
-// Event Themes V1 — allowed theme IDs (5 free + 25 premium)
+// Event Themes V1 — allowed theme IDs (5 free + 36 premium)
 export const ALLOWED_THEME_IDS = [
   // Free essentials (5)
   "neutral", "chill_hang", "dinner_night", "game_night", "worship_night",

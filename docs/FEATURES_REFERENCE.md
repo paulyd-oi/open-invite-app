@@ -55,7 +55,7 @@
 ### PRO TIER
 | Feature | Pro Benefit |
 |---------|-------------|
-| Event themes | 25 premium |
+| Event themes | 36 premium |
 | Premium effects | Yes |
 | Theme Studio | Yes |
 | "Who's Free?" | 90 days ahead |

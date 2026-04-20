@@ -292,22 +292,16 @@ export default function PaywallScreen() {
     {
       title: "Themes & Atmosphere",
       features: [
-        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "25 premium" },
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "36 premium" },
         { name: "Premium Effects", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
         { name: "Theme Studio", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
+        { name: "Profile Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "19 premium" },
       ],
     },
     {
       title: "Social",
       features: [
         { name: "Friends", icon: <Users size={16} color={themeColor} />, freeValue: "Unlimited", proValue: "Unlimited" },
-        { name: "Circles", icon: <Users size={16} color={themeColor} />, freeValue: "2 max", proValue: "Unlimited" },
-      ],
-    },
-    {
-      title: "Planning",
-      features: [
-        { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
       ],
     },
   ];

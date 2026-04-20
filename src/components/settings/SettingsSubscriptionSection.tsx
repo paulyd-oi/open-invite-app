@@ -51,7 +51,7 @@ export function SettingsSubscriptionSection({
               {userIsPremium ? "Founder Pro" : "Free Plan"}
             </Text>
             <Text style={{ color: colors.textSecondary }} className="text-sm">
-              {userIsPremium ? "All premium themes, effects & more" : "Unlimited events, 5 basic themes"}
+              {userIsPremium ? "All premium themes, effects, profile themes & more" : "Unlimited events, 5 basic themes, card color"}
             </Text>
           </View>
           {!userIsPremium && <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>}

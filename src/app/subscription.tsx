@@ -359,7 +359,7 @@ export default function SubscriptionScreen() {
     {
       title: "Themes & Atmosphere",
       features: [
-        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "All 30" },
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "5 basic", proValue: "All 41" },
         { name: "Premium Effects", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
         { name: "Theme Studio", icon: <Palette size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],

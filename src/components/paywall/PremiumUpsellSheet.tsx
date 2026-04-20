@@ -31,7 +31,7 @@ export interface PremiumUpsellSheetProps {
   visible: boolean;
   /** e.g. "Premium Theme", "Theme Studio", "Premium Effect" */
   title: string;
-  /** e.g. "Unlock all 25 premium themes with Pro" */
+  /** e.g. "Unlock all 36 premium themes with Pro" */
   subtitle: string;
   /** Optional content rendered between subtitle and buttons */
   previewContent?: React.ReactNode;

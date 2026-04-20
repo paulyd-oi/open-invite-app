@@ -1,7 +1,7 @@
 /**
  * Event Themes V1 — SSOT for event card theme catalog.
  *
- * 5 free essentials + 21 premium (Pro) themes across themed packs.
+ * 5 free essentials + 36 premium (Pro) themes across themed packs.
  * Each theme defines minimal styling tokens for flip card + page chrome.
  *
  * Priority: explicit event.themeId > neutral fallback.

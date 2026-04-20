@@ -226,7 +226,7 @@ Where `data` is a JSON blob parsed by `parseNotificationData`. Available fields 
 - `entitlements.ts` defines `FREE_LIMITS = { circlesMax: 2, membersPerCircleMax: 15, ... }` as offline fallback defaults.
 - `useSubscription.ts` defines matching constants, also as fallback defaults.
 - The backend `/api/entitlements` endpoint does not enforce these limits for any user — confirmed by device testing.
-- Theme gating IS real: `PREMIUM_THEME_IDS` in `shared/contracts.ts` defines 25 premium themes, 5 free themes. This is enforced by the theme picker UI.
+- Theme gating IS real: `PREMIUM_THEME_IDS` in `shared/contracts.ts` defines 36 premium themes, 5 free themes. This is enforced by the theme picker UI.
 
 **Fix:** Removed ALL rows claiming unenforced limits:
 - Removed: Circles "2 max" / "Unlimited"
@@ -237,7 +237,7 @@ Where `data` is a JSON blob parsed by `parseNotificationData`. Available fields 
 - Removed: Friends "Unlimited" / "Unlimited" (no difference, pointless row)
 - Removed: entire Social and Planning sections (empty after limit removal)
 
-**Kept:** Event Hosting (Unlimited/Unlimited — reassuring, accurate), Event Themes (5 basic / All 30 — enforced), Premium Effects (No/Yes — enforced), Theme Studio (No/Yes — enforced).
+**Kept:** Event Hosting (Unlimited/Unlimited — reassuring, accurate), Event Themes (5 basic / All 41 — enforced), Premium Effects (No/Yes — enforced), Theme Studio (No/Yes — enforced).
 
 **Source-of-truth decision:** Added `@deprecated` JSDoc tags and header comment to `freemiumLimits.ts` explaining that `FREE_TIER_LIMITS` and `PRO_TIER_LIMITS` are stale dead code. Only `REFERRAL_TIERS` from this file is actively used (6 import sites). Canonical subscription truth:
 - Runtime enforcement: `src/lib/entitlements.ts` (reads `/api/entitlements`)

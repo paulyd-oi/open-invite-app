@@ -39,7 +39,7 @@ Better Auth (`better-auth/react`) + `@better-auth/expo` plugin. Session persiste
 
 Two layers:
 1. **App UI theme** (`src/lib/ThemeContext.tsx`) — accent color (9 options) + light/dark/auto mode, persisted in AsyncStorage. Full token palette (`DARK_COLORS`/`LIGHT_COLORS`).
-2. **Event themes** (`src/lib/eventThemes.ts`) — 5 free + 25 premium themes. Each defines a `ThemeVisualStack` (gradient, shader, particles, filter, image). Rendered by `ThemeEffectLayer` (Skia GPU particles), `AnimatedGradientLayer`, `ThemeVideoLayer`, `ThemeFilterLayer`.
+2. **Event themes** (`src/lib/eventThemes.ts`) — 5 free + 36 premium themes (41 total). Each defines a `ThemeVisualStack` (gradient, shader, particles, filter, image). Rendered by `ThemeEffectLayer` (Skia GPU particles), `AnimatedGradientLayer`, `ThemeVideoLayer`, `ThemeFilterLayer`.
 
 ---
 
@@ -310,7 +310,7 @@ Two layers:
 | `ideasEngine.ts` | 1042 | Deterministic idea-card generator from social context |
 | `entitlements.ts` | 946 | SSOT plan-based feature gating: useEntitlements, useHostingQuota |
 | `pushRouter.ts` | 847 | Push event → React Query invalidation router with dedup |
-| `eventThemes.ts` | 700 | Theme catalog: 5 free + 25 premium, visual stacks |
+| `eventThemes.ts` | 700 | Theme catalog: 5 free + 36 premium, visual stacks |
 | `authBootstrap.ts` | 681 | Auth state machine: loggedOut/onboarding/authed, 15s watchdog |
 | `adminApi.ts` | 615 | Admin API: user search, badges, entitlements |
 | `SubscriptionContext.tsx` | 541 | RevenueCat context: offerings, purchase, restore, feature flags |

@@ -7,7 +7,7 @@
 
 ## Theme Catalog
 
-- **30 total:** 5 free (neutral, chill_hang, dinner_night, game_night, worship_night) + 25 premium (Pro-gated)
+- **41 total:** 5 free (neutral, chill_hang, dinner_night, game_night, worship_night) + 36 premium (Pro-gated)
 - Stored as `themeId String?` on event model
 - Resolved via `resolveEventTheme(themeId)` → `EventThemeTokens`
 

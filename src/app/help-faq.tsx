@@ -558,17 +558,6 @@ export default function HelpFAQScreen() {
           ],
         },
         {
-          title: "Phone Number",
-          description: "Help friends find you by phone number.",
-          howItWorks: [
-            "Go to Settings > Phone Number",
-            "Enter your phone number",
-            "Friends can search by phone to find you",
-            "Your number is never shared publicly",
-            "Remove anytime if you prefer",
-          ],
-        },
-        {
           title: "Profile Statistics",
           description: "See your social activity at a glance.",
           howItWorks: [
@@ -589,10 +578,10 @@ export default function HelpFAQScreen() {
       features: [
         {
           title: "Event Themes",
-          description: "Choose from 38 themes to set the mood for your event.",
+          description: "Choose from 41 themes to set the mood for your event.",
           howItWorks: [
             "When creating or editing an event, tap the theme selector",
-            "Browse 5 free Essentials themes and 33 premium themes",
+            "Browse 5 free Essentials themes and 36 premium themes",
             "Themes are organized by category: Celebration, Romance, Spring, Summer, Seasonal, and Animated",
             "Each theme includes a unique gradient, colors, and atmosphere",
             "Premium themes require a Pro subscription",
@@ -643,7 +632,7 @@ export default function HelpFAQScreen() {
           description: "Free and Pro plans for every type of planner.",
           howItWorks: [
             "Free: Unlimited event hosting, 5 Essentials themes, core features",
-            "Pro: 33 premium themes, animated backgrounds, premium effects, Theme Studio, profile themes",
+            "Pro: 36 premium themes, animated backgrounds, premium effects, Theme Studio, profile themes",
             "Founder Special: $30/year for life (first 1,000 users)",
             "Redeem promo codes through Apple\u2019s native code redemption in the App Store",
             "Manage your subscription in Settings > Subscription",

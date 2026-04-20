@@ -774,7 +774,7 @@ The app offers a freemium model with RevenueCat integration:
 
 **Pro Tier:**
 - Everything in Free
-- 25 premium themes
+- 36 premium themes
 - Premium effects
 - Theme Studio
 - Extended "Who's Free" (90 days)
