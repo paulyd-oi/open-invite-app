@@ -2012,64 +2012,6 @@ export default function CircleScreen() {
                 </Pressable>
               )}
 
-              {/* [P1_POLL_UI] Poll Strip — [P0_POLL_HIDDEN] gated off */}
-              {(() => {
-                const POLLS_ENABLED = false;
-                if (!POLLS_ENABLED) return null;
-                return polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
-                  <Pressable
-                    key={poll.id}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setActivePollIdx(pIdx);
-                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "poll_strip", to: "poll", ms: 350 });
-                      setShowNotifySheet(false);
-                      setShowPlanLockSheet(false);
-                      setTimeout(() => {
-                        setShowPollSheet(true);
-                        if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "poll_strip", to: "poll", ms: 350 });
-                        if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
-                      }, 350);
-                    }}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      borderBottomWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                      {poll.options.map((opt) => (
-                        <Pressable
-                          key={opt.id}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            Haptics.selectionAsync();
-                            voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
-                          }}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            borderRadius: 14,
-                            borderWidth: 1.5,
-                            borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
-                            backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
-                            gap: 4,
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
-                          <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </Pressable>
-                ));
-              })()}
 
               {/* [P1_NEXT_EVENT_ANCHOR] Moved to sticky overlay outside FlatList */}
 

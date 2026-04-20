@@ -14,9 +14,6 @@
  * DEV proof tag: [P0_POST_LOGOUT_NET]
  */
 
-import { devLog } from "./devLog";
-import { DEV_PROBES_ENABLED } from "./devFlags";
-
 // ── Gate state ──────────────────────────────────────────
 let _enabled = true;
 
@@ -35,19 +32,11 @@ const PUBLIC_PATHS: readonly string[] = [
 /** Disable authed network calls. Called at the VERY START of logout. */
 export function disableAuthedNetwork(): void {
   _enabled = false;
-  if (DEV_PROBES_ENABLED) {
-    const payload = { phase: "logout_begin", networkAuthEnabled: false };
-    devLog("[P0_POST_LOGOUT_NET]", payload);
-  }
 }
 
 /** Re-enable authed network calls. Called when bootStatus = 'authed'. */
 export function enableAuthedNetwork(): void {
   _enabled = true;
-  if (DEV_PROBES_ENABLED) {
-    const payload = { phase: "auth_confirmed", networkAuthEnabled: true };
-    devLog("[P0_POST_LOGOUT_NET]", payload);
-  }
 }
 
 /** Read current gate state (for testing / external checks). */
@@ -70,9 +59,5 @@ export function shouldAllowAuthedRequest(path: string): boolean {
   if (isPublic) return true;
 
   // Block all other paths
-  if (DEV_PROBES_ENABLED) {
-    const payload = { phase: "blocked_request", path };
-    devLog("[P0_POST_LOGOUT_NET]", payload);
-  }
   return false;
 }

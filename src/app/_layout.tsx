@@ -18,7 +18,6 @@ import { APP_FONTS } from '@/lib/fonts';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SubscriptionProvider } from '@/lib/SubscriptionContext';
 import { devLog } from '@/lib/devLog';
-import { DEV_PROBES_ENABLED, DEV_OVERLAYS_VISIBLE } from '@/lib/devFlags';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
@@ -103,15 +102,6 @@ import { usePostHogScreenTrack } from "@/analytics/usePostHogScreenTrack";
 import { trackAppOpened, trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
 
 
-// [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
-const QueryDebugOverlay = __DEV__
-  ? require('@/dev/QueryDebugOverlay').default
-  : () => null;
-
-// [P0_LIVE_FEEL_PROOF_HARNESS] DEV-only live refresh diagnostics
-const LiveRefreshProofOverlay = __DEV__
-  ? require('@/dev/LiveRefreshProofOverlay').default
-  : () => null;
 
 // =============================================================================
 // [P0_LAYOUT_JUMP_PROBE] DEV-only instrumentation to identify cold-start jump
@@ -129,18 +119,6 @@ const LayoutJumpProbe = __DEV__
       // Log once on mount — BOTH devLog and console.log for redundancy.
       // devLog('[P0_LAYOUT_JUMP_PROBE]') now always-on (added to ALWAYS_ON_TAG_PREFIXES),
       // but console.log is kept as belt-and-suspenders in case devLog is ever filtered.
-      useEffect(() => {
-        if (!DEV_PROBES_ENABLED) return;
-        const payload = {
-          tMs: 0,
-          insetsTop: insets.top,
-          insetsBottom: insets.bottom,
-          winW,
-          winH,
-          initialMetricsTop: initialWindowMetrics?.insets?.top ?? 'null',
-        };
-        devLog('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', payload);
-      }, []);
 
       // Log when insets change (key signal for SafeArea hydration snap)
       const prevInsetsRef = useRef({ top: insets.top, bottom: insets.bottom });
@@ -159,7 +137,6 @@ const LayoutJumpProbe = __DEV__
             winW,
             winH,
           };
-          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
           prevInsetsRef.current = { top: insets.top, bottom: insets.bottom };
         }
       }, [insets.top, insets.bottom]);
@@ -176,7 +153,6 @@ const LayoutJumpProbe = __DEV__
             prevWinW: prevWinRef.current.w,
             prevWinH: prevWinRef.current.h,
           };
-          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
           prevWinRef.current = { w: winW, h: winH };
         }
       }, [winW, winH]);
@@ -1326,7 +1302,6 @@ function RootLayout() {
       dH,
       measureCount: _navLayoutCountRef.current,
     };
-    if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
   };
 
   const posthogProps = getPostHogProviderProps();
@@ -1378,8 +1353,6 @@ function RootLayout() {
                           <AnnouncementBanner />
                           <ToastContainer />
                         </View>
-                        {DEV_OVERLAYS_VISIBLE && <QueryDebugOverlay />}
-                        {DEV_OVERLAYS_VISIBLE && <LiveRefreshProofOverlay />}
                         {/* [P0_FONTS_OVERLAY] Absolute loader overlay — covers nav while fonts load.
                             Always mounted, toggled via opacity+pointerEvents (no tree swap). */}
                         <View
