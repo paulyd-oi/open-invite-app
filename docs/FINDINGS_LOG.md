@@ -905,11 +905,11 @@ PASS
 **paywall.tsx**:
 - Removed "Add co-hosts" from FREE_FEATURES
 - Removed "Unlimited co-hosts" from PREMIUM_FEATURES
-- Updated copy to "Host up to 3 events per month"
+- Updated copy to "Host up to 3 events per month" [STALE 2026-04: free tier is now unlimited hosting]
 **invite.tsx**: Removed "They get 1 week free trial" from referral rewards
 
 ### Current Enforced Reality
-- Free: Host up to 3 events per 30-day rolling window
+- Free: Host up to 3 events per 30-day rolling window [STALE 2026-04: free tier is now unlimited hosting]
 - Founder Pro: Unlimited hosting
 - That's it. Everything else is aspirational.
 

@@ -1286,7 +1286,7 @@ export default function SettingsScreen() {
                       id: `dev_digest_${Date.now()}`,
                       type: "weekly_digest",
                       title: "Your week ahead",
-                      body: "3 events from friends this week. Sarah's Beach Day on Saturday has 5 friends going.",
+                      body: "5 events from friends this week. Sarah's Beach Day on Saturday has 5 friends going.",
                       data: null,
                       read: false,
                       seen: false,
