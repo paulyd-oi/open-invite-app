@@ -446,9 +446,8 @@ Two layers:
 | `fonts.ts` | 32 | SSOT font map for Sora weights |
 | `entitlementsApi.ts` | 28 | GET /api/entitlements helper |
 | `state/example-state.ts` | 27 | Template Zustand store with persist middleware |
-| `devFlags.ts` | 27 | DEV feature flags: probes, overlays |
+| `devFlags.ts` | 17 | DEV feature flags (POLLS_ENABLED, DEV_PROBES_ENABLED, DEV_OVERLAYS_VISIBLE removed 047b034) |
 | `apiRoutes.ts` | 23 | Typed API route string constants |
-| `features.ts` | 22 | Feature flag registry (placeholder) |
 | `devAgentSession.ts` | 22 | DEV agent session ID for concurrent edits |
 | `activeCircle.ts` | 21 | Module-level focused circle getter/setter |
 | `usePreloadImage.ts` | 20 | Fire-and-forget single image prefetch |
@@ -478,9 +477,11 @@ Non-users can RSVP from the web event page without the app.
 ### Privacy System
 Per-event privacy controls for guest list, count, location, and web visibility.
 
+**hideDetailsUntilRsvp semantics (narrowed 2026-04-20):** Gates attendee list only (Who's Coming card). Event details (About card, card-front) are always public. Matches Evite/Partiful model. Phase 6C flip reveals details independently. See 206af40, fcb7cb5.
+
 | File | Purpose |
 |------|---------|
-| `my-app-backend/prisma/schema.prisma` | 4 booleans on Event: showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation |
+| `my-app-backend/prisma/schema.prisma` | 5 booleans on Event: showGuestList, showGuestCount, showLocationPreRsvp, hideWebLocation, hideDetailsUntilRsvp |
 | `my-app-backend/src/routes/publicEvents.ts` | Enforces privacy flags in public event serialization + post-RSVP location reveal |
 | `src/components/create/SettingsSheetContent.tsx` | 684 lines — Privacy & Display toggles in create/edit settings sheet |
 | `src/app/create.tsx` | Privacy booleans in form state, included in create/update payload |
@@ -560,6 +561,20 @@ Create page is the single source of truth for both creating and editing events.
 | `src/app/create.tsx` | 813 lines — create + edit mode via `editEventId` param, prefills from GET, branches submit to POST/PUT |
 | `src/app/event/edit/[id].tsx` | 962 lines — thin redirect to `/create?editEventId=:id` |
 
+### Contract Alignment (2026-04-20)
+Batch alignment of `shared/contracts.ts` with backend reality.
+
+| Change | Commit |
+|--------|--------|
+| 15 hand-rolled types replaced with contract imports (offlineSync, AttendeesSheet, WhosComingCard, whos-free, import-calendar, CircleMembersSheet, CircleAvailabilitySheet) | d059c30 |
+| `messageReactionAggregateSchema` + `reactions` field on `circleMessageSchema` | 70f943a |
+| `notification.actorId` + `notification.entityId` fields added | 70f943a |
+| `eventReminderSchema` aligned to Prisma model | 70f943a |
+| `bannerUrl` removed from `friendUserSchema.Profile` (canonical: `bannerPhotoUrl`) | 70f943a |
+
+### Orphan Removal (2026-04-20)
+32 confirmed orphan files removed in 65c80b0 (19 components, 5 lib, 3 hooks, 2 ui, 1 docs, 2 other). See `docs/audits/2026-04-20/` for full provenance. Notable survivors that were flagged but confirmed live: `apiContractInvariant.ts`, `posthogClient.ts`, `validation.ts`, `devToastFilter.ts`.
+
 ---
 
 ## Totals
@@ -567,7 +582,9 @@ Create page is the single source of truth for both creating and editing events.
 | Directory | Files | Lines |
 |-----------|------:|------:|
 | `src/app/` | 47 | ~43,530 |
-| `src/components/` | 133 | ~33,127 |
-| `src/hooks/` | 22 | ~3,543 |
-| `src/lib/` | 107 | ~18,897 |
-| **Total** | **309** | **~99,097** |
+| `src/components/` | ~148 | ~28,500 |
+| `src/hooks/` | ~19 | ~3,380 |
+| `src/lib/` | ~102 | ~18,500 |
+| **Total** | **~316** | **~93,910** |
+
+> Totals updated 2026-04-20 after 65c80b0 orphan removal (~5,600 lines deleted). Approximate — exact recount not performed.

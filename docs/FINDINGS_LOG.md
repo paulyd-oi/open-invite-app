@@ -1,5 +1,61 @@
 # Findings Log — Frontend
 
+## 2026-04-20 Audit & Bugfix Batch — COMPLETED
+
+### Commit Batch (14 commits, main)
+
+| Hash | Title |
+|------|-------|
+| `fcb7cb5` | fix(event): remove dead "RSVP to see event details" overlay |
+| `206af40` | fix(event): split reveal gates — Phase 6C flip no longer bypasses hideDetailsUntilRsvp |
+| `0664f31` | fix(event): clear shouldBlurDetails overlays on card flip reveal |
+| `220aa8e` | chore(release): bump version to 1.3.6 (325) |
+| `6f9bd41` | chore: remove AUDIT_MAP.md tracked entry at repo root |
+| `01fa422` | chore(docs): correct AUDIT_MAP.md provenance to 2026-03-14 |
+| `5442629` | docs(audits): archive 2026-04-20 audit batch |
+| `6c1e4cf` | chore(EffectTray): remove unused onPremiumPreview/onStudioGate callback props |
+| `047b034` | chore: remove dead feature flags POLLS_ENABLED, DEV_PROBES_ENABLED, DEV_OVERLAYS_VISIBLE |
+| `65c80b0` | chore: remove 32 confirmed orphan files |
+| `70f943a` | fix(contracts): align schemas with backend reality |
+| `0887c06` | fix(entitlements): remove stale maxActiveEvents/maxCircles constants and 3-max copy residue |
+| `d059c30` | fix(contracts): replace 15 hand-rolled types with shared contract imports |
+| `1d7ee7c` | fix(copy): correct theme counts and feature comparison across user-facing surfaces |
+
+### Bug Fixed: offlineSync.ts returned undefined event IDs (d059c30)
+
+`useOfflineCreateEvent()` did `response.id` but `CreateEventResponse` shape is `{ event: { id, ... } }`. The old hand-rolled type had `[key: string]: any` which masked the error. Replacing with the shared contract surfaced it. Fixed to `response.event.id`.
+
+### Bug Fixed + Narrowed: Phase 6C flip bypasses hideDetailsUntilRsvp (0664f31 → 206af40 → fcb7cb5)
+
+- `0664f31` cleared blur overlays when `contentRevealed` was true (Phase 6C flip state). This incorrectly allowed the flip to bypass the host's RSVP privacy toggle.
+- `206af40` split the gates: `shouldBlurDetails` no longer depends on `contentRevealed`. Phase 6C flip is independent of RSVP privacy.
+- `fcb7cb5` removed the now-dead "RSVP to see event details" overlay from the About card (Phase 6C already reveals details, making it redundant UX).
+
+### Product Decision: hideDetailsUntilRsvp scope narrowed
+
+**Decision:** hideDetailsUntilRsvp gates the attendee list (Who's Coming card) only. Event details (About card, card-front info) are always public. Matches Evite/Partiful model.
+
+**Rationale:** Phase 6C flip already reveals event details to any viewer who taps. The RSVP-gated details overlay was redundant UX that created confusion about what the toggle actually hides. Narrowing to attendee-list-only is both simpler and matches industry norms.
+
+### Carry-Forwards (logged, not resolved)
+
+| Item | Notes |
+|------|-------|
+| `welcome.tsx` Apple auth deduplication | ~200 lines duplicating `sharedAppleAuth.ts` (line 562 confirmed live 2026-04-20) |
+| Email verification audit across 19 files | Not re-verified 2026-04-20 |
+| `isWork` typed-augmentation refactor | Define `AugmentedEvent = Event & { isWork?: boolean }`, thread through ~10 component prop signatures |
+| `apiContractInvariant.ts` re-evaluation | Flagged as orphan but imported by `authClient.ts` and `devStress.ts` — verify those imports aren't themselves dead |
+| `posthogClient.ts` vs `posthogSSOT.ts` | `_layout.tsx` still imports the old one per audit — cleanup needed |
+| Profile surface annotation gap | 17 premium themes have no `surfaces` property (default event-only; explicit `surfaces: ["event"]` would be clearer) |
+| Hardcoded admin email in `settings.tsx:425` | `__DEV__`-gated but should be env var |
+| `event/[id].tsx` extraction | 2939 lines, spec at `event-page-extraction.md` — separate workflow |
+| `shouldBlurDetails` rename → `shouldBlurAttendees` | Cosmetic — now misleading given attendee-only scope |
+| `hideDetailsUntilRsvp` settings UI copy audit | Toggle label likely says "Hide details until RSVP" which is now inaccurate |
+| Phase 6C flip vestigiality | Card-front already shows key details on non-private events — does flip still earn its place? Product question, not bug |
+| Vestigial styling on About card parent | `position:"relative"` + `overflow:"hidden"` no longer needed after overlay removal. Harmless, cleanup candidate |
+
+---
+
 ## refetchOnMount: false Systemic Sweep — FIXED (2026-03-21)
 
 ### Root Cause: refetchOnMount: false prevents stale data refresh on tab navigation
