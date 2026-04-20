@@ -1070,7 +1070,7 @@ export default function EventDetailScreen() {
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
 
   // When hideDetailsUntilRsvp is enabled, blur Who's Coming and Discussion for non-going, non-host viewers
-  const shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent;
+  const shouldBlurDetails = hideDetailsUntilRsvp && myRsvpStatus !== "going" && !isMyEvent && !contentRevealed;
 
   // Shared save/unsave hook — MUST be above all early returns for stable hook order
   const saveEvent = useSaveEvent({ eventId: id ?? "", viewerRsvpStatus: myRsvpStatus });
@@ -2243,7 +2243,7 @@ export default function EventDetailScreen() {
         {shouldBlurDetails && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
             <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>Tap card above to reveal details</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", textAlign: "center", zIndex: 11, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, overflow: "hidden" }}>RSVP to see event details</Text>
           </View>
         )}
 
