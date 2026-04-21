@@ -1,8 +1,8 @@
 import { Linking, Platform, Share } from "react-native";
 import * as ExpoCalendar from "expo-calendar";
 import { openMaps } from "@/utils/openMaps";
-import { buildEventSharePayload, buildEventSmsBody } from "@/lib/shareSSOT";
-import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
+import { buildEventSharePayload, buildEventSmsBody, generateShareSlug, getEventShareLink, type ShareMethod } from "@/lib/shareSSOT";
+import { trackInviteShared, trackEventShareCompleted } from "@/analytics/analyticsEventsSSOT";
 import { devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 
@@ -142,20 +142,47 @@ export const buildShareInput = (event: { id: string; title: string; emoji: strin
   return { id: event.id, title: event.title, emoji: event.emoji, dateStr, timeStr, location: event.location, description: event.description };
 };
 
-/** Share event via native share sheet */
-export const shareEvent = async (event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }) => {
+/** Share event via native share sheet with slug-based attribution */
+export const shareEvent = async (
+  event: { id: string; title: string; emoji: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null; visibility?: string | null },
+  options?: { hostUserId?: string | null; shareSurface?: "event_page" | "post_create" | "host_tools" }
+) => {
   try {
-    const payload = buildEventSharePayload(buildShareInput(event));
+    const slug = await generateShareSlug(event.id, "other");
+    const shareLink = getEventShareLink(event.id, slug);
+    const input = buildShareInput(event);
+    const msg = `${input.title} ${input.dateStr} at ${input.timeStr}\n\nJoin us\n\n${shareLink}`;
 
     trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
-    await Share.share({
-      message: payload.message,
-      title: event.title,
-    });
+    const result = await Share.share({ message: msg, title: event.title });
+
+    if (result.action === Share.sharedAction) {
+      const method: ShareMethod = inferShareMethod(result.activityType);
+      trackEventShareCompleted({
+        event_id: event.id,
+        host_user_id: options?.hostUserId ?? null,
+        share_method: method,
+        visibility: event.visibility ?? null,
+        share_surface: options?.shareSurface ?? "event_page",
+        share_slug: slug,
+        created_at_iso: new Date().toISOString(),
+      });
+    }
   } catch (error) {
     devError("Error sharing event:", error);
   }
 };
+
+function inferShareMethod(activityType?: string | null): ShareMethod {
+  if (!activityType) return "other";
+  const a = activityType.toLowerCase();
+  if (a.includes("copytopasteBoard") || a.includes("copy")) return "copy_link";
+  if (a.includes("message") || a.includes("sms")) return "sms";
+  if (a.includes("whatsapp")) return "whatsapp";
+  if (a.includes("instagram")) return "instagram";
+  if (a.includes("airdrop")) return "airdrop";
+  return "other";
+}
 
 /** Format relative time (e.g. "5m ago", "2h ago") */
 export const formatTimeAgo = (dateString: string) => {

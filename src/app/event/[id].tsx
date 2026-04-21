@@ -12,7 +12,7 @@ import {
   Animated as RNAnimated,
   KeyboardAvoidingView,
 } from "react-native";
-import { trackEventRsvp, trackRsvpCompleted, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackRsvpCompleted, trackRsvpError, trackEventPageViewed, trackRsvpAttempt, trackRsvpRedirectToAuth, trackRsvpSuccess, trackShareTriggered, trackEventViewed, trackEventShareCompleted } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { STACK_BOTTOM_PADDING } from "@/lib/layoutSpacing";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
@@ -38,7 +38,7 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { buildEventSmsBody, getEventUniversalLink } from "@/lib/shareSSOT";
+import { buildEventSmsBody, getEventUniversalLink, generateShareSlug, getEventShareLink } from "@/lib/shareSSOT";
 import { copyPlainText } from "@/lib/clipboard";
 import { safeToast } from "@/lib/safeToast";
 import { BusyBlockGate } from "@/components/event/BusyBlockGate";
@@ -87,6 +87,7 @@ import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { wrapRace } from "@/lib/devStress";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { getAttributionContext } from "@/lib/attribution";
+import { getShareRef } from "@/lib/shareAttribution";
 import {
   eventKeys,
   invalidateEventKeys,
@@ -295,6 +296,28 @@ export default function EventDetailScreen() {
       isCreator: isFromCreate,
       discoverSource,
       discoverPill,
+    });
+    // [LOOP_INSTRUMENTATION] oi_event_viewed with share attribution
+    const sourceSurface = from === "discover" ? "feed"
+      : from === "notification" ? "notification"
+      : from === "friends" ? "friends_activity"
+      : "direct";
+    getShareRef().then((slug) => {
+      trackEventViewed({
+        event_id: id,
+        viewer_user_id: session?.user?.id ?? null,
+        source_surface: sourceSurface,
+        share_slug: slug,
+        created_at_iso: new Date().toISOString(),
+      });
+    }).catch(() => {
+      trackEventViewed({
+        event_id: id,
+        viewer_user_id: session?.user?.id ?? null,
+        source_surface: sourceSurface,
+        share_slug: null,
+        created_at_iso: new Date().toISOString(),
+      });
     });
   }, [id]);
 
@@ -1108,8 +1131,11 @@ export default function EventDetailScreen() {
       }
       // [OPERATOR_BACKFLOW] Include attribution context in RSVP body for Operator Engine
       const attribution = status === "going" ? await getAttributionContext().catch(() => null) : null;
+      // [LOOP_INSTRUMENTATION] Include share slug for attribution
+      const shareSlug = await getShareRef().catch(() => null);
       const body: Record<string, unknown> = { status };
       if (attribution) body.attribution = attribution;
+      if (shareSlug) body.shareSlug = shareSlug;
       return wrapRace("RSVP_submit", () => postIdempotent(`/api/events/${id}/rsvp`, body));
     },
     onMutate: async (nextStatus: RsvpStatus) => {
@@ -2173,9 +2199,19 @@ export default function EventDetailScreen() {
               onCopyLink={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 trackShareTriggered({ eventId: event.id, method: "copy", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                const link = getEventUniversalLink(event.id);
+                const slug = await generateShareSlug(event.id, "copy_link").catch(() => null);
+                const link = getEventShareLink(event.id, slug);
                 await copyPlainText(link);
                 safeToast.success("Link copied");
+                trackEventShareCompleted({
+                  event_id: event.id,
+                  host_user_id: session?.user?.id ?? null,
+                  share_method: "copy_link",
+                  visibility: event.visibility ?? null,
+                  share_surface: "event_page",
+                  share_slug: slug,
+                  created_at_iso: new Date().toISOString(),
+                });
               }}
               onText={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2186,7 +2222,7 @@ export default function EventDetailScreen() {
               onShare={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 trackShareTriggered({ eventId: event.id, method: "native", userId: session?.user?.id ?? null, isCreator: isMyEvent });
-                shareEvent({ ...event, location: locationDisplay ?? null });
+                shareEvent({ ...event, location: locationDisplay ?? null, visibility: event.visibility ?? null }, { hostUserId: session?.user?.id, shareSurface: "event_page" });
               }}
               onInviteViaText={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2607,7 +2643,7 @@ export default function EventDetailScreen() {
           onRsvpGoing={() => handleRsvp("going")}
           onRsvpInterested={() => saveEvent.toggleSave()}
           onRsvpNotGoing={() => handleRsvp("not_going")}
-          onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null })}
+          onShare={() => event && shareEvent({ ...event, location: locationDisplay ?? null, visibility: event.visibility ?? null }, { hostUserId: session?.user?.id, shareSurface: "event_page" })}
         />
       )}
 
@@ -2724,7 +2760,7 @@ export default function EventDetailScreen() {
           onShare: () => {
             setShowEventActionsSheet(false);
             Haptics.selectionAsync();
-            shareEvent({ ...event, location: locationDisplay ?? null });
+            shareEvent({ ...event, location: locationDisplay ?? null, visibility: event.visibility ?? null }, { hostUserId: session?.user?.id, shareSurface: "event_page" });
           },
           onShareFlyer: () => {
             setShowEventActionsSheet(false);

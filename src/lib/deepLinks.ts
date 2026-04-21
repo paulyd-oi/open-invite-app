@@ -27,6 +27,7 @@ import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened, track
 import { setPendingCircleInvite } from './pendingCircleInvite';
 import { getBootStatus } from '@/hooks/useBootAuthority';
 import { parseAttributionFromUrl, setAttributionContext } from './attribution';
+import { setShareRef } from './shareAttribution';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -344,6 +345,11 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         if (hasRefParam) {
           trackReferralOpened({ source: linkSource, hasCode: true });
           handleReferralUrl(url); // fire-and-forget — stores code for post-auth claim
+          // [LOOP_INSTRUMENTATION] Persist share slug for attribution on signup/RSVP
+          const refMatch = url.match(/[?&]ref=([a-zA-Z0-9_-]+)/);
+          if (refMatch?.[1]) {
+            setShareRef(refMatch[1], parsed.id); // fire-and-forget
+          }
         }
         // [GROWTH_P3] Store pending RSVP intent ONLY for pre-auth users.
         // Already-authenticated users must RSVP explicitly via the event page button.

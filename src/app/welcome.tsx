@@ -63,6 +63,7 @@ import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { getAttributionContext } from "@/lib/attribution";
+import { getShareRef, clearShareRef } from "@/lib/shareAttribution";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { qk } from "@/lib/queryKeys";
@@ -503,6 +504,16 @@ export default function WelcomeOnboardingScreen() {
               event_type: "signup_completed",
               attribution: attr,
             }).catch(() => {}); // non-blocking
+          }
+        }).catch(() => {});
+        // [LOOP_INSTRUMENTATION] Pass share slug for attribution resolution
+        getShareRef().then((slug) => {
+          if (slug) {
+            api.post("/api/operator/attribute", {
+              event_type: "signup_completed",
+              sourceShareSlug: slug,
+            }).catch(() => {});
+            clearShareRef(); // consumed
           }
         }).catch(() => {});
       }

@@ -128,6 +128,10 @@ export const AnalyticsEvent = {
   // Friend request conversion — fired from mutation onSuccess only (not intent, not error)
   FRIEND_REQUEST_SENT_SUCCESS: "friend_request_sent_success",
 
+  // Loop instrumentation — share attribution + event viewing
+  OI_EVENT_SHARE_COMPLETED: "oi_event_share_completed",
+  OI_EVENT_VIEWED: "oi_event_viewed",
+
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -853,5 +857,29 @@ export function trackEventRevealed(props: {
   userId: string | null;
 }): void {
   track(AnalyticsEvent.EVENT_REVEALED, props);
+}
+
+/** oi_event_share_completed — fires after successful share action. [LOOP_INSTRUMENTATION] */
+export function trackEventShareCompleted(props: {
+  event_id: string;
+  host_user_id: string | null;
+  share_method: string;
+  visibility: string | null;
+  share_surface: string;
+  share_slug: string | null;
+  created_at_iso: string;
+}): void {
+  track(AnalyticsEvent.OI_EVENT_SHARE_COMPLETED, props);
+}
+
+/** oi_event_viewed — fires once per mount when event data is available. [LOOP_INSTRUMENTATION] */
+export function trackEventViewed(props: {
+  event_id: string;
+  viewer_user_id: string | null;
+  source_surface: string;
+  share_slug: string | null;
+  created_at_iso: string;
+}): void {
+  track(AnalyticsEvent.OI_EVENT_VIEWED, props);
 }
 

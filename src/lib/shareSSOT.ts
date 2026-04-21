@@ -11,6 +11,7 @@
  */
 
 import { devLog, devWarn } from "./devLog";
+import { api } from "./api";
 import { APP_STORE_ID, APP_STORE_URL, SHARE_DOMAIN } from "./config";
 
 export { APP_STORE_ID, APP_STORE_URL, SHARE_DOMAIN } from "./config";
@@ -49,6 +50,39 @@ export function appendReferralParam(url: string, referralCode: string | null | u
   if (!referralCode) return url;
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}ref=${encodeURIComponent(referralCode)}`;
+}
+
+// ── Share slug generation ────────────────────────────────────────────────────
+
+export type ShareMethod = "copy_link" | "sms" | "whatsapp" | "instagram" | "airdrop" | "other";
+
+/**
+ * Generate a share slug via the backend. Returns null on failure (graceful degradation).
+ * The slug is used in the ?ref= param for attribution tracking.
+ */
+export async function generateShareSlug(
+  eventId: string,
+  shareMethod: ShareMethod
+): Promise<string | null> {
+  try {
+    const res = await api.post<{ slug: string }>("/api/share/create-slug", {
+      eventId,
+      shareMethod,
+    });
+    return res?.slug ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build event universal link with share slug attribution.
+ * Falls back to plain link if slug is null.
+ */
+export function getEventShareLink(eventId: string, slug: string | null): string {
+  const base = getEventUniversalLink(eventId);
+  if (!slug) return base;
+  return `${base}?ref=${encodeURIComponent(slug)}`;
 }
 
 // ── Deep link builders ───────────────────────────────────────────────────────

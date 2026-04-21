@@ -9,6 +9,8 @@ import { Platform } from "react-native";
 import { devLog } from "./devLog";
 import { trackAppleSignInTap, trackAppleSignInResult, trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import { runExactAppleAuthBootstrap } from "./exactAppleAuthBootstrap";
+import { api } from "./api";
+import { getShareRef, clearShareRef } from "./shareAttribution";
 import { isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, type AppleAuthErrorBucket } from "./appleSignIn";
 import { safeToast } from "./safeToast";
 import * as Haptics from "expo-haptics";
@@ -246,6 +248,16 @@ export async function handleSharedAppleSignIn(context: AppleAuthContext): Promis
     trackSignupCompleted({ authProvider: "apple", isEmailVerified: true });
     // [GROWTH_APPLE_SIGNIN] Track success
     trackAppleSignInResult({ success: true, durationMs: Date.now() - _appleT0 });
+    // [LOOP_INSTRUMENTATION] Pass share slug for attribution resolution (fire-and-forget)
+    getShareRef().then((slug) => {
+      if (slug) {
+        api.post("/api/operator/attribute", {
+          event_type: "signup_completed",
+          sourceShareSlug: slug,
+        }).catch(() => {});
+        clearShareRef();
+      }
+    }).catch(() => {});
 
     context.onSuccess();
 
